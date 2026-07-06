@@ -77,12 +77,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Studio Operator — Live Stream Shift Tracker" },
+      { title: "Shad's Studio Operator Shift Tracker" },
       { name: "description", content: "Check in and out of live stream studio shifts and log streams managed and dance teachers encountered." },
-      { property: "og:title", content: "Studio Operator — Live Stream Shift Tracker" },
-      { property: "og:description", content: "Track your live stream studio shifts, streams managed, and dance teachers encountered." },
+      { property: "og:title", content: "Shad's Studio Operator Shift Tracker" },
+      { property: "og:description", content: "Check in and out of live stream studio shifts and log streams managed and dance teachers encountered." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Shad's Studio Operator Shift Tracker" },
+      { name: "twitter:description", content: "Check in and out of live stream studio shifts and log streams managed and dance teachers encountered." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7d586a02-cd55-465a-ba51-e876cdd7fa3e/id-preview-0ec0e9f7--a5a2a5ad-bdfa-419f-86a1-295667413520.lovable.app-1783335392621.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7d586a02-cd55-465a-ba51-e876cdd7fa3e/id-preview-0ec0e9f7--a5a2a5ad-bdfa-419f-86a1-295667413520.lovable.app-1783335392621.png" },
     ],
     links: [
       {
