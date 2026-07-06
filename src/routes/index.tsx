@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { Radio, LogIn, LogOut, Plus, X, Clock, Video, Users, Trash2 } from "lucide-react";
+import { Radio, LogIn, LogOut, Plus, X, Clock, Video, Users, Trash2, Calendar, Play } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -22,7 +22,27 @@ type Shift = {
   live_streams_count: number;
   dance_teachers: string[];
   notes: string | null;
+  scheduled_shift_id: string | null;
 };
+
+type ScheduledShift = {
+  id: string;
+  day_of_week: number;
+  start_time: string; // "HH:MM:SS"
+  end_time: string;
+  label: string | null;
+};
+
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function fmtTime(t: string) {
+  const [hStr, mStr] = t.split(":");
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = ((h + 11) % 12) + 1;
+  return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
 
 const OPERATOR_KEY = "lss_operator_name";
 
@@ -47,6 +67,7 @@ function Index() {
   const [operatorName, setOperatorName] = useState("");
   const [active, setActive] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
+  const [scheduled, setScheduled] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(true);
   const [teacherInput, setTeacherInput] = useState("");
   const [notes, setNotes] = useState("");
@@ -75,21 +96,26 @@ function Index() {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("shifts")
-      .select("*")
-      .order("check_in_at", { ascending: false });
-    if (error) {
-      toast.error(error.message);
+    const [shiftsRes, schedRes] = await Promise.all([
+      supabase.from("shifts").select("*").order("check_in_at", { ascending: false }),
+      supabase.from("scheduled_shifts").select("*").order("day_of_week").order("start_time"),
+    ]);
+    if (shiftsRes.error) {
+      toast.error(shiftsRes.error.message);
     } else {
-      const rows = (data ?? []) as Shift[];
+      const rows = (shiftsRes.data ?? []) as Shift[];
       setActive(rows.find((r) => !r.check_out_at) ?? null);
       setHistory(rows.filter((r) => r.check_out_at));
+    }
+    if (schedRes.error) {
+      toast.error(schedRes.error.message);
+    } else {
+      setScheduled((schedRes.data ?? []) as ScheduledShift[]);
     }
     setLoading(false);
   }
 
-  async function checkIn() {
+  async function checkIn(scheduledShiftId?: string) {
     const name = operatorName.trim();
     if (!name) {
       toast.error("Enter your name first");
@@ -98,7 +124,7 @@ function Index() {
     localStorage.setItem(OPERATOR_KEY, name);
     const { data, error } = await supabase
       .from("shifts")
-      .insert({ operator_name: name })
+      .insert({ operator_name: name, scheduled_shift_id: scheduledShiftId ?? null })
       .select()
       .single();
     if (error) return toast.error(error.message);
@@ -184,6 +210,58 @@ function Index() {
           )}
         </header>
 
+        {/* Scheduled shifts this week */}
+        {!active && scheduled.length > 0 && (
+          <section className="mb-6">
+            <div className="mb-3 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                This week's schedule
+              </h2>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {scheduled.map((s) => {
+                const today = new Date().getDay();
+                const isToday = s.day_of_week === today;
+                return (
+                  <Card
+                    key={s.id}
+                    className={isToday ? "border-primary/50 bg-primary/5" : ""}
+                  >
+                    <CardContent className="flex items-center justify-between gap-3 p-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{DAY_NAMES[s.day_of_week]}</span>
+                          {isToday && (
+                            <Badge variant="default" className="text-[10px]">
+                              TODAY
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {fmtTime(s.start_time)} — {fmtTime(s.end_time)}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => checkIn(s.id)}
+                        disabled={!operatorName.trim()}
+                      >
+                        <Play className="mr-1 h-3.5 w-3.5" /> Start
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+            {!operatorName.trim() && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Enter your name below to enable starting a scheduled shift.
+              </p>
+            )}
+          </section>
+        )}
+
         {/* Active / Check-in card */}
         {!active ? (
           <Card>
@@ -202,8 +280,8 @@ function Index() {
                   onKeyDown={(e) => e.key === "Enter" && checkIn()}
                 />
               </div>
-              <Button onClick={checkIn} className="w-full" size="lg">
-                <LogIn className="mr-2 h-4 w-4" /> Check in
+              <Button onClick={() => checkIn()} className="w-full" size="lg">
+                <LogIn className="mr-2 h-4 w-4" /> Check in (no schedule)
               </Button>
             </CardContent>
           </Card>
