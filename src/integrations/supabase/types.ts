@@ -14,7 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      shifts: {
+        Row: {
+          check_in_at: string
+          check_out_at: string | null
+          created_at: string
+          dance_teachers: string[]
+          id: string
+          live_streams_count: number
+          notes: string | null
+          operator_name: string
+        }
+        Insert: {
+          check_in_at?: string
+          check_out_at?: string | null
+          created_at?: string
+          dance_teachers?: string[]
+          id?: string
+          live_streams_count?: number
+          notes?: string | null
+          operator_name: string
+        }
+        Update: {
+          check_in_at?: string
+          check_out_at?: string | null
+          created_at?: string
+          dance_teachers?: string[]
+          id?: string
+          live_streams_count?: number
+          notes?: string | null
+          operator_name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
