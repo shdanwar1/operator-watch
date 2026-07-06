@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      scheduled_shifts: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          end_time: string
+          id: string
+          label: string | null
+          start_time: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          end_time: string
+          id?: string
+          label?: string | null
+          start_time: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          label?: string | null
+          start_time?: string
+        }
+        Relationships: []
+      }
       shifts: {
         Row: {
           check_in_at: string
@@ -24,6 +51,7 @@ export type Database = {
           live_streams_count: number
           notes: string | null
           operator_name: string
+          scheduled_shift_id: string | null
         }
         Insert: {
           check_in_at?: string
@@ -34,6 +62,7 @@ export type Database = {
           live_streams_count?: number
           notes?: string | null
           operator_name: string
+          scheduled_shift_id?: string | null
         }
         Update: {
           check_in_at?: string
@@ -44,8 +73,17 @@ export type Database = {
           live_streams_count?: number
           notes?: string | null
           operator_name?: string
+          scheduled_shift_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "shifts_scheduled_shift_id_fkey"
+            columns: ["scheduled_shift_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
