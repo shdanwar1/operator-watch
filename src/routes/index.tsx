@@ -210,6 +210,58 @@ function Index() {
           )}
         </header>
 
+        {/* Scheduled shifts this week */}
+        {!active && scheduled.length > 0 && (
+          <section className="mb-6">
+            <div className="mb-3 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                This week's schedule
+              </h2>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {scheduled.map((s) => {
+                const today = new Date().getDay();
+                const isToday = s.day_of_week === today;
+                return (
+                  <Card
+                    key={s.id}
+                    className={isToday ? "border-primary/50 bg-primary/5" : ""}
+                  >
+                    <CardContent className="flex items-center justify-between gap-3 p-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{DAY_NAMES[s.day_of_week]}</span>
+                          {isToday && (
+                            <Badge variant="default" className="text-[10px]">
+                              TODAY
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {fmtTime(s.start_time)} — {fmtTime(s.end_time)}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => checkIn(s.id)}
+                        disabled={!operatorName.trim()}
+                      >
+                        <Play className="mr-1 h-3.5 w-3.5" /> Start
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+            {!operatorName.trim() && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Enter your name below to enable starting a scheduled shift.
+              </p>
+            )}
+          </section>
+        )}
+
         {/* Active / Check-in card */}
         {!active ? (
           <Card>
