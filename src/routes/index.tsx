@@ -228,8 +228,8 @@ function Index() {
                   onKeyDown={(e) => e.key === "Enter" && checkIn()}
                 />
               </div>
-              <Button onClick={checkIn} className="w-full" size="lg">
-                <LogIn className="mr-2 h-4 w-4" /> Check in
+              <Button onClick={() => checkIn()} className="w-full" size="lg">
+                <LogIn className="mr-2 h-4 w-4" /> Check in (no schedule)
               </Button>
             </CardContent>
           </Card>
