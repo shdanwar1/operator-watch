@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { Radio, LogIn, LogOut, Plus, X, Clock, Video, Users, Trash2 } from "lucide-react";
+import { Radio, LogIn, LogOut, Plus, X, Clock, Video, Users, Trash2, Calendar, Play } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -22,7 +22,27 @@ type Shift = {
   live_streams_count: number;
   dance_teachers: string[];
   notes: string | null;
+  scheduled_shift_id: string | null;
 };
+
+type ScheduledShift = {
+  id: string;
+  day_of_week: number;
+  start_time: string; // "HH:MM:SS"
+  end_time: string;
+  label: string | null;
+};
+
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function fmtTime(t: string) {
+  const [hStr, mStr] = t.split(":");
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = ((h + 11) % 12) + 1;
+  return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
 
 const OPERATOR_KEY = "lss_operator_name";
 
@@ -47,6 +67,7 @@ function Index() {
   const [operatorName, setOperatorName] = useState("");
   const [active, setActive] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
+  const [scheduled, setScheduled] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(true);
   const [teacherInput, setTeacherInput] = useState("");
   const [notes, setNotes] = useState("");
