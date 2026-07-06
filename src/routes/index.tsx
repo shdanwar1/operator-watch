@@ -96,21 +96,26 @@ function Index() {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("shifts")
-      .select("*")
-      .order("check_in_at", { ascending: false });
-    if (error) {
-      toast.error(error.message);
+    const [shiftsRes, schedRes] = await Promise.all([
+      supabase.from("shifts").select("*").order("check_in_at", { ascending: false }),
+      supabase.from("scheduled_shifts").select("*").order("day_of_week").order("start_time"),
+    ]);
+    if (shiftsRes.error) {
+      toast.error(shiftsRes.error.message);
     } else {
-      const rows = (data ?? []) as Shift[];
+      const rows = (shiftsRes.data ?? []) as Shift[];
       setActive(rows.find((r) => !r.check_out_at) ?? null);
       setHistory(rows.filter((r) => r.check_out_at));
+    }
+    if (schedRes.error) {
+      toast.error(schedRes.error.message);
+    } else {
+      setScheduled((schedRes.data ?? []) as ScheduledShift[]);
     }
     setLoading(false);
   }
 
-  async function checkIn() {
+  async function checkIn(scheduledShiftId?: string) {
     const name = operatorName.trim();
     if (!name) {
       toast.error("Enter your name first");
@@ -119,7 +124,7 @@ function Index() {
     localStorage.setItem(OPERATOR_KEY, name);
     const { data, error } = await supabase
       .from("shifts")
-      .insert({ operator_name: name })
+      .insert({ operator_name: name, scheduled_shift_id: scheduledShiftId ?? null })
       .select()
       .single();
     if (error) return toast.error(error.message);
