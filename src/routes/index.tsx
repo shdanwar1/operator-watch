@@ -76,7 +76,31 @@ function formatDT(iso: string | null) {
   });
 }
 
-function Index() {
+// Determines whether a scheduled shift can be started now.
+// Rule: only from 45 minutes before start until the shift's end, and only today.
+export function scheduledWindow(s: { day_of_week: number; start_time: string; end_time: string }, now = new Date()) {
+  const today = now.getDay();
+  if (s.day_of_week !== today) {
+    return { canStart: false, reason: `Only on ${DAY_NAMES[s.day_of_week]}` as string };
+  }
+  const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
+  const [eh, em] = s.end_time.split(":").map((n) => parseInt(n, 10));
+  const start = new Date(now); start.setHours(sh, sm, 0, 0);
+  const end = new Date(now); end.setHours(eh, em, 0, 0);
+  const openAt = new Date(start.getTime() - 45 * 60 * 1000);
+  if (now < openAt) {
+    const mins = Math.round((openAt.getTime() - now.getTime()) / 60000);
+    const hrs = Math.floor(mins / 60);
+    const rem = mins % 60;
+    const wait = hrs > 0 ? `${hrs}h ${rem}m` : `${mins}m`;
+    return { canStart: false, reason: `Opens in ${wait}` };
+  }
+  if (now > end) {
+    return { canStart: false, reason: "Shift ended" };
+  }
+  return { canStart: true, reason: "" };
+}
+
   const { username } = Route.useLoaderData();
   const router = useRouter();
   const signOut = useServerFn(lockSite);
