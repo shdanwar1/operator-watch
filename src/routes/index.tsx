@@ -123,7 +123,10 @@ function Index() {
     if (shiftsRes.error) {
       toast.error(shiftsRes.error.message);
     } else {
-      const rows = (shiftsRes.data ?? []) as Shift[];
+      const rows = (shiftsRes.data ?? []).map((r) => ({
+        ...r,
+        classes: (Array.isArray((r as any).classes) ? (r as any).classes : []) as ShiftClass[],
+      })) as Shift[];
       setActive(rows.find((r) => !r.check_out_at) ?? null);
       setHistory(rows.filter((r) => r.check_out_at));
     }
@@ -148,7 +151,7 @@ function Index() {
       .select()
       .single();
     if (error) return toast.error(error.message);
-    setActive(data as Shift);
+    setActive({ ...(data as any), classes: (Array.isArray((data as any).classes) ? (data as any).classes : []) } as Shift);
     toast.success(`Checked in — welcome, ${name}`);
   }
 
