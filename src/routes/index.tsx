@@ -276,6 +276,11 @@ function Index() {
                 {username}
               </span>
             )}
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/shifts">
+                <ListChecks className="mr-1 h-3.5 w-3.5" /> Shifts
+              </Link>
+            </Button>
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="mr-1 h-3.5 w-3.5" /> Sign out
             </Button>
@@ -298,6 +303,7 @@ function Index() {
               {scheduled.map((s) => {
                 const today = new Date().getDay();
                 const isToday = s.day_of_week === today;
+                const win = scheduledWindow(s);
                 return (
                   <Card
                     key={s.id}
@@ -316,11 +322,15 @@ function Index() {
                         <div className="text-sm text-muted-foreground">
                           {fmtTime(s.start_time)} — {fmtTime(s.end_time)}
                         </div>
+                        {!win.canStart && (
+                          <div className="mt-0.5 text-xs text-muted-foreground">{win.reason}</div>
+                        )}
                       </div>
                       <Button
                         size="sm"
                         onClick={() => checkIn(s.id)}
-                        disabled={!operatorName.trim()}
+                        disabled={!operatorName.trim() || !win.canStart}
+                        title={!win.canStart ? win.reason : "Start shift"}
                       >
                         <Play className="mr-1 h-3.5 w-3.5" /> Start
                       </Button>
