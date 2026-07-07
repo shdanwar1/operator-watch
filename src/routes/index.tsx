@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { Radio, LogIn, LogOut, Plus, X, Clock, Video, Users, Trash2, Calendar, Play } from "lucide-react";
+import { Radio, LogIn, LogOut, Plus, X, Clock, Video, Users, Trash2, Calendar, Play, ListChecks, BookOpen } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
@@ -24,6 +24,8 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+export type ShiftClass = { class: string; teacher: string };
+
 type Shift = {
   id: string;
   operator_name: string;
@@ -33,6 +35,7 @@ type Shift = {
   dance_teachers: string[];
   notes: string | null;
   scheduled_shift_id: string | null;
+  classes: ShiftClass[];
 };
 
 type ScheduledShift = {
