@@ -159,11 +159,25 @@ function Index() {
     if (!active) return;
     const optimistic = { ...active, ...patch } as Shift;
     setActive(optimistic);
-    const { error } = await supabase.from("shifts").update(patch).eq("id", active.id);
+    const { error } = await supabase.from("shifts").update(patch as any).eq("id", active.id);
     if (error) {
       toast.error(error.message);
       load();
     }
+  }
+
+  function addClassRow() {
+    if (!active) return;
+    updateActive({ classes: [...(active.classes ?? []), { class: "", teacher: "" }] });
+  }
+  function updateClassRow(idx: number, patch: Partial<ShiftClass>) {
+    if (!active) return;
+    const next = active.classes.map((c, i) => (i === idx ? { ...c, ...patch } : c));
+    updateActive({ classes: next });
+  }
+  function removeClassRow(idx: number) {
+    if (!active) return;
+    updateActive({ classes: active.classes.filter((_, i) => i !== idx) });
   }
 
   function bumpStreams(delta: number) {
