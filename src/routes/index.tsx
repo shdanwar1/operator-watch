@@ -235,6 +235,9 @@ function Index() {
               <LogOut className="mr-1 h-3.5 w-3.5" /> Sign out
             </Button>
           </div>
+        </header>
+
+
 
 
         {/* Scheduled shifts this week */}
