@@ -101,6 +101,7 @@ export function scheduledWindow(s: { day_of_week: number; start_time: string; en
   return { canStart: true, reason: "" };
 }
 
+function Index() {
   const { username } = Route.useLoaderData();
   const router = useRouter();
   const signOut = useServerFn(lockSite);
