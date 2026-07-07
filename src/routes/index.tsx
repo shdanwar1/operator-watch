@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { Radio, LogIn, LogOut, Plus, X, Clock, Video, Users, Trash2, Calendar, Play } from "lucide-react";
+import { Radio, LogIn, LogOut, Plus, X, Clock, Video, Users, Trash2, Calendar, Play, ListChecks, BookOpen } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
@@ -24,6 +24,8 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+export type ShiftClass = { class: string; teacher: string };
+
 type Shift = {
   id: string;
   operator_name: string;
@@ -33,6 +35,7 @@ type Shift = {
   dance_teachers: string[];
   notes: string | null;
   scheduled_shift_id: string | null;
+  classes: ShiftClass[];
 };
 
 type ScheduledShift = {
@@ -71,6 +74,31 @@ function formatDT(iso: string | null) {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+// Determines whether a scheduled shift can be started now.
+// Rule: only from 45 minutes before start until the shift's end, and only today.
+export function scheduledWindow(s: { day_of_week: number; start_time: string; end_time: string }, now = new Date()) {
+  const today = now.getDay();
+  if (s.day_of_week !== today) {
+    return { canStart: false, reason: `Only on ${DAY_NAMES[s.day_of_week]}` as string };
+  }
+  const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
+  const [eh, em] = s.end_time.split(":").map((n) => parseInt(n, 10));
+  const start = new Date(now); start.setHours(sh, sm, 0, 0);
+  const end = new Date(now); end.setHours(eh, em, 0, 0);
+  const openAt = new Date(start.getTime() - 45 * 60 * 1000);
+  if (now < openAt) {
+    const mins = Math.round((openAt.getTime() - now.getTime()) / 60000);
+    const hrs = Math.floor(mins / 60);
+    const rem = mins % 60;
+    const wait = hrs > 0 ? `${hrs}h ${rem}m` : `${mins}m`;
+    return { canStart: false, reason: `Opens in ${wait}` };
+  }
+  if (now > end) {
+    return { canStart: false, reason: "Shift ended" };
+  }
+  return { canStart: true, reason: "" };
 }
 
 function Index() {
@@ -120,7 +148,10 @@ function Index() {
     if (shiftsRes.error) {
       toast.error(shiftsRes.error.message);
     } else {
-      const rows = (shiftsRes.data ?? []) as Shift[];
+      const rows = (shiftsRes.data ?? []).map((r) => ({
+        ...r,
+        classes: (Array.isArray((r as any).classes) ? (r as any).classes : []) as ShiftClass[],
+      })) as Shift[];
       setActive(rows.find((r) => !r.check_out_at) ?? null);
       setHistory(rows.filter((r) => r.check_out_at));
     }
@@ -145,7 +176,7 @@ function Index() {
       .select()
       .single();
     if (error) return toast.error(error.message);
-    setActive(data as Shift);
+    setActive({ ...(data as any), classes: (Array.isArray((data as any).classes) ? (data as any).classes : []) } as Shift);
     toast.success(`Checked in — welcome, ${name}`);
   }
 
@@ -153,11 +184,25 @@ function Index() {
     if (!active) return;
     const optimistic = { ...active, ...patch } as Shift;
     setActive(optimistic);
-    const { error } = await supabase.from("shifts").update(patch).eq("id", active.id);
+    const { error } = await supabase.from("shifts").update(patch as any).eq("id", active.id);
     if (error) {
       toast.error(error.message);
       load();
     }
+  }
+
+  function addClassRow() {
+    if (!active) return;
+    updateActive({ classes: [...(active.classes ?? []), { class: "", teacher: "" }] });
+  }
+  function updateClassRow(idx: number, patch: Partial<ShiftClass>) {
+    if (!active) return;
+    const next = active.classes.map((c, i) => (i === idx ? { ...c, ...patch } : c));
+    updateActive({ classes: next });
+  }
+  function removeClassRow(idx: number) {
+    if (!active) return;
+    updateActive({ classes: active.classes.filter((_, i) => i !== idx) });
   }
 
   function bumpStreams(delta: number) {
@@ -231,6 +276,11 @@ function Index() {
                 {username}
               </span>
             )}
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/shifts">
+                <ListChecks className="mr-1 h-3.5 w-3.5" /> Shifts
+              </Link>
+            </Button>
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="mr-1 h-3.5 w-3.5" /> Sign out
             </Button>
@@ -253,6 +303,7 @@ function Index() {
               {scheduled.map((s) => {
                 const today = new Date().getDay();
                 const isToday = s.day_of_week === today;
+                const win = scheduledWindow(s);
                 return (
                   <Card
                     key={s.id}
@@ -271,11 +322,15 @@ function Index() {
                         <div className="text-sm text-muted-foreground">
                           {fmtTime(s.start_time)} — {fmtTime(s.end_time)}
                         </div>
+                        {!win.canStart && (
+                          <div className="mt-0.5 text-xs text-muted-foreground">{win.reason}</div>
+                        )}
                       </div>
                       <Button
                         size="sm"
                         onClick={() => checkIn(s.id)}
-                        disabled={!operatorName.trim()}
+                        disabled={!operatorName.trim() || !win.canStart}
+                        title={!win.canStart ? win.reason : "Start shift"}
                       >
                         <Play className="mr-1 h-3.5 w-3.5" /> Start
                       </Button>
@@ -345,6 +400,51 @@ function Index() {
                     <Plus className="h-5 w-5" />
                   </Button>
                 </div>
+              </div>
+
+              {/* Shift information: classes & teachers */}
+              <div className="rounded-lg border p-4">
+                <div className="mb-3 flex items-center justify-between gap-2 text-sm font-medium">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" /> Shift information
+                  </div>
+                  <Button variant="secondary" size="sm" onClick={addClassRow}>
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Add class
+                  </Button>
+                </div>
+                {active.classes.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No classes logged yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-[1fr_1fr_auto] gap-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      <span>Class</span>
+                      <span>Teacher</span>
+                      <span className="sr-only">Actions</span>
+                    </div>
+                    {active.classes.map((c, i) => (
+                      <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                        <Input
+                          placeholder={`Class ${i + 1}`}
+                          value={c.class}
+                          onChange={(e) => updateClassRow(i, { class: e.target.value })}
+                        />
+                        <Input
+                          placeholder="Teacher"
+                          value={c.teacher}
+                          onChange={(e) => updateClassRow(i, { teacher: e.target.value })}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeClassRow(i)}
+                          aria-label="Remove row"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Teachers */}

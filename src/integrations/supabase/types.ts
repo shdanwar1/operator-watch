@@ -45,6 +45,7 @@ export type Database = {
         Row: {
           check_in_at: string
           check_out_at: string | null
+          classes: Json
           created_at: string
           dance_teachers: string[]
           id: string
@@ -56,6 +57,7 @@ export type Database = {
         Insert: {
           check_in_at?: string
           check_out_at?: string | null
+          classes?: Json
           created_at?: string
           dance_teachers?: string[]
           id?: string
@@ -67,6 +69,7 @@ export type Database = {
         Update: {
           check_in_at?: string
           check_out_at?: string | null
+          classes?: Json
           created_at?: string
           dance_teachers?: string[]
           id?: string

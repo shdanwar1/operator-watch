@@ -1,0 +1,349 @@
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { getGateStatus } from "@/lib/gate.functions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { toast, Toaster } from "sonner";
+import { ArrowLeft, Pencil, Plus, Trash2, X, Save } from "lucide-react";
+import type { ShiftClass } from "./index";
+
+export const Route = createFileRoute("/shifts")({
+  beforeLoad: async () => {
+    const { unlocked } = await getGateStatus();
+    if (!unlocked) throw redirect({ to: "/unlock" });
+  },
+  component: ShiftsPage,
+});
+
+type Shift = {
+  id: string;
+  operator_name: string;
+  check_in_at: string;
+  check_out_at: string | null;
+  live_streams_count: number;
+  dance_teachers: string[];
+  notes: string | null;
+  scheduled_shift_id: string | null;
+  classes: ShiftClass[];
+};
+
+function toLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function fromLocalInput(v: string): string | null {
+  if (!v) return null;
+  return new Date(v).toISOString();
+}
+function fmt(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+function duration(a: string, b: string | null) {
+  const end = b ? new Date(b).getTime() : Date.now();
+  const mins = Math.max(0, Math.floor((end - new Date(a).getTime()) / 60000));
+  const h = Math.floor(mins / 60);
+  return `${h}h ${(mins % 60).toString().padStart(2, "0")}m`;
+}
+
+function ShiftsPage() {
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Shift | null>(null);
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function load() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("shifts")
+      .select("*")
+      .order("check_in_at", { ascending: false });
+    if (error) toast.error(error.message);
+    else {
+      setShifts(
+        (data ?? []).map((r) => ({
+          ...r,
+          classes: (Array.isArray((r as any).classes) ? (r as any).classes : []) as ShiftClass[],
+        })) as Shift[],
+      );
+    }
+    setLoading(false);
+  }
+
+  async function saveEdit(next: Shift) {
+    const { error } = await supabase
+      .from("shifts")
+      .update({
+        operator_name: next.operator_name,
+        check_in_at: next.check_in_at,
+        check_out_at: next.check_out_at,
+        live_streams_count: next.live_streams_count,
+        classes: next.classes as any,
+        notes: next.notes,
+      } as any)
+      .eq("id", next.id);
+    if (error) return toast.error(error.message);
+    toast.success("Shift updated");
+    setEditing(null);
+    load();
+  }
+
+  async function deleteShift(id: string) {
+    const { error } = await supabase.from("shifts").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Deleted");
+    load();
+  }
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <Toaster richColors position="top-center" />
+      <div className="mx-auto max-w-4xl px-5 py-10">
+        <header className="mb-6 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/">
+                <ArrowLeft className="mr-1 h-4 w-4" /> Back
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">All shifts</h1>
+              <p className="text-sm text-muted-foreground">Review and edit any shift.</p>
+            </div>
+          </div>
+        </header>
+
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : shifts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No shifts yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {shifts.map((s) => (
+              <Card key={s.id}>
+                <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{s.operator_name}</span>
+                      {!s.check_out_at && (
+                        <Badge variant="destructive" className="text-[10px]">ACTIVE</Badge>
+                      )}
+                    </div>
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      {fmt(s.check_in_at)} → {fmt(s.check_out_at)} •{" "}
+                      {duration(s.check_in_at, s.check_out_at)} •{" "}
+                      <span className="text-foreground">{s.live_streams_count}</span> streams
+                    </div>
+                    {s.classes.length > 0 && (
+                      <div className="mt-3 overflow-hidden rounded-md border">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50 text-[10px] uppercase tracking-wide text-muted-foreground">
+                            <tr>
+                              <th className="px-3 py-1.5 text-left font-medium">Class</th>
+                              <th className="px-3 py-1.5 text-left font-medium">Teacher</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {s.classes.map((c, i) => (
+                              <tr key={i} className="border-t">
+                                <td className="px-3 py-1.5">{c.class || <span className="text-muted-foreground">—</span>}</td>
+                                <td className="px-3 py-1.5">{c.teacher || <span className="text-muted-foreground">—</span>}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    {s.notes && (
+                      <p className="mt-2 text-sm italic text-muted-foreground">"{s.notes}"</p>
+                    )}
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant="outline" size="sm" onClick={() => setEditing(s)}>
+                      <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteShift(s.id)}
+                      aria-label="Delete shift"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <EditDialog
+        shift={editing}
+        onClose={() => setEditing(null)}
+        onSave={saveEdit}
+      />
+    </div>
+  );
+}
+
+function EditDialog({
+  shift,
+  onClose,
+  onSave,
+}: {
+  shift: Shift | null;
+  onClose: () => void;
+  onSave: (s: Shift) => void;
+}) {
+  const [draft, setDraft] = useState<Shift | null>(shift);
+
+  useEffect(() => {
+    setDraft(shift);
+  }, [shift?.id]);
+
+  if (!draft) return null;
+
+  function patch(p: Partial<Shift>) {
+    setDraft((d) => (d ? { ...d, ...p } : d));
+  }
+  function updateClass(i: number, p: Partial<ShiftClass>) {
+    setDraft((d) => (d ? { ...d, classes: d.classes.map((c, idx) => (idx === i ? { ...c, ...p } : c)) } : d));
+  }
+  function addClass() {
+    setDraft((d) => (d ? { ...d, classes: [...d.classes, { class: "", teacher: "" }] } : d));
+  }
+  function removeClass(i: number) {
+    setDraft((d) => (d ? { ...d, classes: d.classes.filter((_, idx) => idx !== i) } : d));
+  }
+
+  return (
+    <Dialog open={!!shift} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit shift</DialogTitle>
+          <DialogDescription>Update times, classes, and details.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Operator</Label>
+            <Input
+              value={draft.operator_name}
+              onChange={(e) => patch({ operator_name: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Check in</Label>
+              <Input
+                type="datetime-local"
+                value={toLocalInput(draft.check_in_at)}
+                onChange={(e) => {
+                  const iso = fromLocalInput(e.target.value);
+                  if (iso) patch({ check_in_at: iso });
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Check out</Label>
+              <Input
+                type="datetime-local"
+                value={toLocalInput(draft.check_out_at)}
+                onChange={(e) => patch({ check_out_at: fromLocalInput(e.target.value) })}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Live streams managed</Label>
+            <Input
+              type="number"
+              min={0}
+              value={draft.live_streams_count}
+              onChange={(e) => patch({ live_streams_count: Math.max(0, parseInt(e.target.value || "0", 10)) })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Shift information</Label>
+              <Button type="button" variant="secondary" size="sm" onClick={addClass}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> Add class
+              </Button>
+            </div>
+            {draft.classes.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No classes yet.</p>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-[1fr_1fr_auto] gap-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  <span>Class</span>
+                  <span>Teacher</span>
+                  <span className="sr-only">Actions</span>
+                </div>
+                {draft.classes.map((c, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                    <Input
+                      placeholder={`Class ${i + 1}`}
+                      value={c.class}
+                      onChange={(e) => updateClass(i, { class: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Teacher"
+                      value={c.teacher}
+                      onChange={(e) => updateClass(i, { teacher: e.target.value })}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeClass(i)}
+                      aria-label="Remove row"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Notes</Label>
+            <Textarea
+              rows={3}
+              value={draft.notes ?? ""}
+              onChange={(e) => patch({ notes: e.target.value || null })}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => draft && onSave(draft)}>
+            <Save className="mr-1 h-4 w-4" /> Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
