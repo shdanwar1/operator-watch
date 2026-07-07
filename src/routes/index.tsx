@@ -74,6 +74,13 @@ function formatDT(iso: string | null) {
 }
 
 function Index() {
+  const { username } = Route.useLoaderData();
+  const router = useRouter();
+  const signOut = useServerFn(lockSite);
+  async function handleSignOut() {
+    await signOut();
+    await router.navigate({ to: "/unlock" });
+  }
   const [operatorName, setOperatorName] = useState("");
   const [active, setActive] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
@@ -213,12 +220,22 @@ function Index() {
             <h1 className="text-2xl font-semibold tracking-tight">Studio Operator</h1>
             <p className="text-sm text-muted-foreground">Live stream shift tracker</p>
           </div>
-          {active && (
-            <Badge className="ml-auto animate-pulse" variant="destructive">
-              ● ON AIR
-            </Badge>
-          )}
-        </header>
+          <div className="ml-auto flex items-center gap-2">
+            {active && (
+              <Badge className="animate-pulse" variant="destructive">
+                ● ON AIR
+              </Badge>
+            )}
+            {username && (
+              <span className="hidden text-xs text-muted-foreground sm:inline">
+                {username}
+              </span>
+            )}
+            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+              <LogOut className="mr-1 h-3.5 w-3.5" /> Sign out
+            </Button>
+          </div>
+
 
         {/* Scheduled shifts this week */}
         {!active && scheduled.length > 0 && (
