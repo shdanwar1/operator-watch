@@ -1,6 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getGateStatus, lockSite } from "@/lib/gate.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +13,14 @@ import { toast, Toaster } from "sonner";
 import { Radio, LogIn, LogOut, Plus, X, Clock, Video, Users, Trash2, Calendar, Play } from "lucide-react";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: async () => {
+    const { unlocked } = await getGateStatus();
+    if (!unlocked) throw redirect({ to: "/unlock" });
+  },
+  loader: async () => {
+    const { username } = await getGateStatus();
+    return { username };
+  },
   component: Index,
 });
 
@@ -64,6 +74,13 @@ function formatDT(iso: string | null) {
 }
 
 function Index() {
+  const { username } = Route.useLoaderData();
+  const router = useRouter();
+  const signOut = useServerFn(lockSite);
+  async function handleSignOut() {
+    await signOut();
+    await router.navigate({ to: "/unlock" });
+  }
   const [operatorName, setOperatorName] = useState("");
   const [active, setActive] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
@@ -203,12 +220,25 @@ function Index() {
             <h1 className="text-2xl font-semibold tracking-tight">Studio Operator</h1>
             <p className="text-sm text-muted-foreground">Live stream shift tracker</p>
           </div>
-          {active && (
-            <Badge className="ml-auto animate-pulse" variant="destructive">
-              ● ON AIR
-            </Badge>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {active && (
+              <Badge className="animate-pulse" variant="destructive">
+                ● ON AIR
+              </Badge>
+            )}
+            {username && (
+              <span className="hidden text-xs text-muted-foreground sm:inline">
+                {username}
+              </span>
+            )}
+            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+              <LogOut className="mr-1 h-3.5 w-3.5" /> Sign out
+            </Button>
+          </div>
         </header>
+
+
+
 
         {/* Scheduled shifts this week */}
         {!active && scheduled.length > 0 && (
