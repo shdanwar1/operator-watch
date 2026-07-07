@@ -402,6 +402,51 @@ function Index() {
                 </div>
               </div>
 
+              {/* Shift information: classes & teachers */}
+              <div className="rounded-lg border p-4">
+                <div className="mb-3 flex items-center justify-between gap-2 text-sm font-medium">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" /> Shift information
+                  </div>
+                  <Button variant="secondary" size="sm" onClick={addClassRow}>
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Add class
+                  </Button>
+                </div>
+                {active.classes.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No classes logged yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-[1fr_1fr_auto] gap-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      <span>Class</span>
+                      <span>Teacher</span>
+                      <span className="sr-only">Actions</span>
+                    </div>
+                    {active.classes.map((c, i) => (
+                      <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                        <Input
+                          placeholder={`Class ${i + 1}`}
+                          value={c.class}
+                          onChange={(e) => updateClassRow(i, { class: e.target.value })}
+                        />
+                        <Input
+                          placeholder="Teacher"
+                          value={c.teacher}
+                          onChange={(e) => updateClassRow(i, { teacher: e.target.value })}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeClassRow(i)}
+                          aria-label="Remove row"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Teachers */}
               <div className="rounded-lg border p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm font-medium">
