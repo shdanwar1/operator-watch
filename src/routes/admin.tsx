@@ -105,40 +105,20 @@ function AdminPage() {
           </div>
         </header>
 
-        {!shifts ? (
+        {loading ? (
           <Card className="mx-auto max-w-sm">
-            <CardContent className="space-y-4 p-6">
-              <p className="text-sm text-muted-foreground">
-                Sign in with an admin operator account to view every operator's shifts.
-              </p>
-              <form onSubmit={login} className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Admin username</Label>
-                  <Input
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Password</Label>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <Button type="submit" size="lg" className="w-full" disabled={loading}>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  {loading ? "Signing in…" : "Sign in as admin"}
-                </Button>
-              </form>
+            <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading shifts…
+            </CardContent>
+          </Card>
+        ) : !shifts ? (
+          <Card className="mx-auto max-w-sm">
+            <CardContent className="p-6 text-sm text-muted-foreground">
+              Unable to load shifts.
             </CardContent>
           </Card>
         ) : (
+
           <div className="space-y-5">
             {summary && summary.size > 0 && (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
