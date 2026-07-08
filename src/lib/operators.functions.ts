@@ -34,6 +34,9 @@ export type OperatorProfile = {
   username: string;
   mobile: string | null;
   is_admin: boolean;
+  home_label: string | null;
+  home_lat: number | null;
+  home_lng: number | null;
 };
 
 const USERNAME_RE = /^[a-zA-Z0-9_.-]{2,32}$/;
