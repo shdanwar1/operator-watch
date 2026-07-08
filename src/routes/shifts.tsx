@@ -6,6 +6,7 @@ import {
   listShifts,
   updateShift as updateShiftFn,
   deleteShift as deleteShiftFn,
+  createPastShift as createPastShiftFn,
 } from "@/lib/shifts.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
