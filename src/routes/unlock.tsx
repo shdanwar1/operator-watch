@@ -69,16 +69,20 @@ function Unlock() {
     if (!suUsername || !suPassword || !suMobile || !suMagic) {
       return toast.error("All fields are required");
     }
+    if (suMobile.length !== 10) {
+      return toast.error("Mobile number must be 10 digits");
+    }
     setSuLoading(true);
     try {
       await signup({
         data: {
           username: suUsername,
           password: suPassword,
-          mobile: suMobile,
+          mobile: `+49${suMobile}`,
           magic_word: suMagic,
         },
       });
+
       toast.success(`Operator "${suUsername}" created. You can sign in now.`);
       setUsername(suUsername);
       setPassword("");
