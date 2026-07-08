@@ -542,9 +542,50 @@ function CheckInPanel({
             ? "text-emerald-400"
             : "text-foreground";
 
+  if (variant === "compact") {
+    return (
+      <Card>
+        <CardContent className="space-y-3 p-4">
+          <div className="flex items-center gap-2">
+            <LogIn className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Check in
+            </h2>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {openScheduled
+              ? "Ready — enter your magic word."
+              : msUntilOpen > 0
+                ? `Opens in ${formatCountdown(msUntilOpen)}`
+                : "No open shift right now."}
+          </p>
+          <Input
+            type="password"
+            placeholder="Magic word"
+            value={magicWord}
+            onChange={(e) => setMagicWord(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && canCheckIn && !checkingIn) onCheckIn();
+            }}
+          />
+          <Button
+            size="sm"
+            className="w-full"
+            onClick={onCheckIn}
+            disabled={!canCheckIn || checkingIn}
+          >
+            <LogIn className="mr-1.5 h-3.5 w-3.5" />
+            {checkingIn ? "Checking in…" : "Check in"}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="border-border/60">
       <CardContent className="flex flex-col items-center gap-5 px-4 py-8 text-center sm:gap-6 sm:px-6 sm:py-10">
+
         {showCountdownCard ? (
           <div className="flex flex-col items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-2.5">
