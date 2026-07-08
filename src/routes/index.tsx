@@ -183,15 +183,14 @@ function Index() {
       .sort((a, b) => a.start_time.localeCompare(b.start_time))[0] ?? null;
 
   // Focus mode:
-  //  - >60 min before next shift → check-in stays main
-  //  - 60→45 min before next shift → "Time to leave" becomes the hero
-  //  - ≤45 min before next shift → check-in becomes the hero again
+  //  - More than 45 min before the next shift → "Time to leave" is the hero
+  //  - 45 min or less before the next shift (or during the shift) → check-in is the hero
   const nextInstance = nextShiftInstance(scheduled, now);
   const minutesToNext = nextInstance
     ? Math.round((nextInstance.startAt.getTime() - now.getTime()) / 60000)
     : Infinity;
   const focus: "check_in" | "time_to_leave" =
-    !active && minutesToNext <= 60 && minutesToNext > 45 ? "time_to_leave" : "check_in";
+    !active && minutesToNext > 45 ? "time_to_leave" : "check_in";
 
 
   async function checkIn() {
