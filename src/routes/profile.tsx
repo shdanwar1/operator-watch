@@ -5,6 +5,7 @@ import { getGateStatus } from "@/lib/gate.functions";
 import {
   verifyOperatorLogin,
   updateOperatorProfile,
+  setOperatorHome,
   type OperatorProfile,
 } from "@/lib/operators.functions";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { GermanMobileInput } from "@/components/GermanMobileInput";
 import { toast, Toaster } from "sonner";
-import { ArrowLeft, LogIn, Save } from "lucide-react";
+import { ArrowLeft, LogIn, Save, Home, MapPin } from "lucide-react";
 
 function stripDePrefix(v: string | null | undefined): string {
   if (!v) return "";
