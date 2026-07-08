@@ -89,7 +89,7 @@ export const verifyOperatorLogin = createServerFn({ method: "POST" })
     if (!id) throw new Error("Invalid username or password");
     const { data: row, error: err2 } = await supabaseAdmin
       .from("operators")
-      .select("id, username, mobile")
+      .select("id, username, mobile, is_admin")
       .eq("id", id as string)
       .single();
     if (err2) throw new Error(err2.message);
