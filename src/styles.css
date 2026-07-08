@@ -143,38 +143,22 @@
   }
 }
 
-/* Hourglass animation */
-@keyframes hourglass-flip {
-  0%, 45% { transform: rotate(0deg); }
-  50%, 95% { transform: rotate(180deg); }
-  100% { transform: rotate(360deg); }
+/* Realistic hourglass — sand stream + urgent pulse */
+@keyframes hg-stream-flow {
+  0%   { transform: translateY(-6px) scaleY(0.6); opacity: 0.2; }
+  40%  { opacity: 1; }
+  100% { transform: translateY(4px) scaleY(1.1); opacity: 0.6; }
 }
-@keyframes hourglass-sand-top {
-  0% { transform: scaleY(1); }
-  45% { transform: scaleY(0.05); }
-  100% { transform: scaleY(0.05); }
+.hg-stream {
+  transform-origin: 50% 0%;
+  animation-name: hg-stream-flow;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
 }
-@keyframes hourglass-sand-bottom {
-  0% { transform: scaleY(0.05); }
-  45% { transform: scaleY(1); }
-  100% { transform: scaleY(1); }
+@keyframes hg-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.035); }
 }
-@keyframes hourglass-sand-stream {
-  0%, 100% { opacity: 0; }
-  10%, 40% { opacity: 1; }
-}
-.hourglass {
-  animation: hourglass-flip 6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-  transform-origin: 50% 50%;
-}
-.hourglass-sand-top {
-  transform-origin: 50% 30%;
-  animation: hourglass-sand-top 6s linear infinite;
-}
-.hourglass-sand-bottom {
-  transform-origin: 50% 70%;
-  animation: hourglass-sand-bottom 6s linear infinite;
-}
-.hourglass-sand-stream {
-  animation: hourglass-sand-stream 6s linear infinite;
+.hg-pulse {
+  animation: hg-pulse 1s ease-in-out infinite;
 }
