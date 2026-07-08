@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { Radio, LogOut, Plus, X, Clock, Video, Users, Trash2, Calendar, Play, ListChecks, BookOpen } from "lucide-react";
+import { Radio, LogOut, Plus, X, Clock, Video, Users, Calendar, Play, ListChecks, BookOpen } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
