@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { Radio, LogIn, LogOut, Plus, X, Clock, Video, Users, Trash2, Calendar, Play, ListChecks, BookOpen } from "lucide-react";
+import { Radio, LogOut, Plus, X, Clock, Video, Users, Trash2, Calendar, Play, ListChecks, BookOpen } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
@@ -299,6 +299,19 @@ function Index() {
                 This week's schedule
               </h2>
             </div>
+            <Card className="mb-4">
+              <CardContent className="p-4">
+                <div className="space-y-2">
+                  <Label htmlFor="op">Operator name</Label>
+                  <Input
+                    id="op"
+                    placeholder="e.g. Alex"
+                    value={operatorName}
+                    onChange={(e) => setOperatorName(e.target.value)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
             <div className="grid gap-2 sm:grid-cols-2">
               {scheduled.map((s) => {
                 const today = new Date().getDay();
@@ -341,36 +354,14 @@ function Index() {
             </div>
             {!operatorName.trim() && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Enter your name below to enable starting a scheduled shift.
+                Enter your name above to enable starting a scheduled shift.
               </p>
             )}
           </section>
         )}
 
-        {/* Active / Check-in card */}
-        {!active ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Start a shift</CardTitle>
-              <CardDescription>Check in to begin tracking your session.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="op">Operator name</Label>
-                <Input
-                  id="op"
-                  placeholder="e.g. Alex"
-                  value={operatorName}
-                  onChange={(e) => setOperatorName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && checkIn()}
-                />
-              </div>
-              <Button onClick={() => checkIn()} className="w-full" size="lg">
-                <LogIn className="mr-2 h-4 w-4" /> Check in (no schedule)
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
+        {/* Active shift card */}
+        {active && (
           <Card className="border-primary/40">
             <CardHeader>
               <div className="flex items-start justify-between gap-3">
