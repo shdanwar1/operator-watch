@@ -144,9 +144,10 @@ export const updateOperatorProfile = createServerFn({ method: "POST" })
         if (String(data.new_password).length < 4) throw new Error("Password must be at least 4 characters");
         out.new_password = String(data.new_password);
       }
-      if (data.mobile !== undefined) {
-        out.mobile = String(data.mobile).trim().slice(0, 40);
+      if (data.mobile !== undefined && data.mobile !== "") {
+        out.mobile = normalizeDeMobile(data.mobile);
       }
+
       if (data.magic_word !== undefined && data.magic_word !== "") {
         out.magic_word = String(data.magic_word).trim().slice(0, 100);
       }
