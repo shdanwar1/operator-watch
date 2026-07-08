@@ -17,6 +17,9 @@ export type Database = {
       operators: {
         Row: {
           created_at: string
+          home_label: string | null
+          home_lat: number | null
+          home_lng: number | null
           id: string
           is_admin: boolean
           magic_word_hash: string
@@ -27,6 +30,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          home_label?: string | null
+          home_lat?: number | null
+          home_lng?: number | null
           id?: string
           is_admin?: boolean
           magic_word_hash: string
@@ -37,6 +43,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          home_label?: string | null
+          home_lat?: number | null
+          home_lng?: number | null
           id?: string
           is_admin?: boolean
           magic_word_hash?: string
@@ -169,6 +178,10 @@ export type Database = {
         }[]
       }
       mask_mobile: { Args: { p_mobile: string }; Returns: string }
+      set_operator_home: {
+        Args: { p_id: string; p_label: string; p_lat: number; p_lng: number }
+        Returns: undefined
+      }
       update_operator: {
         Args: {
           p_id: string
