@@ -320,13 +320,14 @@ function nextShiftInstance(
   scheduled: ScheduledShift[],
   now: Date,
 ): { shift: ScheduledShift; startAt: Date } | null {
+  const overrides = overrideDates(scheduled);
   let best: { shift: ScheduledShift; startAt: Date } | null = null;
   for (const s of scheduled) {
     const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
-    for (let offset = 0; offset < 8; offset++) {
+    for (let offset = 0; offset < 21; offset++) {
       const d = new Date(now);
       d.setDate(d.getDate() + offset);
-      if (d.getDay() !== s.day_of_week) continue;
+      if (!shiftAppliesOn(s, d, overrides)) continue;
       d.setHours(sh, sm, 0, 0);
       if (d.getTime() <= now.getTime()) continue;
       if (!best || d.getTime() < best.startAt.getTime()) {
