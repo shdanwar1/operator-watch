@@ -25,6 +25,7 @@ export type OperatorProfile = {
   id: string;
   username: string;
   mobile: string | null;
+  is_admin: boolean;
 };
 
 const USERNAME_RE = /^[a-zA-Z0-9_.-]{2,32}$/;
