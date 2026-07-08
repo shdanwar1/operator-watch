@@ -1,21 +1,20 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getGateStatus } from "@/lib/gate.functions";
-import { adminListShifts } from "@/lib/operators.functions";
+import { adminListShiftsForSession } from "@/lib/operators.functions";
 import type { ShiftRow } from "@/lib/shifts.functions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { ArrowLeft, LogIn, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async () => {
-    const { unlocked } = await getGateStatus();
-    if (!unlocked) throw redirect({ to: "/unlock" });
+    const status = await getGateStatus();
+    if (!status.unlocked) throw redirect({ to: "/unlock" });
+    if (!status.isAdmin) throw redirect({ to: "/" });
   },
   head: () => ({
     meta: [
@@ -39,26 +38,28 @@ function duration(a: string, b: string | null) {
 }
 
 function AdminPage() {
-  const fetchAdminShifts = useServerFn(adminListShifts);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const fetchAdminShifts = useServerFn(adminListShiftsForSession);
+  const [loading, setLoading] = useState(true);
   const [shifts, setShifts] = useState<ShiftRow[] | null>(null);
   const [filter, setFilter] = useState<string>("all");
 
-  async function login(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const rows = await fetchAdminShifts({ data: { username, password } });
-      setShifts(rows as ShiftRow[]);
-      toast.success("Admin access granted");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Access denied");
-    } finally {
-      setLoading(false);
-    }
-  }
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const rows = await fetchAdminShifts();
+        if (alive) setShifts(rows as ShiftRow[]);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to load shifts");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [fetchAdminShifts]);
+
 
   const operators = useMemo(() => {
     if (!shifts) return [];
