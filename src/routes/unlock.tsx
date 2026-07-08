@@ -183,15 +183,13 @@ function Unlock() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="su-mobile">Mobile number</Label>
-                    <Input
+                    <GermanMobileInput
                       id="su-mobile"
-                      type="tel"
-                      placeholder="+1 555 000 0000"
                       value={suMobile}
-                      onChange={(e) => setSuMobile(e.target.value)}
-                      required
+                      onChange={setSuMobile}
                     />
                   </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="su-magic">Check-in magic word</Label>
                     <Input
