@@ -278,6 +278,12 @@ function Index() {
                 <span className="hidden sm:inline">Shifts</span>
               </Link>
             </Button>
+            <Button variant="outline" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" asChild>
+              <Link to="/admin">
+                <ShieldCheck className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Admin</span>
+              </Link>
+            </Button>
             <Button variant="ghost" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" onClick={handleSignOut}>
               <LogOut className="h-3.5 w-3.5 sm:mr-1" />
               <span className="hidden sm:inline">Sign out</span>
