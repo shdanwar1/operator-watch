@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as ShiftsRouteImport } from './routes/shifts'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as IndexRouteImport } from './routes/index'
 
 const UnlockRoute = UnlockRouteImport.update({
@@ -23,6 +24,11 @@ const ShiftsRoute = ShiftsRouteImport.update({
   path: '/shifts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -31,30 +37,34 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
   '/shifts': typeof ShiftsRoute
   '/unlock': typeof UnlockRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
   '/shifts': typeof ShiftsRoute
   '/unlock': typeof UnlockRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
   '/shifts': typeof ShiftsRoute
   '/unlock': typeof UnlockRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/shifts' | '/unlock'
+  fullPaths: '/' | '/calendar' | '/shifts' | '/unlock'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/shifts' | '/unlock'
-  id: '__root__' | '/' | '/shifts' | '/unlock'
+  to: '/' | '/calendar' | '/shifts' | '/unlock'
+  id: '__root__' | '/' | '/calendar' | '/shifts' | '/unlock'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CalendarRoute: typeof CalendarRoute
   ShiftsRoute: typeof ShiftsRoute
   UnlockRoute: typeof UnlockRoute
 }
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShiftsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CalendarRoute: CalendarRoute,
   ShiftsRoute: ShiftsRoute,
   UnlockRoute: UnlockRoute,
 }
