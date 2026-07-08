@@ -5,12 +5,32 @@ import { getGateStatus } from "@/lib/gate.functions";
 import {
   listScheduledShifts,
   listShifts,
+  createScheduledShift,
+  updateScheduledShift,
+  deleteScheduledShift,
   type ScheduledShiftRow,
   type ShiftRow,
 } from "@/lib/shifts.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft, Plus, Trash2, Save } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 export const Route = createFileRoute("/calendar")({
@@ -28,6 +48,7 @@ export const Route = createFileRoute("/calendar")({
 });
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function dateKey(d: Date) {
   const y = d.getFullYear();
@@ -62,7 +83,6 @@ type Instance = {
   shift: ScheduledShiftRow;
   startAt: Date;
   endAt: Date;
-  logged?: ShiftRow;
 };
 
 function instancesFor(day: Date, scheduled: ScheduledShiftRow[], overrides: Set<string>): Instance[] {
@@ -83,37 +103,44 @@ function instancesFor(day: Date, scheduled: ScheduledShiftRow[], overrides: Set<
   return out.sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
 }
 
+type EditorState =
+  | { mode: "create"; date: Date }
+  | { mode: "edit"; date: Date; instance: Instance };
+
 function CalendarPage() {
   const fetchScheduled = useServerFn(listScheduledShifts);
   const fetchShifts = useServerFn(listShifts);
+  const createSched = useServerFn(createScheduledShift);
+  const updateSched = useServerFn(updateScheduledShift);
+  const deleteSched = useServerFn(deleteScheduledShift);
 
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
   const [logged, setLogged] = useState<ShiftRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [editor, setEditor] = useState<EditorState | null>(null);
+
+  async function load() {
+    try {
+      const [sched, rows] = await Promise.all([fetchScheduled(), fetchShifts()]);
+      setScheduled(sched);
+      setLogged(rows);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [sched, rows] = await Promise.all([fetchScheduled(), fetchShifts()]);
-        setScheduled(sched);
-        setLogged(rows);
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed to load");
-      } finally {
-        setLoading(false);
-      }
-    })();
+    load();
   }, []);
 
   const now = new Date();
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
 
-  const firstWeekStart = useMemo(() => {
-    const base = startOfWeek(now);
-    return addDays(base, weekOffset * 7);
-  }, [weekOffset]);
+  const firstWeekStart = useMemo(() => addDays(startOfWeek(now), weekOffset * 7), [weekOffset]);
 
   const overrides = useMemo(
     () => new Set(scheduled.map((s) => s.specific_date).filter((v): v is string => !!v)),
@@ -140,6 +167,57 @@ function CalendarPage() {
   }, [firstWeekStart]);
 
   const rangeLabel = `${firstWeekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${addDays(firstWeekStart, 27).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
+
+  async function handleSave(payload: {
+    start_time: string;
+    end_time: string;
+    label: string;
+    scope: "one-off" | "recurring";
+  }) {
+    if (!editor) return;
+    try {
+      if (editor.mode === "create") {
+        await createSched({
+          data: {
+            day_of_week: editor.date.getDay(),
+            start_time: payload.start_time,
+            end_time: payload.end_time,
+            label: payload.label,
+            specific_date: payload.scope === "one-off" ? dateKey(editor.date) : null,
+          },
+        });
+        toast.success("Shift added");
+      } else {
+        await updateSched({
+          data: {
+            id: editor.instance.shift.id,
+            patch: {
+              start_time: payload.start_time,
+              end_time: payload.end_time,
+              label: payload.label,
+            },
+          },
+        });
+        toast.success("Shift updated");
+      }
+      setEditor(null);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    }
+  }
+
+  async function handleDelete() {
+    if (!editor || editor.mode !== "edit") return;
+    try {
+      await deleteSched({ data: { id: editor.instance.shift.id } });
+      toast.success("Shift removed");
+      setEditor(null);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -223,7 +301,7 @@ function CalendarPage() {
                       return (
                         <div
                           key={key}
-                          className={`min-h-[92px] border-border/60 p-2 sm:min-h-[120px] sm:border-r sm:last:border-r-0 ${
+                          className={`group relative min-h-[92px] border-border/60 p-2 sm:min-h-[120px] sm:border-r sm:last:border-r-0 ${
                             isPastDay ? "bg-muted/30" : ""
                           } ${isToday ? "bg-primary/5" : ""}`}
                         >
@@ -243,11 +321,21 @@ function CalendarPage() {
                               >
                                 {day.getDate()}
                               </span>
+                              {day.getDate() === 1 && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {day.toLocaleDateString(undefined, { month: "short" })}
+                                </span>
+                              )}
                             </div>
-                            {day.getDate() === 1 && (
-                              <span className="text-[10px] text-muted-foreground">
-                                {day.toLocaleDateString(undefined, { month: "short" })}
-                              </span>
+                            {!isPastDay && (
+                              <button
+                                type="button"
+                                onClick={() => setEditor({ mode: "create", date: day })}
+                                className="rounded-md p-0.5 text-muted-foreground opacity-0 transition hover:bg-muted hover:text-foreground focus:opacity-100 group-hover:opacity-100"
+                                aria-label="Add shift"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </button>
                             )}
                           </div>
                           <div className="space-y-1">
@@ -260,21 +348,38 @@ function CalendarPage() {
                                 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                                 : past
                                   ? "border-border/60 bg-muted/60 text-muted-foreground"
-                                  : "border-primary/40 bg-primary/10 text-foreground";
+                                  : "border-primary/40 bg-primary/10 text-foreground hover:bg-primary/20";
+                              const clickable = !past;
                               return (
-                                <div
+                                <button
                                   key={`${inst.shift.id}-${i}`}
-                                  className={`rounded-md border px-1.5 py-1 text-[10px] leading-tight sm:text-[11px] ${cls}`}
+                                  type="button"
+                                  disabled={!clickable}
+                                  onClick={() =>
+                                    clickable && setEditor({ mode: "edit", date: day, instance: inst })
+                                  }
+                                  className={`w-full rounded-md border px-1.5 py-1 text-left text-[10px] leading-tight transition sm:text-[11px] ${cls} ${
+                                    clickable ? "cursor-pointer" : "cursor-default"
+                                  }`}
                                   title={inst.shift.label ?? ""}
                                 >
                                   <div className="font-medium">{fmtTime(inst.shift.start_time)}</div>
                                   {inst.shift.label && (
                                     <div className="truncate opacity-80">{inst.shift.label}</div>
                                   )}
-                                </div>
+                                </button>
                               );
                             })}
-                            {insts.length === 0 && (
+                            {insts.length === 0 && !isPastDay && (
+                              <button
+                                type="button"
+                                onClick={() => setEditor({ mode: "create", date: day })}
+                                className="w-full rounded-md border border-dashed border-border/60 px-1.5 py-1 text-left text-[10px] text-muted-foreground/70 transition hover:border-primary/40 hover:text-foreground sm:text-[11px]"
+                              >
+                                + Add shift
+                              </button>
+                            )}
+                            {insts.length === 0 && isPastDay && (
                               <div className="text-[10px] text-muted-foreground/50 sm:text-[11px]">—</div>
                             )}
                           </div>
@@ -288,6 +393,133 @@ function CalendarPage() {
           </Card>
         )}
       </div>
+
+      <ShiftEditorDialog
+        state={editor}
+        onClose={() => setEditor(null)}
+        onSave={handleSave}
+        onDelete={handleDelete}
+      />
     </div>
+  );
+}
+
+function ShiftEditorDialog({
+  state,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  state: EditorState | null;
+  onClose: () => void;
+  onSave: (p: { start_time: string; end_time: string; label: string; scope: "one-off" | "recurring" }) => void;
+  onDelete: () => void;
+}) {
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("13:00");
+  const [label, setLabel] = useState("");
+  const [scope, setScope] = useState<"one-off" | "recurring">("one-off");
+
+  useEffect(() => {
+    if (!state) return;
+    if (state.mode === "edit") {
+      setStartTime(state.instance.shift.start_time.slice(0, 5));
+      setEndTime(state.instance.shift.end_time.slice(0, 5));
+      setLabel(state.instance.shift.label ?? "");
+      setScope(state.instance.shift.specific_date ? "one-off" : "recurring");
+    } else {
+      setStartTime("09:00");
+      setEndTime("13:00");
+      setLabel("");
+      setScope("one-off");
+    }
+  }, [state]);
+
+  if (!state) return null;
+
+  const isEdit = state.mode === "edit";
+  const dayLabel = state.date.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  function submit() {
+    if (!startTime || !endTime) return toast.error("Start and end times are required");
+    if (endTime <= startTime) return toast.error("End must be after start");
+    onSave({ start_time: startTime, end_time: endTime, label: label.trim(), scope });
+  }
+
+  return (
+    <Dialog open={!!state} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Edit shift" : "Add shift"}</DialogTitle>
+          <DialogDescription>{dayLabel}</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Start</Label>
+              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>End</Label>
+              <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Label (optional)</Label>
+            <Input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="e.g. Morning shift"
+            />
+          </div>
+
+          {!isEdit && (
+            <div className="space-y-2">
+              <Label>Repeats</Label>
+              <Select value={scope} onValueChange={(v) => setScope(v as "one-off" | "recurring")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="one-off">One-off (just this day)</SelectItem>
+                  <SelectItem value="recurring">
+                    Every {DAY_LONG[state.date.getDay()]}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {isEdit && !state.instance.shift.specific_date && (
+            <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+              This is a recurring shift. Changes apply to every {DAY_LONG[state.date.getDay()]}.
+            </p>
+          )}
+        </div>
+
+        <DialogFooter className="flex-row justify-between sm:justify-between">
+          {isEdit ? (
+            <Button variant="ghost" size="sm" onClick={onDelete} className="text-destructive hover:text-destructive">
+              <Trash2 className="mr-1 h-4 w-4" /> Delete
+            </Button>
+          ) : (
+            <span />
+          )}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={submit}>
+              <Save className="mr-1 h-4 w-4" /> Save
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
