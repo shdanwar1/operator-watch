@@ -803,10 +803,13 @@ function fmtHM(d: Date) {
 function TimeToLeaveCard({
   scheduled,
   now,
+  variant = "default",
 }: {
   scheduled: ScheduledShift[];
   now: Date;
+  variant?: "default" | "hero";
 }) {
+
   const fetchPlan = useServerFn(getTimeToLeave);
   const next = useMemo(() => nextShiftInstance(scheduled, now), [scheduled, now]);
   const shiftIso = next?.startAt.toISOString() ?? null;
