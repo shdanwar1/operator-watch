@@ -172,7 +172,6 @@ function CalendarPage() {
     start_time: string;
     end_time: string;
     label: string;
-    scope: "one-off" | "recurring";
   }) {
     if (!editor) return;
     try {
@@ -183,7 +182,7 @@ function CalendarPage() {
             start_time: payload.start_time,
             end_time: payload.end_time,
             label: payload.label,
-            specific_date: payload.scope === "one-off" ? dateKey(editor.date) : null,
+            specific_date: dateKey(editor.date),
           },
         });
         toast.success("Shift added");
