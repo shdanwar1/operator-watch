@@ -160,6 +160,7 @@ export const createPastShift = createServerFn({ method: "POST" })
         check_in_at: data.check_in_at,
         check_out_at: data.check_out_at,
         classes: data.classes,
+        live_streams_count: data.classes.length,
         notes: data.notes,
       })
       .select()
