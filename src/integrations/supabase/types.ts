@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      operators: {
+        Row: {
+          created_at: string
+          id: string
+          magic_word_hash: string
+          mobile: string | null
+          password_hash: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          magic_word_hash: string
+          mobile?: string | null
+          password_hash: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          magic_word_hash?: string
+          mobile?: string | null
+          password_hash?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       scheduled_shifts: {
         Row: {
           created_at: string
