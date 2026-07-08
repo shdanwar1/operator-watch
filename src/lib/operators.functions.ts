@@ -205,7 +205,27 @@ export const adminListShifts = createServerFn({ method: "POST" })
       .select("*")
       .order("check_in_at", { ascending: false });
     if (err2) throw new Error(err2.message);
-    const { normalizeShiftRow } = await import("./shifts.functions");
-    return (shifts ?? []).map((r) => normalizeShiftRow(r as Record<string, unknown>));
+    return (shifts ?? []).map((r) => {
+      const row = r as Record<string, unknown>;
+      const classes = Array.isArray(row.classes)
+        ? (row.classes as { class?: string; teacher?: string }[]).map((c) => ({
+            class: String(c?.class ?? ""),
+            teacher: String(c?.teacher ?? ""),
+          }))
+        : [];
+      return {
+        id: String(row.id),
+        operator_name: String(row.operator_name ?? ""),
+        check_in_at: String(row.check_in_at ?? ""),
+        check_out_at: (row.check_out_at as string | null) ?? null,
+        live_streams_count: Number(row.live_streams_count ?? 0),
+        dance_teachers: Array.isArray(row.dance_teachers)
+          ? (row.dance_teachers as unknown[]).map(String)
+          : [],
+        notes: (row.notes as string | null) ?? null,
+        scheduled_shift_id: (row.scheduled_shift_id as string | null) ?? null,
+        classes,
+      };
+    });
   });
 
