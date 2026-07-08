@@ -39,10 +39,14 @@ function SignupPage() {
     if (!username || !password || !mobile || !magicWord) {
       return toast.error("All fields are required");
     }
+    if (mobile.length !== 10) {
+      return toast.error("Mobile number must be 10 digits");
+    }
     setSubmitting(true);
     try {
-      await signup({ data: { username, password, mobile, magic_word: magicWord } });
+      await signup({ data: { username, password, mobile: `+49${mobile}`, magic_word: magicWord } });
       toast.success(`Operator "${username}" created`);
+
       if (typeof window !== "undefined") {
         localStorage.setItem("lss_operator_name", username.toLowerCase());
       }
