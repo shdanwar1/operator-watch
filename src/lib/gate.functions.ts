@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
-import { createHash, timingSafeEqual } from "node:crypto";
 
 type GateSession = { unlocked?: boolean; username?: string };
 
@@ -20,29 +19,27 @@ function getSessionConfig() {
   };
 }
 
-function safeEqual(a: string, b: string): boolean {
-  const ha = createHash("sha256").update(a, "utf8").digest();
-  const hb = createHash("sha256").update(b, "utf8").digest();
-  return timingSafeEqual(ha, hb);
-}
-
 export const unlockSite = createServerFn({ method: "POST" })
-  .inputValidator((data: { username: string; password: string }) => data)
+  .inputValidator((data: { username: string; password: string }) => ({
+    username: String(data?.username ?? "").trim().toLowerCase(),
+    password: String(data?.password ?? ""),
+  }))
   .handler(async ({ data }) => {
-    const expectedUser = process.env.SITE_USERNAME;
-    const expectedPass = process.env.SITE_PASSWORD;
-    if (!expectedUser || !expectedPass) {
-      throw new Error("SITE_USERNAME or SITE_PASSWORD is not set");
-    }
-    const userOk = safeEqual(data.username, expectedUser);
-    const passOk = safeEqual(data.password, expectedPass);
-    if (!userOk || !passOk) {
+    if (!data.username || !data.password) {
       return { ok: false as const };
     }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: id, error } = await supabaseAdmin.rpc("verify_operator_password", {
+      p_username: data.username,
+      p_password: data.password,
+    });
+    if (error) throw new Error(error.message);
+    if (!id) return { ok: false as const };
     const session = await useSession<GateSession>(getSessionConfig());
-    await session.update({ unlocked: true, username: expectedUser });
+    await session.update({ unlocked: true, username: data.username });
     return { ok: true as const };
   });
+
 
 export const lockSite = createServerFn({ method: "POST" }).handler(async () => {
   const session = await useSession<GateSession>(getSessionConfig());

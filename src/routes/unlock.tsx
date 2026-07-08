@@ -7,7 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast, Toaster } from "sonner";
 import { Radio, LogIn, UserPlus } from "lucide-react";
 
@@ -32,6 +39,7 @@ function Unlock() {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [signupOpen, setSignupOpen] = useState(false);
   const [suUsername, setSuUsername] = useState("");
   const [suPassword, setSuPassword] = useState("");
   const [suMobile, setSuMobile] = useState("");
@@ -69,11 +77,14 @@ function Unlock() {
           magic_word: suMagic,
         },
       });
-      toast.success(`Operator "${suUsername}" created. Ask an admin for the site password to sign in.`);
+      toast.success(`Operator "${suUsername}" created. You can sign in now.`);
+      setUsername(suUsername);
+      setPassword("");
       setSuUsername("");
       setSuPassword("");
       setSuMobile("");
       setSuMagic("");
+      setSignupOpen(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sign up failed");
     } finally {
@@ -89,114 +100,116 @@ function Unlock() {
           <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Radio className="h-5 w-5" />
           </div>
-          <CardTitle>Studio Operator</CardTitle>
-          <CardDescription>Sign in or register as an operator.</CardDescription>
+          <CardTitle>Sign in</CardTitle>
+          <CardDescription>Sign in with your operator account.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign in</TabsTrigger>
-              <TabsTrigger value="signup">Sign up operator</TabsTrigger>
-            </TabsList>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                name="username"
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            {error && (
+              <p className="text-sm text-destructive">Incorrect username or password.</p>
+            )}
+            <Button type="submit" size="lg" className="w-full" disabled={loading}>
+              <LogIn className="mr-2 h-4 w-4" />
+              {loading ? "Signing in…" : "Sign in"}
+            </Button>
+          </form>
 
-            <TabsContent value="signin" className="mt-4">
-              <form onSubmit={onSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username">Site username</Label>
-                  <Input
-                    id="username"
-                    name="username"
-                    autoComplete="username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Site password</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                {error && (
-                  <p className="text-sm text-destructive">Incorrect username or password.</p>
-                )}
-                <Button type="submit" size="lg" className="w-full" disabled={loading}>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  {loading ? "Signing in…" : "Sign in"}
+          <div className="mt-5 flex items-center justify-between text-xs text-muted-foreground">
+            <Dialog open={signupOpen} onOpenChange={setSignupOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8">
+                  <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                  Sign up operator
                 </Button>
-                <p className="text-center text-xs text-muted-foreground">
-                  Admin?{" "}
-                  <Link to="/admin" className="underline hover:text-foreground">
-                    Go to admin view
-                  </Link>
-                </p>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="signup" className="mt-4">
-              <form onSubmit={onSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="su-username">Username</Label>
-                  <Input
-                    id="su-username"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    placeholder="e.g. alex"
-                    value={suUsername}
-                    onChange={(e) => setSuUsername(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="su-password">Password</Label>
-                  <Input
-                    id="su-password"
-                    type="password"
-                    placeholder="For editing your profile"
-                    value={suPassword}
-                    onChange={(e) => setSuPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="su-mobile">Mobile number</Label>
-                  <Input
-                    id="su-mobile"
-                    type="tel"
-                    placeholder="+1 555 000 0000"
-                    value={suMobile}
-                    onChange={(e) => setSuMobile(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="su-magic">Check-in magic word</Label>
-                  <Input
-                    id="su-magic"
-                    type="password"
-                    placeholder="Short secret used to check in"
-                    value={suMagic}
-                    onChange={(e) => setSuMagic(e.target.value)}
-                    required
-                  />
-                </div>
-                <Button type="submit" size="lg" className="w-full" disabled={suLoading}>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  {suLoading ? "Creating…" : "Create operator"}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>New operator</DialogTitle>
+                  <DialogDescription>Create your operator account.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={onSignup} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="su-username">Username</Label>
+                    <Input
+                      id="su-username"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      placeholder="e.g. alex"
+                      value={suUsername}
+                      onChange={(e) => setSuUsername(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="su-password">Password</Label>
+                    <Input
+                      id="su-password"
+                      type="password"
+                      value={suPassword}
+                      onChange={(e) => setSuPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="su-mobile">Mobile number</Label>
+                    <Input
+                      id="su-mobile"
+                      type="tel"
+                      placeholder="+1 555 000 0000"
+                      value={suMobile}
+                      onChange={(e) => setSuMobile(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="su-magic">Check-in magic word</Label>
+                    <Input
+                      id="su-magic"
+                      type="password"
+                      placeholder="Short secret used to check in"
+                      value={suMagic}
+                      onChange={(e) => setSuMagic(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" size="lg" className="w-full" disabled={suLoading}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    {suLoading ? "Creating…" : "Create operator"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+            <Link to="/admin" className="underline hover:text-foreground">
+              Admin view
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
   );
 }
-
