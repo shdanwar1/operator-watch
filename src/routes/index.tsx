@@ -565,10 +565,7 @@ function CheckInPanel({
               }}
             />
           </div>
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-            <Link to="/signup" className="hover:text-foreground hover:underline">
-              New operator? Sign up
-            </Link>
+          <div className="flex items-center justify-end text-[11px] text-muted-foreground">
             <Link to="/profile" className="hover:text-foreground hover:underline">
               Edit profile
             </Link>
