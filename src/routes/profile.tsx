@@ -11,8 +11,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { GermanMobileInput } from "@/components/GermanMobileInput";
 import { toast, Toaster } from "sonner";
 import { ArrowLeft, LogIn, Save } from "lucide-react";
+
+function stripDePrefix(v: string | null | undefined): string {
+  if (!v) return "";
+  const digits = v.replace(/\D+/g, "");
+  if (digits.startsWith("49") && digits.length === 12) return digits.slice(2);
+  if (digits.startsWith("0")) return digits.slice(1);
+  return digits.slice(-10);
+}
+
 
 export const Route = createFileRoute("/profile")({
   beforeLoad: async () => {
@@ -54,7 +64,7 @@ function ProfilePage() {
       setOperator(op);
       setCurrentPassword(loginPassword);
       setUsername(op.username);
-      setMobile(op.mobile ?? "");
+      setMobile(stripDePrefix(op.mobile));
       setNewPassword("");
       setMagicWord("");
     } catch (e) {
@@ -66,6 +76,8 @@ function ProfilePage() {
 
   async function save() {
     if (!operator) return;
+    if (mobile.length !== 10) return toast.error("Mobile number must be 10 digits");
+    const fullMobile = `+49${mobile}`;
     setSaving(true);
     try {
       await updateProfile({
@@ -74,7 +86,7 @@ function ProfilePage() {
           current_password: currentPassword,
           username: username.trim().toLowerCase() !== operator.username ? username : undefined,
           new_password: newPassword || undefined,
-          mobile,
+          mobile: fullMobile,
           magic_word: magicWord || undefined,
         },
       });
@@ -85,7 +97,7 @@ function ProfilePage() {
       setOperator({
         ...operator,
         username: username.trim().toLowerCase() || operator.username,
-        mobile: mobile || null,
+        mobile: fullMobile,
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Update failed");
@@ -93,6 +105,7 @@ function ProfilePage() {
       setSaving(false);
     }
   }
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -170,13 +183,14 @@ function ProfilePage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Mobile number</Label>
-                <Input
-                  type="tel"
+                <Label htmlFor="profile-mobile">Mobile number</Label>
+                <GermanMobileInput
+                  id="profile-mobile"
                   value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
+                  onChange={setMobile}
                 />
               </div>
+
 
               <div className="space-y-2">
                 <Label>New password</Label>

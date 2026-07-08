@@ -38,6 +38,24 @@ function requireNonEmpty(v: unknown, field: string, max = 200): string {
   return t;
 }
 
+/** Normalize a German mobile input to E.164 (+49XXXXXXXXXX). */
+function normalizeDeMobile(v: unknown): string {
+  if (typeof v !== "string") throw new Error("Mobile number is required");
+  const digits = v.replace(/\D+/g, "");
+  // Strip country prefixes if present
+  const local = digits.startsWith("0049")
+    ? digits.slice(4)
+    : digits.startsWith("49") && digits.length === 12
+      ? digits.slice(2)
+      : digits.startsWith("0")
+        ? digits.slice(1)
+        : digits;
+  if (!/^\d{10}$/.test(local)) {
+    throw new Error("Mobile number must be 10 digits (German +49 number)");
+  }
+  return `+49${local}`;
+}
+
 export const signupOperator = createServerFn({ method: "POST" })
   .inputValidator(
     (data: { username: string; password: string; mobile: string; magic_word: string }) => {
@@ -47,11 +65,12 @@ export const signupOperator = createServerFn({ method: "POST" })
       }
       const password = requireNonEmpty(data?.password, "Password", 200);
       if (password.length < 4) throw new Error("Password must be at least 4 characters");
-      const mobile = requireNonEmpty(data?.mobile, "Mobile number", 40);
+      const mobile = normalizeDeMobile(data?.mobile);
       const magic_word = requireNonEmpty(data?.magic_word, "Magic word", 100);
       return { username, password, mobile, magic_word };
     },
   )
+
   .handler(async ({ data }) => {
     // Signup is intentionally accessible without the site gate so new
     // operators can register from the unlock page.
@@ -125,9 +144,10 @@ export const updateOperatorProfile = createServerFn({ method: "POST" })
         if (String(data.new_password).length < 4) throw new Error("Password must be at least 4 characters");
         out.new_password = String(data.new_password);
       }
-      if (data.mobile !== undefined) {
-        out.mobile = String(data.mobile).trim().slice(0, 40);
+      if (data.mobile !== undefined && data.mobile !== "") {
+        out.mobile = normalizeDeMobile(data.mobile);
       }
+
       if (data.magic_word !== undefined && data.magic_word !== "") {
         out.magic_word = String(data.magic_word).trim().slice(0, 100);
       }

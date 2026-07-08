@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { GermanMobileInput } from "@/components/GermanMobileInput";
 import { toast, Toaster } from "sonner";
 import { ArrowLeft, UserPlus } from "lucide-react";
+
 
 export const Route = createFileRoute("/signup")({
   beforeLoad: async () => {
@@ -37,10 +39,14 @@ function SignupPage() {
     if (!username || !password || !mobile || !magicWord) {
       return toast.error("All fields are required");
     }
+    if (mobile.length !== 10) {
+      return toast.error("Mobile number must be 10 digits");
+    }
     setSubmitting(true);
     try {
-      await signup({ data: { username, password, mobile, magic_word: magicWord } });
+      await signup({ data: { username, password, mobile: `+49${mobile}`, magic_word: magicWord } });
       toast.success(`Operator "${username}" created`);
+
       if (typeof window !== "undefined") {
         localStorage.setItem("lss_operator_name", username.toLowerCase());
       }
@@ -95,14 +101,14 @@ function SignupPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Mobile number</Label>
-              <Input
-                type="tel"
-                placeholder="+1 555 000 0000"
+              <Label htmlFor="signup-mobile">Mobile number</Label>
+              <GermanMobileInput
+                id="signup-mobile"
                 value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
+                onChange={setMobile}
               />
             </div>
+
 
             <div className="space-y-2">
               <Label>Check-in magic word</Label>

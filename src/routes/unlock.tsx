@@ -15,8 +15,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { GermanMobileInput } from "@/components/GermanMobileInput";
 import { toast, Toaster } from "sonner";
 import { Radio, LogIn, UserPlus } from "lucide-react";
+
 
 export const Route = createFileRoute("/unlock")({
   beforeLoad: async () => {
@@ -67,16 +69,20 @@ function Unlock() {
     if (!suUsername || !suPassword || !suMobile || !suMagic) {
       return toast.error("All fields are required");
     }
+    if (suMobile.length !== 10) {
+      return toast.error("Mobile number must be 10 digits");
+    }
     setSuLoading(true);
     try {
       await signup({
         data: {
           username: suUsername,
           password: suPassword,
-          mobile: suMobile,
+          mobile: `+49${suMobile}`,
           magic_word: suMagic,
         },
       });
+
       toast.success(`Operator "${suUsername}" created. You can sign in now.`);
       setUsername(suUsername);
       setPassword("");
@@ -177,15 +183,13 @@ function Unlock() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="su-mobile">Mobile number</Label>
-                    <Input
+                    <GermanMobileInput
                       id="su-mobile"
-                      type="tel"
-                      placeholder="+1 555 000 0000"
                       value={suMobile}
-                      onChange={(e) => setSuMobile(e.target.value)}
-                      required
+                      onChange={setSuMobile}
                     />
                   </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="su-magic">Check-in magic word</Label>
                     <Input
