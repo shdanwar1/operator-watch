@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { CalendarDays, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { getGoogleClientId } from "@/lib/gcal.functions";
+import { listScheduledShifts, insertScheduledShifts } from "@/lib/shifts.functions";
 
 const GSI_SRC = "https://accounts.google.com/gsi/client";
 const SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
