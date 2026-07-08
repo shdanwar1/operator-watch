@@ -247,36 +247,38 @@ function Index() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Toaster richColors position="top-center" />
-      <div className="mx-auto max-w-6xl px-5 py-10">
-        <header className="mb-10 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Radio className="h-5 w-5" />
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-5 sm:py-10">
+        <header className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 sm:mb-10">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground sm:h-11 sm:w-11">
+            <Radio className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Studio Operator</h1>
-            <p className="text-sm text-muted-foreground">Live stream shift tracker</p>
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Studio Operator</h1>
+            <p className="text-xs text-muted-foreground sm:text-sm">Live stream shift tracker</p>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
             {active && (
-              <Badge className="animate-pulse" variant="destructive">
+              <Badge className="animate-pulse px-2 py-0.5 text-[10px] sm:text-xs" variant="destructive">
                 ● ON AIR
               </Badge>
             )}
             {username && (
               <span className="hidden text-xs text-muted-foreground sm:inline">{username}</span>
             )}
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" asChild>
               <Link to="/shifts">
-                <ListChecks className="mr-1 h-3.5 w-3.5" /> Shifts
+                <ListChecks className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Shifts</span>
               </Link>
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
-              <LogOut className="mr-1 h-3.5 w-3.5" /> Sign out
+            <Button variant="ghost" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" onClick={handleSignOut}>
+              <LogOut className="h-3.5 w-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Sign out</span>
             </Button>
           </div>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
             {loading ? (
               <p className="text-sm text-muted-foreground">Loading…</p>
@@ -301,8 +303,8 @@ function Index() {
             )}
 
             {!active && history.length > 0 && (
-              <section className="mt-12">
-                <div className="mb-4 flex items-center justify-between">
+              <section className="mt-8 sm:mt-12">
+                <div className="mb-3 flex items-center justify-between sm:mb-4">
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Last 30 days
                   </h2>
@@ -490,22 +492,26 @@ function CheckInPanel({
 
   return (
     <Card className="border-border/60">
-      <CardContent className="flex flex-col items-center gap-6 px-6 py-10 text-center">
+      <CardContent className="flex flex-col items-center gap-5 px-4 py-8 text-center sm:gap-6 sm:px-6 sm:py-10">
         {showCountdownCard ? (
           <>
-            <Hourglass percent={percent} state={state} size={168} />
+            <Hourglass
+              percent={percent}
+              state={state}
+              className="w-32 sm:w-40 md:w-44"
+            />
             <div className="space-y-1">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
                 {state === "ready" ? "Ready for Check-In" : "Check-in opens in"}
               </div>
               {state !== "ready" && (
                 <div
-                  className={`font-mono text-4xl font-semibold tabular-nums tracking-tight transition-colors ${countdownColor}`}
+                  className={`font-mono text-3xl font-semibold tabular-nums tracking-tight transition-colors sm:text-4xl ${countdownColor}`}
                 >
                   {formatCountdown(msUntilOpen)}
                 </div>
               )}
-              <p className="pt-1 text-sm text-muted-foreground">
+              <p className="pt-1 text-xs text-muted-foreground sm:text-sm">
                 {openScheduled ? (
                   <>
                     {openScheduled.label ?? "Scheduled shift"} ·{" "}
@@ -522,10 +528,10 @@ function CheckInPanel({
           </>
         ) : (
           <>
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-              <Clock className="h-7 w-7 text-muted-foreground" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted sm:h-16 sm:w-16">
+              <Clock className="h-6 w-6 text-muted-foreground sm:h-7 sm:w-7" />
             </div>
-            <h2 className="text-xl font-semibold tracking-tight">No scheduled shifts yet</h2>
+            <h2 className="text-lg font-semibold tracking-tight sm:text-xl">No scheduled shifts yet</h2>
           </>
         )}
 
@@ -543,7 +549,7 @@ function CheckInPanel({
 
         <Button
           size="lg"
-          className="h-14 w-full max-w-xs text-base"
+          className="h-12 w-full max-w-xs text-base sm:h-14"
           onClick={onCheckIn}
           disabled={!canCheckIn || checkingIn}
         >
@@ -573,16 +579,16 @@ function ActiveShiftPanel({
   const d = formatDuration(shift.check_in_at, null);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <Card className="border-primary/40 bg-primary/5">
-        <CardContent className="flex flex-col items-center gap-3 px-6 py-10 text-center">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+        <CardContent className="flex flex-col items-center gap-3 px-4 py-8 text-center sm:px-6 sm:py-10">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground sm:text-xs">
             Checked in as {shift.operator_name}
           </div>
-          <div className="font-mono text-6xl font-semibold tabular-nums tracking-tight">
+          <div className="font-mono text-4xl font-semibold tabular-nums tracking-tight sm:text-6xl">
             {d.long}
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-[11px] text-muted-foreground sm:text-xs">
             Since{" "}
             {new Date(shift.check_in_at).toLocaleTimeString(undefined, {
               hour: "2-digit",
@@ -593,7 +599,7 @@ function ActiveShiftPanel({
       </Card>
 
       <Card>
-        <CardContent className="space-y-3 p-5">
+        <CardContent className="space-y-3 p-4 sm:p-5">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium">Classes & teachers</h3>
             <Button variant="secondary" size="sm" onClick={onAddClass}>
@@ -637,7 +643,7 @@ function ActiveShiftPanel({
         onClick={onCheckOut}
         variant="destructive"
         size="lg"
-        className="h-14 w-full text-base"
+        className="h-12 w-full text-base sm:h-14"
         disabled={checkingOut}
       >
         <LogOut className="mr-2 h-5 w-5" />
