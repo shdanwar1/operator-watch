@@ -302,7 +302,7 @@ function CalendarPage() {
                           <div className="mb-1.5 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5">
                               <span className="text-[10px] font-semibold uppercase text-muted-foreground sm:hidden">
-                                {DAY_LABELS[day.getDay()]}
+                                {DAY_LABELS[(day.getDay() + 6) % 7]}
                               </span>
                               <span
                                 className={`text-xs font-semibold sm:text-sm ${
