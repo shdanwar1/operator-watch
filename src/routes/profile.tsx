@@ -64,7 +64,7 @@ function ProfilePage() {
       setOperator(op);
       setCurrentPassword(loginPassword);
       setUsername(op.username);
-      setMobile(op.mobile ?? "");
+      setMobile(stripDePrefix(op.mobile));
       setNewPassword("");
       setMagicWord("");
     } catch (e) {
