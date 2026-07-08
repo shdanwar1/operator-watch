@@ -175,3 +175,41 @@ export const updateOperatorProfile = createServerFn({ method: "POST" })
     if (err2) throw new Error(err2.message);
     return { ok: true as const };
   });
+
+// Verify admin credentials and return all shifts. Admin login is passed
+// through on every call — no separate admin session cookie.
+export const adminListShifts = createServerFn({ method: "POST" })
+  .inputValidator((data: { username: string; password: string }) => ({
+    username: requireNonEmpty(data?.username, "Username", 32).toLowerCase(),
+    password: requireNonEmpty(data?.password, "Password", 200),
+  }))
+  .handler(async ({ data }) => {
+    await requireGate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: id, error } = await supabaseAdmin.rpc("verify_operator_password", {
+      p_username: data.username,
+      p_password: data.password,
+    });
+    if (error) throw new Error(error.message);
+    if (!id) throw new Error("Invalid username or password");
+    const { data: op } = await supabaseAdmin
+      .from("operators")
+      .select("is_admin")
+      .eq("id", id as string)
+      .single();
+    if (!op || !(op as { is_admin: boolean }).is_admin) {
+      throw new Error("Not an admin");
+    }
+    const { data: shifts, error: err2 } = await supabaseAdmin
+      .from("shifts")
+      .select("*")
+      .order("check_in_at", { ascending: false });
+    if (err2) throw new Error(err2.message);
+    return (shifts ?? []).map((r) => ({
+      ...(r as Record<string, unknown>),
+      classes: Array.isArray((r as { classes?: unknown }).classes)
+        ? (r as { classes: unknown[] }).classes
+        : [],
+    }));
+  });
+
