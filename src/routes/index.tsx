@@ -344,25 +344,71 @@ function CheckInPanel({
   const now = new Date();
   const next = openScheduled ? null : nextShiftInstance(scheduled, now);
   const opensAt = next ? new Date(next.startAt.getTime() - 45 * 60 * 1000) : null;
-  const msUntilOpen = opensAt ? opensAt.getTime() - now.getTime() : 0;
-  const showHourglass = !!next && msUntilOpen > 0;
+  const msUntilOpen = opensAt ? Math.max(0, opensAt.getTime() - now.getTime()) : 0;
+
+  // Anchor the "total" duration to the first render where this target became
+  // active. Percent = remaining / total, so the sand level actually maps to
+  // the real countdown instead of resetting or looping.
+  const anchorRef = useRef<{ targetMs: number; anchoredAt: number; totalMs: number } | null>(null);
+  if (opensAt) {
+    const targetMs = opensAt.getTime();
+    if (!anchorRef.current || anchorRef.current.targetMs !== targetMs) {
+      anchorRef.current = {
+        targetMs,
+        anchoredAt: now.getTime(),
+        totalMs: Math.max(1, targetMs - now.getTime()),
+      };
+    }
+  } else if (!openScheduled) {
+    anchorRef.current = null;
+  }
+
+  const total = anchorRef.current?.totalMs ?? 1;
+  const percent = openScheduled ? 0 : Math.max(0, Math.min(1, msUntilOpen / total));
+  const state = openScheduled ? "ready" : hourglassStateFor(msUntilOpen);
+
+  const showCountdownCard = !!next || !!openScheduled;
+
+  const countdownColor =
+    state === "urgent"
+      ? "text-red-500"
+      : state === "fast"
+        ? "text-amber-400"
+        : state === "warm"
+          ? "text-amber-300"
+          : state === "ready"
+            ? "text-emerald-400"
+            : "text-foreground";
 
   return (
     <Card className="border-border/60">
       <CardContent className="flex flex-col items-center gap-6 px-6 py-10 text-center">
-        {showHourglass ? (
+        {showCountdownCard ? (
           <>
-            <Hourglass className="h-16 w-16 text-primary" />
+            <Hourglass percent={percent} state={state} size={168} />
             <div className="space-y-1">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                Check-in opens in
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                {state === "ready" ? "Ready for Check-In" : "Check-in opens in"}
               </div>
-              <div className="font-mono text-3xl font-semibold tabular-nums tracking-tight">
-                {formatCountdown(msUntilOpen)}
-              </div>
+              {state !== "ready" && (
+                <div
+                  className={`font-mono text-4xl font-semibold tabular-nums tracking-tight transition-colors ${countdownColor}`}
+                >
+                  {formatCountdown(msUntilOpen)}
+                </div>
+              )}
               <p className="pt-1 text-sm text-muted-foreground">
-                {next!.shift.label ?? "Scheduled shift"} ·{" "}
-                {DAY_NAMES[next!.shift.day_of_week]} at {fmtTime(next!.shift.start_time)}
+                {openScheduled ? (
+                  <>
+                    {openScheduled.label ?? "Scheduled shift"} ·{" "}
+                    {fmtTime(openScheduled.start_time)} — {fmtTime(openScheduled.end_time)}
+                  </>
+                ) : (
+                  <>
+                    {next!.shift.label ?? "Scheduled shift"} ·{" "}
+                    {DAY_NAMES[next!.shift.day_of_week]} at {fmtTime(next!.shift.start_time)}
+                  </>
+                )}
               </p>
             </div>
           </>
@@ -371,17 +417,7 @@ function CheckInPanel({
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
               <Clock className="h-7 w-7 text-muted-foreground" />
             </div>
-            <div className="space-y-1">
-              <h2 className="text-xl font-semibold tracking-tight">Ready to work?</h2>
-              {openScheduled ? (
-                <p className="text-sm text-muted-foreground">
-                  {openScheduled.label ?? "Scheduled shift"} ·{" "}
-                  {fmtTime(openScheduled.start_time)} — {fmtTime(openScheduled.end_time)}
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">No scheduled shifts yet.</p>
-              )}
-            </div>
+            <h2 className="text-xl font-semibold tracking-tight">No scheduled shifts yet</h2>
           </>
         )}
 
@@ -408,6 +444,8 @@ function CheckInPanel({
         </Button>
       </CardContent>
     </Card>
+  );
+}
   );
 }
 
