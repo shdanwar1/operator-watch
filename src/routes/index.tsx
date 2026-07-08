@@ -365,11 +365,6 @@ function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: 
                       </div>
                     )}
                   </div>
-                  {shift.specific_date && (
-                    <Badge variant="secondary" className="shrink-0 text-[10px]">
-                      One-off
-                    </Badge>
-                  )}
                 </li>
               );
             })}
