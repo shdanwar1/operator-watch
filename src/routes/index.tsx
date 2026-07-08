@@ -905,9 +905,11 @@ function TimeToLeaveCard({
 function TimeToLeaveDetails({
   plan,
   now,
+  hero = false,
 }: {
   plan: Extract<TimeToLeaveResult, { ok: true }>;
   now: Date;
+  hero?: boolean;
 }) {
   const departure = new Date(plan.departure_iso);
   const arrival = new Date(plan.arrival_iso);
@@ -923,24 +925,35 @@ function TimeToLeaveDetails({
   const urgent = minutesUntilLeave <= 10;
 
   return (
-    <div className="mt-3 space-y-3">
+    <div className={hero ? "mt-5 space-y-5" : "mt-3 space-y-3"}>
       <div
-        className={`rounded-lg border p-3 ${
+        className={`rounded-lg border ${hero ? "p-5 sm:p-6" : "p-3"} ${
           urgent ? "border-destructive/40 bg-destructive/5" : "border-border bg-muted/40"
         }`}
       >
-        <div className={`text-xs font-medium uppercase tracking-wider ${urgent ? "text-destructive" : "text-muted-foreground"}`}>
+        <div
+          className={`font-medium uppercase tracking-wider ${
+            hero ? "text-sm" : "text-xs"
+          } ${urgent ? "text-destructive" : "text-muted-foreground"}`}
+        >
           {leaveLabel}
         </div>
-        <div className="mt-1 text-2xl font-semibold tabular-nums">{fmtHM(departure)}</div>
-        <div className="mt-1 text-xs text-muted-foreground">
+        <div
+          className={`mt-1 font-semibold tabular-nums ${
+            hero ? "text-5xl sm:text-6xl" : "text-2xl"
+          }`}
+        >
+          {fmtHM(departure)}
+        </div>
+        <div className={hero ? "mt-2 text-sm text-muted-foreground" : "mt-1 text-xs text-muted-foreground"}>
           Arrive {fmtHM(arrival)} · {plan.travel_minutes}m by public transport
           {plan.transfers > 0 ? ` · ${plan.transfers} transfer${plan.transfers === 1 ? "" : "s"}` : ""}
         </div>
-        <div className="mt-1 text-[11px] text-muted-foreground">
+        <div className={hero ? "mt-1 text-xs text-muted-foreground" : "mt-1 text-[11px] text-muted-foreground"}>
           Plan arrives {ARRIVAL_BUFFER_MIN} min before shift starts.
         </div>
       </div>
+
 
       <div className="space-y-1 text-xs text-muted-foreground">
         <div className="flex items-start gap-1.5">
