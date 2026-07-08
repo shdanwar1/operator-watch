@@ -240,18 +240,6 @@ function Index() {
     load();
   }
 
-  async function deleteShift(id: string) {
-    const { error } = await supabase.from("shifts").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Deleted");
-    load();
-  }
-
-  const totals = useMemo(() => {
-    const streams = history.reduce((s, r) => s + r.live_streams_count, 0);
-    const teachers = new Set(history.flatMap((r) => r.dance_teachers));
-    return { shifts: history.length, streams, teachers: teachers.size };
-  }, [history]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
