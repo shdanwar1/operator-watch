@@ -555,16 +555,43 @@ function CheckInPanel({
           </>
         )}
 
-        <div className="w-full max-w-xs space-y-2 text-left">
-          <Label htmlFor="op" className="text-xs uppercase tracking-wide text-muted-foreground">
-            Your name
-          </Label>
-          <Input
-            id="op"
-            placeholder="e.g. Alex"
-            value={operatorName}
-            onChange={(e) => setOperatorName(e.target.value)}
-          />
+        <div className="w-full max-w-xs space-y-3 text-left">
+          <div className="space-y-2">
+            <Label htmlFor="op" className="text-xs uppercase tracking-wide text-muted-foreground">
+              Username
+            </Label>
+            <Input
+              id="op"
+              placeholder="e.g. shad"
+              autoCapitalize="none"
+              autoCorrect="off"
+              value={operatorName}
+              onChange={(e) => setOperatorName(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="mw" className="text-xs uppercase tracking-wide text-muted-foreground">
+              Magic word
+            </Label>
+            <Input
+              id="mw"
+              type="password"
+              placeholder="Secret check-in word"
+              value={magicWord}
+              onChange={(e) => setMagicWord(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && canCheckIn && !checkingIn) onCheckIn();
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <Link to="/signup" className="hover:text-foreground hover:underline">
+              New operator? Sign up
+            </Link>
+            <Link to="/profile" className="hover:text-foreground hover:underline">
+              Edit profile
+            </Link>
+          </div>
         </div>
 
         <Button
