@@ -424,12 +424,10 @@ function ShiftEditorDialog({
       setStartTime(state.instance.shift.start_time.slice(0, 5));
       setEndTime(state.instance.shift.end_time.slice(0, 5));
       setLabel(state.instance.shift.label ?? "");
-      setScope(state.instance.shift.specific_date ? "one-off" : "recurring");
     } else {
       setStartTime("09:00");
       setEndTime("13:00");
       setLabel("");
-      setScope("one-off");
     }
   }, [state]);
 
@@ -446,7 +444,7 @@ function ShiftEditorDialog({
   function submit() {
     if (!startTime || !endTime) return toast.error("Start and end times are required");
     if (endTime <= startTime) return toast.error("End must be after start");
-    onSave({ start_time: startTime, end_time: endTime, label: label.trim(), scope });
+    onSave({ start_time: startTime, end_time: endTime, label: label.trim() });
   }
 
   return (
@@ -477,29 +475,6 @@ function ShiftEditorDialog({
               placeholder="e.g. Morning shift"
             />
           </div>
-
-          {!isEdit && (
-            <div className="space-y-2">
-              <Label>Repeats</Label>
-              <Select value={scope} onValueChange={(v) => setScope(v as "one-off" | "recurring")}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="one-off">One-off (just this day)</SelectItem>
-                  <SelectItem value="recurring">
-                    Every {DAY_LONG[state.date.getDay()]}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {isEdit && !state.instance.shift.specific_date && (
-            <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-              This is a recurring shift. Changes apply to every {DAY_LONG[state.date.getDay()]}.
-            </p>
-          )}
         </div>
 
         <DialogFooter className="flex-row justify-between sm:justify-between">
