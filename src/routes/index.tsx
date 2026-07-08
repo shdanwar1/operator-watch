@@ -179,7 +179,7 @@ function Index() {
   const now = new Date();
   const openScheduled =
     scheduled
-      .filter((s) => scheduledWindow(s, now).canStart)
+      .filter((s) => scheduledWindow(s, scheduled, now).canStart)
       .sort((a, b) => a.start_time.localeCompare(b.start_time))[0] ?? null;
 
   async function checkIn() {
