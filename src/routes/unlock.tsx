@@ -15,8 +15,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { GermanMobileInput } from "@/components/GermanMobileInput";
 import { toast, Toaster } from "sonner";
 import { Radio, LogIn, UserPlus } from "lucide-react";
+
 
 export const Route = createFileRoute("/unlock")({
   beforeLoad: async () => {
