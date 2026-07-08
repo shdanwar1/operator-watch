@@ -1,0 +1,293 @@
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useMemo, useState } from "react";
+import { getGateStatus } from "@/lib/gate.functions";
+import {
+  listScheduledShifts,
+  listShifts,
+  type ScheduledShiftRow,
+  type ShiftRow,
+} from "@/lib/shifts.functions";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft } from "lucide-react";
+import { toast, Toaster } from "sonner";
+
+export const Route = createFileRoute("/calendar")({
+  beforeLoad: async () => {
+    const { unlocked } = await getGateStatus();
+    if (!unlocked) throw redirect({ to: "/unlock" });
+  },
+  head: () => ({
+    meta: [
+      { title: "Shift Calendar — Studio Operator" },
+      { name: "description", content: "Four-week calendar view of upcoming and past studio operator shifts." },
+    ],
+  }),
+  component: CalendarPage,
+});
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function dateKey(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function startOfWeek(d: Date) {
+  const c = new Date(d);
+  c.setHours(0, 0, 0, 0);
+  c.setDate(c.getDate() - c.getDay());
+  return c;
+}
+
+function addDays(d: Date, n: number) {
+  const c = new Date(d);
+  c.setDate(c.getDate() + n);
+  return c;
+}
+
+function fmtTime(t: string) {
+  const [hStr, mStr] = t.split(":");
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = ((h + 11) % 12) + 1;
+  return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+type Instance = {
+  shift: ScheduledShiftRow;
+  startAt: Date;
+  endAt: Date;
+  logged?: ShiftRow;
+};
+
+function instancesFor(day: Date, scheduled: ScheduledShiftRow[], overrides: Set<string>): Instance[] {
+  const out: Instance[] = [];
+  for (const s of scheduled) {
+    const applies = s.specific_date
+      ? s.specific_date === dateKey(day)
+      : day.getDay() === s.day_of_week && !overrides.has(dateKey(day));
+    if (!applies) continue;
+    const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
+    const [eh, em] = s.end_time.split(":").map((n) => parseInt(n, 10));
+    const startAt = new Date(day);
+    startAt.setHours(sh, sm, 0, 0);
+    const endAt = new Date(day);
+    endAt.setHours(eh, em, 0, 0);
+    out.push({ shift: s, startAt, endAt });
+  }
+  return out.sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
+}
+
+function CalendarPage() {
+  const fetchScheduled = useServerFn(listScheduledShifts);
+  const fetchShifts = useServerFn(listShifts);
+
+  const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
+  const [logged, setLogged] = useState<ShiftRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [sched, rows] = await Promise.all([fetchScheduled(), fetchShifts()]);
+        setScheduled(sched);
+        setLogged(rows);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to load");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const now = new Date();
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+
+  const firstWeekStart = useMemo(() => {
+    const base = startOfWeek(now);
+    return addDays(base, weekOffset * 7);
+  }, [weekOffset]);
+
+  const overrides = useMemo(
+    () => new Set(scheduled.map((s) => s.specific_date).filter((v): v is string => !!v)),
+    [scheduled],
+  );
+
+  const loggedByDay = useMemo(() => {
+    const map = new Map<string, ShiftRow[]>();
+    for (const r of logged) {
+      const k = dateKey(new Date(r.check_in_at));
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(r);
+    }
+    return map;
+  }, [logged]);
+
+  const weeks: Date[][] = useMemo(() => {
+    const w: Date[][] = [];
+    for (let i = 0; i < 4; i++) {
+      const start = addDays(firstWeekStart, i * 7);
+      w.push(Array.from({ length: 7 }, (_, d) => addDays(start, d)));
+    }
+    return w;
+  }, [firstWeekStart]);
+
+  const rangeLabel = `${firstWeekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${addDays(firstWeekStart, 27).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <Toaster richColors position="top-center" />
+      <div className="mx-auto max-w-7xl px-3 py-5 sm:px-5 sm:py-8">
+        <header className="mb-5 flex flex-wrap items-center gap-2 sm:mb-8 sm:gap-3">
+          <Button variant="ghost" size="sm" asChild className="h-8 px-2 sm:h-9">
+            <Link to="/">
+              <ArrowLeft className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Home</span>
+            </Link>
+          </Button>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground sm:h-11 sm:w-11">
+            <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-base font-semibold tracking-tight sm:text-2xl">Upcoming shifts</h1>
+            <p className="text-xs text-muted-foreground sm:text-sm">Four-week calendar view</p>
+          </div>
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+            <Button variant="outline" size="sm" onClick={() => setWeekOffset((n) => n - 1)} className="h-8 px-2 sm:h-9">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setWeekOffset(0)}
+              disabled={weekOffset === 0}
+              className="h-8 px-3 text-xs sm:h-9 sm:text-sm"
+            >
+              Today
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setWeekOffset((n) => n + 1)} className="h-8 px-2 sm:h-9">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </header>
+
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm font-medium sm:text-base">{rangeLabel}</div>
+          <div className="flex items-center gap-3 text-[11px] text-muted-foreground sm:text-xs">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-muted-foreground/30" />
+              Past
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary" />
+              Upcoming
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500" />
+              Logged
+            </span>
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <div className="hidden grid-cols-7 border-b border-border/60 sm:grid">
+                {DAY_LABELS.map((d) => (
+                  <div
+                    key={d}
+                    className="px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  >
+                    {d}
+                  </div>
+                ))}
+              </div>
+              <div className="divide-y divide-border/60">
+                {weeks.map((week, wi) => (
+                  <div key={wi} className="grid grid-cols-1 sm:grid-cols-7">
+                    {week.map((day) => {
+                      const key = dateKey(day);
+                      const isPastDay = day.getTime() < today.getTime();
+                      const isToday = day.getTime() === today.getTime();
+                      const insts = instancesFor(day, scheduled, overrides);
+                      const dayLogged = loggedByDay.get(key) ?? [];
+                      return (
+                        <div
+                          key={key}
+                          className={`min-h-[92px] border-border/60 p-2 sm:min-h-[120px] sm:border-r sm:last:border-r-0 ${
+                            isPastDay ? "bg-muted/30" : ""
+                          } ${isToday ? "bg-primary/5" : ""}`}
+                        >
+                          <div className="mb-1.5 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-semibold uppercase text-muted-foreground sm:hidden">
+                                {DAY_LABELS[day.getDay()]}
+                              </span>
+                              <span
+                                className={`text-xs font-semibold sm:text-sm ${
+                                  isToday
+                                    ? "flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                                    : isPastDay
+                                      ? "text-muted-foreground"
+                                      : "text-foreground"
+                                }`}
+                              >
+                                {day.getDate()}
+                              </span>
+                            </div>
+                            {day.getDate() === 1 && (
+                              <span className="text-[10px] text-muted-foreground">
+                                {day.toLocaleDateString(undefined, { month: "short" })}
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            {insts.map((inst, i) => {
+                              const past = inst.endAt.getTime() < now.getTime();
+                              const hasLog = dayLogged.some(
+                                (l) => l.scheduled_shift_id === inst.shift.id,
+                              );
+                              const cls = hasLog
+                                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                : past
+                                  ? "border-border/60 bg-muted/60 text-muted-foreground"
+                                  : "border-primary/40 bg-primary/10 text-foreground";
+                              return (
+                                <div
+                                  key={`${inst.shift.id}-${i}`}
+                                  className={`rounded-md border px-1.5 py-1 text-[10px] leading-tight sm:text-[11px] ${cls}`}
+                                  title={inst.shift.label ?? ""}
+                                >
+                                  <div className="font-medium">{fmtTime(inst.shift.start_time)}</div>
+                                  {inst.shift.label && (
+                                    <div className="truncate opacity-80">{inst.shift.label}</div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {insts.length === 0 && (
+                              <div className="text-[10px] text-muted-foreground/50 sm:text-[11px]">—</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn } from "lucide-react";
+import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays } from "lucide-react";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 
 export const Route = createFileRoute("/")({
@@ -265,6 +265,12 @@ function Index() {
             {username && (
               <span className="hidden text-xs text-muted-foreground sm:inline">{username}</span>
             )}
+            <Button variant="outline" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" asChild>
+              <Link to="/calendar">
+                <CalendarDays className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Calendar</span>
+              </Link>
+            </Button>
             <Button variant="outline" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" asChild>
               <Link to="/shifts">
                 <ListChecks className="h-3.5 w-3.5 sm:mr-1" />
