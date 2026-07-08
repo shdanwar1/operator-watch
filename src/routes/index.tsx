@@ -135,7 +135,6 @@ function Index() {
   const createShiftFn = useServerFn(createShift);
   const updateShiftServer = useServerFn(updateShiftFn);
 
-  const [operatorName, setOperatorName] = useState("");
   const [magicWord, setMagicWord] = useState("");
   const [active, setActive] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
@@ -151,8 +150,6 @@ function Index() {
   }, []);
 
   useEffect(() => {
-    const saved = typeof window !== "undefined" ? localStorage.getItem(OPERATOR_KEY) : null;
-    if (saved) setOperatorName(saved);
     load();
   }, []);
 
