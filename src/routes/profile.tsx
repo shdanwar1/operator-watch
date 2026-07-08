@@ -42,6 +42,7 @@ export const Route = createFileRoute("/profile")({
 function ProfilePage() {
   const verifyLogin = useServerFn(verifyOperatorLogin);
   const updateProfile = useServerFn(updateOperatorProfile);
+  const saveHome = useServerFn(setOperatorHome);
 
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -55,6 +56,8 @@ function ProfilePage() {
   const [mobile, setMobile] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [magicWord, setMagicWord] = useState("");
+  const [mapsUrl, setMapsUrl] = useState("");
+  const [savingHome, setSavingHome] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function login() {
