@@ -101,14 +101,14 @@ function SignupPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Mobile number</Label>
-              <Input
-                type="tel"
-                placeholder="+1 555 000 0000"
+              <Label htmlFor="signup-mobile">Mobile number</Label>
+              <GermanMobileInput
+                id="signup-mobile"
                 value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
+                onChange={setMobile}
               />
             </div>
+
 
             <div className="space-y-2">
               <Label>Check-in magic word</Label>
