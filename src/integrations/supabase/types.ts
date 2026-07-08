@@ -126,7 +126,30 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      operators_public: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          is_admin: boolean | null
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          is_admin?: boolean | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          is_admin?: boolean | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       create_operator: {
@@ -145,6 +168,7 @@ export type Database = {
           username: string
         }[]
       }
+      mask_mobile: { Args: { p_mobile: string }; Returns: string }
       update_operator: {
         Args: {
           p_id: string
