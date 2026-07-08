@@ -164,10 +164,10 @@ export const updateOperatorProfile = createServerFn({ method: "POST" })
 
     const { error: err2 } = await supabaseAdmin.rpc("update_operator", {
       p_id: data.id,
-      p_username: data.username ?? null,
-      p_password: data.new_password ?? null,
-      p_mobile: data.mobile ?? null,
-      p_magic: data.magic_word ?? null,
+      p_username: (data.username ?? null) as string,
+      p_password: (data.new_password ?? null) as string,
+      p_mobile: (data.mobile ?? null) as string,
+      p_magic: (data.magic_word ?? null) as string,
     });
     if (err2) throw new Error(err2.message);
     return { ok: true as const };
