@@ -112,6 +112,62 @@ export const createShift = createServerFn({ method: "POST" })
     return normalizeShift(row as Record<string, unknown>);
   });
 
+export const createPastShift = createServerFn({ method: "POST" })
+  .inputValidator(
+    (data: {
+      operator_name: string;
+      check_in_at: string;
+      check_out_at: string;
+      classes?: ShiftClass[];
+      notes?: string | null;
+    }) => {
+      if (!data || typeof data.operator_name !== "string") {
+        throw new Error("operator_name is required");
+      }
+      const name = data.operator_name.trim();
+      if (!name || name.length > 100) throw new Error("Invalid operator_name");
+      const ci = new Date(data.check_in_at);
+      const co = new Date(data.check_out_at);
+      if (isNaN(ci.getTime())) throw new Error("Invalid check_in_at");
+      if (isNaN(co.getTime())) throw new Error("Invalid check_out_at");
+      if (co.getTime() <= ci.getTime()) throw new Error("Check-out must be after check-in");
+      const classes = Array.isArray(data.classes)
+        ? data.classes.slice(0, 100).map((c) => ({
+            class: String(c?.class ?? "").slice(0, 200),
+            teacher: String(c?.teacher ?? "").slice(0, 200),
+          }))
+        : [];
+      const notes =
+        data.notes === undefined || data.notes === null
+          ? null
+          : String(data.notes).slice(0, 5000);
+      return {
+        operator_name: name,
+        check_in_at: ci.toISOString(),
+        check_out_at: co.toISOString(),
+        classes,
+        notes,
+      };
+    },
+  )
+  .handler(async ({ data }) => {
+    await requireGate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("shifts")
+      .insert({
+        operator_name: data.operator_name,
+        check_in_at: data.check_in_at,
+        check_out_at: data.check_out_at,
+        classes: data.classes,
+        notes: data.notes,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return normalizeShift(row as Record<string, unknown>);
+  });
+
 type ShiftPatch = {
   operator_name?: string;
   check_in_at?: string;
