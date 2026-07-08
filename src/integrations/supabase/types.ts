@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      operators: {
+        Row: {
+          created_at: string
+          id: string
+          magic_word_hash: string
+          mobile: string | null
+          password_hash: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          magic_word_hash: string
+          mobile?: string | null
+          password_hash: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          magic_word_hash?: string
+          mobile?: string | null
+          password_hash?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       scheduled_shifts: {
         Row: {
           created_at: string
@@ -96,7 +126,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_operator: {
+        Args: {
+          p_magic: string
+          p_mobile: string
+          p_password: string
+          p_username: string
+        }
+        Returns: string
+      }
+      update_operator: {
+        Args: {
+          p_id: string
+          p_magic: string
+          p_mobile: string
+          p_password: string
+          p_username: string
+        }
+        Returns: undefined
+      }
+      verify_operator_magic: {
+        Args: { p_magic: string; p_username: string }
+        Returns: string
+      }
+      verify_operator_password: {
+        Args: { p_password: string; p_username: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

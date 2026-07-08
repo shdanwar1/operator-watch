@@ -136,6 +136,7 @@ function Index() {
   const updateShiftServer = useServerFn(updateShiftFn);
 
   const [operatorName, setOperatorName] = useState("");
+  const [magicWord, setMagicWord] = useState("");
   const [active, setActive] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
   const [scheduled, setScheduled] = useState<ScheduledShift[]>([]);
@@ -183,15 +184,22 @@ function Index() {
       .sort((a, b) => a.start_time.localeCompare(b.start_time))[0] ?? null;
 
   async function checkIn() {
-    const name = operatorName.trim();
-    if (!name) return toast.error("Enter your name first");
-    localStorage.setItem(OPERATOR_KEY, name);
+    const name = operatorName.trim().toLowerCase();
+    const word = magicWord.trim();
+    if (!name) return toast.error("Enter your username");
+    if (!word) return toast.error("Enter the magic word");
     setCheckingIn(true);
     try {
       const row = await createShiftFn({
-        data: { operator_name: name, scheduled_shift_id: openScheduled?.id ?? null },
+        data: {
+          username: name,
+          magic_word: word,
+          scheduled_shift_id: openScheduled?.id ?? null,
+        },
       });
+      localStorage.setItem(OPERATOR_KEY, name);
       setActive(row);
+      setMagicWord("");
       toast.success(`Checked in — welcome, ${name}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Check-in failed");
@@ -301,6 +309,8 @@ function Index() {
               <CheckInPanel
                 operatorName={operatorName}
                 setOperatorName={setOperatorName}
+                magicWord={magicWord}
+                setMagicWord={setMagicWord}
                 openScheduled={openScheduled}
                 scheduled={scheduled}
                 onCheckIn={checkIn}
@@ -444,6 +454,8 @@ function formatCountdown(ms: number) {
 function CheckInPanel({
   operatorName,
   setOperatorName,
+  magicWord,
+  setMagicWord,
   openScheduled,
   scheduled,
   onCheckIn,
@@ -451,12 +463,14 @@ function CheckInPanel({
 }: {
   operatorName: string;
   setOperatorName: (v: string) => void;
+  magicWord: string;
+  setMagicWord: (v: string) => void;
   openScheduled: ScheduledShift | null;
   scheduled: ScheduledShift[];
   onCheckIn: () => void;
   checkingIn: boolean;
 }) {
-  const canCheckIn = operatorName.trim().length > 0 && !!openScheduled;
+  const canCheckIn = operatorName.trim().length > 0 && magicWord.trim().length > 0 && !!openScheduled;
   const now = new Date();
   const next = openScheduled ? null : nextShiftInstance(scheduled, now);
   const opensAt = next ? new Date(next.startAt.getTime() - 45 * 60 * 1000) : null;
@@ -541,16 +555,43 @@ function CheckInPanel({
           </>
         )}
 
-        <div className="w-full max-w-xs space-y-2 text-left">
-          <Label htmlFor="op" className="text-xs uppercase tracking-wide text-muted-foreground">
-            Your name
-          </Label>
-          <Input
-            id="op"
-            placeholder="e.g. Alex"
-            value={operatorName}
-            onChange={(e) => setOperatorName(e.target.value)}
-          />
+        <div className="w-full max-w-xs space-y-3 text-left">
+          <div className="space-y-2">
+            <Label htmlFor="op" className="text-xs uppercase tracking-wide text-muted-foreground">
+              Username
+            </Label>
+            <Input
+              id="op"
+              placeholder="e.g. shad"
+              autoCapitalize="none"
+              autoCorrect="off"
+              value={operatorName}
+              onChange={(e) => setOperatorName(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="mw" className="text-xs uppercase tracking-wide text-muted-foreground">
+              Magic word
+            </Label>
+            <Input
+              id="mw"
+              type="password"
+              placeholder="Secret check-in word"
+              value={magicWord}
+              onChange={(e) => setMagicWord(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && canCheckIn && !checkingIn) onCheckIn();
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <Link to="/signup" className="hover:text-foreground hover:underline">
+              New operator? Sign up
+            </Link>
+            <Link to="/profile" className="hover:text-foreground hover:underline">
+              Edit profile
+            </Link>
+          </div>
         </div>
 
         <Button
