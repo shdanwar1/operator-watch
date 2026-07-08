@@ -53,9 +53,9 @@ function Unlock() {
     setLoading(true);
     setError(false);
     try {
-      const { ok } = await unlock({ data: { username, password } });
-      if (ok) {
-        await router.navigate({ to: "/" });
+      const result = await unlock({ data: { username, password } });
+      if (result.ok) {
+        await router.navigate({ to: result.isAdmin ? "/admin" : "/" });
       } else {
         setError(true);
       }
@@ -63,6 +63,7 @@ function Unlock() {
       setLoading(false);
     }
   }
+
 
   async function onSignup(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

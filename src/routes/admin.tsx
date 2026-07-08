@@ -1,21 +1,20 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getGateStatus } from "@/lib/gate.functions";
-import { adminListShifts } from "@/lib/operators.functions";
+import { adminListShiftsForSession } from "@/lib/operators.functions";
 import type { ShiftRow } from "@/lib/shifts.functions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { ArrowLeft, LogIn, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async () => {
-    const { unlocked } = await getGateStatus();
-    if (!unlocked) throw redirect({ to: "/unlock" });
+    const status = await getGateStatus();
+    if (!status.unlocked) throw redirect({ to: "/unlock" });
+    if (!status.isAdmin) throw redirect({ to: "/" });
   },
   head: () => ({
     meta: [
@@ -39,26 +38,28 @@ function duration(a: string, b: string | null) {
 }
 
 function AdminPage() {
-  const fetchAdminShifts = useServerFn(adminListShifts);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const fetchAdminShifts = useServerFn(adminListShiftsForSession);
+  const [loading, setLoading] = useState(true);
   const [shifts, setShifts] = useState<ShiftRow[] | null>(null);
   const [filter, setFilter] = useState<string>("all");
 
-  async function login(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const rows = await fetchAdminShifts({ data: { username, password } });
-      setShifts(rows as ShiftRow[]);
-      toast.success("Admin access granted");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Access denied");
-    } finally {
-      setLoading(false);
-    }
-  }
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const rows = await fetchAdminShifts();
+        if (alive) setShifts(rows as ShiftRow[]);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to load shifts");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [fetchAdminShifts]);
+
 
   const operators = useMemo(() => {
     if (!shifts) return [];
@@ -104,40 +105,20 @@ function AdminPage() {
           </div>
         </header>
 
-        {!shifts ? (
+        {loading ? (
           <Card className="mx-auto max-w-sm">
-            <CardContent className="space-y-4 p-6">
-              <p className="text-sm text-muted-foreground">
-                Sign in with an admin operator account to view every operator's shifts.
-              </p>
-              <form onSubmit={login} className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Admin username</Label>
-                  <Input
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Password</Label>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <Button type="submit" size="lg" className="w-full" disabled={loading}>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  {loading ? "Signing in…" : "Sign in as admin"}
-                </Button>
-              </form>
+            <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading shifts…
+            </CardContent>
+          </Card>
+        ) : !shifts ? (
+          <Card className="mx-auto max-w-sm">
+            <CardContent className="p-6 text-sm text-muted-foreground">
+              Unable to load shifts.
             </CardContent>
           </Card>
         ) : (
+
           <div className="space-y-5">
             {summary && summary.size > 0 && (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

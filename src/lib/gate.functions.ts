@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
 
-type GateSession = { unlocked?: boolean; username?: string };
+type GateSession = { unlocked?: boolean; username?: string; isAdmin?: boolean };
 
 function getSessionConfig() {
   const password = process.env.SESSION_SECRET;
@@ -35,10 +35,17 @@ export const unlockSite = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     if (!id) return { ok: false as const };
+    const { data: row } = await supabaseAdmin
+      .from("operators")
+      .select("is_admin")
+      .eq("id", id as string)
+      .maybeSingle();
+    const isAdmin = Boolean(row?.is_admin);
     const session = await useSession<GateSession>(getSessionConfig());
-    await session.update({ unlocked: true, username: data.username });
-    return { ok: true as const };
+    await session.update({ unlocked: true, username: data.username, isAdmin });
+    return { ok: true as const, isAdmin };
   });
+
 
 
 export const lockSite = createServerFn({ method: "POST" }).handler(async () => {
@@ -52,5 +59,7 @@ export const getGateStatus = createServerFn({ method: "GET" }).handler(async () 
   return {
     unlocked: Boolean(session.data.unlocked),
     username: session.data.username ?? null,
+    isAdmin: Boolean(session.data.isAdmin),
   };
 });
+
