@@ -103,7 +103,6 @@ function ShiftsPage() {
             operator_name: next.operator_name,
             check_in_at: next.check_in_at,
             check_out_at: next.check_out_at,
-            live_streams_count: next.live_streams_count,
             classes: next.classes,
             notes: next.notes,
           },
