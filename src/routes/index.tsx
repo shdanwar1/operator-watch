@@ -332,7 +332,8 @@ function Index() {
             )}
           </div>
 
-          <aside className="lg:sticky lg:top-6 lg:self-start">
+          <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+            {!loading && !active && <TimeToLeaveCard scheduled={scheduled} now={now} />}
             {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
           </aside>
         </div>
@@ -340,6 +341,7 @@ function Index() {
     </div>
   );
 }
+
 
 function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: Date }) {
   const instances = upcomingInstances(scheduled, now, 6);
