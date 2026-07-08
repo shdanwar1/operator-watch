@@ -1,7 +1,12 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { getGateStatus } from "@/lib/gate.functions";
+import {
+  listShifts,
+  updateShift as updateShiftFn,
+  deleteShift as deleteShiftFn,
+} from "@/lib/shifts.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
