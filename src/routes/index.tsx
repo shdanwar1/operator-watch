@@ -247,7 +247,7 @@ function Index() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Toaster richColors position="top-center" />
-      <div className="mx-auto max-w-2xl px-5 py-10">
+      <div className="mx-auto max-w-6xl px-5 py-10">
         <header className="mb-10 flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Radio className="h-5 w-5" />
@@ -276,44 +276,133 @@ function Index() {
           </div>
         </header>
 
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : active ? (
-          <ActiveShiftPanel
-            shift={active}
-            onCheckOut={checkOut}
-            onAddClass={addClassRow}
-            onUpdateClass={updateClassRow}
-            onRemoveClass={removeClassRow}
-            checkingOut={checkingOut}
-          />
-        ) : (
-          <CheckInPanel
-            operatorName={operatorName}
-            setOperatorName={setOperatorName}
-            openScheduled={openScheduled}
-            scheduled={scheduled}
-            onCheckIn={checkIn}
-            checkingIn={checkingIn}
-          />
-        )}
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0">
+            {loading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : active ? (
+              <ActiveShiftPanel
+                shift={active}
+                onCheckOut={checkOut}
+                onAddClass={addClassRow}
+                onUpdateClass={updateClassRow}
+                onRemoveClass={removeClassRow}
+                checkingOut={checkingOut}
+              />
+            ) : (
+              <CheckInPanel
+                operatorName={operatorName}
+                setOperatorName={setOperatorName}
+                openScheduled={openScheduled}
+                scheduled={scheduled}
+                onCheckIn={checkIn}
+                checkingIn={checkingIn}
+              />
+            )}
 
-        {!active && history.length > 0 && (
-          <section className="mt-12">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Last 30 days
-              </h2>
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/shifts">View all</Link>
-              </Button>
-            </div>
-            <MonthlySummary shifts={history} />
-          </section>
-        )}
+            {!active && history.length > 0 && (
+              <section className="mt-12">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Last 30 days
+                  </h2>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to="/shifts">View all</Link>
+                  </Button>
+                </div>
+                <MonthlySummary shifts={history} />
+              </section>
+            )}
+          </div>
+
+          <aside className="lg:sticky lg:top-6 lg:self-start">
+            {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
+          </aside>
+        </div>
       </div>
     </div>
   );
+}
+
+function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: Date }) {
+  const instances = upcomingInstances(scheduled, now, 6);
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Upcoming shifts
+          </h2>
+        </div>
+        {instances.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No upcoming shifts scheduled.</p>
+        ) : (
+          <ul className="space-y-3">
+            {instances.map(({ shift, startAt, endAt }, i) => {
+              const isToday = startAt.toDateString() === now.toDateString();
+              const tomorrow = new Date(now);
+              tomorrow.setDate(tomorrow.getDate() + 1);
+              const isTomorrow = startAt.toDateString() === tomorrow.toDateString();
+              const dayLabel = isToday
+                ? "Today"
+                : isTomorrow
+                  ? "Tomorrow"
+                  : startAt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+              return (
+                <li
+                  key={`${shift.id}-${i}`}
+                  className="flex items-baseline justify-between gap-3 border-b border-border/50 pb-3 last:border-b-0 last:pb-0"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">{dayLabel}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}
+                    </div>
+                    {shift.label && (
+                      <div className="mt-0.5 truncate text-xs text-muted-foreground/80">
+                        {shift.label}
+                      </div>
+                    )}
+                  </div>
+                  {shift.specific_date && (
+                    <Badge variant="secondary" className="shrink-0 text-[10px]">
+                      One-off
+                    </Badge>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function upcomingInstances(
+  scheduled: ScheduledShift[],
+  now: Date,
+  limit: number,
+): { shift: ScheduledShift; startAt: Date; endAt: Date }[] {
+  const overrides = overrideDates(scheduled);
+  const out: { shift: ScheduledShift; startAt: Date; endAt: Date }[] = [];
+  for (let offset = 0; offset < 21 && out.length < limit * 3; offset++) {
+    const day = new Date(now);
+    day.setDate(day.getDate() + offset);
+    for (const s of scheduled) {
+      if (!shiftAppliesOn(s, day, overrides)) continue;
+      const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
+      const [eh, em] = s.end_time.split(":").map((n) => parseInt(n, 10));
+      const startAt = new Date(day);
+      startAt.setHours(sh, sm, 0, 0);
+      const endAt = new Date(day);
+      endAt.setHours(eh, em, 0, 0);
+      if (endAt.getTime() <= now.getTime()) continue;
+      out.push({ shift: s, startAt, endAt });
+    }
+  }
+  return out.sort((a, b) => a.startAt.getTime() - b.startAt.getTime()).slice(0, limit);
 }
 
 function nextShiftInstance(
