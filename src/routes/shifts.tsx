@@ -182,7 +182,7 @@ function ShiftsPage() {
                     <div className="mt-1 text-sm text-muted-foreground">
                       {fmt(s.check_in_at)} → {fmt(s.check_out_at)} •{" "}
                       {duration(s.check_in_at, s.check_out_at)} •{" "}
-                      <span className="text-foreground">{s.live_streams_count}</span> streams
+                      <span className="text-foreground">{s.classes.length}</span> streams
                     </div>
                     {s.classes.length > 0 && (
                       <div className="mt-3 overflow-hidden rounded-md border">
