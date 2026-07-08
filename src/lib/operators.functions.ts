@@ -294,4 +294,102 @@ export const adminListShiftsForSession = createServerFn({ method: "GET" }).handl
   });
 });
 
+/**
+ * Resolve a Google Maps link (short or long) into { label, lat, lng }.
+ * Follows redirects on maps.app.goo.gl / goo.gl / g.co so the app never
+ * needs an API key.
+ */
+async function resolveGoogleMapsUrl(
+  input: string,
+): Promise<{ label: string; lat: number; lng: number }> {
+  const raw = input.trim();
+  if (!raw) throw new Error("Paste a Google Maps link");
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new Error("That does not look like a valid URL");
+  }
+  const shortHosts = ["maps.app.goo.gl", "goo.gl", "g.co", "maps.google.com"];
+  let finalUrl = u.toString();
+  if (shortHosts.includes(u.hostname)) {
+    try {
+      const res = await fetch(u.toString(), { redirect: "follow" });
+      finalUrl = res.url || finalUrl;
+    } catch {
+      // fall through — parsing may still work on the original URL
+    }
+  }
+  const parse = (s: string): { lat: number; lng: number } | null => {
+    // /@lat,lng,zoom
+    const at = s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (at) return { lat: parseFloat(at[1]), lng: parseFloat(at[2]) };
+    // !3dLAT!4dLNG
+    const bang = s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+    if (bang) return { lat: parseFloat(bang[1]), lng: parseFloat(bang[2]) };
+    // ?q=lat,lng or ?query=lat,lng or ?ll=lat,lng
+    const q = s.match(/[?&](?:q|query|ll|destination)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (q) return { lat: parseFloat(q[1]), lng: parseFloat(q[2]) };
+    return null;
+  };
+  const coords = parse(finalUrl) ?? parse(raw);
+  if (!coords) {
+    throw new Error(
+      "Could not read coordinates from that link. Open the place in Google Maps, tap Share, and paste the link.",
+    );
+  }
+  // Try to extract a readable label from the resolved URL path
+  // e.g. /maps/place/Kaiserin-Augusta-Allee+10,+10553+Berlin/@...
+  let label = "Home";
+  const placeMatch = finalUrl.match(/\/place\/([^/@]+)/);
+  if (placeMatch) {
+    try {
+      label = decodeURIComponent(placeMatch[1]).replace(/\+/g, " ");
+    } catch {
+      /* keep default */
+    }
+  }
+  return { label, lat: coords.lat, lng: coords.lng };
+}
+
+export const setOperatorHome = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string; current_password: string; maps_url: string }) => ({
+    id: requireNonEmpty(data?.id, "id"),
+    current_password: requireNonEmpty(data?.current_password, "Current password", 200),
+    maps_url: requireNonEmpty(data?.maps_url, "Google Maps link", 2000),
+  }))
+  .handler(async ({ data }) => {
+    await requireGate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: row, error: err0 } = await supabaseAdmin
+      .from("operators")
+      .select("username")
+      .eq("id", data.id)
+      .single();
+    if (err0 || !row) throw new Error("Operator not found");
+
+    const { data: verifiedId, error: err1 } = await supabaseAdmin.rpc(
+      "verify_operator_password",
+      {
+        p_username: (row as { username: string }).username,
+        p_password: data.current_password,
+      },
+    );
+    if (err1) throw new Error(err1.message);
+    if (!verifiedId) throw new Error("Current password is incorrect");
+
+    const { label, lat, lng } = await resolveGoogleMapsUrl(data.maps_url);
+
+    const { error: err2 } = await supabaseAdmin.rpc("set_operator_home", {
+      p_id: data.id,
+      p_label: label,
+      p_lat: lat,
+      p_lng: lng,
+    });
+    if (err2) throw new Error(err2.message);
+    return { label, lat, lng };
+  });
+
+
 
