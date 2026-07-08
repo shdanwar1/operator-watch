@@ -11,8 +11,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { GermanMobileInput } from "@/components/GermanMobileInput";
 import { toast, Toaster } from "sonner";
 import { ArrowLeft, LogIn, Save } from "lucide-react";
+
+function stripDePrefix(v: string | null | undefined): string {
+  if (!v) return "";
+  const digits = v.replace(/\D+/g, "");
+  if (digits.startsWith("49") && digits.length === 12) return digits.slice(2);
+  if (digits.startsWith("0")) return digits.slice(1);
+  return digits.slice(-10);
+}
+
 
 export const Route = createFileRoute("/profile")({
   beforeLoad: async () => {
