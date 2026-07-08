@@ -42,7 +42,7 @@ export const unlockSite = createServerFn({ method: "POST" })
       .maybeSingle();
     const isAdmin = Boolean(row?.is_admin);
     const session = await useSession<GateSession>(getSessionConfig());
-    await session.update({ unlocked: true, username: data.username });
+    await session.update({ unlocked: true, username: data.username, isAdmin });
     return { ok: true as const, isAdmin };
   });
 
@@ -59,5 +59,7 @@ export const getGateStatus = createServerFn({ method: "GET" }).handler(async () 
   return {
     unlocked: Boolean(session.data.unlocked),
     username: session.data.username ?? null,
+    isAdmin: Boolean(session.data.isAdmin),
   };
 });
+
