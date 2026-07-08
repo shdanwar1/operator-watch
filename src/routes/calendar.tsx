@@ -40,7 +40,7 @@ export const Route = createFileRoute("/calendar")({
   component: CalendarPage,
 });
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 
 function dateKey(d: Date) {
@@ -53,7 +53,9 @@ function dateKey(d: Date) {
 function startOfWeek(d: Date) {
   const c = new Date(d);
   c.setHours(0, 0, 0, 0);
-  c.setDate(c.getDate() - c.getDay());
+  // Monday-start week: Sunday (0) is 6 days after Monday, others shift by 1.
+  const offset = (c.getDay() + 6) % 7;
+  c.setDate(c.getDate() - offset);
   return c;
 }
 
@@ -300,7 +302,7 @@ function CalendarPage() {
                           <div className="mb-1.5 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5">
                               <span className="text-[10px] font-semibold uppercase text-muted-foreground sm:hidden">
-                                {DAY_LABELS[day.getDay()]}
+                                {DAY_LABELS[(day.getDay() + 6) % 7]}
                               </span>
                               <span
                                 className={`text-xs font-semibold sm:text-sm ${
