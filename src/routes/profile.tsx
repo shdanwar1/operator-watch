@@ -240,6 +240,44 @@ function ProfilePage() {
                 {saving ? "Saving…" : "Save changes"}
               </Button>
 
+              <div className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-4">
+                <div className="flex items-center gap-2">
+                  <Home className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-sm font-medium">Home address</Label>
+                </div>
+                {operator.home_label ? (
+                  <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+                    <span>{operator.home_label}</span>
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Not set yet. Used to estimate your time to leave for the studio.
+                  </p>
+                )}
+                <Input
+                  placeholder="https://maps.app.goo.gl/..."
+                  value={mapsUrl}
+                  onChange={(e) => setMapsUrl(e.target.value)}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Open your home in Google Maps → Share → Copy link, then paste it here.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={saveHomeAddress}
+                  disabled={savingHome}
+                >
+                  <MapPin className="mr-2 h-4 w-4" />
+                  {savingHome ? "Saving…" : operator.home_label ? "Update home address" : "Save home address"}
+                </Button>
+              </div>
+
+
               <Button
                 variant="ghost"
                 className="w-full"
