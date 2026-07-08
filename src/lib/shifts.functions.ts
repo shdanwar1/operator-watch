@@ -216,6 +216,8 @@ function sanitizeShiftPatch(patch: ShiftPatch): ShiftPatch {
       class: String(c?.class ?? "").slice(0, 200),
       teacher: String(c?.teacher ?? "").slice(0, 200),
     }));
+    // Streams count is always the number of classes.
+    out.live_streams_count = out.classes.length;
   }
   return out;
 }
