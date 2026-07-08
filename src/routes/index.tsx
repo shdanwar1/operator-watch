@@ -443,8 +443,6 @@ function formatCountdown(ms: number) {
 }
 
 function CheckInPanel({
-  operatorName,
-  setOperatorName,
   magicWord,
   setMagicWord,
   openScheduled,
@@ -452,8 +450,6 @@ function CheckInPanel({
   onCheckIn,
   checkingIn,
 }: {
-  operatorName: string;
-  setOperatorName: (v: string) => void;
   magicWord: string;
   setMagicWord: (v: string) => void;
   openScheduled: ScheduledShift | null;
@@ -461,7 +457,7 @@ function CheckInPanel({
   onCheckIn: () => void;
   checkingIn: boolean;
 }) {
-  const canCheckIn = operatorName.trim().length > 0 && magicWord.trim().length > 0 && !!openScheduled;
+  const canCheckIn = magicWord.trim().length > 0 && !!openScheduled;
   const now = new Date();
   const next = openScheduled ? null : nextShiftInstance(scheduled, now);
   const opensAt = next ? new Date(next.startAt.getTime() - 45 * 60 * 1000) : null;
