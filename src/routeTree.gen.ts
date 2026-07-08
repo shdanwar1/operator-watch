@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ShiftsRouteImport } from './routes/shifts'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -30,6 +31,11 @@ const ShiftsRoute = ShiftsRouteImport.update({
   path: '/shifts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CalendarRoute = CalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
@@ -44,6 +50,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
+  '/profile': typeof ProfileRoute
   '/shifts': typeof ShiftsRoute
   '/signup': typeof SignupRoute
   '/unlock': typeof UnlockRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
+  '/profile': typeof ProfileRoute
   '/shifts': typeof ShiftsRoute
   '/signup': typeof SignupRoute
   '/unlock': typeof UnlockRoute
@@ -59,21 +67,30 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
+  '/profile': typeof ProfileRoute
   '/shifts': typeof ShiftsRoute
   '/signup': typeof SignupRoute
   '/unlock': typeof UnlockRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/calendar' | '/shifts' | '/signup' | '/unlock'
+  fullPaths: '/' | '/calendar' | '/profile' | '/shifts' | '/signup' | '/unlock'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/calendar' | '/shifts' | '/signup' | '/unlock'
-  id: '__root__' | '/' | '/calendar' | '/shifts' | '/signup' | '/unlock'
+  to: '/' | '/calendar' | '/profile' | '/shifts' | '/signup' | '/unlock'
+  id:
+    | '__root__'
+    | '/'
+    | '/calendar'
+    | '/profile'
+    | '/shifts'
+    | '/signup'
+    | '/unlock'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CalendarRoute: typeof CalendarRoute
+  ProfileRoute: typeof ProfileRoute
   ShiftsRoute: typeof ShiftsRoute
   SignupRoute: typeof SignupRoute
   UnlockRoute: typeof UnlockRoute
@@ -102,6 +119,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShiftsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/calendar': {
       id: '/calendar'
       path: '/calendar'
@@ -122,6 +146,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CalendarRoute: CalendarRoute,
+  ProfileRoute: ProfileRoute,
   ShiftsRoute: ShiftsRoute,
   SignupRoute: SignupRoute,
   UnlockRoute: UnlockRoute,
