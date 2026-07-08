@@ -55,7 +55,7 @@ type ExistingSched = { day_of_week: number; start_time: string; label: string | 
 
 export function GoogleCalendarSync({ onSynced }: { onSynced?: () => void }) {
   const [keyword, setKeyword] = useState<string>(
-    () => localStorage.getItem("gcal:keyword") ?? "shift",
+    () => localStorage.getItem("gcal:keyword") ?? "dancemasterclass",
   );
   const [clientId, setClientId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
