@@ -494,38 +494,38 @@ function CheckInPanel({
     <Card className="border-border/60">
       <CardContent className="flex flex-col items-center gap-5 px-4 py-8 text-center sm:gap-6 sm:px-6 sm:py-10">
         {showCountdownCard ? (
-          <>
-            <Hourglass
-              percent={percent}
-              state={state}
-              className="w-32 sm:w-40 md:w-44"
-            />
-            <div className="space-y-1">
+          <div className="flex flex-col items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2.5">
+              <Hourglass
+                percent={percent}
+                state={state}
+                className="h-8 w-8 sm:h-10 sm:w-10"
+              />
               <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
                 {state === "ready" ? "Ready for Check-In" : "Check-in opens in"}
               </div>
-              {state !== "ready" && (
-                <div
-                  className={`font-mono text-3xl font-semibold tabular-nums tracking-tight transition-colors sm:text-4xl ${countdownColor}`}
-                >
-                  {formatCountdown(msUntilOpen)}
-                </div>
-              )}
-              <p className="pt-1 text-xs text-muted-foreground sm:text-sm">
-                {openScheduled ? (
-                  <>
-                    {openScheduled.label ?? "Scheduled shift"} ·{" "}
-                    {fmtTime(openScheduled.start_time)} — {fmtTime(openScheduled.end_time)}
-                  </>
-                ) : (
-                  <>
-                    {next!.shift.label ?? "Scheduled shift"} ·{" "}
-                    {DAY_NAMES[next!.shift.day_of_week]} at {fmtTime(next!.shift.start_time)}
-                  </>
-                )}
-              </p>
             </div>
-          </>
+            {state !== "ready" && (
+              <div
+                className={`font-mono text-3xl font-semibold tabular-nums tracking-tight transition-colors sm:text-4xl ${countdownColor}`}
+              >
+                {formatCountdown(msUntilOpen)}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground sm:text-sm">
+              {openScheduled ? (
+                <>
+                  {openScheduled.label ?? "Scheduled shift"} ·{" "}
+                  {fmtTime(openScheduled.start_time)} — {fmtTime(openScheduled.end_time)}
+                </>
+              ) : (
+                <>
+                  {next!.shift.label ?? "Scheduled shift"} ·{" "}
+                  {DAY_NAMES[next!.shift.day_of_week]} at {fmtTime(next!.shift.start_time)}
+                </>
+              )}
+            </p>
+          </div>
         ) : (
           <>
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted sm:h-16 sm:w-16">
