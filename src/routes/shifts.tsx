@@ -19,6 +19,7 @@ import {
 import { toast, Toaster } from "sonner";
 import { ArrowLeft, Pencil, Plus, Trash2, X, Save } from "lucide-react";
 import type { ShiftClass } from "./index";
+import { GoogleCalendarSync } from "@/components/GoogleCalendarSync";
 
 export const Route = createFileRoute("/shifts")({
   beforeLoad: async () => {
@@ -130,6 +131,10 @@ function ShiftsPage() {
             </div>
           </div>
         </header>
+
+        <div className="mb-6">
+          <GoogleCalendarSync />
+        </div>
 
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
