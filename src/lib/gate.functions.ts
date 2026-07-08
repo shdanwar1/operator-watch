@@ -35,10 +35,17 @@ export const unlockSite = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     if (!id) return { ok: false as const };
+    const { data: row } = await supabaseAdmin
+      .from("operators")
+      .select("is_admin")
+      .eq("id", id as string)
+      .maybeSingle();
+    const isAdmin = Boolean(row?.is_admin);
     const session = await useSession<GateSession>(getSessionConfig());
     await session.update({ unlocked: true, username: data.username });
-    return { ok: true as const };
+    return { ok: true as const, isAdmin };
   });
+
 
 
 export const lockSite = createServerFn({ method: "POST" }).handler(async () => {
