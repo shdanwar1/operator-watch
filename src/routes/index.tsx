@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, useRouter, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getGateStatus, lockSite } from "@/lib/gate.functions";
 import {
   listShifts,
@@ -17,7 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
 import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn } from "lucide-react";
-import { Hourglass } from "@/components/Hourglass";
+import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
