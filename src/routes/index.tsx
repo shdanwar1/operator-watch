@@ -847,17 +847,25 @@ function TimeToLeaveCard({
 
   const shiftStart = next.startAt;
 
+  const hero = variant === "hero";
+
   return (
-    <Card>
-      <CardContent className="p-5">
+    <Card className={hero ? "border-primary/40" : undefined}>
+      <CardContent className={hero ? "p-6 sm:p-8" : "p-5"}>
         <div className="mb-3 flex items-center gap-2">
-          <Train className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Train className={hero ? "h-5 w-5 text-primary" : "h-4 w-4 text-muted-foreground"} />
+          <h2
+            className={
+              hero
+                ? "text-sm font-semibold uppercase tracking-wider text-primary"
+                : "text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            }
+          >
             Time to leave
           </h2>
         </div>
 
-        <p className="text-xs text-muted-foreground">
+        <p className={hero ? "text-sm text-muted-foreground" : "text-xs text-muted-foreground"}>
           Next shift{" "}
           <span className="font-medium text-foreground">
             {shiftStart.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
@@ -868,7 +876,7 @@ function TimeToLeaveCard({
         {loading && !plan ? (
           <p className="mt-3 text-sm text-muted-foreground">Planning your trip…</p>
         ) : plan && plan.ok ? (
-          <TimeToLeaveDetails plan={plan} now={now} />
+          <TimeToLeaveDetails plan={plan} now={now} hero={hero} />
         ) : plan && plan.reason === "no_home" ? (
           <div className="mt-3 space-y-2">
             <p className="text-sm text-muted-foreground">
@@ -891,6 +899,8 @@ function TimeToLeaveCard({
     </Card>
   );
 }
+
+
 
 function TimeToLeaveDetails({
   plan,
