@@ -71,10 +71,29 @@ function ProfilePage() {
       setMobile(stripDePrefix(op.mobile));
       setNewPassword("");
       setMagicWord("");
+      setMapsUrl("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Login failed");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function saveHomeAddress() {
+    if (!operator) return;
+    if (!mapsUrl.trim()) return toast.error("Paste a Google Maps link");
+    setSavingHome(true);
+    try {
+      const res = await saveHome({
+        data: { id: operator.id, current_password: currentPassword, maps_url: mapsUrl.trim() },
+      });
+      toast.success(`Home saved: ${res.label}`);
+      setOperator({ ...operator, home_label: res.label, home_lat: res.lat, home_lng: res.lng });
+      setMapsUrl("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save home");
+    } finally {
+      setSavingHome(false);
     }
   }
 
