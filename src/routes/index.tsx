@@ -318,6 +318,12 @@ function Index() {
                 onRemoveClass={removeClassRow}
                 checkingOut={checkingOut}
               />
+            ) : focus === "time_to_leave" ? (
+              <TimeToLeaveCard
+                scheduled={scheduled}
+                now={now}
+                variant="hero"
+              />
             ) : (
               <CheckInPanel
                 magicWord={magicWord}
@@ -345,10 +351,24 @@ function Index() {
           </div>
 
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-            {!loading && !active && <TimeToLeaveCard scheduled={scheduled} now={now} />}
+            {!loading && !active && focus === "time_to_leave" && (
+              <CheckInPanel
+                magicWord={magicWord}
+                setMagicWord={setMagicWord}
+                openScheduled={openScheduled}
+                scheduled={scheduled}
+                onCheckIn={checkIn}
+                checkingIn={checkingIn}
+                variant="compact"
+              />
+            )}
+            {!active && focus === "check_in" && (
+              <TimeToLeaveCard scheduled={scheduled} now={now} />
+            )}
             {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
           </aside>
         </div>
+
       </div>
     </div>
   );
