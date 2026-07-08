@@ -309,6 +309,8 @@ function Index() {
               <CheckInPanel
                 operatorName={operatorName}
                 setOperatorName={setOperatorName}
+                magicWord={magicWord}
+                setMagicWord={setMagicWord}
                 openScheduled={openScheduled}
                 scheduled={scheduled}
                 onCheckIn={checkIn}
