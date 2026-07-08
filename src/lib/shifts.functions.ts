@@ -83,35 +83,33 @@ export const listScheduledShifts = createServerFn({ method: "GET" }).handler(asy
 
 export const createShift = createServerFn({ method: "POST" })
   .inputValidator(
-    (data: { username: string; magic_word: string; scheduled_shift_id?: string | null }) => {
-      if (!data || typeof data.username !== "string" || typeof data.magic_word !== "string") {
-        throw new Error("username and magic_word are required");
+    (data: { magic_word: string; scheduled_shift_id?: string | null }) => {
+      if (!data || typeof data.magic_word !== "string") {
+        throw new Error("magic_word is required");
       }
-      const username = data.username.trim().toLowerCase();
       const magic_word = data.magic_word.trim();
-      if (!username || username.length > 32) throw new Error("Invalid username");
       if (!magic_word) throw new Error("Magic word is required");
       const sid =
         data.scheduled_shift_id === undefined || data.scheduled_shift_id === null
           ? null
           : String(data.scheduled_shift_id);
       if (sid !== null && sid.length > 64) throw new Error("Invalid scheduled_shift_id");
-      return { username, magic_word, scheduled_shift_id: sid };
+      return { magic_word, scheduled_shift_id: sid };
     },
   )
   .handler(async ({ data }) => {
     await requireGate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: opId, error: verr } = await supabaseAdmin.rpc("verify_operator_magic", {
-      p_username: data.username,
+    const { data: found, error: verr } = await supabaseAdmin.rpc("find_operator_by_magic", {
       p_magic: data.magic_word,
     });
     if (verr) throw new Error(verr.message);
-    if (!opId) throw new Error("Wrong magic word for that operator");
+    const match = Array.isArray(found) ? (found[0] as { username: string } | undefined) : null;
+    if (!match) throw new Error("Wrong magic word");
     const { data: row, error } = await supabaseAdmin
       .from("shifts")
       .insert({
-        operator_name: data.username,
+        operator_name: match.username,
         scheduled_shift_id: data.scheduled_shift_id,
       })
       .select()
