@@ -76,6 +76,8 @@ function ProfilePage() {
 
   async function save() {
     if (!operator) return;
+    if (mobile.length !== 10) return toast.error("Mobile number must be 10 digits");
+    const fullMobile = `+49${mobile}`;
     setSaving(true);
     try {
       await updateProfile({
@@ -84,7 +86,7 @@ function ProfilePage() {
           current_password: currentPassword,
           username: username.trim().toLowerCase() !== operator.username ? username : undefined,
           new_password: newPassword || undefined,
-          mobile,
+          mobile: fullMobile,
           magic_word: magicWord || undefined,
         },
       });
@@ -95,7 +97,7 @@ function ProfilePage() {
       setOperator({
         ...operator,
         username: username.trim().toLowerCase() || operator.username,
-        mobile: mobile || null,
+        mobile: fullMobile,
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Update failed");
@@ -103,6 +105,7 @@ function ProfilePage() {
       setSaving(false);
     }
   }
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">
