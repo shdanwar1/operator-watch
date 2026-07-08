@@ -160,6 +160,7 @@ export const createPastShift = createServerFn({ method: "POST" })
         check_in_at: data.check_in_at,
         check_out_at: data.check_out_at,
         classes: data.classes,
+        live_streams_count: data.classes.length,
         notes: data.notes,
       })
       .select()
@@ -216,6 +217,8 @@ function sanitizeShiftPatch(patch: ShiftPatch): ShiftPatch {
       class: String(c?.class ?? "").slice(0, 200),
       teacher: String(c?.teacher ?? "").slice(0, 200),
     }));
+    // Streams count is always the number of classes.
+    out.live_streams_count = out.classes.length;
   }
   return out;
 }
