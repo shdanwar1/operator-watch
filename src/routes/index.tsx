@@ -136,6 +136,7 @@ function Index() {
   const updateShiftServer = useServerFn(updateShiftFn);
 
   const [operatorName, setOperatorName] = useState("");
+  const [magicWord, setMagicWord] = useState("");
   const [active, setActive] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
   const [scheduled, setScheduled] = useState<ScheduledShift[]>([]);
@@ -183,15 +184,22 @@ function Index() {
       .sort((a, b) => a.start_time.localeCompare(b.start_time))[0] ?? null;
 
   async function checkIn() {
-    const name = operatorName.trim();
-    if (!name) return toast.error("Enter your name first");
-    localStorage.setItem(OPERATOR_KEY, name);
+    const name = operatorName.trim().toLowerCase();
+    const word = magicWord.trim();
+    if (!name) return toast.error("Enter your username");
+    if (!word) return toast.error("Enter the magic word");
     setCheckingIn(true);
     try {
       const row = await createShiftFn({
-        data: { operator_name: name, scheduled_shift_id: openScheduled?.id ?? null },
+        data: {
+          username: name,
+          magic_word: word,
+          scheduled_shift_id: openScheduled?.id ?? null,
+        },
       });
+      localStorage.setItem(OPERATOR_KEY, name);
       setActive(row);
+      setMagicWord("");
       toast.success(`Checked in — welcome, ${name}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Check-in failed");
