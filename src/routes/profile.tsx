@@ -183,13 +183,14 @@ function ProfilePage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Mobile number</Label>
-                <Input
-                  type="tel"
+                <Label htmlFor="profile-mobile">Mobile number</Label>
+                <GermanMobileInput
+                  id="profile-mobile"
                   value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
+                  onChange={setMobile}
                 />
               </div>
+
 
               <div className="space-y-2">
                 <Label>New password</Label>
