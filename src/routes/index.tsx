@@ -651,11 +651,6 @@ function CheckInPanel({
               }}
             />
           </div>
-          <div className="flex items-center justify-end text-[11px] text-muted-foreground">
-            <Link to="/profile" className="hover:text-foreground hover:underline">
-              Edit profile
-            </Link>
-          </div>
         </div>
 
         <Button
