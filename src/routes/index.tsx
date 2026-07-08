@@ -1,8 +1,15 @@
 import { createFileRoute, redirect, useRouter, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { getGateStatus, lockSite } from "@/lib/gate.functions";
+import {
+  listShifts,
+  listScheduledShifts,
+  createShift,
+  updateShift as updateShiftFn,
+  type ShiftRow,
+  type ScheduledShiftRow,
+} from "@/lib/shifts.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,25 +33,8 @@ export const Route = createFileRoute("/")({
 
 export type ShiftClass = { class: string; teacher: string };
 
-type Shift = {
-  id: string;
-  operator_name: string;
-  check_in_at: string;
-  check_out_at: string | null;
-  live_streams_count: number;
-  dance_teachers: string[];
-  notes: string | null;
-  scheduled_shift_id: string | null;
-  classes: ShiftClass[];
-};
-
-type ScheduledShift = {
-  id: string;
-  day_of_week: number;
-  start_time: string; // "HH:MM:SS"
-  end_time: string;
-  label: string | null;
-};
+type Shift = ShiftRow;
+type ScheduledShift = ScheduledShiftRow;
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
