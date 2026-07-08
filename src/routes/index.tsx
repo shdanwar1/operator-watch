@@ -247,36 +247,38 @@ function Index() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Toaster richColors position="top-center" />
-      <div className="mx-auto max-w-6xl px-5 py-10">
-        <header className="mb-10 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Radio className="h-5 w-5" />
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-5 sm:py-10">
+        <header className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 sm:mb-10">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground sm:h-11 sm:w-11">
+            <Radio className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Studio Operator</h1>
-            <p className="text-sm text-muted-foreground">Live stream shift tracker</p>
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Studio Operator</h1>
+            <p className="text-xs text-muted-foreground sm:text-sm">Live stream shift tracker</p>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
             {active && (
-              <Badge className="animate-pulse" variant="destructive">
+              <Badge className="animate-pulse px-2 py-0.5 text-[10px] sm:text-xs" variant="destructive">
                 ● ON AIR
               </Badge>
             )}
             {username && (
               <span className="hidden text-xs text-muted-foreground sm:inline">{username}</span>
             )}
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" asChild>
               <Link to="/shifts">
-                <ListChecks className="mr-1 h-3.5 w-3.5" /> Shifts
+                <ListChecks className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Shifts</span>
               </Link>
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
-              <LogOut className="mr-1 h-3.5 w-3.5" /> Sign out
+            <Button variant="ghost" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" onClick={handleSignOut}>
+              <LogOut className="h-3.5 w-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Sign out</span>
             </Button>
           </div>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
             {loading ? (
               <p className="text-sm text-muted-foreground">Loading…</p>
@@ -301,8 +303,8 @@ function Index() {
             )}
 
             {!active && history.length > 0 && (
-              <section className="mt-12">
-                <div className="mb-4 flex items-center justify-between">
+              <section className="mt-8 sm:mt-12">
+                <div className="mb-3 flex items-center justify-between sm:mb-4">
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Last 30 days
                   </h2>
