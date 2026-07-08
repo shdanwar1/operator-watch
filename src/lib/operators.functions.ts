@@ -25,6 +25,7 @@ export type OperatorProfile = {
   id: string;
   username: string;
   mobile: string | null;
+  is_admin: boolean;
 };
 
 const USERNAME_RE = /^[a-zA-Z0-9_.-]{2,32}$/;
@@ -52,7 +53,9 @@ export const signupOperator = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data }) => {
-    await requireGate();
+    // Signup is intentionally accessible without the site gate so new
+    // operators can register from the unlock page.
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing } = await supabaseAdmin
       .from("operators")
@@ -86,7 +89,7 @@ export const verifyOperatorLogin = createServerFn({ method: "POST" })
     if (!id) throw new Error("Invalid username or password");
     const { data: row, error: err2 } = await supabaseAdmin
       .from("operators")
-      .select("id, username, mobile")
+      .select("id, username, mobile, is_admin")
       .eq("id", id as string)
       .single();
     if (err2) throw new Error(err2.message);
@@ -172,3 +175,57 @@ export const updateOperatorProfile = createServerFn({ method: "POST" })
     if (err2) throw new Error(err2.message);
     return { ok: true as const };
   });
+
+// Verify admin credentials and return all shifts. Admin login is passed
+// through on every call — no separate admin session cookie.
+export const adminListShifts = createServerFn({ method: "POST" })
+  .inputValidator((data: { username: string; password: string }) => ({
+    username: requireNonEmpty(data?.username, "Username", 32).toLowerCase(),
+    password: requireNonEmpty(data?.password, "Password", 200),
+  }))
+  .handler(async ({ data }) => {
+    await requireGate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: id, error } = await supabaseAdmin.rpc("verify_operator_password", {
+      p_username: data.username,
+      p_password: data.password,
+    });
+    if (error) throw new Error(error.message);
+    if (!id) throw new Error("Invalid username or password");
+    const { data: op } = await supabaseAdmin
+      .from("operators")
+      .select("is_admin")
+      .eq("id", id as string)
+      .single();
+    if (!op || !(op as { is_admin: boolean }).is_admin) {
+      throw new Error("Not an admin");
+    }
+    const { data: shifts, error: err2 } = await supabaseAdmin
+      .from("shifts")
+      .select("*")
+      .order("check_in_at", { ascending: false });
+    if (err2) throw new Error(err2.message);
+    return (shifts ?? []).map((r) => {
+      const row = r as Record<string, unknown>;
+      const classes = Array.isArray(row.classes)
+        ? (row.classes as { class?: string; teacher?: string }[]).map((c) => ({
+            class: String(c?.class ?? ""),
+            teacher: String(c?.teacher ?? ""),
+          }))
+        : [];
+      return {
+        id: String(row.id),
+        operator_name: String(row.operator_name ?? ""),
+        check_in_at: String(row.check_in_at ?? ""),
+        check_out_at: (row.check_out_at as string | null) ?? null,
+        live_streams_count: Number(row.live_streams_count ?? 0),
+        dance_teachers: Array.isArray(row.dance_teachers)
+          ? (row.dance_teachers as unknown[]).map(String)
+          : [],
+        notes: (row.notes as string | null) ?? null,
+        scheduled_shift_id: (row.scheduled_shift_id as string | null) ?? null,
+        classes,
+      };
+    });
+  });
+

@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_admin: boolean
           magic_word_hash: string
           mobile: string | null
           password_hash: string
@@ -27,6 +28,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_admin?: boolean
           magic_word_hash: string
           mobile?: string | null
           password_hash: string
@@ -36,6 +38,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_admin?: boolean
           magic_word_hash?: string
           mobile?: string | null
           password_hash?: string
