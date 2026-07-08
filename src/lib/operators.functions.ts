@@ -205,11 +205,7 @@ export const adminListShifts = createServerFn({ method: "POST" })
       .select("*")
       .order("check_in_at", { ascending: false });
     if (err2) throw new Error(err2.message);
-    return (shifts ?? []).map((r) => ({
-      ...(r as Record<string, unknown>),
-      classes: Array.isArray((r as { classes?: unknown }).classes)
-        ? (r as { classes: unknown[] }).classes
-        : [],
-    }));
+    const { normalizeShiftRow } = await import("./shifts.functions");
+    return (shifts ?? []).map((r) => normalizeShiftRow(r as Record<string, unknown>));
   });
 
