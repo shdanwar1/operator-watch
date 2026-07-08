@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
 
-type GateSession = { unlocked?: boolean; username?: string };
+type GateSession = { unlocked?: boolean; username?: string; isAdmin?: boolean };
 
 function getGateConfig() {
   const password = process.env.SESSION_SECRET;
@@ -20,6 +20,14 @@ async function requireGate() {
     throw new Response("Unauthorized", { status: 401 });
   }
 }
+
+async function requireAdminSession() {
+  const session = await useSession<GateSession>(getGateConfig());
+  if (!session.data.unlocked || !session.data.isAdmin) {
+    throw new Response("Admin access required", { status: 403 });
+  }
+}
+
 
 export type OperatorProfile = {
   id: string;
