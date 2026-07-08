@@ -184,23 +184,19 @@ function Index() {
       .sort((a, b) => a.start_time.localeCompare(b.start_time))[0] ?? null;
 
   async function checkIn() {
-    const name = operatorName.trim().toLowerCase();
     const word = magicWord.trim();
-    if (!name) return toast.error("Enter your username");
     if (!word) return toast.error("Enter the magic word");
     setCheckingIn(true);
     try {
       const row = await createShiftFn({
         data: {
-          username: name,
           magic_word: word,
           scheduled_shift_id: openScheduled?.id ?? null,
         },
       });
-      localStorage.setItem(OPERATOR_KEY, name);
       setActive(row);
       setMagicWord("");
-      toast.success(`Checked in — welcome, ${name}`);
+      toast.success(`Checked in — welcome, ${row.operator_name}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Check-in failed");
     } finally {
