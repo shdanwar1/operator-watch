@@ -579,16 +579,16 @@ function ActiveShiftPanel({
   const d = formatDuration(shift.check_in_at, null);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <Card className="border-primary/40 bg-primary/5">
-        <CardContent className="flex flex-col items-center gap-3 px-6 py-10 text-center">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+        <CardContent className="flex flex-col items-center gap-3 px-4 py-8 text-center sm:px-6 sm:py-10">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground sm:text-xs">
             Checked in as {shift.operator_name}
           </div>
-          <div className="font-mono text-6xl font-semibold tabular-nums tracking-tight">
+          <div className="font-mono text-4xl font-semibold tabular-nums tracking-tight sm:text-6xl">
             {d.long}
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-[11px] text-muted-foreground sm:text-xs">
             Since{" "}
             {new Date(shift.check_in_at).toLocaleTimeString(undefined, {
               hour: "2-digit",
@@ -599,7 +599,7 @@ function ActiveShiftPanel({
       </Card>
 
       <Card>
-        <CardContent className="space-y-3 p-5">
+        <CardContent className="space-y-3 p-4 sm:p-5">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium">Classes & teachers</h3>
             <Button variant="secondary" size="sm" onClick={onAddClass}>
@@ -643,7 +643,7 @@ function ActiveShiftPanel({
         onClick={onCheckOut}
         variant="destructive"
         size="lg"
-        className="h-14 w-full text-base"
+        className="h-12 w-full text-base sm:h-14"
         disabled={checkingOut}
       >
         <LogOut className="mr-2 h-5 w-5" />
