@@ -17,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
 import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn } from "lucide-react";
+import { Hourglass } from "@/components/Hourglass";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
@@ -64,31 +65,42 @@ function formatDuration(startISO: string, endISO: string | null) {
 }
 
 // Determines whether a scheduled shift can be started now.
-// Only from 45 minutes before start until the shift's end, and only today.
+// Only from 45 minutes before start until the shift's end.
+// Checks yesterday/today/tomorrow instances so late-night shifts crossing
+// midnight boundaries still open correctly.
 export function scheduledWindow(
   s: { day_of_week: number; start_time: string; end_time: string },
   now = new Date(),
 ) {
-  const today = now.getDay();
-  if (s.day_of_week !== today) {
-    return { canStart: false, reason: `Only on ${DAY_NAMES[s.day_of_week]}` };
-  }
   const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
   const [eh, em] = s.end_time.split(":").map((n) => parseInt(n, 10));
-  const start = new Date(now);
-  start.setHours(sh, sm, 0, 0);
-  const end = new Date(now);
-  end.setHours(eh, em, 0, 0);
-  const openAt = new Date(start.getTime() - 45 * 60 * 1000);
-  if (now < openAt) {
-    const mins = Math.round((openAt.getTime() - now.getTime()) / 60000);
+
+  let nearestFutureOpen: Date | null = null;
+  for (let offset = -1; offset <= 1; offset++) {
+    const day = new Date(now);
+    day.setDate(day.getDate() + offset);
+    if (day.getDay() !== s.day_of_week) continue;
+    const start = new Date(day);
+    start.setHours(sh, sm, 0, 0);
+    const end = new Date(day);
+    end.setHours(eh, em, 0, 0);
+    const openAt = new Date(start.getTime() - 45 * 60 * 1000);
+    if (now >= openAt && now <= end) {
+      return { canStart: true, reason: "" };
+    }
+    if (openAt > now && (!nearestFutureOpen || openAt < nearestFutureOpen)) {
+      nearestFutureOpen = openAt;
+    }
+  }
+
+  if (nearestFutureOpen) {
+    const mins = Math.round((nearestFutureOpen.getTime() - now.getTime()) / 60000);
     const hrs = Math.floor(mins / 60);
     const rem = mins % 60;
     const wait = hrs > 0 ? `${hrs}h ${rem}m` : `${mins}m`;
     return { canStart: false, reason: `Opens in ${wait}` };
   }
-  if (now > end) return { canStart: false, reason: "Shift ended" };
-  return { canStart: true, reason: "" };
+  return { canStart: false, reason: `Only on ${DAY_NAMES[s.day_of_week]}` };
 }
 
 function Index() {
@@ -139,15 +151,13 @@ function Index() {
     await router.navigate({ to: "/unlock" });
   }
 
-  // Pick the scheduled shift whose current window is open (soonest start today).
-  const openScheduled = useMemo(() => {
-    const now = new Date();
-    return (
-      scheduled
-        .filter((s) => scheduledWindow(s, now).canStart)
-        .sort((a, b) => a.start_time.localeCompare(b.start_time))[0] ?? null
-    );
-  }, [scheduled]);
+  // NOTE: not memoized — the parent re-renders every second (setTick),
+  // so this recomputes and the check-in window actually opens live.
+  const now = new Date();
+  const openScheduled =
+    scheduled
+      .filter((s) => scheduledWindow(s, now).canStart)
+      .sort((a, b) => a.start_time.localeCompare(b.start_time))[0] ?? null;
 
   async function checkIn() {
     const name = operatorName.trim();
@@ -283,6 +293,38 @@ function Index() {
   );
 }
 
+function nextShiftInstance(
+  scheduled: ScheduledShift[],
+  now: Date,
+): { shift: ScheduledShift; startAt: Date } | null {
+  let best: { shift: ScheduledShift; startAt: Date } | null = null;
+  for (const s of scheduled) {
+    const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
+    for (let offset = 0; offset < 8; offset++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() + offset);
+      if (d.getDay() !== s.day_of_week) continue;
+      d.setHours(sh, sm, 0, 0);
+      if (d.getTime() <= now.getTime()) continue;
+      if (!best || d.getTime() < best.startAt.getTime()) {
+        best = { shift: s, startAt: d };
+      }
+      break;
+    }
+  }
+  return best;
+}
+
+function formatCountdown(ms: number) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`;
+  if (m > 0) return `${m}m ${s.toString().padStart(2, "0")}s`;
+  return `${s}s`;
+}
+
 function CheckInPanel({
   operatorName,
   setOperatorName,
@@ -299,46 +341,49 @@ function CheckInPanel({
   checkingIn: boolean;
 }) {
   const canCheckIn = operatorName.trim().length > 0 && !!openScheduled;
-
-  // Find the next upcoming scheduled shift (today, later than now, otherwise nearest future day).
-  const nextUp = useMemo(() => {
-    if (openScheduled) return null;
-    const now = new Date();
-    const nowDow = now.getDay();
-    const nowMins = now.getHours() * 60 + now.getMinutes();
-    const enriched = scheduled.map((s) => {
-      const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
-      const startMins = sh * 60 + sm;
-      const dayDiff = (s.day_of_week - nowDow + 7) % 7;
-      const distance =
-        dayDiff === 0 && startMins <= nowMins ? 7 * 24 * 60 : dayDiff * 24 * 60 + (startMins - nowMins);
-      return { s, distance };
-    });
-    enriched.sort((a, b) => a.distance - b.distance);
-    return enriched[0]?.s ?? null;
-  }, [scheduled, openScheduled]);
+  const now = new Date();
+  const next = openScheduled ? null : nextShiftInstance(scheduled, now);
+  const opensAt = next ? new Date(next.startAt.getTime() - 45 * 60 * 1000) : null;
+  const msUntilOpen = opensAt ? opensAt.getTime() - now.getTime() : 0;
+  const showHourglass = !!next && msUntilOpen > 0;
 
   return (
     <Card className="border-border/60">
       <CardContent className="flex flex-col items-center gap-6 px-6 py-10 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-          <Clock className="h-7 w-7 text-muted-foreground" />
-        </div>
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight">Ready to work?</h2>
-          {openScheduled ? (
-            <p className="text-sm text-muted-foreground">
-              {openScheduled.label ?? "Scheduled shift"} · {fmtTime(openScheduled.start_time)} —{" "}
-              {fmtTime(openScheduled.end_time)}
-            </p>
-          ) : nextUp ? (
-            <p className="text-sm text-muted-foreground">
-              Next shift: {DAY_NAMES[nextUp.day_of_week]} · {fmtTime(nextUp.start_time)}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">No scheduled shifts yet.</p>
-          )}
-        </div>
+        {showHourglass ? (
+          <>
+            <Hourglass className="h-16 w-16 text-primary" />
+            <div className="space-y-1">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                Check-in opens in
+              </div>
+              <div className="font-mono text-3xl font-semibold tabular-nums tracking-tight">
+                {formatCountdown(msUntilOpen)}
+              </div>
+              <p className="pt-1 text-sm text-muted-foreground">
+                {next!.shift.label ?? "Scheduled shift"} ·{" "}
+                {DAY_NAMES[next!.shift.day_of_week]} at {fmtTime(next!.shift.start_time)}
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <Clock className="h-7 w-7 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold tracking-tight">Ready to work?</h2>
+              {openScheduled ? (
+                <p className="text-sm text-muted-foreground">
+                  {openScheduled.label ?? "Scheduled shift"} ·{" "}
+                  {fmtTime(openScheduled.start_time)} — {fmtTime(openScheduled.end_time)}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">No scheduled shifts yet.</p>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="w-full max-w-xs space-y-2 text-left">
           <Label htmlFor="op" className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -361,12 +406,6 @@ function CheckInPanel({
           <LogIn className="mr-2 h-5 w-5" />
           {checkingIn ? "Checking in…" : "Check in"}
         </Button>
-
-        {!openScheduled && operatorName.trim() && (
-          <p className="text-xs text-muted-foreground">
-            Check-in opens 45 minutes before a scheduled shift.
-          </p>
-        )}
       </CardContent>
     </Card>
   );
