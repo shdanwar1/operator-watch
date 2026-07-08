@@ -492,22 +492,26 @@ function CheckInPanel({
 
   return (
     <Card className="border-border/60">
-      <CardContent className="flex flex-col items-center gap-6 px-6 py-10 text-center">
+      <CardContent className="flex flex-col items-center gap-5 px-4 py-8 text-center sm:gap-6 sm:px-6 sm:py-10">
         {showCountdownCard ? (
           <>
-            <Hourglass percent={percent} state={state} size={168} />
+            <Hourglass
+              percent={percent}
+              state={state}
+              className="w-32 sm:w-40 md:w-44"
+            />
             <div className="space-y-1">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
                 {state === "ready" ? "Ready for Check-In" : "Check-in opens in"}
               </div>
               {state !== "ready" && (
                 <div
-                  className={`font-mono text-4xl font-semibold tabular-nums tracking-tight transition-colors ${countdownColor}`}
+                  className={`font-mono text-3xl font-semibold tabular-nums tracking-tight transition-colors sm:text-4xl ${countdownColor}`}
                 >
                   {formatCountdown(msUntilOpen)}
                 </div>
               )}
-              <p className="pt-1 text-sm text-muted-foreground">
+              <p className="pt-1 text-xs text-muted-foreground sm:text-sm">
                 {openScheduled ? (
                   <>
                     {openScheduled.label ?? "Scheduled shift"} ·{" "}
@@ -524,10 +528,10 @@ function CheckInPanel({
           </>
         ) : (
           <>
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-              <Clock className="h-7 w-7 text-muted-foreground" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted sm:h-16 sm:w-16">
+              <Clock className="h-6 w-6 text-muted-foreground sm:h-7 sm:w-7" />
             </div>
-            <h2 className="text-xl font-semibold tracking-tight">No scheduled shifts yet</h2>
+            <h2 className="text-lg font-semibold tracking-tight sm:text-xl">No scheduled shifts yet</h2>
           </>
         )}
 
@@ -545,7 +549,7 @@ function CheckInPanel({
 
         <Button
           size="lg"
-          className="h-14 w-full max-w-xs text-base"
+          className="h-12 w-full max-w-xs text-base sm:h-14"
           onClick={onCheckIn}
           disabled={!canCheckIn || checkingIn}
         >
