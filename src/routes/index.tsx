@@ -278,7 +278,13 @@ function Index() {
               </Badge>
             )}
             {username && (
-              <span className="hidden text-xs text-muted-foreground sm:inline">{username}</span>
+              <Link
+                to="/profile"
+                className="hidden text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:inline"
+                title="Edit your profile"
+              >
+                {username}
+              </Link>
             )}
             <Button variant="outline" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" asChild>
               <Link to="/calendar">
