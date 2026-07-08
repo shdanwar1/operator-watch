@@ -411,13 +411,12 @@ function ShiftEditorDialog({
 }: {
   state: EditorState | null;
   onClose: () => void;
-  onSave: (p: { start_time: string; end_time: string; label: string; scope: "one-off" | "recurring" }) => void;
+  onSave: (p: { start_time: string; end_time: string; label: string }) => void;
   onDelete: () => void;
 }) {
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("13:00");
   const [label, setLabel] = useState("");
-  const [scope, setScope] = useState<"one-off" | "recurring">("one-off");
 
   useEffect(() => {
     if (!state) return;
