@@ -491,76 +491,82 @@ function Index() {
           </Card>
         )}
 
-        {/* Totals */}
-        <div className="mt-8 grid grid-cols-3 gap-3">
-          <StatCard label="Shifts" value={totals.shifts} />
-          <StatCard label="Streams" value={totals.streams} />
-          <StatCard label="Teachers" value={totals.teachers} />
-        </div>
-
-        {/* History */}
-        <section className="mt-8">
-          <h2 className="mb-3 text-lg font-semibold">History</h2>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : history.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No completed shifts yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {history.map((s) => (
-                <Card key={s.id}>
-                  <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{s.operator_name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDT(s.check_in_at)}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-sm text-muted-foreground">
-                        {formatDuration(s.check_in_at, s.check_out_at)} •{" "}
-                        <span className="text-foreground">{s.live_streams_count}</span> streams •{" "}
-                        <span className="text-foreground">{s.dance_teachers.length}</span> teachers
-                      </div>
-                      {s.dance_teachers.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {s.dance_teachers.map((t) => (
-                            <Badge key={t} variant="outline" className="text-xs">
-                              {t}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                      {s.notes && (
-                        <p className="mt-2 text-sm text-muted-foreground italic">"{s.notes}"</p>
-                      )}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteShift(s.id)}
-                      aria-label="Delete shift"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+        {/* Last month summary */}
+        <section className="mt-10">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Last 30 days
+            </h2>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/shifts">View all shifts</Link>
+            </Button>
+          </div>
+          <MonthlySummary shifts={history} loading={loading} />
         </section>
       </div>
     </div>
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function durationMinutes(startISO: string, endISO: string | null) {
+  const end = endISO ? new Date(endISO).getTime() : Date.now();
+  return Math.max(0, Math.floor((end - new Date(startISO).getTime()) / 60000));
+}
+
+function MonthlySummary({ shifts, loading }: { shifts: Shift[]; loading: boolean }) {
+  const summary = useMemo(() => {
+    const now = new Date();
+    const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30, 0, 0, 0, 0);
+    const recent = shifts.filter((s) => s.check_out_at && new Date(s.check_out_at) >= cutoff);
+    const totalMinutes = recent.reduce((sum, s) => sum + durationMinutes(s.check_in_at, s.check_out_at), 0);
+    const totalHours = Math.floor(totalMinutes / 60);
+    const remMinutes = totalMinutes % 60;
+    const totalStreams = recent.reduce((sum, s) => sum + s.live_streams_count, 0);
+    return { totalHours, remMinutes, totalStreams, count: recent.length };
+  }, [shifts]);
+
+  if (loading) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card><CardContent className="p-6"><p className="text-sm text-muted-foreground">Loading…</p></CardContent></Card>
+        <Card><CardContent className="p-6"><p className="text-sm text-muted-foreground">Loading…</p></CardContent></Card>
+      </div>
+    );
+  }
+
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-        <div className="mt-1 text-2xl font-semibold tabular-nums">{value}</div>
-      </CardContent>
-    </Card>
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Card className="border-primary/10 bg-primary/5">
+        <CardContent className="flex items-center gap-5 p-6">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Clock className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Total hours worked</div>
+            <div className="mt-1 text-4xl font-semibold tabular-nums tracking-tight">
+              {summary.totalHours}h {summary.remMinutes.toString().padStart(2, "0")}m
+            </div>
+            {summary.count > 0 && (
+              <div className="mt-1 text-xs text-muted-foreground">Across {summary.count} completed shifts</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/10 bg-primary/5">
+        <CardContent className="flex items-center gap-5 p-6">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Video className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Streams managed</div>
+            <div className="mt-1 text-4xl font-semibold tabular-nums tracking-tight">
+              {summary.totalStreams}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">Live streams in the last 30 days</div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
