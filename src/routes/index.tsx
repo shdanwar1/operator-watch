@@ -446,8 +446,6 @@ function CheckInPanel({
     </Card>
   );
 }
-  );
-}
 
 function ActiveShiftPanel({
   shift,
