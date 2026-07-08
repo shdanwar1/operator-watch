@@ -21,6 +21,7 @@ export type Database = {
           end_time: string
           id: string
           label: string | null
+          specific_date: string | null
           start_time: string
         }
         Insert: {
@@ -29,6 +30,7 @@ export type Database = {
           end_time: string
           id?: string
           label?: string | null
+          specific_date?: string | null
           start_time: string
         }
         Update: {
@@ -37,6 +39,7 @@ export type Database = {
           end_time?: string
           id?: string
           label?: string | null
+          specific_date?: string | null
           start_time?: string
         }
         Relationships: []
