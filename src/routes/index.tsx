@@ -135,7 +135,6 @@ function Index() {
   const createShiftFn = useServerFn(createShift);
   const updateShiftServer = useServerFn(updateShiftFn);
 
-  const [operatorName, setOperatorName] = useState("");
   const [magicWord, setMagicWord] = useState("");
   const [active, setActive] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
@@ -151,8 +150,6 @@ function Index() {
   }, []);
 
   useEffect(() => {
-    const saved = typeof window !== "undefined" ? localStorage.getItem(OPERATOR_KEY) : null;
-    if (saved) setOperatorName(saved);
     load();
   }, []);
 
@@ -184,23 +181,19 @@ function Index() {
       .sort((a, b) => a.start_time.localeCompare(b.start_time))[0] ?? null;
 
   async function checkIn() {
-    const name = operatorName.trim().toLowerCase();
     const word = magicWord.trim();
-    if (!name) return toast.error("Enter your username");
     if (!word) return toast.error("Enter the magic word");
     setCheckingIn(true);
     try {
       const row = await createShiftFn({
         data: {
-          username: name,
           magic_word: word,
           scheduled_shift_id: openScheduled?.id ?? null,
         },
       });
-      localStorage.setItem(OPERATOR_KEY, name);
       setActive(row);
       setMagicWord("");
-      toast.success(`Checked in — welcome, ${name}`);
+      toast.success(`Checked in — welcome, ${row.operator_name}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Check-in failed");
     } finally {
@@ -307,8 +300,6 @@ function Index() {
               />
             ) : (
               <CheckInPanel
-                operatorName={operatorName}
-                setOperatorName={setOperatorName}
                 magicWord={magicWord}
                 setMagicWord={setMagicWord}
                 openScheduled={openScheduled}
@@ -452,8 +443,6 @@ function formatCountdown(ms: number) {
 }
 
 function CheckInPanel({
-  operatorName,
-  setOperatorName,
   magicWord,
   setMagicWord,
   openScheduled,
@@ -461,8 +450,6 @@ function CheckInPanel({
   onCheckIn,
   checkingIn,
 }: {
-  operatorName: string;
-  setOperatorName: (v: string) => void;
   magicWord: string;
   setMagicWord: (v: string) => void;
   openScheduled: ScheduledShift | null;
@@ -470,7 +457,7 @@ function CheckInPanel({
   onCheckIn: () => void;
   checkingIn: boolean;
 }) {
-  const canCheckIn = operatorName.trim().length > 0 && magicWord.trim().length > 0 && !!openScheduled;
+  const canCheckIn = magicWord.trim().length > 0 && !!openScheduled;
   const now = new Date();
   const next = openScheduled ? null : nextShiftInstance(scheduled, now);
   const opensAt = next ? new Date(next.startAt.getTime() - 45 * 60 * 1000) : null;
@@ -557,19 +544,6 @@ function CheckInPanel({
 
         <div className="w-full max-w-xs space-y-3 text-left">
           <div className="space-y-2">
-            <Label htmlFor="op" className="text-xs uppercase tracking-wide text-muted-foreground">
-              Username
-            </Label>
-            <Input
-              id="op"
-              placeholder="e.g. shad"
-              autoCapitalize="none"
-              autoCorrect="off"
-              value={operatorName}
-              onChange={(e) => setOperatorName(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
             <Label htmlFor="mw" className="text-xs uppercase tracking-wide text-muted-foreground">
               Magic word
             </Label>
@@ -577,6 +551,7 @@ function CheckInPanel({
               id="mw"
               type="password"
               placeholder="Secret check-in word"
+              autoFocus
               value={magicWord}
               onChange={(e) => setMagicWord(e.target.value)}
               onKeyDown={(e) => {

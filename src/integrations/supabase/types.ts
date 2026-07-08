@@ -135,6 +135,13 @@ export type Database = {
         }
         Returns: string
       }
+      find_operator_by_magic: {
+        Args: { p_magic: string }
+        Returns: {
+          id: string
+          username: string
+        }[]
+      }
       update_operator: {
         Args: {
           p_id: string
