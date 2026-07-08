@@ -491,6 +491,7 @@ function CheckInPanel({
   scheduled,
   onCheckIn,
   checkingIn,
+  variant = "hero",
 }: {
   magicWord: string;
   setMagicWord: (v: string) => void;
@@ -498,7 +499,9 @@ function CheckInPanel({
   scheduled: ScheduledShift[];
   onCheckIn: () => void;
   checkingIn: boolean;
+  variant?: "hero" | "compact";
 }) {
+
   const canCheckIn = magicWord.trim().length > 0 && !!openScheduled;
   const now = new Date();
   const next = openScheduled ? null : nextShiftInstance(scheduled, now);
