@@ -182,6 +182,18 @@ function Index() {
       .filter((s) => scheduledWindow(s, scheduled, now).canStart)
       .sort((a, b) => a.start_time.localeCompare(b.start_time))[0] ?? null;
 
+  // Focus mode:
+  //  - >60 min before next shift → check-in stays main
+  //  - 60→45 min before next shift → "Time to leave" becomes the hero
+  //  - ≤45 min before next shift → check-in becomes the hero again
+  const nextInstance = nextShiftInstance(scheduled, now);
+  const minutesToNext = nextInstance
+    ? Math.round((nextInstance.startAt.getTime() - now.getTime()) / 60000)
+    : Infinity;
+  const focus: "check_in" | "time_to_leave" =
+    !active && minutesToNext <= 60 && minutesToNext > 45 ? "time_to_leave" : "check_in";
+
+
   async function checkIn() {
     const word = magicWord.trim();
     if (!word) return toast.error("Enter the magic word");
@@ -306,6 +318,12 @@ function Index() {
                 onRemoveClass={removeClassRow}
                 checkingOut={checkingOut}
               />
+            ) : focus === "time_to_leave" ? (
+              <TimeToLeaveCard
+                scheduled={scheduled}
+                now={now}
+                variant="hero"
+              />
             ) : (
               <CheckInPanel
                 magicWord={magicWord}
@@ -333,10 +351,24 @@ function Index() {
           </div>
 
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-            {!loading && !active && <TimeToLeaveCard scheduled={scheduled} now={now} />}
+            {!loading && !active && focus === "time_to_leave" && (
+              <CheckInPanel
+                magicWord={magicWord}
+                setMagicWord={setMagicWord}
+                openScheduled={openScheduled}
+                scheduled={scheduled}
+                onCheckIn={checkIn}
+                checkingIn={checkingIn}
+                variant="compact"
+              />
+            )}
+            {!active && focus === "check_in" && (
+              <TimeToLeaveCard scheduled={scheduled} now={now} />
+            )}
             {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
           </aside>
         </div>
+
       </div>
     </div>
   );
@@ -459,6 +491,7 @@ function CheckInPanel({
   scheduled,
   onCheckIn,
   checkingIn,
+  variant = "hero",
 }: {
   magicWord: string;
   setMagicWord: (v: string) => void;
@@ -466,7 +499,9 @@ function CheckInPanel({
   scheduled: ScheduledShift[];
   onCheckIn: () => void;
   checkingIn: boolean;
+  variant?: "hero" | "compact";
 }) {
+
   const canCheckIn = magicWord.trim().length > 0 && !!openScheduled;
   const now = new Date();
   const next = openScheduled ? null : nextShiftInstance(scheduled, now);
@@ -507,9 +542,50 @@ function CheckInPanel({
             ? "text-emerald-400"
             : "text-foreground";
 
+  if (variant === "compact") {
+    return (
+      <Card>
+        <CardContent className="space-y-3 p-4">
+          <div className="flex items-center gap-2">
+            <LogIn className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Check in
+            </h2>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {openScheduled
+              ? "Ready — enter your magic word."
+              : msUntilOpen > 0
+                ? `Opens in ${formatCountdown(msUntilOpen)}`
+                : "No open shift right now."}
+          </p>
+          <Input
+            type="password"
+            placeholder="Magic word"
+            value={magicWord}
+            onChange={(e) => setMagicWord(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && canCheckIn && !checkingIn) onCheckIn();
+            }}
+          />
+          <Button
+            size="sm"
+            className="w-full"
+            onClick={onCheckIn}
+            disabled={!canCheckIn || checkingIn}
+          >
+            <LogIn className="mr-1.5 h-3.5 w-3.5" />
+            {checkingIn ? "Checking in…" : "Check in"}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="border-border/60">
       <CardContent className="flex flex-col items-center gap-5 px-4 py-8 text-center sm:gap-6 sm:px-6 sm:py-10">
+
         {showCountdownCard ? (
           <div className="flex flex-col items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-2.5">
@@ -727,10 +803,13 @@ function fmtHM(d: Date) {
 function TimeToLeaveCard({
   scheduled,
   now,
+  variant = "default",
 }: {
   scheduled: ScheduledShift[];
   now: Date;
+  variant?: "default" | "hero";
 }) {
+
   const fetchPlan = useServerFn(getTimeToLeave);
   const next = useMemo(() => nextShiftInstance(scheduled, now), [scheduled, now]);
   const shiftIso = next?.startAt.toISOString() ?? null;
@@ -768,17 +847,25 @@ function TimeToLeaveCard({
 
   const shiftStart = next.startAt;
 
+  const hero = variant === "hero";
+
   return (
-    <Card>
-      <CardContent className="p-5">
+    <Card className={hero ? "border-primary/40" : undefined}>
+      <CardContent className={hero ? "p-6 sm:p-8" : "p-5"}>
         <div className="mb-3 flex items-center gap-2">
-          <Train className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Train className={hero ? "h-5 w-5 text-primary" : "h-4 w-4 text-muted-foreground"} />
+          <h2
+            className={
+              hero
+                ? "text-sm font-semibold uppercase tracking-wider text-primary"
+                : "text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            }
+          >
             Time to leave
           </h2>
         </div>
 
-        <p className="text-xs text-muted-foreground">
+        <p className={hero ? "text-sm text-muted-foreground" : "text-xs text-muted-foreground"}>
           Next shift{" "}
           <span className="font-medium text-foreground">
             {shiftStart.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
@@ -789,7 +876,7 @@ function TimeToLeaveCard({
         {loading && !plan ? (
           <p className="mt-3 text-sm text-muted-foreground">Planning your trip…</p>
         ) : plan && plan.ok ? (
-          <TimeToLeaveDetails plan={plan} now={now} />
+          <TimeToLeaveDetails plan={plan} now={now} hero={hero} />
         ) : plan && plan.reason === "no_home" ? (
           <div className="mt-3 space-y-2">
             <p className="text-sm text-muted-foreground">
@@ -813,12 +900,16 @@ function TimeToLeaveCard({
   );
 }
 
+
+
 function TimeToLeaveDetails({
   plan,
   now,
+  hero = false,
 }: {
   plan: Extract<TimeToLeaveResult, { ok: true }>;
   now: Date;
+  hero?: boolean;
 }) {
   const departure = new Date(plan.departure_iso);
   const arrival = new Date(plan.arrival_iso);
@@ -834,24 +925,35 @@ function TimeToLeaveDetails({
   const urgent = minutesUntilLeave <= 10;
 
   return (
-    <div className="mt-3 space-y-3">
+    <div className={hero ? "mt-5 space-y-5" : "mt-3 space-y-3"}>
       <div
-        className={`rounded-lg border p-3 ${
+        className={`rounded-lg border ${hero ? "p-5 sm:p-6" : "p-3"} ${
           urgent ? "border-destructive/40 bg-destructive/5" : "border-border bg-muted/40"
         }`}
       >
-        <div className={`text-xs font-medium uppercase tracking-wider ${urgent ? "text-destructive" : "text-muted-foreground"}`}>
+        <div
+          className={`font-medium uppercase tracking-wider ${
+            hero ? "text-sm" : "text-xs"
+          } ${urgent ? "text-destructive" : "text-muted-foreground"}`}
+        >
           {leaveLabel}
         </div>
-        <div className="mt-1 text-2xl font-semibold tabular-nums">{fmtHM(departure)}</div>
-        <div className="mt-1 text-xs text-muted-foreground">
+        <div
+          className={`mt-1 font-semibold tabular-nums ${
+            hero ? "text-5xl sm:text-6xl" : "text-2xl"
+          }`}
+        >
+          {fmtHM(departure)}
+        </div>
+        <div className={hero ? "mt-2 text-sm text-muted-foreground" : "mt-1 text-xs text-muted-foreground"}>
           Arrive {fmtHM(arrival)} · {plan.travel_minutes}m by public transport
           {plan.transfers > 0 ? ` · ${plan.transfers} transfer${plan.transfers === 1 ? "" : "s"}` : ""}
         </div>
-        <div className="mt-1 text-[11px] text-muted-foreground">
+        <div className={hero ? "mt-1 text-xs text-muted-foreground" : "mt-1 text-[11px] text-muted-foreground"}>
           Plan arrives {ARRIVAL_BUFFER_MIN} min before shift starts.
         </div>
       </div>
+
 
       <div className="space-y-1 text-xs text-muted-foreground">
         <div className="flex items-start gap-1.5">
