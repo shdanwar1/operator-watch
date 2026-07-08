@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { GermanMobileInput } from "@/components/GermanMobileInput";
 import { toast, Toaster } from "sonner";
 import { ArrowLeft, UserPlus } from "lucide-react";
+
 
 export const Route = createFileRoute("/signup")({
   beforeLoad: async () => {
