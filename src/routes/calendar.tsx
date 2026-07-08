@@ -53,7 +53,9 @@ function dateKey(d: Date) {
 function startOfWeek(d: Date) {
   const c = new Date(d);
   c.setHours(0, 0, 0, 0);
-  c.setDate(c.getDate() - c.getDay());
+  // Monday-start week: Sunday (0) is 6 days after Monday, others shift by 1.
+  const offset = (c.getDay() + 6) % 7;
+  c.setDate(c.getDate() - offset);
   return c;
 }
 
