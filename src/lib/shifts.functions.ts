@@ -284,3 +284,102 @@ export const insertScheduledShifts = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { inserted: data.rows.length };
   });
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+type ScheduledPatch = {
+  day_of_week?: number;
+  start_time?: string;
+  end_time?: string;
+  label?: string | null;
+  specific_date?: string | null;
+};
+
+function sanitizeScheduledPatch(patch: ScheduledPatch): ScheduledPatch {
+  const out: ScheduledPatch = {};
+  if (patch.day_of_week !== undefined) {
+    const dow = Number(patch.day_of_week);
+    if (!Number.isInteger(dow) || dow < 0 || dow > 6) throw new Error("Invalid day_of_week");
+    out.day_of_week = dow;
+  }
+  if (patch.start_time !== undefined) {
+    const st = String(patch.start_time);
+    if (!TIME_RE.test(st)) throw new Error("Invalid start_time");
+    out.start_time = st;
+  }
+  if (patch.end_time !== undefined) {
+    const et = String(patch.end_time);
+    if (!TIME_RE.test(et)) throw new Error("Invalid end_time");
+    out.end_time = et;
+  }
+  if (patch.label !== undefined) {
+    out.label = patch.label === null ? null : String(patch.label).slice(0, 200);
+  }
+  if (patch.specific_date !== undefined) {
+    if (patch.specific_date === null || patch.specific_date === "") {
+      out.specific_date = null;
+    } else {
+      const d = String(patch.specific_date);
+      if (!DATE_RE.test(d)) throw new Error("Invalid specific_date");
+      out.specific_date = d;
+    }
+  }
+  return out;
+}
+
+export const createScheduledShift = createServerFn({ method: "POST" })
+  .inputValidator((data: ScheduledPatch) => {
+    const p = sanitizeScheduledPatch(data ?? {});
+    if (p.day_of_week === undefined) throw new Error("day_of_week required");
+    if (!p.start_time) throw new Error("start_time required");
+    if (!p.end_time) throw new Error("end_time required");
+    return {
+      day_of_week: p.day_of_week,
+      start_time: p.start_time,
+      end_time: p.end_time,
+      label: p.label ?? "",
+      specific_date: p.specific_date ?? null,
+    };
+  })
+  .handler(async ({ data }) => {
+    await requireGate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("scheduled_shifts")
+      .insert(data)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row as ScheduledShiftRow;
+  });
+
+export const updateScheduledShift = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string; patch: ScheduledPatch }) => {
+    if (!data?.id) throw new Error("id required");
+    return { id: String(data.id), patch: sanitizeScheduledPatch(data.patch ?? {}) };
+  })
+  .handler(async ({ data }) => {
+    await requireGate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("scheduled_shifts")
+      .update(data.patch as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const deleteScheduledShift = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string }) => {
+    if (!data?.id) throw new Error("id required");
+    return { id: String(data.id) };
+  })
+  .handler(async ({ data }) => {
+    await requireGate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("scheduled_shifts").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
