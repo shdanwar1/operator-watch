@@ -257,3 +257,38 @@ export const adminListShifts = createServerFn({ method: "POST" })
     });
   });
 
+// Session-authenticated variant: returns all shifts when the current gate
+// session belongs to an admin operator. Used by the admin page after login.
+export const adminListShiftsForSession = createServerFn({ method: "GET" }).handler(async () => {
+  await requireAdminSession();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: shifts, error } = await supabaseAdmin
+    .from("shifts")
+    .select("*")
+    .order("check_in_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (shifts ?? []).map((r) => {
+    const row = r as Record<string, unknown>;
+    const classes = Array.isArray(row.classes)
+      ? (row.classes as { class?: string; teacher?: string }[]).map((c) => ({
+          class: String(c?.class ?? ""),
+          teacher: String(c?.teacher ?? ""),
+        }))
+      : [];
+    return {
+      id: String(row.id),
+      operator_name: String(row.operator_name ?? ""),
+      check_in_at: String(row.check_in_at ?? ""),
+      check_out_at: (row.check_out_at as string | null) ?? null,
+      live_streams_count: Number(row.live_streams_count ?? 0),
+      dance_teachers: Array.isArray(row.dance_teachers)
+        ? (row.dance_teachers as unknown[]).map(String)
+        : [],
+      notes: (row.notes as string | null) ?? null,
+      scheduled_shift_id: (row.scheduled_shift_id as string | null) ?? null,
+      classes,
+    };
+  });
+});
+
+
