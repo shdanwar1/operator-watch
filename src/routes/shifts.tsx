@@ -473,15 +473,8 @@ function EditDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Live streams managed</Label>
-            <Input
-              type="number"
-              min={0}
-              value={draft.live_streams_count}
-              onChange={(e) => patch({ live_streams_count: Math.max(0, parseInt(e.target.value || "0", 10)) })}
-            />
-          </div>
+
+
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
