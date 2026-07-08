@@ -64,22 +64,45 @@ function formatDuration(startISO: string, endISO: string | null) {
   };
 }
 
+function dateKey(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function overrideDates(all: { specific_date: string | null }[]) {
+  return new Set(all.map((s) => s.specific_date).filter((v): v is string => !!v));
+}
+
+// True if this scheduled shift applies to the given calendar date.
+function shiftAppliesOn(
+  s: { day_of_week: number; specific_date: string | null },
+  day: Date,
+  overrides: Set<string>,
+) {
+  if (s.specific_date) return s.specific_date === dateKey(day);
+  return day.getDay() === s.day_of_week && !overrides.has(dateKey(day));
+}
+
 // Determines whether a scheduled shift can be started now.
 // Only from 45 minutes before start until the shift's end.
 // Checks yesterday/today/tomorrow instances so late-night shifts crossing
 // midnight boundaries still open correctly.
 export function scheduledWindow(
-  s: { day_of_week: number; start_time: string; end_time: string },
+  s: { day_of_week: number; start_time: string; end_time: string; specific_date: string | null },
+  all: { day_of_week: number; specific_date: string | null }[],
   now = new Date(),
 ) {
   const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
   const [eh, em] = s.end_time.split(":").map((n) => parseInt(n, 10));
+  const overrides = overrideDates(all);
 
   let nearestFutureOpen: Date | null = null;
   for (let offset = -1; offset <= 1; offset++) {
     const day = new Date(now);
     day.setDate(day.getDate() + offset);
-    if (day.getDay() !== s.day_of_week) continue;
+    if (!shiftAppliesOn(s, day, overrides)) continue;
     const start = new Date(day);
     start.setHours(sh, sm, 0, 0);
     const end = new Date(day);
