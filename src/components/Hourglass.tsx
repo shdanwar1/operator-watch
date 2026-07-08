@@ -2,6 +2,23 @@ import { useEffect, useState } from "react";
 
 export type HourglassState = "calm" | "warm" | "fast" | "urgent" | "ready";
 
+// Geometry (viewBox 100 x 180) — curved bulbs with a soft neck.
+const TOP_CAP_Y = 4;
+const BULB_TOP_Y = 14;
+const NECK_Y = 90;
+const BULB_BOT_Y = 166;
+const BOT_CAP_Y = 166;
+
+const TOP_BULB_D =
+  `M 18 ${BULB_TOP_Y}
+   C 18 48 42 66 50 ${NECK_Y}
+   C 58 66 82 48 82 ${BULB_TOP_Y} Z`;
+
+const BOT_BULB_D =
+  `M 18 ${BULB_BOT_Y}
+   C 18 132 42 114 50 ${NECK_Y}
+   C 58 114 82 132 82 ${BULB_BOT_Y} Z`;
+
 export function Hourglass({
   percent,
   state,
@@ -15,29 +32,19 @@ export function Hourglass({
   const fill = Math.max(0, Math.min(1, percent));
   const drained = 1 - fill;
 
-  // Geometry (viewBox 100x160).
-  const TOP_Y = 12;
-  const NECK_Y = 80;
-  const BOTTOM_Y = 148;
-  const HALF_W_TOP = 38;
-
-  // Upper sand: surface descends toward the neck as time passes.
-  const surfaceY = TOP_Y + (1 - fill) * (NECK_Y - TOP_Y);
-  const surfaceHalfW = HALF_W_TOP * (NECK_Y - surfaceY) / (NECK_Y - TOP_Y);
-
-  // Lower sand: mound rises from the base toward the neck.
-  const moundY = BOTTOM_Y - drained * (BOTTOM_Y - NECK_Y);
-  const moundHalfW = HALF_W_TOP * (BOTTOM_Y - moundY) / (BOTTOM_Y - NECK_Y);
+  // Surface of the upper sand descends toward the neck.
+  const surfaceY = BULB_TOP_Y + (1 - fill) * (NECK_Y - BULB_TOP_Y);
+  // Mound top rises from the base toward the neck.
+  const moundY = BULB_BOT_Y - drained * (BULB_BOT_Y - NECK_Y);
 
   const showStream = fill > 0.001 && fill < 0.999 && state !== "ready";
 
-  // Palette per state.
   const palette = {
-    calm:   { sand: "#60a5fa", glow: "rgba(96,165,250,0.35)", stream: "1.6s" },
-    warm:   { sand: "#f5b942", glow: "rgba(245,185,66,0.45)",  stream: "0.9s" },
-    fast:   { sand: "#f59e0b", glow: "rgba(245,158,11,0.55)",  stream: "0.45s" },
-    urgent: { sand: "#ef4444", glow: "rgba(239,68,68,0.65)",   stream: "0.3s" },
-    ready:  { sand: "#22c55e", glow: "rgba(34,197,94,0.55)",   stream: "0s" },
+    calm:   { sand: "#7aa7f0", glow: "rgba(122,167,240,0.28)", stream: "1.5s" },
+    warm:   { sand: "#e8b768", glow: "rgba(232,183,104,0.38)", stream: "0.9s" },
+    fast:   { sand: "#eb9a3c", glow: "rgba(235,154,60,0.5)",   stream: "0.5s" },
+    urgent: { sand: "#e26363", glow: "rgba(226,99,99,0.6)",    stream: "0.3s" },
+    ready:  { sand: "#5ec38a", glow: "rgba(94,195,138,0.5)",   stream: "0s" },
   }[state];
 
   return (
@@ -45,101 +52,147 @@ export function Hourglass({
       className={state === "urgent" || state === "ready" ? "hg-pulse" : ""}
       style={{
         width: size,
-        height: size * (160 / 100),
-        filter: `drop-shadow(0 0 22px ${palette.glow})`,
-        transition: "filter 600ms ease",
+        height: size * (180 / 100),
+        filter: `drop-shadow(0 6px 14px ${palette.glow})`,
+        transition: "filter 700ms ease",
       }}
     >
-      <svg viewBox="0 0 100 160" width="100%" height="100%" aria-hidden>
+      <svg viewBox="0 0 100 180" width="100%" height="100%" aria-hidden>
         <defs>
-          {/* subtle vertical shading on the sand */}
-          <linearGradient id="hg-sand-grad" x1="0" x2="0" y1="0" y2="1">
+          {/* Soft vertical shading for sand */}
+          <linearGradient id="hg-sand" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor={palette.sand} stopOpacity="0.95" />
-            <stop offset="100%" stopColor={palette.sand} stopOpacity="0.75" />
+            <stop offset="100%" stopColor={palette.sand} stopOpacity="0.7" />
           </linearGradient>
-          {/* clip to the top chamber shape */}
-          <clipPath id="hg-top-clip">
-            <polygon points={`${50 - HALF_W_TOP},${TOP_Y} ${50 + HALF_W_TOP},${TOP_Y} 50,${NECK_Y}`} />
-          </clipPath>
-          {/* clip to the bottom chamber shape */}
-          <clipPath id="hg-bot-clip">
-            <polygon points={`50,${NECK_Y} ${50 + HALF_W_TOP},${BOTTOM_Y} ${50 - HALF_W_TOP},${BOTTOM_Y}`} />
-          </clipPath>
+          {/* Glass sheen */}
+          <linearGradient id="hg-glass" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.14" />
+            <stop offset="40%" stopColor="currentColor" stopOpacity="0.02" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0.08" />
+          </linearGradient>
+          <clipPath id="hg-top-clip"><path d={TOP_BULB_D} /></clipPath>
+          <clipPath id="hg-bot-clip"><path d={BOT_BULB_D} /></clipPath>
         </defs>
 
-        {/* Wooden caps */}
-        <rect x="6" y="4" width="88" height="8" rx="2" fill="currentColor" opacity="0.85" />
-        <rect x="6" y="148" width="88" height="8" rx="2" fill="currentColor" opacity="0.85" />
-
-        {/* Glass frame */}
-        <polygon
-          points={`${50 - HALF_W_TOP},${TOP_Y} ${50 + HALF_W_TOP},${TOP_Y} 50,${NECK_Y}`}
-          fill="currentColor"
-          fillOpacity="0.06"
-          stroke="currentColor"
-          strokeOpacity="0.55"
-          strokeWidth="1.4"
-          strokeLinejoin="round"
+        {/* Wooden caps — soft rounded pills */}
+        <rect
+          x="10" y={TOP_CAP_Y} width="80" height="10" rx="5"
+          fill="currentColor" opacity="0.75"
         />
-        <polygon
-          points={`50,${NECK_Y} ${50 + HALF_W_TOP},${BOTTOM_Y} ${50 - HALF_W_TOP},${BOTTOM_Y}`}
-          fill="currentColor"
-          fillOpacity="0.06"
-          stroke="currentColor"
-          strokeOpacity="0.55"
-          strokeWidth="1.4"
-          strokeLinejoin="round"
+        <rect
+          x="10" y={BOT_CAP_Y + 4} width="80" height="10" rx="5"
+          fill="currentColor" opacity="0.75"
         />
 
-        {/* Upper sand — surface drops with time */}
+        {/* Glass bulbs — filled with subtle sheen, outlined with soft stroke */}
+        <path d={TOP_BULB_D} fill="url(#hg-glass)" />
+        <path d={BOT_BULB_D} fill="url(#hg-glass)" />
+
+        {/* Upper sand — a rect clipped to the bulb so the surface follows the curve */}
         <g clipPath="url(#hg-top-clip)">
           {fill > 0.001 && (
-            <polygon
-              points={`
-                ${50 - surfaceHalfW},${surfaceY}
-                ${50 + surfaceHalfW},${surfaceY}
-                50,${NECK_Y}
-              `}
-              fill="url(#hg-sand-grad)"
+            <rect
+              x="0"
+              y={surfaceY}
+              width="100"
+              height={NECK_Y - surfaceY + 0.5}
+              fill="url(#hg-sand)"
+              style={{ transition: "y 900ms linear, height 900ms linear" }}
+            />
+          )}
+          {/* Surface highlight */}
+          {fill > 0.02 && (
+            <line
+              x1="0" x2="100" y1={surfaceY} y2={surfaceY}
+              stroke="#ffffff" strokeOpacity="0.35" strokeWidth="0.6"
               style={{ transition: "all 900ms linear" }}
             />
           )}
         </g>
 
-        {/* Falling sand stream */}
+        {/* Falling stream */}
         {showStream && (
           <rect
             x="49.4"
-            y={NECK_Y - 1}
+            y={NECK_Y - 0.5}
             width="1.2"
-            height={moundY - NECK_Y + 2}
+            height={Math.max(2, moundY - NECK_Y + 1)}
+            rx="0.6"
             fill={palette.sand}
             className="hg-stream"
             style={{ animationDuration: palette.stream }}
           />
         )}
 
-        {/* Lower sand — mound grows from the base */}
+        {/* Lower sand — mound rises from the base */}
         <g clipPath="url(#hg-bot-clip)">
           {drained > 0.001 && (
-            <polygon
-              points={`
-                ${50 - moundHalfW},${moundY}
-                ${50 + moundHalfW},${moundY}
-                ${50 + HALF_W_TOP},${BOTTOM_Y}
-                ${50 - HALF_W_TOP},${BOTTOM_Y}
-              `}
-              fill="url(#hg-sand-grad)"
+            <rect
+              x="0"
+              y={moundY}
+              width="100"
+              height={BULB_BOT_Y - moundY + 0.5}
+              fill="url(#hg-sand)"
+              style={{ transition: "y 900ms linear, height 900ms linear" }}
+            />
+          )}
+          {/* Rounded mound top: soft ellipse cap on the pile */}
+          {drained > 0.02 && (
+            <ellipse
+              cx="50"
+              cy={moundY}
+              rx={18 + drained * 14}
+              ry="2"
+              fill="url(#hg-sand)"
               style={{ transition: "all 900ms linear" }}
             />
           )}
         </g>
+
+        {/* Glass outline — soft, rounded */}
+        <path
+          d={TOP_BULB_D}
+          fill="none"
+          stroke="currentColor"
+          strokeOpacity="0.55"
+          strokeWidth="1.2"
+          strokeLinejoin="round"
+        />
+        <path
+          d={BOT_BULB_D}
+          fill="none"
+          stroke="currentColor"
+          strokeOpacity="0.55"
+          strokeWidth="1.2"
+          strokeLinejoin="round"
+        />
+
+        {/* Left-side glass sheen highlight */}
+        <path
+          d="M 24 22 C 22 44 34 62 46 84"
+          fill="none"
+          stroke="#ffffff"
+          strokeOpacity="0.18"
+          strokeWidth="1"
+          strokeLinecap="round"
+        />
+        <path
+          d="M 46 96 C 34 118 22 136 24 158"
+          fill="none"
+          stroke="#ffffff"
+          strokeOpacity="0.12"
+          strokeWidth="1"
+          strokeLinecap="round"
+        />
+
+        {/* Neck highlight */}
+        <ellipse cx="50" cy={NECK_Y} rx="3.2" ry="0.9" fill="currentColor" opacity="0.35" />
       </svg>
     </div>
   );
 }
 
-/** Derive live UI state from the millisecond remaining to check-in. */
+/** Derive live UI state from the milliseconds remaining to check-in. */
 export function hourglassStateFor(remainingMs: number): HourglassState {
   if (remainingMs <= 0) return "ready";
   const mins = remainingMs / 60000;
