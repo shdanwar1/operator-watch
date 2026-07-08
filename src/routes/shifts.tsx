@@ -1,7 +1,12 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { getGateStatus } from "@/lib/gate.functions";
+import {
+  listShifts,
+  updateShift as updateShiftFn,
+  deleteShift as deleteShiftFn,
+} from "@/lib/shifts.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,6 +71,9 @@ function ShiftsPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Shift | null>(null);
+  const fetchShifts = useServerFn(listShifts);
+  const updateShiftServer = useServerFn(updateShiftFn);
+  const deleteShiftServer = useServerFn(deleteShiftFn);
 
   useEffect(() => {
     load();
@@ -73,45 +81,47 @@ function ShiftsPage() {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("shifts")
-      .select("*")
-      .order("check_in_at", { ascending: false });
-    if (error) toast.error(error.message);
-    else {
-      setShifts(
-        (data ?? []).map((r) => ({
-          ...r,
-          classes: (Array.isArray((r as any).classes) ? (r as any).classes : []) as ShiftClass[],
-        })) as Shift[],
-      );
+    try {
+      const rows = await fetchShifts();
+      setShifts(rows as Shift[]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function saveEdit(next: Shift) {
-    const { error } = await supabase
-      .from("shifts")
-      .update({
-        operator_name: next.operator_name,
-        check_in_at: next.check_in_at,
-        check_out_at: next.check_out_at,
-        live_streams_count: next.live_streams_count,
-        classes: next.classes as any,
-        notes: next.notes,
-      } as any)
-      .eq("id", next.id);
-    if (error) return toast.error(error.message);
-    toast.success("Shift updated");
-    setEditing(null);
-    load();
+    try {
+      await updateShiftServer({
+        data: {
+          id: next.id,
+          patch: {
+            operator_name: next.operator_name,
+            check_in_at: next.check_in_at,
+            check_out_at: next.check_out_at,
+            live_streams_count: next.live_streams_count,
+            classes: next.classes,
+            notes: next.notes,
+          },
+        },
+      });
+      toast.success("Shift updated");
+      setEditing(null);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Update failed");
+    }
   }
 
   async function deleteShift(id: string) {
-    const { error } = await supabase.from("shifts").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Deleted");
-    load();
+    try {
+      await deleteShiftServer({ data: { id } });
+      toast.success("Deleted");
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    }
   }
 
   return (

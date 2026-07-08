@@ -1,8 +1,15 @@
 import { createFileRoute, redirect, useRouter, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { getGateStatus, lockSite } from "@/lib/gate.functions";
+import {
+  listShifts,
+  listScheduledShifts,
+  createShift,
+  updateShift as updateShiftFn,
+  type ShiftRow,
+  type ScheduledShiftRow,
+} from "@/lib/shifts.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,25 +33,8 @@ export const Route = createFileRoute("/")({
 
 export type ShiftClass = { class: string; teacher: string };
 
-type Shift = {
-  id: string;
-  operator_name: string;
-  check_in_at: string;
-  check_out_at: string | null;
-  live_streams_count: number;
-  dance_teachers: string[];
-  notes: string | null;
-  scheduled_shift_id: string | null;
-  classes: ShiftClass[];
-};
-
-type ScheduledShift = {
-  id: string;
-  day_of_week: number;
-  start_time: string; // "HH:MM:SS"
-  end_time: string;
-  label: string | null;
-};
+type Shift = ShiftRow;
+type ScheduledShift = ScheduledShiftRow;
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -105,6 +95,10 @@ function Index() {
   const { username } = Route.useLoaderData();
   const router = useRouter();
   const signOut = useServerFn(lockSite);
+  const fetchShifts = useServerFn(listShifts);
+  const fetchScheduled = useServerFn(listScheduledShifts);
+  const createShiftFn = useServerFn(createShift);
+  const updateShiftServer = useServerFn(updateShiftFn);
   async function handleSignOut() {
     await signOut();
     await router.navigate({ to: "/unlock" });
@@ -141,26 +135,16 @@ function Index() {
 
   async function load() {
     setLoading(true);
-    const [shiftsRes, schedRes] = await Promise.all([
-      supabase.from("shifts").select("*").order("check_in_at", { ascending: false }),
-      supabase.from("scheduled_shifts").select("*").order("day_of_week").order("start_time"),
-    ]);
-    if (shiftsRes.error) {
-      toast.error(shiftsRes.error.message);
-    } else {
-      const rows = (shiftsRes.data ?? []).map((r) => ({
-        ...r,
-        classes: (Array.isArray((r as any).classes) ? (r as any).classes : []) as ShiftClass[],
-      })) as Shift[];
+    try {
+      const [rows, sched] = await Promise.all([fetchShifts(), fetchScheduled()]);
       setActive(rows.find((r) => !r.check_out_at) ?? null);
       setHistory(rows.filter((r) => r.check_out_at));
+      setScheduled(sched);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load");
+    } finally {
+      setLoading(false);
     }
-    if (schedRes.error) {
-      toast.error(schedRes.error.message);
-    } else {
-      setScheduled((schedRes.data ?? []) as ScheduledShift[]);
-    }
-    setLoading(false);
   }
 
   async function checkIn(scheduledShiftId?: string) {
@@ -170,23 +154,25 @@ function Index() {
       return;
     }
     localStorage.setItem(OPERATOR_KEY, name);
-    const { data, error } = await supabase
-      .from("shifts")
-      .insert({ operator_name: name, scheduled_shift_id: scheduledShiftId ?? null })
-      .select()
-      .single();
-    if (error) return toast.error(error.message);
-    setActive({ ...(data as any), classes: (Array.isArray((data as any).classes) ? (data as any).classes : []) } as Shift);
-    toast.success(`Checked in — welcome, ${name}`);
+    try {
+      const row = await createShiftFn({
+        data: { operator_name: name, scheduled_shift_id: scheduledShiftId ?? null },
+      });
+      setActive(row);
+      toast.success(`Checked in — welcome, ${name}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Check-in failed");
+    }
   }
 
   async function updateActive(patch: Partial<Shift>) {
     if (!active) return;
     const optimistic = { ...active, ...patch } as Shift;
     setActive(optimistic);
-    const { error } = await supabase.from("shifts").update(patch as any).eq("id", active.id);
-    if (error) {
-      toast.error(error.message);
+    try {
+      await updateShiftServer({ data: { id: active.id, patch } });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Update failed");
       load();
     }
   }
@@ -230,14 +216,19 @@ function Index() {
 
   async function checkOut() {
     if (!active) return;
-    const { error } = await supabase
-      .from("shifts")
-      .update({ check_out_at: new Date().toISOString(), notes: notes || null })
-      .eq("id", active.id);
-    if (error) return toast.error(error.message);
-    toast.success("Shift closed");
-    setActive(null);
-    load();
+    try {
+      await updateShiftServer({
+        data: {
+          id: active.id,
+          patch: { check_out_at: new Date().toISOString(), notes: notes || null },
+        },
+      });
+      toast.success("Shift closed");
+      setActive(null);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Check-out failed");
+    }
   }
 
 

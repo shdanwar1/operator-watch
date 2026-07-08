@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { CalendarDays, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { getGoogleClientId } from "@/lib/gcal.functions";
+import { listScheduledShifts, insertScheduledShifts } from "@/lib/shifts.functions";
 
 const GSI_SRC = "https://accounts.google.com/gsi/client";
 const SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
@@ -59,6 +60,8 @@ export function GoogleCalendarSync({ onSynced }: { onSynced?: () => void }) {
   const [clientId, setClientId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const tokenClientRef = useRef<TokenClient | null>(null);
+  const fetchScheduled = useServerFn(listScheduledShifts);
+  const insertScheduled = useServerFn(insertScheduledShifts);
 
   useEffect(() => {
     getGoogleClientId()
@@ -126,14 +129,9 @@ export function GoogleCalendarSync({ onSynced }: { onSynced?: () => void }) {
       const kwLower = kw.toLowerCase();
 
       // Load existing schedules for dedupe
-      const { data: existingRaw, error: exErr } = await supabase
-        .from("scheduled_shifts")
-        .select("day_of_week,start_time,label");
-      if (exErr) throw exErr;
+      const existingRows = await fetchScheduled();
       const existing = new Set<string>(
-        (existingRaw as ExistingSched[] | null ?? []).map(
-          (r) => `${r.day_of_week}|${r.start_time}|${r.label ?? ""}`,
-        ),
+        existingRows.map((r) => `${r.day_of_week}|${r.start_time}|${r.label ?? ""}`),
       );
 
       const toInsert: Array<{
@@ -163,8 +161,7 @@ export function GoogleCalendarSync({ onSynced }: { onSynced?: () => void }) {
       if (toInsert.length === 0) {
         toast.info(`No new shifts found for "${kw}"`);
       } else {
-        const { error } = await supabase.from("scheduled_shifts").insert(toInsert);
-        if (error) throw error;
+        await insertScheduled({ data: { rows: toInsert } });
         toast.success(`Imported ${toInsert.length} shift${toInsert.length === 1 ? "" : "s"}`);
         onSynced?.();
       }
