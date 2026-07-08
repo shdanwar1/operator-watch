@@ -23,13 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft, Plus, Trash2, Save } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -48,7 +41,7 @@ export const Route = createFileRoute("/calendar")({
 });
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DAY_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
 
 function dateKey(d: Date) {
   const y = d.getFullYear();
@@ -172,7 +165,6 @@ function CalendarPage() {
     start_time: string;
     end_time: string;
     label: string;
-    scope: "one-off" | "recurring";
   }) {
     if (!editor) return;
     try {
@@ -183,7 +175,7 @@ function CalendarPage() {
             start_time: payload.start_time,
             end_time: payload.end_time,
             label: payload.label,
-            specific_date: payload.scope === "one-off" ? dateKey(editor.date) : null,
+            specific_date: dateKey(editor.date),
           },
         });
         toast.success("Shift added");
@@ -412,13 +404,12 @@ function ShiftEditorDialog({
 }: {
   state: EditorState | null;
   onClose: () => void;
-  onSave: (p: { start_time: string; end_time: string; label: string; scope: "one-off" | "recurring" }) => void;
+  onSave: (p: { start_time: string; end_time: string; label: string }) => void;
   onDelete: () => void;
 }) {
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("13:00");
   const [label, setLabel] = useState("");
-  const [scope, setScope] = useState<"one-off" | "recurring">("one-off");
 
   useEffect(() => {
     if (!state) return;
@@ -426,12 +417,10 @@ function ShiftEditorDialog({
       setStartTime(state.instance.shift.start_time.slice(0, 5));
       setEndTime(state.instance.shift.end_time.slice(0, 5));
       setLabel(state.instance.shift.label ?? "");
-      setScope(state.instance.shift.specific_date ? "one-off" : "recurring");
     } else {
       setStartTime("09:00");
       setEndTime("13:00");
       setLabel("");
-      setScope("one-off");
     }
   }, [state]);
 
@@ -448,7 +437,7 @@ function ShiftEditorDialog({
   function submit() {
     if (!startTime || !endTime) return toast.error("Start and end times are required");
     if (endTime <= startTime) return toast.error("End must be after start");
-    onSave({ start_time: startTime, end_time: endTime, label: label.trim(), scope });
+    onSave({ start_time: startTime, end_time: endTime, label: label.trim() });
   }
 
   return (
@@ -479,29 +468,6 @@ function ShiftEditorDialog({
               placeholder="e.g. Morning shift"
             />
           </div>
-
-          {!isEdit && (
-            <div className="space-y-2">
-              <Label>Repeats</Label>
-              <Select value={scope} onValueChange={(v) => setScope(v as "one-off" | "recurring")}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="one-off">One-off (just this day)</SelectItem>
-                  <SelectItem value="recurring">
-                    Every {DAY_LONG[state.date.getDay()]}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {isEdit && !state.instance.shift.specific_date && (
-            <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-              This is a recurring shift. Changes apply to every {DAY_LONG[state.date.getDay()]}.
-            </p>
-          )}
         </div>
 
         <DialogFooter className="flex-row justify-between sm:justify-between">
