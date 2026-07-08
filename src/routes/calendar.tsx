@@ -41,7 +41,7 @@ export const Route = createFileRoute("/calendar")({
 });
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DAY_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
 
 function dateKey(d: Date) {
   const y = d.getFullYear();
