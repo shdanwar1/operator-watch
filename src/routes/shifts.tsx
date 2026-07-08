@@ -127,6 +127,23 @@ function ShiftsPage() {
     }
   }
 
+  async function addPast(payload: {
+    operator_name: string;
+    check_in_at: string;
+    check_out_at: string;
+    classes: ShiftClass[];
+    notes: string | null;
+  }) {
+    try {
+      await createPastServer({ data: payload });
+      toast.success("Past shift added");
+      setAddingPast(false);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to add");
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Toaster richColors position="top-center" />
