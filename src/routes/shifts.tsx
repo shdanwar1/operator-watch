@@ -160,6 +160,9 @@ function ShiftsPage() {
               <p className="text-sm text-muted-foreground">Review and edit any shift.</p>
             </div>
           </div>
+          <Button size="sm" onClick={() => setAddingPast(true)}>
+            <Plus className="mr-1 h-3.5 w-3.5" /> Add past shift
+          </Button>
         </header>
 
         <div className="mb-6">
