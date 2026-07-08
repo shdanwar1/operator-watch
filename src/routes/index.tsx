@@ -10,14 +10,16 @@ import {
   type ShiftRow,
   type ScheduledShiftRow,
 } from "@/lib/shifts.functions";
+import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/lib/travel.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, ShieldCheck } from "lucide-react";
+import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, ShieldCheck, Train, Home, MapPin } from "lucide-react";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
+
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
@@ -330,7 +332,8 @@ function Index() {
             )}
           </div>
 
-          <aside className="lg:sticky lg:top-6 lg:self-start">
+          <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+            {!loading && !active && <TimeToLeaveCard scheduled={scheduled} now={now} />}
             {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
           </aside>
         </div>
@@ -338,6 +341,7 @@ function Index() {
     </div>
   );
 }
+
 
 function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: Date }) {
   const instances = upcomingInstances(scheduled, now, 6);
@@ -715,3 +719,151 @@ function MonthlySummary({ shifts }: { shifts: Shift[] }) {
     </Card>
   );
 }
+
+function fmtHM(d: Date) {
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+function TimeToLeaveCard({
+  scheduled,
+  now,
+}: {
+  scheduled: ScheduledShift[];
+  now: Date;
+}) {
+  const fetchPlan = useServerFn(getTimeToLeave);
+  const next = useMemo(() => nextShiftInstance(scheduled, now), [scheduled, now]);
+  const shiftIso = next?.startAt.toISOString() ?? null;
+
+  const [plan, setPlan] = useState<TimeToLeaveResult | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!shiftIso) {
+      setPlan(null);
+      return;
+    }
+    let alive = true;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const p = await fetchPlan({ data: { shift_start_iso: shiftIso } });
+        if (alive) setPlan(p);
+      } catch {
+        if (alive) setPlan(null);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    load();
+    // Refresh every 3 minutes so the departure recalculates with fresh transit data.
+    const t = setInterval(load, 3 * 60_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [shiftIso, fetchPlan]);
+
+  if (!next) return null;
+
+  const shiftStart = next.startAt;
+
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <Train className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Time to leave
+          </h2>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Next shift{" "}
+          <span className="font-medium text-foreground">
+            {shiftStart.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
+          </span>{" "}
+          at <span className="font-medium text-foreground">{fmtHM(shiftStart)}</span>
+        </p>
+
+        {loading && !plan ? (
+          <p className="mt-3 text-sm text-muted-foreground">Planning your trip…</p>
+        ) : plan && plan.ok ? (
+          <TimeToLeaveDetails plan={plan} now={now} />
+        ) : plan && plan.reason === "no_home" ? (
+          <div className="mt-3 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Add your home address to see when you should leave.
+            </p>
+            <Button size="sm" variant="outline" asChild>
+              <Link to="/profile">
+                <Home className="mr-1.5 h-3.5 w-3.5" /> Set home in profile
+              </Link>
+            </Button>
+          </div>
+        ) : plan && plan.reason === "no_route" ? (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Could not find a public transport route right now.
+          </p>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">Preparing…</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TimeToLeaveDetails({
+  plan,
+  now,
+}: {
+  plan: Extract<TimeToLeaveResult, { ok: true }>;
+  now: Date;
+}) {
+  const departure = new Date(plan.departure_iso);
+  const arrival = new Date(plan.arrival_iso);
+  const minutesUntilLeave = Math.round((departure.getTime() - now.getTime()) / 60_000);
+
+  const leaveLabel =
+    minutesUntilLeave <= 0
+      ? "Leave now"
+      : minutesUntilLeave < 60
+        ? `Leave in ${minutesUntilLeave}m`
+        : `Leave in ${Math.floor(minutesUntilLeave / 60)}h ${minutesUntilLeave % 60}m`;
+
+  const urgent = minutesUntilLeave <= 10;
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div
+        className={`rounded-lg border p-3 ${
+          urgent ? "border-destructive/40 bg-destructive/5" : "border-border bg-muted/40"
+        }`}
+      >
+        <div className={`text-xs font-medium uppercase tracking-wider ${urgent ? "text-destructive" : "text-muted-foreground"}`}>
+          {leaveLabel}
+        </div>
+        <div className="mt-1 text-2xl font-semibold tabular-nums">{fmtHM(departure)}</div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          Arrive {fmtHM(arrival)} · {plan.travel_minutes}m by public transport
+          {plan.transfers > 0 ? ` · ${plan.transfers} transfer${plan.transfers === 1 ? "" : "s"}` : ""}
+        </div>
+        <div className="mt-1 text-[11px] text-muted-foreground">
+          Plan arrives {ARRIVAL_BUFFER_MIN} min before shift starts.
+        </div>
+      </div>
+
+      <div className="space-y-1 text-xs text-muted-foreground">
+        <div className="flex items-start gap-1.5">
+          <Home className="mt-0.5 h-3 w-3 shrink-0" />
+          <span className="truncate">{plan.home_label}</span>
+        </div>
+        <div className="flex items-start gap-1.5">
+          <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+          <span className="truncate">{plan.office_label}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
