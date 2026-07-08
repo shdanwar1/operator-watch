@@ -40,7 +40,7 @@ export const Route = createFileRoute("/calendar")({
   component: CalendarPage,
 });
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 
 function dateKey(d: Date) {
