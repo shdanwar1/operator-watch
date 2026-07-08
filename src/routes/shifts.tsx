@@ -239,7 +239,168 @@ function ShiftsPage() {
         onClose={() => setEditing(null)}
         onSave={saveEdit}
       />
+
+      <AddPastDialog
+        open={addingPast}
+        onClose={() => setAddingPast(false)}
+        onSave={addPast}
+      />
     </div>
+  );
+}
+
+function AddPastDialog({
+  open,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (p: {
+    operator_name: string;
+    check_in_at: string;
+    check_out_at: string;
+    classes: ShiftClass[];
+    notes: string | null;
+  }) => void;
+}) {
+  const [operatorName, setOperatorName] = useState("");
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [classes, setClasses] = useState<ShiftClass[]>([{ class: "", teacher: "" }]);
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      const savedName = typeof window !== "undefined"
+        ? localStorage.getItem("lss_operator_name") ?? ""
+        : "";
+      setOperatorName(savedName);
+      setCheckIn("");
+      setCheckOut("");
+      setClasses([{ class: "", teacher: "" }]);
+      setNotes("");
+    }
+  }, [open]);
+
+  function updateClass(i: number, p: Partial<ShiftClass>) {
+    setClasses((cs) => cs.map((c, idx) => (idx === i ? { ...c, ...p } : c)));
+  }
+  function addClass() {
+    setClasses((cs) => [...cs, { class: "", teacher: "" }]);
+  }
+  function removeClass(i: number) {
+    setClasses((cs) => cs.filter((_, idx) => idx !== i));
+  }
+
+  function submit() {
+    const name = operatorName.trim();
+    if (!name) return toast.error("Enter an operator name");
+    const ci = fromLocalInput(checkIn);
+    const co = fromLocalInput(checkOut);
+    if (!ci) return toast.error("Enter check-in time");
+    if (!co) return toast.error("Enter check-out time");
+    if (new Date(co).getTime() <= new Date(ci).getTime()) {
+      return toast.error("Check-out must be after check-in");
+    }
+    const cleanedClasses = classes
+      .map((c) => ({ class: c.class.trim(), teacher: c.teacher.trim() }))
+      .filter((c) => c.class || c.teacher);
+    onSave({
+      operator_name: name,
+      check_in_at: ci,
+      check_out_at: co,
+      classes: cleanedClasses,
+      notes: notes.trim() ? notes.trim() : null,
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add past shift</DialogTitle>
+          <DialogDescription>Log a shift that already happened.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Operator</Label>
+            <Input value={operatorName} onChange={(e) => setOperatorName(e.target.value)} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Check in</Label>
+              <Input
+                type="datetime-local"
+                value={checkIn}
+                onChange={(e) => setCheckIn(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Check out</Label>
+              <Input
+                type="datetime-local"
+                value={checkOut}
+                onChange={(e) => setCheckOut(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Classes</Label>
+              <Button type="button" variant="secondary" size="sm" onClick={addClass}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> Add class
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                <span>Class</span>
+                <span>Teacher</span>
+                <span className="sr-only">Actions</span>
+              </div>
+              {classes.map((c, i) => (
+                <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                  <Input
+                    placeholder={`Class ${i + 1}`}
+                    value={c.class}
+                    onChange={(e) => updateClass(i, { class: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Teacher"
+                    value={c.teacher}
+                    onChange={(e) => updateClass(i, { teacher: e.target.value })}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeClass(i)}
+                    aria-label="Remove row"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Notes</Label>
+            <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit}>
+            <Save className="mr-1 h-4 w-4" /> Save shift
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
