@@ -72,9 +72,11 @@ function ShiftsPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Shift | null>(null);
+  const [addingPast, setAddingPast] = useState(false);
   const fetchShifts = useServerFn(listShifts);
   const updateShiftServer = useServerFn(updateShiftFn);
   const deleteShiftServer = useServerFn(deleteShiftFn);
+  const createPastServer = useServerFn(createPastShiftFn);
 
   useEffect(() => {
     load();
