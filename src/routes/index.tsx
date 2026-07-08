@@ -65,31 +65,42 @@ function formatDuration(startISO: string, endISO: string | null) {
 }
 
 // Determines whether a scheduled shift can be started now.
-// Only from 45 minutes before start until the shift's end, and only today.
+// Only from 45 minutes before start until the shift's end.
+// Checks yesterday/today/tomorrow instances so late-night shifts crossing
+// midnight boundaries still open correctly.
 export function scheduledWindow(
   s: { day_of_week: number; start_time: string; end_time: string },
   now = new Date(),
 ) {
-  const today = now.getDay();
-  if (s.day_of_week !== today) {
-    return { canStart: false, reason: `Only on ${DAY_NAMES[s.day_of_week]}` };
-  }
   const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
   const [eh, em] = s.end_time.split(":").map((n) => parseInt(n, 10));
-  const start = new Date(now);
-  start.setHours(sh, sm, 0, 0);
-  const end = new Date(now);
-  end.setHours(eh, em, 0, 0);
-  const openAt = new Date(start.getTime() - 45 * 60 * 1000);
-  if (now < openAt) {
-    const mins = Math.round((openAt.getTime() - now.getTime()) / 60000);
+
+  let nearestFutureOpen: Date | null = null;
+  for (let offset = -1; offset <= 1; offset++) {
+    const day = new Date(now);
+    day.setDate(day.getDate() + offset);
+    if (day.getDay() !== s.day_of_week) continue;
+    const start = new Date(day);
+    start.setHours(sh, sm, 0, 0);
+    const end = new Date(day);
+    end.setHours(eh, em, 0, 0);
+    const openAt = new Date(start.getTime() - 45 * 60 * 1000);
+    if (now >= openAt && now <= end) {
+      return { canStart: true, reason: "" };
+    }
+    if (openAt > now && (!nearestFutureOpen || openAt < nearestFutureOpen)) {
+      nearestFutureOpen = openAt;
+    }
+  }
+
+  if (nearestFutureOpen) {
+    const mins = Math.round((nearestFutureOpen.getTime() - now.getTime()) / 60000);
     const hrs = Math.floor(mins / 60);
     const rem = mins % 60;
     const wait = hrs > 0 ? `${hrs}h ${rem}m` : `${mins}m`;
     return { canStart: false, reason: `Opens in ${wait}` };
   }
-  if (now > end) return { canStart: false, reason: "Shift ended" };
-  return { canStart: true, reason: "" };
+  return { canStart: false, reason: `Only on ${DAY_NAMES[s.day_of_week]}` };
 }
 
 function Index() {
