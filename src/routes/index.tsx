@@ -544,19 +544,6 @@ function CheckInPanel({
 
         <div className="w-full max-w-xs space-y-3 text-left">
           <div className="space-y-2">
-            <Label htmlFor="op" className="text-xs uppercase tracking-wide text-muted-foreground">
-              Username
-            </Label>
-            <Input
-              id="op"
-              placeholder="e.g. shad"
-              autoCapitalize="none"
-              autoCorrect="off"
-              value={operatorName}
-              onChange={(e) => setOperatorName(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
             <Label htmlFor="mw" className="text-xs uppercase tracking-wide text-muted-foreground">
               Magic word
             </Label>
@@ -564,6 +551,7 @@ function CheckInPanel({
               id="mw"
               type="password"
               placeholder="Secret check-in word"
+              autoFocus
               value={magicWord}
               onChange={(e) => setMagicWord(e.target.value)}
               onKeyDown={(e) => {
