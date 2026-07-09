@@ -17,8 +17,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, ShieldCheck, Train, Home, MapPin } from "lucide-react";
+import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, ShieldCheck, Train, Home, MapPin, Wallet } from "lucide-react";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
+import { computeMonthly, CONTRACT_MONTHLY_HOURS, formatEUR } from "@/lib/earnings";
 
 
 export const Route = createFileRoute("/")({
@@ -779,20 +780,88 @@ function MonthlySummary({ shifts }: { shifts: Shift[] }) {
     };
   }, [shifts]);
 
+  const monthly = useMemo(() => computeMonthly(shifts, new Date()), [shifts]);
+  const progressPct = Math.min(100, (monthly.totalHours / CONTRACT_MONTHLY_HOURS) * 100);
+  const overtimeActive = monthly.totalHours > CONTRACT_MONTHLY_HOURS;
+
   return (
-    <Card>
-      <CardContent className="flex items-center justify-between p-5">
-        <div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Hours worked</div>
-          <div className="mt-1 text-3xl font-semibold tabular-nums">
-            {summary.totalHours}h {summary.remMinutes.toString().padStart(2, "0")}m
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="flex items-center justify-between p-5">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Hours worked</div>
+            <div className="mt-1 text-3xl font-semibold tabular-nums">
+              {summary.totalHours}h {summary.remMinutes.toString().padStart(2, "0")}m
+            </div>
           </div>
-        </div>
-        <div className="text-right text-xs text-muted-foreground">
-          {summary.count} shift{summary.count === 1 ? "" : "s"}
-        </div>
-      </CardContent>
-    </Card>
+          <div className="text-right text-xs text-muted-foreground">
+            {summary.count} shift{summary.count === 1 ? "" : "s"}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Link to="/earnings" className="group block">
+        <Card className="border-primary/30 transition-colors group-hover:border-primary/60">
+          <CardContent className="space-y-4 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-primary" />
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Estimated earnings · {new Date().toLocaleDateString(undefined, { month: "long" })}
+                </h3>
+              </div>
+              {overtimeActive && (
+                <Badge variant="destructive" className="text-[10px]">Overtime</Badge>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Gross</div>
+                <div className="text-xl font-semibold tabular-nums">{formatEUR(monthly.grossSalary)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Est. net</div>
+                <div className="text-xl font-semibold tabular-nums">≈ {formatEUR(monthly.netSalary)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Overtime</div>
+                <div className="text-xl font-semibold tabular-nums">{monthly.overtimeHours.toFixed(1)}h</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Night + Sun</div>
+                <div className="text-xl font-semibold tabular-nums">
+                  {(monthly.nightHours + monthly.sundayHours).toFixed(1)}h
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>{monthly.totalHours.toFixed(2)} / {CONTRACT_MONTHLY_HOURS} contracted hrs</span>
+                <span>{progressPct.toFixed(0)}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    overtimeActive
+                      ? "bg-destructive"
+                      : progressPct >= 90
+                        ? "bg-amber-500"
+                        : "bg-primary"
+                  }`}
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="text-right text-xs text-primary underline-offset-4 group-hover:underline">
+              Open payroll dashboard →
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+    </div>
   );
 }
 
