@@ -3,9 +3,9 @@ import { useSession } from "@tanstack/react-start/server";
 
 // Office (fixed for every operator).
 export const OFFICE = {
-  label: "Grüntaler Str. 18, 13357 Berlin",
-  lat: 52.5531192,
-  lng: 13.3887247,
+  label: "Kaiserin-Augusta-Allee 10, 10553 Berlin",
+  lat: 52.5263162,
+  lng: 13.3229399,
 } as const;
 
 // Always arrive this many minutes before the shift starts.
