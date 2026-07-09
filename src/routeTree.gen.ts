@@ -13,6 +13,7 @@ import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ShiftsRouteImport } from './routes/shifts'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as EarningsRouteImport } from './routes/earnings'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -37,6 +38,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EarningsRoute = EarningsRouteImport.update({
+  id: '/earnings',
+  path: '/earnings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CalendarRoute = CalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/calendar': typeof CalendarRoute
+  '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
   '/shifts': typeof ShiftsRoute
   '/signup': typeof SignupRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/calendar': typeof CalendarRoute
+  '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
   '/shifts': typeof ShiftsRoute
   '/signup': typeof SignupRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/calendar': typeof CalendarRoute
+  '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
   '/shifts': typeof ShiftsRoute
   '/signup': typeof SignupRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/calendar'
+    | '/earnings'
     | '/profile'
     | '/shifts'
     | '/signup'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/calendar'
+    | '/earnings'
     | '/profile'
     | '/shifts'
     | '/signup'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/calendar'
+    | '/earnings'
     | '/profile'
     | '/shifts'
     | '/signup'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   CalendarRoute: typeof CalendarRoute
+  EarningsRoute: typeof EarningsRoute
   ProfileRoute: typeof ProfileRoute
   ShiftsRoute: typeof ShiftsRoute
   SignupRoute: typeof SignupRoute
@@ -151,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/earnings': {
+      id: '/earnings'
+      path: '/earnings'
+      fullPath: '/earnings'
+      preLoaderRoute: typeof EarningsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/calendar': {
       id: '/calendar'
       path: '/calendar'
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   CalendarRoute: CalendarRoute,
+  EarningsRoute: EarningsRoute,
   ProfileRoute: ProfileRoute,
   ShiftsRoute: ShiftsRoute,
   SignupRoute: SignupRoute,
