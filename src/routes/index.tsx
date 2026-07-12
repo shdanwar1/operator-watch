@@ -351,6 +351,8 @@ function Index() {
                 onUpdateClass={updateClassRow}
                 onRemoveClass={removeClassRow}
                 checkingOut={checkingOut}
+                teachers={teachers}
+                classes={classes}
               />
             ) : focus === "time_to_leave" ? (
               <TimeToLeaveCard
