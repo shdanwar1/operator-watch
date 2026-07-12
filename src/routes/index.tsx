@@ -171,10 +171,17 @@ function Index() {
   async function load() {
     setLoading(true);
     try {
-      const [rows, sched] = await Promise.all([fetchShifts(), fetchScheduled()]);
+      const [rows, sched, tRows, cRows] = await Promise.all([
+        fetchShifts(),
+        fetchScheduled(),
+        fetchTeachers(),
+        fetchClasses(),
+      ]);
       setActive(rows.find((r) => !r.check_out_at) ?? null);
       setHistory(rows.filter((r) => r.check_out_at));
       setScheduled(sched);
+      setTeachers(tRows);
+      setClasses(cRows);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load");
     } finally {
