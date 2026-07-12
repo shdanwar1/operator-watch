@@ -704,6 +704,8 @@ function ActiveShiftPanel({
   onUpdateClass,
   onRemoveClass,
   checkingOut,
+  teachers,
+  classes,
 }: {
   shift: Shift;
   onCheckOut: () => void;
@@ -711,6 +713,8 @@ function ActiveShiftPanel({
   onUpdateClass: (i: number, patch: Partial<ShiftClass>) => void;
   onRemoveClass: (i: number) => void;
   checkingOut: boolean;
+  teachers: DirectoryItem[];
+  classes: DirectoryItem[];
 }) {
   const d = formatDuration(shift.check_in_at, null);
 
@@ -750,15 +754,17 @@ function ActiveShiftPanel({
             <div className="space-y-2">
               {shift.classes.map((c, i) => (
                 <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                  <Input
-                    placeholder="Class name"
+                  <DirectoryCombobox
                     value={c.class}
-                    onChange={(e) => onUpdateClass(i, { class: e.target.value })}
+                    onChange={(v) => onUpdateClass(i, { class: v })}
+                    options={classes}
+                    placeholder="Class"
                   />
-                  <Input
-                    placeholder="Teacher name"
+                  <DirectoryCombobox
                     value={c.teacher}
-                    onChange={(e) => onUpdateClass(i, { teacher: e.target.value })}
+                    onChange={(v) => onUpdateClass(i, { teacher: v })}
+                    options={teachers}
+                    placeholder="Teacher"
                   />
                   <Button
                     variant="ghost"
