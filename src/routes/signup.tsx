@@ -39,8 +39,8 @@ function SignupPage() {
     if (!username || !password || !mobile || !magicWord) {
       return toast.error("All fields are required");
     }
-    if (mobile.length !== 10) {
-      return toast.error("Mobile number must be 10 digits");
+    if (mobile.length !== 11) {
+      return toast.error("Mobile number must be 11 digits");
     }
     setSubmitting(true);
     try {

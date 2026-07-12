@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   id?: string;
-  value: string; // 10 digits, no prefix
+  value: string; // 11 digits, no prefix
   onChange: (digits: string) => void;
   required?: boolean;
   disabled?: boolean;
@@ -14,7 +14,7 @@ type Props = {
 
 /**
  * German mobile number input. Locks the +49 prefix and only accepts the
- * 10-digit subscriber number. Value stored in parent state is digits-only;
+ * 11-digit subscriber number. Value stored in parent state is digits-only;
  * combine with `+49` when submitting to the server.
  */
 export const GermanMobileInput = forwardRef<HTMLInputElement, Props>(
@@ -43,7 +43,7 @@ export const GermanMobileInput = forwardRef<HTMLInputElement, Props>(
           inputMode="numeric"
           autoComplete="tel-national"
           placeholder="1512 3456789"
-          maxLength={10}
+          maxLength={11}
           required={required}
           disabled={disabled}
           autoFocus={autoFocus}
