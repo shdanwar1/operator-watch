@@ -136,6 +136,7 @@ function ShiftsPage() {
           },
         },
       });
+      await recordShiftUsage(next.classes);
       toast.success("Shift updated");
       setEditing(null);
       load();
