@@ -263,12 +263,16 @@ function ShiftsPage() {
         shift={editing}
         onClose={() => setEditing(null)}
         onSave={saveEdit}
+        teachers={teachers}
+        classDir={classDir}
       />
 
       <AddPastDialog
         open={addingPast}
         onClose={() => setAddingPast(false)}
         onSave={addPast}
+        teachers={teachers}
+        classDir={classDir}
       />
     </div>
   );
