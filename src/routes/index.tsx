@@ -10,6 +10,12 @@ import {
   type ShiftRow,
   type ScheduledShiftRow,
 } from "@/lib/shifts.functions";
+import {
+  listTeachers,
+  listClasses,
+  recordDirectoryUsage,
+  type DirectoryItem,
+} from "@/lib/directories.functions";
 import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/lib/travel.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +26,7 @@ import { toast, Toaster } from "sonner";
 import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, ShieldCheck, Train, Home, MapPin, Wallet } from "lucide-react";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 import { computeMonthly, CONTRACT_MONTHLY_HOURS, formatEUR } from "@/lib/earnings";
+import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 
 
 export const Route = createFileRoute("/")({
