@@ -99,7 +99,7 @@ function ProfilePage() {
 
   async function save() {
     if (!operator) return;
-    if (mobile.length !== 10) return toast.error("Mobile number must be 10 digits");
+    if (mobile.length !== 11) return toast.error("Mobile number must be 11 digits");
     const fullMobile = `+49${mobile}`;
     setSaving(true);
     try {

@@ -71,7 +71,7 @@ function Unlock() {
       return toast.error("All fields are required");
     }
     if (suMobile.length !== 10) {
-      return toast.error("Mobile number must be 10 digits");
+      return toast.error("Mobile number must be 11 digits");
     }
     setSuLoading(true);
     try {

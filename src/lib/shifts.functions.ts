@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
 
-type GateSession = { unlocked?: boolean; username?: string };
+type GateSession = { unlocked?: boolean; username?: string; isAdmin?: boolean };
 
 function getSessionConfig() {
   const password = process.env.SESSION_SECRET;
@@ -24,6 +24,10 @@ async function requireGate() {
   if (!session.data.unlocked) {
     throw new Response("Unauthorized", { status: 401 });
   }
+  return {
+    username: session.data.username ?? null,
+    isAdmin: !!session.data.isAdmin,
+  };
 }
 
 export type ShiftClass = { class: string; teacher: string };
@@ -59,12 +63,14 @@ function normalizeShift(r: Record<string, unknown>): ShiftRow {
 }
 
 export const listShifts = createServerFn({ method: "GET" }).handler(async () => {
-  await requireGate();
+  const { username, isAdmin } = await requireGate();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
-    .from("shifts")
-    .select("*")
-    .order("check_in_at", { ascending: false });
+  let q = supabaseAdmin.from("shifts").select("*").order("check_in_at", { ascending: false });
+  // Non-admin operators only see their own shifts (case-insensitive match).
+  if (!isAdmin && username) {
+    q = q.ilike("operator_name", username);
+  }
+  const { data, error } = await q;
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => normalizeShift(r as Record<string, unknown>));
 });
