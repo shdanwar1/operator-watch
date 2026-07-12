@@ -49,7 +49,7 @@ export const GermanMobileInput = forwardRef<HTMLInputElement, Props>(
           autoFocus={autoFocus}
           value={value}
           onChange={(e) => {
-            const digits = e.target.value.replace(/\D+/g, "").slice(0, 10);
+            const digits = e.target.value.replace(/\D+/g, "").slice(0, 11);
             onChange(digits);
           }}
           className="h-10 flex-1 rounded-none border-0 bg-transparent tabular-nums shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
