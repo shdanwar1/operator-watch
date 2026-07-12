@@ -66,9 +66,9 @@ export const listShifts = createServerFn({ method: "GET" }).handler(async () => 
   const { username, isAdmin } = await requireGate();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   let q = supabaseAdmin.from("shifts").select("*").order("check_in_at", { ascending: false });
-  // Non-admin operators only see their own shifts.
+  // Non-admin operators only see their own shifts (case-insensitive match).
   if (!isAdmin && username) {
-    q = q.eq("operator_name", username);
+    q = q.ilike("operator_name", username);
   }
   const { data, error } = await q;
   if (error) throw new Error(error.message);
