@@ -10,6 +10,12 @@ import {
   type ShiftRow,
   type ScheduledShiftRow,
 } from "@/lib/shifts.functions";
+import {
+  listTeachers,
+  listClasses,
+  recordDirectoryUsage,
+  type DirectoryItem,
+} from "@/lib/directories.functions";
 import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/lib/travel.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +26,7 @@ import { toast, Toaster } from "sonner";
 import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, ShieldCheck, Train, Home, MapPin, Wallet } from "lucide-react";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 import { computeMonthly, CONTRACT_MONTHLY_HOURS, formatEUR } from "@/lib/earnings";
+import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 
 
 export const Route = createFileRoute("/")({
@@ -135,6 +142,9 @@ function Index() {
   const signOut = useServerFn(lockSite);
   const fetchShifts = useServerFn(listShifts);
   const fetchScheduled = useServerFn(listScheduledShifts);
+  const fetchTeachers = useServerFn(listTeachers);
+  const fetchClasses = useServerFn(listClasses);
+  const recordUsage = useServerFn(recordDirectoryUsage);
   const createShiftFn = useServerFn(createShift);
   const updateShiftServer = useServerFn(updateShiftFn);
 
@@ -142,6 +152,8 @@ function Index() {
   const [active, setActive] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
   const [scheduled, setScheduled] = useState<ScheduledShift[]>([]);
+  const [teachers, setTeachers] = useState<DirectoryItem[]>([]);
+  const [classes, setClasses] = useState<DirectoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
@@ -159,10 +171,17 @@ function Index() {
   async function load() {
     setLoading(true);
     try {
-      const [rows, sched] = await Promise.all([fetchShifts(), fetchScheduled()]);
+      const [rows, sched, tRows, cRows] = await Promise.all([
+        fetchShifts(),
+        fetchScheduled(),
+        fetchTeachers(),
+        fetchClasses(),
+      ]);
       setActive(rows.find((r) => !r.check_out_at) ?? null);
       setHistory(rows.filter((r) => r.check_out_at));
       setScheduled(sched);
+      setTeachers(tRows);
+      setClasses(cRows);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -249,6 +268,15 @@ function Index() {
       await updateShiftServer({
         data: { id: active.id, patch: { check_out_at: new Date().toISOString() } },
       });
+      // Best-effort: record used teachers/classes in the directories.
+      try {
+        await recordUsage({
+          data: {
+            teachers: active.classes.map((c) => c.teacher).filter(Boolean),
+            classes: active.classes.map((c) => c.class).filter(Boolean),
+          },
+        });
+      } catch { /* non-fatal */ }
       toast.success("Checked out");
       setActive(null);
       load();
@@ -323,6 +351,8 @@ function Index() {
                 onUpdateClass={updateClassRow}
                 onRemoveClass={removeClassRow}
                 checkingOut={checkingOut}
+                teachers={teachers}
+                classes={classes}
               />
             ) : focus === "time_to_leave" ? (
               <TimeToLeaveCard
@@ -674,6 +704,8 @@ function ActiveShiftPanel({
   onUpdateClass,
   onRemoveClass,
   checkingOut,
+  teachers,
+  classes,
 }: {
   shift: Shift;
   onCheckOut: () => void;
@@ -681,6 +713,8 @@ function ActiveShiftPanel({
   onUpdateClass: (i: number, patch: Partial<ShiftClass>) => void;
   onRemoveClass: (i: number) => void;
   checkingOut: boolean;
+  teachers: DirectoryItem[];
+  classes: DirectoryItem[];
 }) {
   const d = formatDuration(shift.check_in_at, null);
 
@@ -720,15 +754,17 @@ function ActiveShiftPanel({
             <div className="space-y-2">
               {shift.classes.map((c, i) => (
                 <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                  <Input
-                    placeholder="Class name"
+                  <DirectoryCombobox
                     value={c.class}
-                    onChange={(e) => onUpdateClass(i, { class: e.target.value })}
+                    onChange={(v) => onUpdateClass(i, { class: v })}
+                    options={classes}
+                    placeholder="Class"
                   />
-                  <Input
-                    placeholder="Teacher name"
+                  <DirectoryCombobox
                     value={c.teacher}
-                    onChange={(e) => onUpdateClass(i, { teacher: e.target.value })}
+                    onChange={(v) => onUpdateClass(i, { teacher: v })}
+                    options={teachers}
+                    placeholder="Teacher"
                   />
                   <Button
                     variant="ghost"

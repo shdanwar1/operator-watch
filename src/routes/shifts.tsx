@@ -8,6 +8,12 @@ import {
   deleteShift as deleteShiftFn,
   createPastShift as createPastShiftFn,
 } from "@/lib/shifts.functions";
+import {
+  listTeachers,
+  listClasses,
+  recordDirectoryUsage,
+  type DirectoryItem,
+} from "@/lib/directories.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +31,7 @@ import {
 import { toast, Toaster } from "sonner";
 import { ArrowLeft, Pencil, Plus, Trash2, X, Save } from "lucide-react";
 import type { ShiftClass } from "./index";
+import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 
 export const Route = createFileRoute("/shifts")({
   beforeLoad: async () => {
@@ -69,10 +76,15 @@ function duration(a: string, b: string | null) {
 
 function ShiftsPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [teachers, setTeachers] = useState<DirectoryItem[]>([]);
+  const [classDir, setClassDir] = useState<DirectoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Shift | null>(null);
   const [addingPast, setAddingPast] = useState(false);
   const fetchShifts = useServerFn(listShifts);
+  const fetchTeachers = useServerFn(listTeachers);
+  const fetchClasses = useServerFn(listClasses);
+  const recordUsage = useServerFn(recordDirectoryUsage);
   const updateShiftServer = useServerFn(updateShiftFn);
   const deleteShiftServer = useServerFn(deleteShiftFn);
   const createPastServer = useServerFn(createPastShiftFn);
@@ -84,13 +96,30 @@ function ShiftsPage() {
   async function load() {
     setLoading(true);
     try {
-      const rows = await fetchShifts();
+      const [rows, tRows, cRows] = await Promise.all([
+        fetchShifts(),
+        fetchTeachers(),
+        fetchClasses(),
+      ]);
       setShifts(rows as Shift[]);
+      setTeachers(tRows);
+      setClassDir(cRows);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function recordShiftUsage(cs: ShiftClass[]) {
+    try {
+      await recordUsage({
+        data: {
+          teachers: cs.map((c) => c.teacher).filter(Boolean),
+          classes: cs.map((c) => c.class).filter(Boolean),
+        },
+      });
+    } catch { /* non-fatal */ }
   }
 
   async function saveEdit(next: Shift) {
@@ -107,6 +136,7 @@ function ShiftsPage() {
           },
         },
       });
+      await recordShiftUsage(next.classes);
       toast.success("Shift updated");
       setEditing(null);
       load();
@@ -134,6 +164,7 @@ function ShiftsPage() {
   }) {
     try {
       await createPastServer({ data: payload });
+      await recordShiftUsage(payload.classes);
       toast.success("Past shift added");
       setAddingPast(false);
       load();
@@ -232,12 +263,16 @@ function ShiftsPage() {
         shift={editing}
         onClose={() => setEditing(null)}
         onSave={saveEdit}
+        teachers={teachers}
+        classDir={classDir}
       />
 
       <AddPastDialog
         open={addingPast}
         onClose={() => setAddingPast(false)}
         onSave={addPast}
+        teachers={teachers}
+        classDir={classDir}
       />
     </div>
   );
@@ -247,6 +282,8 @@ function AddPastDialog({
   open,
   onClose,
   onSave,
+  teachers,
+  classDir,
 }: {
   open: boolean;
   onClose: () => void;
@@ -257,6 +294,8 @@ function AddPastDialog({
     classes: ShiftClass[];
     notes: string | null;
   }) => void;
+  teachers: DirectoryItem[];
+  classDir: DirectoryItem[];
 }) {
   const [operatorName, setOperatorName] = useState("");
   const [checkIn, setCheckIn] = useState("");
@@ -357,15 +396,17 @@ function AddPastDialog({
               </div>
               {classes.map((c, i) => (
                 <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                  <Input
-                    placeholder={`Class ${i + 1}`}
+                  <DirectoryCombobox
                     value={c.class}
-                    onChange={(e) => updateClass(i, { class: e.target.value })}
+                    onChange={(v) => updateClass(i, { class: v })}
+                    options={classDir}
+                    placeholder={`Class ${i + 1}`}
                   />
-                  <Input
-                    placeholder="Teacher"
+                  <DirectoryCombobox
                     value={c.teacher}
-                    onChange={(e) => updateClass(i, { teacher: e.target.value })}
+                    onChange={(v) => updateClass(i, { teacher: v })}
+                    options={teachers}
+                    placeholder="Teacher"
                   />
                   <Button
                     type="button"
@@ -402,10 +443,14 @@ function EditDialog({
   shift,
   onClose,
   onSave,
+  teachers,
+  classDir,
 }: {
   shift: Shift | null;
   onClose: () => void;
   onSave: (s: Shift) => void;
+  teachers: DirectoryItem[];
+  classDir: DirectoryItem[];
 }) {
   const [draft, setDraft] = useState<Shift | null>(shift);
 
@@ -488,15 +533,17 @@ function EditDialog({
                 </div>
                 {draft.classes.map((c, i) => (
                   <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                    <Input
-                      placeholder={`Class ${i + 1}`}
+                    <DirectoryCombobox
                       value={c.class}
-                      onChange={(e) => updateClass(i, { class: e.target.value })}
+                      onChange={(v) => updateClass(i, { class: v })}
+                      options={classDir}
+                      placeholder={`Class ${i + 1}`}
                     />
-                    <Input
-                      placeholder="Teacher"
+                    <DirectoryCombobox
                       value={c.teacher}
-                      onChange={(e) => updateClass(i, { teacher: e.target.value })}
+                      onChange={(v) => updateClass(i, { teacher: v })}
+                      options={teachers}
+                      placeholder="Teacher"
                     />
                     <Button
                       type="button"
