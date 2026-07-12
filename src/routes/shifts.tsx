@@ -76,10 +76,15 @@ function duration(a: string, b: string | null) {
 
 function ShiftsPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [teachers, setTeachers] = useState<DirectoryItem[]>([]);
+  const [classDir, setClassDir] = useState<DirectoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Shift | null>(null);
   const [addingPast, setAddingPast] = useState(false);
   const fetchShifts = useServerFn(listShifts);
+  const fetchTeachers = useServerFn(listTeachers);
+  const fetchClasses = useServerFn(listClasses);
+  const recordUsage = useServerFn(recordDirectoryUsage);
   const updateShiftServer = useServerFn(updateShiftFn);
   const deleteShiftServer = useServerFn(deleteShiftFn);
   const createPastServer = useServerFn(createPastShiftFn);
@@ -91,13 +96,30 @@ function ShiftsPage() {
   async function load() {
     setLoading(true);
     try {
-      const rows = await fetchShifts();
+      const [rows, tRows, cRows] = await Promise.all([
+        fetchShifts(),
+        fetchTeachers(),
+        fetchClasses(),
+      ]);
       setShifts(rows as Shift[]);
+      setTeachers(tRows);
+      setClassDir(cRows);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function recordShiftUsage(cs: ShiftClass[]) {
+    try {
+      await recordUsage({
+        data: {
+          teachers: cs.map((c) => c.teacher).filter(Boolean),
+          classes: cs.map((c) => c.class).filter(Boolean),
+        },
+      });
+    } catch { /* non-fatal */ }
   }
 
   async function saveEdit(next: Shift) {
