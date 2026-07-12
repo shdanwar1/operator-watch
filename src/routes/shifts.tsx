@@ -8,6 +8,12 @@ import {
   deleteShift as deleteShiftFn,
   createPastShift as createPastShiftFn,
 } from "@/lib/shifts.functions";
+import {
+  listTeachers,
+  listClasses,
+  recordDirectoryUsage,
+  type DirectoryItem,
+} from "@/lib/directories.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +31,7 @@ import {
 import { toast, Toaster } from "sonner";
 import { ArrowLeft, Pencil, Plus, Trash2, X, Save } from "lucide-react";
 import type { ShiftClass } from "./index";
+import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 
 export const Route = createFileRoute("/shifts")({
   beforeLoad: async () => {
