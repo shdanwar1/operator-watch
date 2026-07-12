@@ -268,6 +268,15 @@ function Index() {
       await updateShiftServer({
         data: { id: active.id, patch: { check_out_at: new Date().toISOString() } },
       });
+      // Best-effort: record used teachers/classes in the directories.
+      try {
+        await recordUsage({
+          data: {
+            teachers: active.classes.map((c) => c.teacher).filter(Boolean),
+            classes: active.classes.map((c) => c.class).filter(Boolean),
+          },
+        });
+      } catch { /* non-fatal */ }
       toast.success("Checked out");
       setActive(null);
       load();
