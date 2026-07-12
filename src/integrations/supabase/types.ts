@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      classes: {
+        Row: {
+          created_at: string
+          id: string
+          last_used_at: string | null
+          name: string
+          usage_count: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          name: string
+          usage_count?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          usage_count?: number
+        }
+        Relationships: []
+      }
       operators: {
         Row: {
           created_at: string
@@ -132,6 +156,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      teachers: {
+        Row: {
+          created_at: string
+          id: string
+          last_used_at: string | null
+          name: string
+          usage_count: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          name: string
+          usage_count?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          usage_count?: number
+        }
+        Relationships: []
       }
     }
     Views: {
