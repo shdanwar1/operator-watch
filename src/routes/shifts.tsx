@@ -443,10 +443,14 @@ function EditDialog({
   shift,
   onClose,
   onSave,
+  teachers,
+  classDir,
 }: {
   shift: Shift | null;
   onClose: () => void;
   onSave: (s: Shift) => void;
+  teachers: DirectoryItem[];
+  classDir: DirectoryItem[];
 }) {
   const [draft, setDraft] = useState<Shift | null>(shift);
 
