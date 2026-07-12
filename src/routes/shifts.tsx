@@ -396,15 +396,17 @@ function AddPastDialog({
               </div>
               {classes.map((c, i) => (
                 <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                  <Input
-                    placeholder={`Class ${i + 1}`}
+                  <DirectoryCombobox
                     value={c.class}
-                    onChange={(e) => updateClass(i, { class: e.target.value })}
+                    onChange={(v) => updateClass(i, { class: v })}
+                    options={classDir}
+                    placeholder={`Class ${i + 1}`}
                   />
-                  <Input
-                    placeholder="Teacher"
+                  <DirectoryCombobox
                     value={c.teacher}
-                    onChange={(e) => updateClass(i, { teacher: e.target.value })}
+                    onChange={(v) => updateClass(i, { teacher: v })}
+                    options={teachers}
+                    placeholder="Teacher"
                   />
                   <Button
                     type="button"
