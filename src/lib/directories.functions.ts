@@ -72,13 +72,13 @@ async function bump(table: "teachers" | "classes", names: string[]) {
     .in("name", names);
   if (!existing) return;
   await Promise.all(
-    existing.map((row) =>
-      supabaseAdmin
+    existing.map((row) => {
+      const r = row as { id: string; usage_count: number | null };
+      return supabaseAdmin
         .from(table)
-        // @ts-expect-error dynamic table
-        .update({ usage_count: (row.usage_count ?? 0) + 1, last_used_at: nowIso })
-        .eq("id", (row as { id: string }).id),
-    ),
+        .update({ usage_count: (r.usage_count ?? 0) + 1, last_used_at: nowIso })
+        .eq("id", r.id);
+    }),
   );
 }
 
