@@ -142,6 +142,9 @@ function Index() {
   const signOut = useServerFn(lockSite);
   const fetchShifts = useServerFn(listShifts);
   const fetchScheduled = useServerFn(listScheduledShifts);
+  const fetchTeachers = useServerFn(listTeachers);
+  const fetchClasses = useServerFn(listClasses);
+  const recordUsage = useServerFn(recordDirectoryUsage);
   const createShiftFn = useServerFn(createShift);
   const updateShiftServer = useServerFn(updateShiftFn);
 
@@ -149,6 +152,8 @@ function Index() {
   const [active, setActive] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
   const [scheduled, setScheduled] = useState<ScheduledShift[]>([]);
+  const [teachers, setTeachers] = useState<DirectoryItem[]>([]);
+  const [classes, setClasses] = useState<DirectoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
