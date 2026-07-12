@@ -49,20 +49,20 @@ function requireNonEmpty(v: unknown, field: string, max = 200): string {
   return t;
 }
 
-/** Normalize a German mobile input to E.164 (+49XXXXXXXXXX). */
+/** Normalize a German mobile input to E.164 (+49XXXXXXXXXXX). */
 function normalizeDeMobile(v: unknown): string {
   if (typeof v !== "string") throw new Error("Mobile number is required");
   const digits = v.replace(/\D+/g, "");
   // Strip country prefixes if present
   const local = digits.startsWith("0049")
     ? digits.slice(4)
-    : digits.startsWith("49") && digits.length === 12
+    : digits.startsWith("49") && digits.length === 13
       ? digits.slice(2)
       : digits.startsWith("0")
         ? digits.slice(1)
         : digits;
-  if (!/^\d{10}$/.test(local)) {
-    throw new Error("Mobile number must be 10 digits (German +49 number)");
+  if (!/^\d{11}$/.test(local)) {
+    throw new Error("Mobile number must be 11 digits (German +49 number)");
   }
   return `+49${local}`;
 }
