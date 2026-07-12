@@ -164,6 +164,7 @@ function ShiftsPage() {
   }) {
     try {
       await createPastServer({ data: payload });
+      await recordShiftUsage(payload.classes);
       toast.success("Past shift added");
       setAddingPast(false);
       load();
