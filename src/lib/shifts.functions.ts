@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
 
-type GateSession = { unlocked?: boolean; username?: string };
+type GateSession = { unlocked?: boolean; username?: string; isAdmin?: boolean };
 
 function getSessionConfig() {
   const password = process.env.SESSION_SECRET;
@@ -24,6 +24,10 @@ async function requireGate() {
   if (!session.data.unlocked) {
     throw new Response("Unauthorized", { status: 401 });
   }
+  return {
+    username: session.data.username ?? null,
+    isAdmin: !!session.data.isAdmin,
+  };
 }
 
 export type ShiftClass = { class: string; teacher: string };
