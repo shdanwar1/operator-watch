@@ -282,6 +282,8 @@ function AddPastDialog({
   open,
   onClose,
   onSave,
+  teachers,
+  classDir,
 }: {
   open: boolean;
   onClose: () => void;
@@ -292,6 +294,8 @@ function AddPastDialog({
     classes: ShiftClass[];
     notes: string | null;
   }) => void;
+  teachers: DirectoryItem[];
+  classDir: DirectoryItem[];
 }) {
   const [operatorName, setOperatorName] = useState("");
   const [checkIn, setCheckIn] = useState("");
