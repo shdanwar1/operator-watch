@@ -82,31 +82,40 @@ export type Database = {
       }
       scheduled_shifts: {
         Row: {
+          assigned_operator: string | null
           created_at: string
           day_of_week: number
           end_time: string
           id: string
           label: string | null
+          notes: string | null
           specific_date: string | null
           start_time: string
+          status: string
         }
         Insert: {
+          assigned_operator?: string | null
           created_at?: string
           day_of_week: number
           end_time: string
           id?: string
           label?: string | null
+          notes?: string | null
           specific_date?: string | null
           start_time: string
+          status?: string
         }
         Update: {
+          assigned_operator?: string | null
           created_at?: string
           day_of_week?: number
           end_time?: string
           id?: string
           label?: string | null
+          notes?: string | null
           specific_date?: string | null
           start_time?: string
+          status?: string
         }
         Relationships: []
       }
