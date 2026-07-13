@@ -294,6 +294,19 @@ export const adminListShiftsForSession = createServerFn({ method: "GET" }).handl
   });
 });
 
+export type OperatorBasic = { id: string; username: string; is_admin: boolean };
+
+export const adminListOperators = createServerFn({ method: "GET" }).handler(async () => {
+  await requireAdminSession();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("operators")
+    .select("id, username, is_admin")
+    .order("username");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as OperatorBasic[];
+});
+
 /**
  * Resolve a Google Maps link (short or long) into { label, lat, lng }.
  * Follows redirects on maps.app.goo.gl / goo.gl / g.co so the app never

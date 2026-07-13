@@ -31,8 +31,9 @@ import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
-    const { unlocked } = await getGateStatus();
-    if (!unlocked) throw redirect({ to: "/unlock" });
+    const status = await getGateStatus();
+    if (!status.unlocked) throw redirect({ to: "/unlock" });
+    if (status.isAdmin) throw redirect({ to: "/admin" });
   },
   loader: async () => {
     const { username } = await getGateStatus();

@@ -51,6 +51,9 @@ export type ScheduledShiftRow = {
   end_time: string;
   label: string | null;
   specific_date: string | null;
+  assigned_operator: string | null;
+  status: string;
+  notes: string | null;
 };
 
 function normalizeShift(r: Record<string, unknown>): ShiftRow {
@@ -306,7 +309,12 @@ type ScheduledPatch = {
   end_time?: string;
   label?: string | null;
   specific_date?: string | null;
+  assigned_operator?: string | null;
+  status?: string;
+  notes?: string | null;
 };
+
+const VALID_STATUSES = new Set(["assigned", "unassigned", "completed", "cancelled"]);
 
 function sanitizeScheduledPatch(patch: ScheduledPatch): ScheduledPatch {
   const out: ScheduledPatch = {};
@@ -337,6 +345,21 @@ function sanitizeScheduledPatch(patch: ScheduledPatch): ScheduledPatch {
       out.specific_date = d;
     }
   }
+  if (patch.assigned_operator !== undefined) {
+    if (patch.assigned_operator === null || patch.assigned_operator === "") {
+      out.assigned_operator = null;
+    } else {
+      out.assigned_operator = String(patch.assigned_operator).trim().slice(0, 100);
+    }
+  }
+  if (patch.status !== undefined) {
+    const s = String(patch.status);
+    if (!VALID_STATUSES.has(s)) throw new Error("Invalid status");
+    out.status = s;
+  }
+  if (patch.notes !== undefined) {
+    out.notes = patch.notes === null ? null : String(patch.notes).slice(0, 5000);
+  }
   return out;
 }
 
@@ -352,6 +375,9 @@ export const createScheduledShift = createServerFn({ method: "POST" })
       end_time: p.end_time,
       label: p.label ?? "",
       specific_date: p.specific_date ?? null,
+      assigned_operator: p.assigned_operator ?? null,
+      status: p.status ?? (p.assigned_operator ? "assigned" : "unassigned"),
+      notes: p.notes ?? null,
     };
   })
   .handler(async ({ data }) => {
