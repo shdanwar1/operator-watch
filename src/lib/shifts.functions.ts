@@ -51,6 +51,9 @@ export type ScheduledShiftRow = {
   end_time: string;
   label: string | null;
   specific_date: string | null;
+  assigned_operator: string | null;
+  status: string;
+  notes: string | null;
 };
 
 function normalizeShift(r: Record<string, unknown>): ShiftRow {
