@@ -70,7 +70,7 @@ function Unlock() {
     if (!suUsername || !suPassword || !suMobile || !suMagic) {
       return toast.error("All fields are required");
     }
-    if (suMobile.length !== 10) {
+    if (suMobile.length !== 11) {
       return toast.error("Mobile number must be 11 digits");
     }
     setSuLoading(true);
