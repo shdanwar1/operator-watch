@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter, redirect, Link } from "@tanstack/react-router";
+import { createFileRoute, useRouter, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { getGateStatus, unlockSite } from "@/lib/gate.functions";
@@ -146,7 +146,7 @@ function Unlock() {
             </Button>
           </form>
 
-          <div className="mt-5 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="mt-5 flex items-center justify-center text-xs text-muted-foreground">
             <Dialog open={signupOpen} onOpenChange={setSignupOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8">
@@ -209,9 +209,6 @@ function Unlock() {
                 </form>
               </DialogContent>
             </Dialog>
-            <Link to="/admin" className="underline hover:text-foreground">
-              Admin view
-            </Link>
           </div>
         </CardContent>
       </Card>
