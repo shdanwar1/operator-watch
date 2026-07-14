@@ -43,6 +43,7 @@ import {
   XCircle,
   Sparkles,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async () => {
@@ -200,6 +201,18 @@ function AdminDashboard() {
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  // Live sync with operator check-ins/outs and any external edits.
+  useEffect(() => {
+    const ch = supabase
+      .channel("admin-shift-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "shifts" }, () => refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_shifts" }, () => refresh())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [refresh]);
 
   const weekDays = useMemo(
