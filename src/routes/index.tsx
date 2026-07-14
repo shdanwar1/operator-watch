@@ -170,6 +170,18 @@ function Index() {
     load();
   }, []);
 
+  // Live sync: refetch whenever admin (or anyone) changes shifts/scheduled shifts.
+  useEffect(() => {
+    const ch = supabase
+      .channel("operator-shift-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "shifts" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_shifts" }, () => load())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, []);
+
   async function load() {
     setLoading(true);
     try {
