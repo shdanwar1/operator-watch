@@ -23,7 +23,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, ShieldCheck, Train, Home, MapPin, Wallet } from "lucide-react";
+import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, Train, Home, MapPin, Wallet } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 import { computeMonthly, CONTRACT_MONTHLY_HOURS, formatEUR } from "@/lib/earnings";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
@@ -167,6 +168,18 @@ function Index() {
 
   useEffect(() => {
     load();
+  }, []);
+
+  // Live sync: refetch whenever admin (or anyone) changes shifts/scheduled shifts.
+  useEffect(() => {
+    const ch = supabase
+      .channel("operator-shift-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "shifts" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_shifts" }, () => load())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, []);
 
   async function load() {
@@ -325,12 +338,6 @@ function Index() {
               <Link to="/shifts">
                 <ListChecks className="h-3.5 w-3.5 sm:mr-1" />
                 <span className="hidden sm:inline">Shifts</span>
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" asChild>
-              <Link to="/admin">
-                <ShieldCheck className="h-3.5 w-3.5 sm:mr-1" />
-                <span className="hidden sm:inline">Admin</span>
               </Link>
             </Button>
             <Button variant="ghost" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" onClick={handleSignOut}>
