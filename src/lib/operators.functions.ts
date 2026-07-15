@@ -334,13 +334,11 @@ async function resolveGoogleMapsUrl(
     }
   }
   const parse = (s: string): { lat: number; lng: number } | null => {
-    // /@lat,lng,zoom
-    const at = s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-    if (at) return { lat: parseFloat(at[1]), lng: parseFloat(at[2]) };
-    // !3dLAT!4dLNG
+    // Prefer the actual place pin (!3dLAT!4dLNG) over the map viewport (@lat,lng).
     const bang = s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
     if (bang) return { lat: parseFloat(bang[1]), lng: parseFloat(bang[2]) };
-    // ?q=lat,lng or ?query=lat,lng or ?ll=lat,lng
+    const at = s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (at) return { lat: parseFloat(at[1]), lng: parseFloat(at[2]) };
     const q = s.match(/[?&](?:q|query|ll|destination)=(-?\d+\.\d+),(-?\d+\.\d+)/);
     if (q) return { lat: parseFloat(q[1]), lng: parseFloat(q[2]) };
     return null;
