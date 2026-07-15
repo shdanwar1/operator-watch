@@ -929,6 +929,7 @@ function TimeToLeaveCard({
 
   const [plan, setPlan] = useState<TimeToLeaveResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [errored, setErrored] = useState(false);
 
   useEffect(() => {
     if (!shiftIso) {
@@ -938,11 +939,15 @@ function TimeToLeaveCard({
     let alive = true;
     const load = async () => {
       setLoading(true);
+      setErrored(false);
       try {
         const p = await fetchPlan({ data: { shift_start_iso: shiftIso } });
         if (alive) setPlan(p);
       } catch {
-        if (alive) setPlan(null);
+        if (alive) {
+          setPlan(null);
+          setErrored(true);
+        }
       } finally {
         if (alive) setLoading(false);
       }
