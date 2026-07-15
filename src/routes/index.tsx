@@ -1068,6 +1068,34 @@ function TimeToLeaveDetails({
       </div>
 
 
+      {plan.direct_options.length > 0 ? (
+        <div className="space-y-2">
+          <div className={hero ? "text-xs font-semibold uppercase tracking-wider text-muted-foreground" : "text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"}>
+            Direct options
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {plan.direct_options.map((o) => (
+              <div key={o.line + o.departure_iso} className="rounded-md border border-border bg-background/60 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">
+                    {o.line}
+                  </span>
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {fmtHM(new Date(o.departure_iso))} → {fmtHM(new Date(o.arrival_iso))}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  From <span className="text-foreground">{o.from_stop}</span>
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {o.duration_minutes} min · no transfers
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="space-y-1 text-xs text-muted-foreground">
         <div className="flex items-start gap-1.5">
           <Home className="mt-0.5 h-3 w-3 shrink-0" />
