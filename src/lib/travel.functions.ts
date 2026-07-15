@@ -24,6 +24,16 @@ function getGateConfig() {
   };
 }
 
+export type DirectOption = {
+  line: string;
+  mode: string;
+  from_stop: string;
+  to_stop: string;
+  departure_iso: string;
+  arrival_iso: string;
+  duration_minutes: number;
+};
+
 export type TimeToLeaveResult =
   | {
       ok: true;
@@ -35,15 +45,21 @@ export type TimeToLeaveResult =
       arrival_iso: string;
       travel_minutes: number;
       transfers: number;
+      direct_options: DirectOption[];
     }
   | { ok: false; reason: "no_home" | "no_session" | "no_route"; home_label?: string };
 
+type BvgLine = { name?: string; product?: string; mode?: string };
+type BvgStop = { name?: string };
 type BvgLeg = {
   departure?: string;
   plannedDeparture?: string;
   arrival?: string;
   plannedArrival?: string;
   walking?: boolean;
+  line?: BvgLine;
+  origin?: BvgStop;
+  destination?: BvgStop;
 };
 type BvgJourney = { legs: BvgLeg[] };
 type BvgResponse = { journeys?: BvgJourney[] };
