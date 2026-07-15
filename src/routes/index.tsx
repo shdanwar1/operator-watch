@@ -1010,6 +1010,10 @@ function TimeToLeaveCard({
           <p className="mt-3 text-sm text-muted-foreground">
             Could not find a public transport route right now.
           </p>
+        ) : errored ? (
+          <p className="mt-3 text-sm text-destructive">
+            Could not reach the transit service. Retrying automatically.
+          </p>
         ) : (
           <p className="mt-3 text-sm text-muted-foreground">Preparing…</p>
         )}
