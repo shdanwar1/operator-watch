@@ -24,6 +24,16 @@ function getGateConfig() {
   };
 }
 
+export type DirectOption = {
+  line: string;
+  mode: string;
+  from_stop: string;
+  to_stop: string;
+  departure_iso: string;
+  arrival_iso: string;
+  duration_minutes: number;
+};
+
 export type TimeToLeaveResult =
   | {
       ok: true;
@@ -35,15 +45,21 @@ export type TimeToLeaveResult =
       arrival_iso: string;
       travel_minutes: number;
       transfers: number;
+      direct_options: DirectOption[];
     }
   | { ok: false; reason: "no_home" | "no_session" | "no_route"; home_label?: string };
 
+type BvgLine = { name?: string; product?: string; mode?: string };
+type BvgStop = { name?: string };
 type BvgLeg = {
   departure?: string;
   plannedDeparture?: string;
   arrival?: string;
   plannedArrival?: string;
   walking?: boolean;
+  line?: BvgLine;
+  origin?: BvgStop;
+  destination?: BvgStop;
 };
 type BvgJourney = { legs: BvgLeg[] };
 type BvgResponse = { journeys?: BvgJourney[] };
@@ -137,6 +153,56 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       Math.round((new Date(pick.arr).getTime() - new Date(pick.dep).getTime()) / 60_000),
     );
 
+    // Fetch up to 2 direct (0-transfer) transit options for a quick reference list.
+    const directOptions: DirectOption[] = [];
+    try {
+      const directUrl = new URL("https://v6.bvg.transport.rest/journeys");
+      directUrl.searchParams.set("from.latitude", String(op.home_lat));
+      directUrl.searchParams.set("from.longitude", String(op.home_lng));
+      directUrl.searchParams.set("from.address", op.home_label ?? "Home");
+      directUrl.searchParams.set("to.latitude", String(OFFICE.lat));
+      directUrl.searchParams.set("to.longitude", String(OFFICE.lng));
+      directUrl.searchParams.set("to.address", OFFICE.label);
+      directUrl.searchParams.set("arrival", targetArrival.toISOString());
+      directUrl.searchParams.set("results", "6");
+      directUrl.searchParams.set("transfers", "0");
+      directUrl.searchParams.set("stopovers", "false");
+      directUrl.searchParams.set("remarks", "false");
+      const dres = await fetch(directUrl.toString(), {
+        headers: { accept: "application/json", "user-agent": "studio-operator/1.0" },
+      });
+      if (dres.ok) {
+        const dbody = (await dres.json()) as BvgResponse;
+        const seen = new Set<string>();
+        for (const j of dbody.journeys ?? []) {
+          const transit = j.legs.filter((l) => !l.walking && l.line?.name);
+          if (transit.length !== 1) continue;
+          const leg = transit[0];
+          const line = leg.line?.name ?? "";
+          if (!line || seen.has(line)) continue;
+          const dep = leg.departure ?? leg.plannedDeparture;
+          const arr = leg.arrival ?? leg.plannedArrival;
+          if (!dep || !arr) continue;
+          seen.add(line);
+          directOptions.push({
+            line,
+            mode: leg.line?.product ?? leg.line?.mode ?? "transit",
+            from_stop: leg.origin?.name ?? "",
+            to_stop: leg.destination?.name ?? "",
+            departure_iso: dep,
+            arrival_iso: arr,
+            duration_minutes: Math.max(
+              1,
+              Math.round((new Date(arr).getTime() - new Date(dep).getTime()) / 60_000),
+            ),
+          });
+          if (directOptions.length >= 2) break;
+        }
+      }
+    } catch {
+      // Non-fatal; the primary plan is still returned.
+    }
+
     return {
       ok: true,
       home_label: op.home_label ?? "Home",
@@ -147,5 +213,6 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       arrival_iso: pick.arr,
       travel_minutes: travelMinutes,
       transfers: pick.transfers,
+      direct_options: directOptions,
     };
   });
