@@ -384,14 +384,6 @@ function Index() {
 
             {!active && history.length > 0 && (
               <section className="mt-8 sm:mt-12">
-                <div className="mb-3 flex items-center justify-between sm:mb-4">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Last 30 days
-                  </h2>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to="/shifts">View all</Link>
-                  </Button>
-                </div>
                 <MonthlySummary shifts={history} />
               </section>
             )}
