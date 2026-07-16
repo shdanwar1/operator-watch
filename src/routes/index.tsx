@@ -1100,7 +1100,7 @@ function TimeToLeaveDetails({
                   From <span className="text-foreground">{o.from_stop}</span>
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  {o.duration_minutes} min · no transfers
+                  {o.duration_minutes} min ride · ~{o.walk_minutes} min walk to office
                 </div>
               </div>
             ))}
