@@ -27,7 +27,7 @@ import { toast, Toaster } from "sonner";
 import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, Train, Home, MapPin, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
-import { computeMonthly, CONTRACT_MONTHLY_HOURS, formatEUR } from "@/lib/earnings";
+import { computeMonthly, CONTRACT_MONTHLY_HOURS } from "@/lib/earnings";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 
 
