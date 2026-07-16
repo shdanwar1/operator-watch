@@ -17,6 +17,7 @@ import {
   type DirectoryItem,
 } from "@/lib/directories.functions";
 import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/lib/travel.functions";
+import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
