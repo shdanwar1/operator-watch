@@ -296,6 +296,22 @@ export const adminListShiftsForSession = createServerFn({ method: "GET" }).handl
 
 export type OperatorBasic = { id: string; username: string; is_admin: boolean };
 
+/** Returns the canonical (case-preserving) username stored in the DB. */
+export const getOperatorDisplayName = createServerFn({ method: "POST" })
+  .inputValidator((data: { username: string }) => ({
+    username: requireNonEmpty(data?.username, "username", 64),
+  }))
+  .handler(async ({ data }): Promise<string | null> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin
+      .from("operators")
+      .select("username")
+      .ilike("username", data.username)
+      .maybeSingle();
+    return (row as { username: string } | null)?.username ?? null;
+  });
+
+
 export const adminListOperators = createServerFn({ method: "GET" }).handler(async () => {
   await requireAdminSession();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
