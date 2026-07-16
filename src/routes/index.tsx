@@ -38,7 +38,9 @@ export const Route = createFileRoute("/")({
   },
   loader: async () => {
     const { username } = await getGateStatus();
-    return { username };
+    if (!username) return { username: null as string | null };
+    const canonical = await getOperatorDisplayName({ data: { username } });
+    return { username: canonical ?? username };
   },
   component: Index,
 });
