@@ -24,6 +24,23 @@ function getGateConfig() {
   };
 }
 
+// Approximate walk time from each transit mode's typical stop near the office
+// to the office door. Used to pick direct options that let the operator arrive
+// on time even after walking from the stop.
+const MODE_WALK_MINUTES: Record<string, number> = {
+  bus: 7,
+  tram: 7,
+  ferry: 10,
+  subway: 15,
+  suburban: 20, // S-Bahn
+  regional: 20,
+  express: 20,
+};
+
+function walkMinutesFor(mode: string): number {
+  return MODE_WALK_MINUTES[mode] ?? 15;
+}
+
 export type DirectOption = {
   line: string;
   mode: string;
@@ -32,6 +49,7 @@ export type DirectOption = {
   departure_iso: string;
   arrival_iso: string;
   duration_minutes: number;
+  walk_minutes: number;
 };
 
 export type TimeToLeaveResult =
