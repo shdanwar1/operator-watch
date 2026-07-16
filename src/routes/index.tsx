@@ -806,10 +806,6 @@ function ActiveShiftPanel({
   );
 }
 
-function durationMinutes(startISO: string, endISO: string | null) {
-  const end = endISO ? new Date(endISO).getTime() : Date.now();
-  return Math.max(0, Math.floor((end - new Date(startISO).getTime()) / 60000));
-}
 
 function MonthlySummary({ shifts }: { shifts: Shift[] }) {
   const monthly = useMemo(() => computeMonthly(shifts, new Date()), [shifts]);
