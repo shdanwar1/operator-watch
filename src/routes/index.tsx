@@ -17,6 +17,7 @@ import {
   type DirectoryItem,
 } from "@/lib/directories.functions";
 import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/lib/travel.functions";
+import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +27,7 @@ import { toast, Toaster } from "sonner";
 import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, Train, Home, MapPin, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
-import { computeMonthly, CONTRACT_MONTHLY_HOURS, formatEUR } from "@/lib/earnings";
+import { computeMonthly, CONTRACT_MONTHLY_HOURS } from "@/lib/earnings";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 
 
@@ -38,7 +39,9 @@ export const Route = createFileRoute("/")({
   },
   loader: async () => {
     const { username } = await getGateStatus();
-    return { username };
+    if (!username) return { username: null as string | null };
+    const canonical = await getOperatorDisplayName({ data: { username } });
+    return { username: canonical ?? username };
   },
   component: Index,
 });
@@ -381,14 +384,6 @@ function Index() {
 
             {!active && history.length > 0 && (
               <section className="mt-8 sm:mt-12">
-                <div className="mb-3 flex items-center justify-between sm:mb-4">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Last 30 days
-                  </h2>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to="/shifts">View all</Link>
-                  </Button>
-                </div>
                 <MonthlySummary shifts={history} />
               </section>
             )}
@@ -803,111 +798,63 @@ function ActiveShiftPanel({
   );
 }
 
-function durationMinutes(startISO: string, endISO: string | null) {
-  const end = endISO ? new Date(endISO).getTime() : Date.now();
-  return Math.max(0, Math.floor((end - new Date(startISO).getTime()) / 60000));
-}
 
 function MonthlySummary({ shifts }: { shifts: Shift[] }) {
-  const summary = useMemo(() => {
-    const now = new Date();
-    const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
-    const recent = shifts.filter((s) => s.check_out_at && new Date(s.check_out_at) >= cutoff);
-    const totalMinutes = recent.reduce(
-      (sum, s) => sum + durationMinutes(s.check_in_at, s.check_out_at),
-      0,
-    );
-    return {
-      totalHours: Math.floor(totalMinutes / 60),
-      remMinutes: totalMinutes % 60,
-      count: recent.length,
-    };
-  }, [shifts]);
-
   const monthly = useMemo(() => computeMonthly(shifts, new Date()), [shifts]);
   const progressPct = Math.min(100, (monthly.totalHours / CONTRACT_MONTHLY_HOURS) * 100);
   const overtimeActive = monthly.totalHours > CONTRACT_MONTHLY_HOURS;
+  const netWhole = Math.round(monthly.netSalary);
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardContent className="flex items-center justify-between p-5">
+    <Link to="/earnings" className="group block">
+      <Card className="border-primary/30 transition-colors group-hover:border-primary/60">
+        <CardContent className="space-y-5 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-primary" />
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Estimated earnings · {new Date().toLocaleDateString(undefined, { month: "long" })}
+              </h3>
+            </div>
+            {overtimeActive && (
+              <Badge variant="destructive" className="text-[10px]">Overtime</Badge>
+            )}
+          </div>
+
+          <div className="text-4xl font-semibold tabular-nums tracking-tight sm:text-5xl">
+            {netWhole}€
+          </div>
+
           <div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Hours worked</div>
-            <div className="mt-1 text-3xl font-semibold tabular-nums">
-              {summary.totalHours}h {summary.remMinutes.toString().padStart(2, "0")}m
+            <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+              <span>Hours worked this month</span>
+              <span className="tabular-nums">
+                {monthly.totalHours.toFixed(1)} / {CONTRACT_MONTHLY_HOURS}h
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${
+                  overtimeActive
+                    ? "bg-destructive"
+                    : progressPct >= 90
+                      ? "bg-amber-500"
+                      : "bg-primary"
+                }`}
+                style={{ width: `${progressPct}%` }}
+              />
             </div>
           </div>
-          <div className="text-right text-xs text-muted-foreground">
-            {summary.count} shift{summary.count === 1 ? "" : "s"}
+
+          <div className="text-right text-xs text-primary underline-offset-4 group-hover:underline">
+            Open payroll dashboard →
           </div>
         </CardContent>
       </Card>
-
-      <Link to="/earnings" className="group block">
-        <Card className="border-primary/30 transition-colors group-hover:border-primary/60">
-          <CardContent className="space-y-4 p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-primary" />
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Estimated earnings · {new Date().toLocaleDateString(undefined, { month: "long" })}
-                </h3>
-              </div>
-              {overtimeActive && (
-                <Badge variant="destructive" className="text-[10px]">Overtime</Badge>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div>
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Gross</div>
-                <div className="text-xl font-semibold tabular-nums">{formatEUR(monthly.grossSalary)}</div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Est. net</div>
-                <div className="text-xl font-semibold tabular-nums">≈ {formatEUR(monthly.netSalary)}</div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Overtime</div>
-                <div className="text-xl font-semibold tabular-nums">{monthly.overtimeHours.toFixed(1)}h</div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Night + Sun</div>
-                <div className="text-xl font-semibold tabular-nums">
-                  {(monthly.nightHours + monthly.sundayHours).toFixed(1)}h
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>{monthly.totalHours.toFixed(2)} / {CONTRACT_MONTHLY_HOURS} contracted hrs</span>
-                <span>{progressPct.toFixed(0)}%</span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${
-                    overtimeActive
-                      ? "bg-destructive"
-                      : progressPct >= 90
-                        ? "bg-amber-500"
-                        : "bg-primary"
-                  }`}
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="text-right text-xs text-primary underline-offset-4 group-hover:underline">
-              Open payroll dashboard →
-            </div>
-          </CardContent>
-        </Card>
-      </Link>
-    </div>
+    </Link>
   );
 }
+
 
 function fmtHM(d: Date) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
@@ -1097,7 +1044,7 @@ function TimeToLeaveDetails({
                   From <span className="text-foreground">{o.from_stop}</span>
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  {o.duration_minutes} min · no transfers
+                  {o.duration_minutes} min ride · ~{o.walk_minutes} min walk to office
                 </div>
               </div>
             ))}

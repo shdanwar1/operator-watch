@@ -24,6 +24,23 @@ function getGateConfig() {
   };
 }
 
+// Approximate walk time from each transit mode's typical stop near the office
+// to the office door. Used to pick direct options that let the operator arrive
+// on time even after walking from the stop.
+const MODE_WALK_MINUTES: Record<string, number> = {
+  bus: 7,
+  tram: 7,
+  ferry: 10,
+  subway: 15,
+  suburban: 20, // S-Bahn
+  regional: 20,
+  express: 20,
+};
+
+function walkMinutesFor(mode: string): number {
+  return MODE_WALK_MINUTES[mode] ?? 15;
+}
+
 export type DirectOption = {
   line: string;
   mode: string;
@@ -32,6 +49,7 @@ export type DirectOption = {
   departure_iso: string;
   arrival_iso: string;
   duration_minutes: number;
+  walk_minutes: number;
 };
 
 export type TimeToLeaveResult =
@@ -153,7 +171,10 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       Math.round((new Date(pick.arr).getTime() - new Date(pick.dep).getTime()) / 60_000),
     );
 
-    // Fetch up to 2 direct (0-transfer) transit options for a quick reference list.
+    // Fetch direct (0-transfer) options that arrive at the stop early enough
+    // to walk to the office door before the shift starts. Per mode we keep
+    // the single option whose arrival is closest to (but not after) the
+    // shift-start minus that mode's walk buffer.
     const directOptions: DirectOption[] = [];
     try {
       const directUrl = new URL("https://v6.bvg.transport.rest/journeys");
@@ -163,8 +184,10 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       directUrl.searchParams.set("to.latitude", String(OFFICE.lat));
       directUrl.searchParams.set("to.longitude", String(OFFICE.lng));
       directUrl.searchParams.set("to.address", OFFICE.label);
-      directUrl.searchParams.set("arrival", targetArrival.toISOString());
-      directUrl.searchParams.set("results", "6");
+      // Anchor at the shift start (not the 15-min buffer) so per-mode walk
+      // times can be applied precisely below.
+      directUrl.searchParams.set("arrival", shiftStart.toISOString());
+      directUrl.searchParams.set("results", "12");
       directUrl.searchParams.set("transfers", "0");
       directUrl.searchParams.set("stopovers", "false");
       directUrl.searchParams.set("remarks", "false");
@@ -173,35 +196,50 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       });
       if (dres.ok) {
         const dbody = (await dres.json()) as BvgResponse;
-        const seen = new Set<string>();
+        const bestByMode = new Map<string, DirectOption>();
         for (const j of dbody.journeys ?? []) {
           const transit = j.legs.filter((l) => !l.walking && l.line?.name);
           if (transit.length !== 1) continue;
           const leg = transit[0];
           const line = leg.line?.name ?? "";
-          if (!line || seen.has(line)) continue;
+          if (!line) continue;
           const dep = leg.departure ?? leg.plannedDeparture;
           const arr = leg.arrival ?? leg.plannedArrival;
           if (!dep || !arr) continue;
-          seen.add(line);
-          directOptions.push({
+          const mode = leg.line?.product ?? leg.line?.mode ?? "transit";
+          const walk = walkMinutesFor(mode);
+          const cutoff = shiftStart.getTime() - walk * 60_000;
+          const arrMs = new Date(arr).getTime();
+          if (arrMs > cutoff) continue;
+          const candidate: DirectOption = {
             line,
-            mode: leg.line?.product ?? leg.line?.mode ?? "transit",
+            mode,
             from_stop: leg.origin?.name ?? "",
             to_stop: leg.destination?.name ?? "",
             departure_iso: dep,
             arrival_iso: arr,
             duration_minutes: Math.max(
               1,
-              Math.round((new Date(arr).getTime() - new Date(dep).getTime()) / 60_000),
+              Math.round((arrMs - new Date(dep).getTime()) / 60_000),
             ),
-          });
-          if (directOptions.length >= 2) break;
+            walk_minutes: walk,
+          };
+          // Keep the latest-arriving valid option per mode (closest to shift).
+          const prev = bestByMode.get(mode);
+          if (!prev || new Date(prev.arrival_iso).getTime() < arrMs) {
+            bestByMode.set(mode, candidate);
+          }
         }
+        directOptions.push(
+          ...Array.from(bestByMode.values()).sort(
+            (a, b) => new Date(b.arrival_iso).getTime() - new Date(a.arrival_iso).getTime(),
+          ),
+        );
       }
     } catch {
       // Non-fatal; the primary plan is still returned.
     }
+
 
     return {
       ok: true,
