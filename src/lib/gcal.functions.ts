@@ -287,24 +287,14 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
       };
 
       if (existing) {
-        // Only overwrite fields sourced from GCal; preserve assigned_operator if admin already set one.
-        const { data: cur } = await supabaseAdmin
-          .from("scheduled_shifts")
-          .select("assigned_operator")
-          .eq("id", existing.id)
-          .maybeSingle();
         const patch = {
           day_of_week: payload.day_of_week,
           start_time: payload.start_time,
           end_time: payload.end_time,
           label: payload.label,
           specific_date: payload.specific_date,
-          status:
-            ev.status === "cancelled"
-              ? "cancelled"
-              : cur?.assigned_operator
-                ? "assigned"
-                : "unassigned",
+          assigned_operator: cfg.displayName,
+          status: ev.status === "cancelled" ? "cancelled" : "assigned",
         };
         const { error } = await supabaseAdmin
           .from("scheduled_shifts")
