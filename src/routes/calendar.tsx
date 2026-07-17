@@ -32,7 +32,9 @@ export const Route = createFileRoute("/calendar")({
     const status = await getGateStatus();
     if (!status.unlocked) throw redirect({ to: "/unlock" });
     if (status.isAdmin) throw redirect({ to: "/admin" });
+    return { username: status.username ?? "" };
   },
+  loader: ({ context }) => ({ username: (context as { username: string }).username }),
   head: () => ({
     meta: [
       { title: "Shift Calendar — Studio Operator" },
