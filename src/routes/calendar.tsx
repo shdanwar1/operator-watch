@@ -107,19 +107,25 @@ type EditorState =
   | { mode: "edit"; date: Date; instance: Instance };
 
 function CalendarPage() {
+  const { username } = Route.useLoaderData();
   const fetchScheduled = useServerFn(listScheduledShifts);
   const fetchShifts = useServerFn(listShifts);
   const createSched = useServerFn(createScheduledShift);
   const updateSched = useServerFn(updateScheduledShift);
   const deleteSched = useServerFn(deleteScheduledShift);
+  const syncFn = useServerFn(syncGoogleCalendar);
 
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
   const [logged, setLogged] = useState<ShiftRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
   const [editor, setEditor] = useState<EditorState | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
 
-  async function load() {
+  const hasGoogleCalendar = username.toLowerCase() === "shad";
+
+  const load = useCallback(async () => {
     try {
       const [sched, rows] = await Promise.all([fetchScheduled(), fetchShifts()]);
       setScheduled(sched);
@@ -129,11 +135,50 @@ function CalendarPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [fetchScheduled, fetchShifts]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
+
+  const runSync = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!hasGoogleCalendar) return;
+      setSyncing(true);
+      try {
+        const res = await syncFn();
+        setLastSync(new Date());
+        if (!res.ok) {
+          if (!opts?.silent) toast.error(res.error ?? "Sync failed");
+        } else if (!opts?.silent) {
+          const parts: string[] = [];
+          if (res.created) parts.push(`${res.created} new`);
+          if (res.updated) parts.push(`${res.updated} updated`);
+          if (res.cancelled) parts.push(`${res.cancelled} cancelled`);
+          toast.success(
+            parts.length
+              ? `Google Calendar synced — ${parts.join(", ")}`
+              : `Google Calendar synced — no changes (${res.fetched} events)`,
+          );
+        }
+        await load();
+      } catch (e) {
+        if (!opts?.silent) toast.error(e instanceof Error ? e.message : "Sync failed");
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [hasGoogleCalendar, syncFn, load],
+  );
+
+  // Auto-sync on mount and every 5 minutes for operators with a linked calendar.
+  useEffect(() => {
+    if (!hasGoogleCalendar) return;
+    runSync({ silent: true });
+    const t = setInterval(() => runSync({ silent: true }), 5 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [hasGoogleCalendar, runSync]);
+
 
   const now = new Date();
   const today = new Date(now);
