@@ -220,6 +220,43 @@ function AdminDashboard() {
     };
   }, [refresh]);
 
+  const runSync = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      setSyncing(true);
+      try {
+        const res = await syncFn();
+        setLastSync(new Date());
+        if (!res.ok) {
+          toast.error(res.error ?? "Sync failed");
+        } else if (!opts?.silent) {
+          const parts: string[] = [];
+          if (res.created) parts.push(`${res.created} new`);
+          if (res.updated) parts.push(`${res.updated} updated`);
+          if (res.cancelled) parts.push(`${res.cancelled} cancelled`);
+          toast.success(
+            parts.length
+              ? `Calendar synced — ${parts.join(", ")}`
+              : `Calendar synced — no changes (${res.fetched} events)`,
+          );
+        }
+        await refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Sync failed");
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [syncFn, refresh],
+  );
+
+  // Auto-sync on mount and every 5 minutes.
+  useEffect(() => {
+    runSync({ silent: true });
+    const t = setInterval(() => runSync({ silent: true }), 5 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [runSync]);
+
+
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart],
