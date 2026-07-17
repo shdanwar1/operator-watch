@@ -43,6 +43,7 @@ import {
   CheckCircle2,
   XCircle,
   Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
