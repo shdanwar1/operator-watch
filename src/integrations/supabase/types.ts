@@ -86,6 +86,7 @@ export type Database = {
           created_at: string
           day_of_week: number
           end_time: string
+          external_event_id: string | null
           id: string
           label: string | null
           notes: string | null
@@ -98,6 +99,7 @@ export type Database = {
           created_at?: string
           day_of_week: number
           end_time: string
+          external_event_id?: string | null
           id?: string
           label?: string | null
           notes?: string | null
@@ -110,6 +112,7 @@ export type Database = {
           created_at?: string
           day_of_week?: number
           end_time?: string
+          external_event_id?: string | null
           id?: string
           label?: string | null
           notes?: string | null

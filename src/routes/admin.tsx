@@ -15,6 +15,7 @@ import {
   type ScheduledShiftRow,
   type ShiftRow,
 } from "@/lib/shifts.functions";
+import { syncGoogleCalendar } from "@/lib/gcal.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ import {
   CheckCircle2,
   XCircle,
   Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -166,6 +168,9 @@ function AdminDashboard() {
   const updateFn = useServerFn(updateScheduledShift);
   const deleteFn = useServerFn(deleteScheduledShift);
   const lockFn = useServerFn(lockSite);
+  const syncFn = useServerFn(syncGoogleCalendar);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
 
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
@@ -214,6 +219,43 @@ function AdminDashboard() {
       supabase.removeChannel(ch);
     };
   }, [refresh]);
+
+  const runSync = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      setSyncing(true);
+      try {
+        const res = await syncFn();
+        setLastSync(new Date());
+        if (!res.ok) {
+          if (!opts?.silent) toast.error(res.error ?? "Sync failed");
+        } else if (!opts?.silent) {
+          const parts: string[] = [];
+          if (res.created) parts.push(`${res.created} new`);
+          if (res.updated) parts.push(`${res.updated} updated`);
+          if (res.cancelled) parts.push(`${res.cancelled} cancelled`);
+          toast.success(
+            parts.length
+              ? `Calendar synced — ${parts.join(", ")}`
+              : `Calendar synced — no changes (${res.fetched} events)`,
+          );
+        }
+        await refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Sync failed");
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [syncFn, refresh],
+  );
+
+  // Auto-sync on mount and every 5 minutes.
+  useEffect(() => {
+    runSync({ silent: true });
+    const t = setInterval(() => runSync({ silent: true }), 5 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [runSync]);
+
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -396,6 +438,21 @@ function AdminDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {lastSync ? (
+              <span className="hidden text-xs text-muted-foreground sm:inline">
+                Synced {lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => runSync()}
+              disabled={syncing}
+              title="Sync shifts from Google Calendar"
+            >
+              <RefreshCw className={`mr-1 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Syncing…" : "Sync calendar"}
+            </Button>
             <Button variant="ghost" size="sm" asChild>
               <Link to="/shifts">Shifts</Link>
             </Button>

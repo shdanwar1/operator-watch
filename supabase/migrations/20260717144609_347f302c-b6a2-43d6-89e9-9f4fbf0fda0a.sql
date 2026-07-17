@@ -1,0 +1,2 @@
+ALTER TABLE public.scheduled_shifts ADD COLUMN IF NOT EXISTS external_event_id text;
+CREATE UNIQUE INDEX IF NOT EXISTS scheduled_shifts_external_event_id_key ON public.scheduled_shifts(external_event_id) WHERE external_event_id IS NOT NULL;
