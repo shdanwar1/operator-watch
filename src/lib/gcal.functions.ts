@@ -206,10 +206,10 @@ export type GcalSyncResult = {
 
 export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
   async (): Promise<GcalSyncResult> => {
-    await requireAdmin();
+    const cfg = await requireOperatorWithCalendar();
     let icsText: string;
     try {
-      const res = await fetch(ICS_URL, {
+      const res = await fetch(icsUrlFor(cfg.calendarId), {
         headers: { Accept: "text/calendar" },
       });
       if (!res.ok) {
@@ -249,8 +249,11 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
       (e) => e.specific_date >= lower && e.specific_date <= upper,
     );
 
+    // Namespace the UID by operator so different operators can share a UID without collisions.
+    const scopedUid = (uid: string) => `op:${cfg.displayName.toLowerCase()}:${uid}`;
+
     // Fetch existing rows keyed by external_event_id in one query.
-    const uids = inRange.map((e) => e.uid);
+    const uids = inRange.map((e) => scopedUid(e.uid));
     const existingMap = new Map<string, { id: string; status: string }>();
     if (uids.length) {
       const { data: existing, error: exErr } = await supabaseAdmin
@@ -270,16 +273,17 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
     let cancelled = 0;
 
     for (const ev of inRange) {
-      const existing = existingMap.get(ev.uid);
+      const uid = scopedUid(ev.uid);
+      const existing = existingMap.get(uid);
       const payload = {
         day_of_week: ev.day_of_week,
         start_time: ev.start_time,
         end_time: ev.end_time,
         label: ev.summary || null,
         specific_date: ev.specific_date,
-        assigned_operator: null as string | null,
-        status: ev.status === "cancelled" ? "cancelled" : "unassigned",
-        external_event_id: ev.uid,
+        assigned_operator: cfg.displayName,
+        status: ev.status === "cancelled" ? "cancelled" : "assigned",
+        external_event_id: uid,
       };
 
       if (existing) {
