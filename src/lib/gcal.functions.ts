@@ -14,19 +14,31 @@ function getSessionConfig() {
   };
 }
 
-async function requireAdmin() {
+// Per-operator calendars. Add more entries here as other operators share
+// their personal Google Calendar. Keys are lowercased usernames.
+const OPERATOR_CALENDARS: Record<string, { calendarId: string; displayName: string }> = {
+  shad: {
+    calendarId: "shdanwar1@gmail.com",
+    displayName: "Shad",
+  },
+};
+
+async function requireOperatorWithCalendar() {
   const session = await useSession<GateSession>(getSessionConfig());
-  if (!session.data.unlocked || !session.data.isAdmin) {
+  const username = (session.data.username ?? "").toLowerCase();
+  if (!session.data.unlocked || session.data.isAdmin) {
     throw new Response("Unauthorized", { status: 401 });
   }
+  const cfg = OPERATOR_CALENDARS[username];
+  if (!cfg) throw new Response("No calendar configured for this operator", { status: 404 });
+  return cfg;
 }
 
-// Public calendar this project syncs from.
-const CALENDAR_ID =
-  "c_204c6c293336b5585360b0c8213406f1f4d525d50d74ea66c6e1ddfa4ca30077@group.calendar.google.com";
-const ICS_URL = `https://calendar.google.com/calendar/ical/${encodeURIComponent(
-  CALENDAR_ID,
-)}/public/basic.ics`;
+function icsUrlFor(calendarId: string) {
+  return `https://calendar.google.com/calendar/ical/${encodeURIComponent(
+    calendarId,
+  )}/public/basic.ics`;
+}
 
 type ParsedEvent = {
   uid: string;
