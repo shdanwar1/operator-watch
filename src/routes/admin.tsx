@@ -438,6 +438,21 @@ function AdminDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {lastSync ? (
+              <span className="hidden text-xs text-muted-foreground sm:inline">
+                Synced {lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => runSync()}
+              disabled={syncing}
+              title="Sync shifts from Google Calendar"
+            >
+              <RefreshCw className={`mr-1 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Syncing…" : "Sync calendar"}
+            </Button>
             <Button variant="ghost" size="sm" asChild>
               <Link to="/shifts">Shifts</Link>
             </Button>
