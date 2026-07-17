@@ -281,6 +281,26 @@ function CalendarPage() {
             <p className="text-xs text-muted-foreground sm:text-sm">Four-week calendar view</p>
           </div>
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+            {hasGoogleCalendar && (
+              <>
+                {lastSync ? (
+                  <span className="hidden text-xs text-muted-foreground sm:inline">
+                    Synced {lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                ) : null}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => runSync()}
+                  disabled={syncing}
+                  className="h-8 px-2 sm:h-9"
+                  title="Sync shifts from your Google Calendar"
+                >
+                  <RefreshCw className={`h-4 w-4 sm:mr-1 ${syncing ? "animate-spin" : ""}`} />
+                  <span className="hidden sm:inline">{syncing ? "Syncing…" : "Sync calendar"}</span>
+                </Button>
+              </>
+            )}
             <Button variant="outline" size="sm" onClick={() => setWeekOffset((n) => n - 1)} className="h-8 px-2 sm:h-9">
               <ChevronLeft className="h-4 w-4" />
             </Button>
