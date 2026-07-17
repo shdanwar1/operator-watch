@@ -168,6 +168,9 @@ function AdminDashboard() {
   const updateFn = useServerFn(updateScheduledShift);
   const deleteFn = useServerFn(deleteScheduledShift);
   const lockFn = useServerFn(lockSite);
+  const syncFn = useServerFn(syncGoogleCalendar);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
 
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
