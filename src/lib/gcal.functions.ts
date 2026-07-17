@@ -14,19 +14,31 @@ function getSessionConfig() {
   };
 }
 
-async function requireAdmin() {
+// Per-operator calendars. Add more entries here as other operators share
+// their personal Google Calendar. Keys are lowercased usernames.
+const OPERATOR_CALENDARS: Record<string, { calendarId: string; displayName: string }> = {
+  shad: {
+    calendarId: "shdanwar1@gmail.com",
+    displayName: "Shad",
+  },
+};
+
+async function requireOperatorWithCalendar() {
   const session = await useSession<GateSession>(getSessionConfig());
-  if (!session.data.unlocked || !session.data.isAdmin) {
+  const username = (session.data.username ?? "").toLowerCase();
+  if (!session.data.unlocked || session.data.isAdmin) {
     throw new Response("Unauthorized", { status: 401 });
   }
+  const cfg = OPERATOR_CALENDARS[username];
+  if (!cfg) throw new Response("No calendar configured for this operator", { status: 404 });
+  return cfg;
 }
 
-// Public calendar this project syncs from.
-const CALENDAR_ID =
-  "c_204c6c293336b5585360b0c8213406f1f4d525d50d74ea66c6e1ddfa4ca30077@group.calendar.google.com";
-const ICS_URL = `https://calendar.google.com/calendar/ical/${encodeURIComponent(
-  CALENDAR_ID,
-)}/public/basic.ics`;
+function icsUrlFor(calendarId: string) {
+  return `https://calendar.google.com/calendar/ical/${encodeURIComponent(
+    calendarId,
+  )}/public/basic.ics`;
+}
 
 type ParsedEvent = {
   uid: string;
@@ -194,10 +206,10 @@ export type GcalSyncResult = {
 
 export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
   async (): Promise<GcalSyncResult> => {
-    await requireAdmin();
+    const cfg = await requireOperatorWithCalendar();
     let icsText: string;
     try {
-      const res = await fetch(ICS_URL, {
+      const res = await fetch(icsUrlFor(cfg.calendarId), {
         headers: { Accept: "text/calendar" },
       });
       if (!res.ok) {
@@ -237,8 +249,11 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
       (e) => e.specific_date >= lower && e.specific_date <= upper,
     );
 
+    // Namespace the UID by operator so different operators can share a UID without collisions.
+    const scopedUid = (uid: string) => `op:${cfg.displayName.toLowerCase()}:${uid}`;
+
     // Fetch existing rows keyed by external_event_id in one query.
-    const uids = inRange.map((e) => e.uid);
+    const uids = inRange.map((e) => scopedUid(e.uid));
     const existingMap = new Map<string, { id: string; status: string }>();
     if (uids.length) {
       const { data: existing, error: exErr } = await supabaseAdmin
@@ -258,37 +273,28 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
     let cancelled = 0;
 
     for (const ev of inRange) {
-      const existing = existingMap.get(ev.uid);
+      const uid = scopedUid(ev.uid);
+      const existing = existingMap.get(uid);
       const payload = {
         day_of_week: ev.day_of_week,
         start_time: ev.start_time,
         end_time: ev.end_time,
         label: ev.summary || null,
         specific_date: ev.specific_date,
-        assigned_operator: null as string | null,
-        status: ev.status === "cancelled" ? "cancelled" : "unassigned",
-        external_event_id: ev.uid,
+        assigned_operator: cfg.displayName,
+        status: ev.status === "cancelled" ? "cancelled" : "assigned",
+        external_event_id: uid,
       };
 
       if (existing) {
-        // Only overwrite fields sourced from GCal; preserve assigned_operator if admin already set one.
-        const { data: cur } = await supabaseAdmin
-          .from("scheduled_shifts")
-          .select("assigned_operator")
-          .eq("id", existing.id)
-          .maybeSingle();
         const patch = {
           day_of_week: payload.day_of_week,
           start_time: payload.start_time,
           end_time: payload.end_time,
           label: payload.label,
           specific_date: payload.specific_date,
-          status:
-            ev.status === "cancelled"
-              ? "cancelled"
-              : cur?.assigned_operator
-                ? "assigned"
-                : "unassigned",
+          assigned_operator: cfg.displayName,
+          status: ev.status === "cancelled" ? "cancelled" : "assigned",
         };
         const { error } = await supabaseAdmin
           .from("scheduled_shifts")

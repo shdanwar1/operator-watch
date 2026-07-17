@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getGateStatus } from "@/lib/gate.functions";
 import {
   listScheduledShifts,
@@ -11,6 +11,7 @@ import {
   type ScheduledShiftRow,
   type ShiftRow,
 } from "@/lib/shifts.functions";
+import { syncGoogleCalendar } from "@/lib/gcal.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft, Plus, Trash2, Save } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft, Plus, Trash2, Save, RefreshCw } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 export const Route = createFileRoute("/calendar")({
@@ -31,7 +32,9 @@ export const Route = createFileRoute("/calendar")({
     const status = await getGateStatus();
     if (!status.unlocked) throw redirect({ to: "/unlock" });
     if (status.isAdmin) throw redirect({ to: "/admin" });
+    return { username: status.username ?? "" };
   },
+  loader: ({ context }) => ({ username: (context as { username: string }).username }),
   head: () => ({
     meta: [
       { title: "Shift Calendar — Studio Operator" },
@@ -104,19 +107,25 @@ type EditorState =
   | { mode: "edit"; date: Date; instance: Instance };
 
 function CalendarPage() {
+  const { username } = Route.useLoaderData();
   const fetchScheduled = useServerFn(listScheduledShifts);
   const fetchShifts = useServerFn(listShifts);
   const createSched = useServerFn(createScheduledShift);
   const updateSched = useServerFn(updateScheduledShift);
   const deleteSched = useServerFn(deleteScheduledShift);
+  const syncFn = useServerFn(syncGoogleCalendar);
 
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
   const [logged, setLogged] = useState<ShiftRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
   const [editor, setEditor] = useState<EditorState | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
 
-  async function load() {
+  const hasGoogleCalendar = username.toLowerCase() === "shad";
+
+  const load = useCallback(async () => {
     try {
       const [sched, rows] = await Promise.all([fetchScheduled(), fetchShifts()]);
       setScheduled(sched);
@@ -126,11 +135,50 @@ function CalendarPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [fetchScheduled, fetchShifts]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
+
+  const runSync = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!hasGoogleCalendar) return;
+      setSyncing(true);
+      try {
+        const res = await syncFn();
+        setLastSync(new Date());
+        if (!res.ok) {
+          if (!opts?.silent) toast.error(res.error ?? "Sync failed");
+        } else if (!opts?.silent) {
+          const parts: string[] = [];
+          if (res.created) parts.push(`${res.created} new`);
+          if (res.updated) parts.push(`${res.updated} updated`);
+          if (res.cancelled) parts.push(`${res.cancelled} cancelled`);
+          toast.success(
+            parts.length
+              ? `Google Calendar synced — ${parts.join(", ")}`
+              : `Google Calendar synced — no changes (${res.fetched} events)`,
+          );
+        }
+        await load();
+      } catch (e) {
+        if (!opts?.silent) toast.error(e instanceof Error ? e.message : "Sync failed");
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [hasGoogleCalendar, syncFn, load],
+  );
+
+  // Auto-sync on mount and every 5 minutes for operators with a linked calendar.
+  useEffect(() => {
+    if (!hasGoogleCalendar) return;
+    runSync({ silent: true });
+    const t = setInterval(() => runSync({ silent: true }), 5 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [hasGoogleCalendar, runSync]);
+
 
   const now = new Date();
   const today = new Date(now);
@@ -233,6 +281,26 @@ function CalendarPage() {
             <p className="text-xs text-muted-foreground sm:text-sm">Four-week calendar view</p>
           </div>
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+            {hasGoogleCalendar && (
+              <>
+                {lastSync ? (
+                  <span className="hidden text-xs text-muted-foreground sm:inline">
+                    Synced {lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                ) : null}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => runSync()}
+                  disabled={syncing}
+                  className="h-8 px-2 sm:h-9"
+                  title="Sync shifts from your Google Calendar"
+                >
+                  <RefreshCw className={`h-4 w-4 sm:mr-1 ${syncing ? "animate-spin" : ""}`} />
+                  <span className="hidden sm:inline">{syncing ? "Syncing…" : "Sync calendar"}</span>
+                </Button>
+              </>
+            )}
             <Button variant="outline" size="sm" onClick={() => setWeekOffset((n) => n - 1)} className="h-8 px-2 sm:h-9">
               <ChevronLeft className="h-4 w-4" />
             </Button>
