@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getGateStatus } from "@/lib/gate.functions";
 import {
   listScheduledShifts,
@@ -11,6 +11,7 @@ import {
   type ScheduledShiftRow,
   type ShiftRow,
 } from "@/lib/shifts.functions";
+import { syncGoogleCalendar } from "@/lib/gcal.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft, Plus, Trash2, Save } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft, Plus, Trash2, Save, RefreshCw } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 export const Route = createFileRoute("/calendar")({
