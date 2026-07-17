@@ -227,7 +227,7 @@ function AdminDashboard() {
         const res = await syncFn();
         setLastSync(new Date());
         if (!res.ok) {
-          toast.error(res.error ?? "Sync failed");
+          if (!opts?.silent) toast.error(res.error ?? "Sync failed");
         } else if (!opts?.silent) {
           const parts: string[] = [];
           if (res.created) parts.push(`${res.created} new`);
