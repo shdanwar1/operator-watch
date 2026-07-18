@@ -1,0 +1,1 @@
+ALTER TABLE public.operators ADD COLUMN IF NOT EXISTS calendar_ics_url text;

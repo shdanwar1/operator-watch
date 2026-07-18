@@ -11,7 +11,7 @@ import {
   type ScheduledShiftRow,
   type ShiftRow,
 } from "@/lib/shifts.functions";
-import { syncGoogleCalendar } from "@/lib/gcal.functions";
+import { syncGoogleCalendar, getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft, Plus, Trash2, Save, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft, Plus, Trash2, Save, RefreshCw, Settings2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 export const Route = createFileRoute("/calendar")({
@@ -114,6 +114,8 @@ function CalendarPage() {
   const updateSched = useServerFn(updateScheduledShift);
   const deleteSched = useServerFn(deleteScheduledShift);
   const syncFn = useServerFn(syncGoogleCalendar);
+  const getUrlFn = useServerFn(getMyCalendarUrl);
+  const setUrlFn = useServerFn(setMyCalendarUrl);
 
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
   const [logged, setLogged] = useState<ShiftRow[]>([]);
@@ -122,8 +124,13 @@ function CalendarPage() {
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [icsUrl, setIcsUrl] = useState<string | null>(null);
+  const [calDialogOpen, setCalDialogOpen] = useState(false);
+  const [calDraft, setCalDraft] = useState("");
+  const [savingUrl, setSavingUrl] = useState(false);
 
-  const hasGoogleCalendar = username.toLowerCase() === "shad";
+  const hasGoogleCalendar = !!icsUrl;
+  void username;
 
   const load = useCallback(async () => {
     try {
@@ -140,6 +147,30 @@ function CalendarPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Load the operator's saved calendar URL once.
+  useEffect(() => {
+    let cancelled = false;
+    getUrlFn()
+      .then((r) => { if (!cancelled) setIcsUrl(r.icsUrl); })
+      .catch(() => { /* non-fatal */ });
+    return () => { cancelled = true; };
+  }, [getUrlFn]);
+
+  async function handleSaveCalendarUrl() {
+    setSavingUrl(true);
+    try {
+      const res = await setUrlFn({ data: { url: calDraft } });
+      setIcsUrl(res.icsUrl);
+      toast.success(res.icsUrl ? "Calendar link updated" : "Calendar link removed");
+      setCalDialogOpen(false);
+      if (res.icsUrl) runSync();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save link");
+    } finally {
+      setSavingUrl(false);
+    }
+  }
 
   const runSync = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -281,26 +312,43 @@ function CalendarPage() {
             <p className="text-xs text-muted-foreground sm:text-sm">Four-week calendar view</p>
           </div>
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-            {hasGoogleCalendar && (
-              <>
-                {lastSync ? (
-                  <span className="hidden text-xs text-muted-foreground sm:inline">
-                    Synced {lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                ) : null}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => runSync()}
-                  disabled={syncing}
-                  className="h-8 px-2 sm:h-9"
-                  title="Sync shifts from your Google Calendar"
-                >
-                  <RefreshCw className={`h-4 w-4 sm:mr-1 ${syncing ? "animate-spin" : ""}`} />
-                  <span className="hidden sm:inline">{syncing ? "Syncing…" : "Sync calendar"}</span>
-                </Button>
-              </>
-            )}
+            {lastSync && hasGoogleCalendar ? (
+              <span className="hidden text-xs text-muted-foreground sm:inline">
+                Synced {lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (!hasGoogleCalendar) {
+                  setCalDraft(icsUrl ?? "");
+                  setCalDialogOpen(true);
+                } else {
+                  runSync();
+                }
+              }}
+              disabled={syncing}
+              className="h-8 px-2 sm:h-9"
+              title={hasGoogleCalendar ? "Sync shifts from your Google Calendar" : "Set your Google Calendar link"}
+            >
+              <RefreshCw className={`h-4 w-4 sm:mr-1 ${syncing ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">
+                {syncing ? "Syncing…" : hasGoogleCalendar ? "Sync calendar" : "Connect calendar"}
+              </span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCalDraft(icsUrl ?? "");
+                setCalDialogOpen(true);
+              }}
+              className="h-8 px-2 sm:h-9"
+              title="Update Google Calendar link"
+            >
+              <Settings2 className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setWeekOffset((n) => n - 1)} className="h-8 px-2 sm:h-9">
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -463,6 +511,48 @@ function CalendarPage() {
         onSave={handleSave}
         onDelete={handleDelete}
       />
+
+      <Dialog open={calDialogOpen} onOpenChange={setCalDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Google Calendar link</DialogTitle>
+            <DialogDescription>
+              Paste the public iCal URL from Google Calendar → Settings → Integrate calendar → “Public address in iCal format” (ends in <code>.ics</code>). Shifts refresh here every 5 minutes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="ics-url">Calendar link</Label>
+            <Input
+              id="ics-url"
+              value={calDraft}
+              onChange={(e) => setCalDraft(e.target.value)}
+              placeholder="https://calendar.google.com/calendar/ical/…/public/basic.ics"
+              autoFocus
+            />
+            {icsUrl && (
+              <p className="text-xs text-muted-foreground break-all">Current: {icsUrl}</p>
+            )}
+          </div>
+          <DialogFooter className="flex-row justify-between">
+            <Button
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              onClick={() => { setCalDraft(""); }}
+              disabled={savingUrl || !calDraft}
+            >
+              Clear
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setCalDialogOpen(false)} disabled={savingUrl}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveCalendarUrl} disabled={savingUrl}>
+                <Save className="mr-1 h-4 w-4" /> {savingUrl ? "Saving…" : "Save & sync"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
