@@ -250,12 +250,21 @@ export type GcalSyncResult = {
 
 export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
   async (): Promise<GcalSyncResult> => {
-    const cfg = await requireOperatorWithCalendar();
+    const { username } = await requireOperator();
+    const { displayName, icsUrl } = await loadOperatorCalendar(username);
+    if (!icsUrl) {
+      return {
+        ok: false,
+        fetched: 0,
+        created: 0,
+        updated: 0,
+        cancelled: 0,
+        error: "No calendar link set. Click the settings icon next to Sync to paste your public Google Calendar ICS link.",
+      };
+    }
     let icsText: string;
     try {
-      const res = await fetch(icsUrlFor(cfg.calendarId), {
-        headers: { Accept: "text/calendar" },
-      });
+      const res = await fetch(icsUrl, { headers: { Accept: "text/calendar" } });
       if (!res.ok) {
         return {
           ok: false,
@@ -263,7 +272,7 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
           created: 0,
           updated: 0,
           cancelled: 0,
-          error: `Calendar is not public (HTTP ${res.status}). In Google Calendar → Settings for this calendar → “Access permissions for events”, enable “Make available to public” with “See all event details”.`,
+          error: `Calendar link returned HTTP ${res.status}. In Google Calendar → Settings for this calendar → "Access permissions for events", enable "Make available to public" with "See all event details", then copy the "Public address in iCal format" (ends in .ics).`,
         };
       }
       icsText = await res.text();
@@ -294,7 +303,7 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
     );
 
     // Namespace the UID by operator so different operators can share a UID without collisions.
-    const scopedUid = (uid: string) => `op:${cfg.displayName.toLowerCase()}:${uid}`;
+    const scopedUid = (uid: string) => `op:${displayName.toLowerCase()}:${uid}`;
 
     // Fetch existing rows keyed by external_event_id in one query.
     const uids = inRange.map((e) => scopedUid(e.uid));
