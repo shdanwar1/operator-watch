@@ -334,7 +334,7 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
         end_time: ev.end_time,
         label: ev.summary || null,
         specific_date: ev.specific_date,
-        assigned_operator: cfg.displayName,
+        assigned_operator: displayName,
         status: ev.status === "cancelled" ? "cancelled" : "assigned",
         external_event_id: uid,
       };
@@ -346,7 +346,7 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
           end_time: payload.end_time,
           label: payload.label,
           specific_date: payload.specific_date,
-          assigned_operator: cfg.displayName,
+          assigned_operator: displayName,
           status: ev.status === "cancelled" ? "cancelled" : "assigned",
         };
         const { error } = await supabaseAdmin
