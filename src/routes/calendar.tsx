@@ -148,6 +148,30 @@ function CalendarPage() {
     load();
   }, [load]);
 
+  // Load the operator's saved calendar URL once.
+  useEffect(() => {
+    let cancelled = false;
+    getUrlFn()
+      .then((r) => { if (!cancelled) setIcsUrl(r.icsUrl); })
+      .catch(() => { /* non-fatal */ });
+    return () => { cancelled = true; };
+  }, [getUrlFn]);
+
+  async function handleSaveCalendarUrl() {
+    setSavingUrl(true);
+    try {
+      const res = await setUrlFn({ data: { url: calDraft } });
+      setIcsUrl(res.icsUrl);
+      toast.success(res.icsUrl ? "Calendar link updated" : "Calendar link removed");
+      setCalDialogOpen(false);
+      if (res.icsUrl) runSync();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save link");
+    } finally {
+      setSavingUrl(false);
+    }
+  }
+
   const runSync = useCallback(
     async (opts?: { silent?: boolean }) => {
       if (!hasGoogleCalendar) return;
