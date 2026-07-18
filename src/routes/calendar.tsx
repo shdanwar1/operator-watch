@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft, Plus, Trash2, Save, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft, Plus, Trash2, Save, RefreshCw, Settings2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 export const Route = createFileRoute("/calendar")({
