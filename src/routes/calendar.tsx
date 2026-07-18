@@ -114,6 +114,8 @@ function CalendarPage() {
   const updateSched = useServerFn(updateScheduledShift);
   const deleteSched = useServerFn(deleteScheduledShift);
   const syncFn = useServerFn(syncGoogleCalendar);
+  const getUrlFn = useServerFn(getMyCalendarUrl);
+  const setUrlFn = useServerFn(setMyCalendarUrl);
 
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
   const [logged, setLogged] = useState<ShiftRow[]>([]);
@@ -122,8 +124,13 @@ function CalendarPage() {
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [icsUrl, setIcsUrl] = useState<string | null>(null);
+  const [calDialogOpen, setCalDialogOpen] = useState(false);
+  const [calDraft, setCalDraft] = useState("");
+  const [savingUrl, setSavingUrl] = useState(false);
 
-  const hasGoogleCalendar = username.toLowerCase() === "shad";
+  const hasGoogleCalendar = !!icsUrl;
+  void username;
 
   const load = useCallback(async () => {
     try {
