@@ -40,6 +40,7 @@ export type Database = {
       }
       operators: {
         Row: {
+          calendar_ics_url: string | null
           created_at: string
           home_label: string | null
           home_lat: number | null
@@ -53,6 +54,7 @@ export type Database = {
           username: string
         }
         Insert: {
+          calendar_ics_url?: string | null
           created_at?: string
           home_label?: string | null
           home_lat?: number | null
@@ -66,6 +68,7 @@ export type Database = {
           username: string
         }
         Update: {
+          calendar_ics_url?: string | null
           created_at?: string
           home_label?: string | null
           home_lat?: number | null
