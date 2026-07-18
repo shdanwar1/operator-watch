@@ -511,6 +511,48 @@ function CalendarPage() {
         onSave={handleSave}
         onDelete={handleDelete}
       />
+
+      <Dialog open={calDialogOpen} onOpenChange={setCalDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Google Calendar link</DialogTitle>
+            <DialogDescription>
+              Paste the public iCal URL from Google Calendar → Settings → Integrate calendar → “Public address in iCal format” (ends in <code>.ics</code>). Shifts refresh here every 5 minutes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="ics-url">Calendar link</Label>
+            <Input
+              id="ics-url"
+              value={calDraft}
+              onChange={(e) => setCalDraft(e.target.value)}
+              placeholder="https://calendar.google.com/calendar/ical/…/public/basic.ics"
+              autoFocus
+            />
+            {icsUrl && (
+              <p className="text-xs text-muted-foreground break-all">Current: {icsUrl}</p>
+            )}
+          </div>
+          <DialogFooter className="flex-row justify-between">
+            <Button
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              onClick={() => { setCalDraft(""); }}
+              disabled={savingUrl || !calDraft}
+            >
+              Clear
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setCalDialogOpen(false)} disabled={savingUrl}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveCalendarUrl} disabled={savingUrl}>
+                <Save className="mr-1 h-4 w-4" /> {savingUrl ? "Saving…" : "Save & sync"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
