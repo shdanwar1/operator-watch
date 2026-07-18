@@ -14,31 +14,75 @@ function getSessionConfig() {
   };
 }
 
-// Per-operator calendars. Add more entries here as other operators share
-// their personal Google Calendar. Keys are lowercased usernames.
-const OPERATOR_CALENDARS: Record<string, { calendarId: string; displayName: string }> = {
-  shad: {
-    calendarId: "shdanwar1@gmail.com",
-    displayName: "Shad",
-  },
-};
-
-async function requireOperatorWithCalendar() {
+async function requireOperator() {
   const session = await useSession<GateSession>(getSessionConfig());
   const username = (session.data.username ?? "").toLowerCase();
-  if (!session.data.unlocked || session.data.isAdmin) {
+  if (!session.data.unlocked || session.data.isAdmin || !username) {
     throw new Response("Unauthorized", { status: 401 });
   }
-  const cfg = OPERATOR_CALENDARS[username];
-  if (!cfg) throw new Response("No calendar configured for this operator", { status: 404 });
-  return cfg;
+  return { username };
 }
 
-function icsUrlFor(calendarId: string) {
-  return `https://calendar.google.com/calendar/ical/${encodeURIComponent(
-    calendarId,
-  )}/public/basic.ics`;
+async function loadOperatorCalendar(username: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("operators")
+    .select("username, calendar_ics_url")
+    .ilike("username", username)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Response("Operator not found", { status: 404 });
+  return { displayName: data.username as string, icsUrl: (data.calendar_ics_url ?? null) as string | null };
 }
+
+// Accepts a raw ICS URL, or a Google Calendar embed/share URL and derives the ICS URL.
+export function normalizeIcsUrl(input: string): string | null {
+  const s = input.trim();
+  if (!s) return null;
+  // Direct ICS link
+  if (/\.ics(\?|$)/i.test(s) || /\/ical\//i.test(s)) return s;
+  // Embed link: ?src=<calendarId>
+  try {
+    const u = new URL(s);
+    const src = u.searchParams.get("src");
+    if (src) {
+      return `https://calendar.google.com/calendar/ical/${encodeURIComponent(src)}/public/basic.ics`;
+    }
+    // cid-style link — cannot resolve to ICS without login
+  } catch {
+    // not a URL — treat as bare calendar id (e.g. an email)
+    if (/@/.test(s)) {
+      return `https://calendar.google.com/calendar/ical/${encodeURIComponent(s)}/public/basic.ics`;
+    }
+  }
+  return null;
+}
+
+export const getMyCalendarUrl = createServerFn({ method: "GET" }).handler(async () => {
+  const { username } = await requireOperator();
+  const { icsUrl } = await loadOperatorCalendar(username);
+  return { icsUrl };
+});
+
+export const setMyCalendarUrl = createServerFn({ method: "POST" })
+  .inputValidator((data: { url: string }) => {
+    if (!data || typeof data.url !== "string") throw new Error("Invalid input");
+    return data;
+  })
+  .handler(async ({ data }) => {
+    const { username } = await requireOperator();
+    const normalized = data.url.trim() === "" ? null : normalizeIcsUrl(data.url);
+    if (data.url.trim() !== "" && !normalized) {
+      throw new Error("Could not read that link. Paste the public ICS URL (ends in .ics) from Google Calendar → Settings → Integrate calendar → Public address in iCal format.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("operators")
+      .update({ calendar_ics_url: normalized })
+      .ilike("username", username);
+    if (error) throw new Error(error.message);
+    return { ok: true, icsUrl: normalized };
+  });
 
 type ParsedEvent = {
   uid: string;
