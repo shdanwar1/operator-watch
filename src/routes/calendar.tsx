@@ -183,14 +183,14 @@ function CalendarPage() {
           if (!opts?.silent) toast.error(res.error ?? "Sync failed");
         } else if (!opts?.silent) {
           const parts: string[] = [];
-          if (res.created) parts.push(`${res.created} new`);
-          if (res.updated) parts.push(`${res.updated} updated`);
-          if (res.cancelled) parts.push(`${res.cancelled} cancelled`);
+          if (res.shifts) parts.push(`${res.shifts} shift${res.shifts === 1 ? "" : "s"}`);
+          if (res.removed) parts.push(`${res.removed} removed`);
           toast.success(
             parts.length
-              ? `Google Calendar synced — ${parts.join(", ")}`
-              : `Google Calendar synced — no changes (${res.fetched} events)`,
+              ? `Calendar synced — ${parts.join(", ")} from ${res.fetched} classes`
+              : `Calendar synced — no shifts (${res.fetched} classes)`,
           );
+
         }
         await load();
       } catch (e) {
