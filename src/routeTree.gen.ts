@@ -14,6 +14,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ShiftsRouteImport } from './routes/shifts'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as EarningsRouteImport } from './routes/earnings'
+import { Route as DisplayRouteImport } from './routes/display'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -43,6 +44,11 @@ const EarningsRoute = EarningsRouteImport.update({
   path: '/earnings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DisplayRoute = DisplayRouteImport.update({
+  id: '/display',
+  path: '/display',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CalendarRoute = CalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/calendar': typeof CalendarRoute
+  '/display': typeof DisplayRoute
   '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
   '/shifts': typeof ShiftsRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/calendar': typeof CalendarRoute
+  '/display': typeof DisplayRoute
   '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
   '/shifts': typeof ShiftsRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/calendar': typeof CalendarRoute
+  '/display': typeof DisplayRoute
   '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
   '/shifts': typeof ShiftsRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/calendar'
+    | '/display'
     | '/earnings'
     | '/profile'
     | '/shifts'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/calendar'
+    | '/display'
     | '/earnings'
     | '/profile'
     | '/shifts'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/calendar'
+    | '/display'
     | '/earnings'
     | '/profile'
     | '/shifts'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   CalendarRoute: typeof CalendarRoute
+  DisplayRoute: typeof DisplayRoute
   EarningsRoute: typeof EarningsRoute
   ProfileRoute: typeof ProfileRoute
   ShiftsRoute: typeof ShiftsRoute
@@ -171,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EarningsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/display': {
+      id: '/display'
+      path: '/display'
+      fullPath: '/display'
+      preLoaderRoute: typeof DisplayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/calendar': {
       id: '/calendar'
       path: '/calendar'
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   CalendarRoute: CalendarRoute,
+  DisplayRoute: DisplayRoute,
   EarningsRoute: EarningsRoute,
   ProfileRoute: ProfileRoute,
   ShiftsRoute: ShiftsRoute,
@@ -208,13 +229,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
