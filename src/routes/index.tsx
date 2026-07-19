@@ -29,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 import { computeMonthly, CONTRACT_MONTHLY_HOURS } from "@/lib/earnings";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
+import { StudioDisplayPanel } from "@/components/StudioDisplayPanel";
 
 
 export const Route = createFileRoute("/")({
@@ -783,6 +784,8 @@ function ActiveShiftPanel({
           )}
         </CardContent>
       </Card>
+
+      <StudioDisplayPanel />
 
       <Button
         onClick={onCheckOut}
