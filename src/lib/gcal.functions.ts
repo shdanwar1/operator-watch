@@ -239,12 +239,103 @@ function parseIcs(ics: string): ParsedEvent[] {
   return events;
 }
 
+// ── Shift grouping configuration ─────────────────────────────────────────────
+// These are the defaults from the spec. Adjust here to change behavior globally.
+export const SHIFT_CONFIG = {
+  preClassBufferMin: 30,
+  postClassBufferMin: 15,
+  maxGapMin: 15,
+} as const;
+
+type ClassEvent = {
+  date: string; // YYYY-MM-DD
+  startMin: number; // minutes since midnight
+  endMin: number;
+};
+
+type GroupedShift = {
+  date: string;
+  day_of_week: number;
+  startMin: number;
+  endMin: number;
+  classCount: number;
+};
+
+function toMin(hhmmss: string): number {
+  const [h, m] = hhmmss.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function minToTime(total: number): string {
+  const clamped = Math.max(0, Math.min(24 * 60 - 1, total));
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
+}
+
+function dowOf(dateStr: string): number {
+  const [y, mo, d] = dateStr.split("-").map(Number);
+  return new Date(y, mo - 1, d).getDay();
+}
+
+/** Group consecutive/close classes into operator shifts per the spec rules. */
+export function groupClassesIntoShifts(
+  classes: ClassEvent[],
+  config: { preClassBufferMin: number; postClassBufferMin: number; maxGapMin: number } = SHIFT_CONFIG,
+): GroupedShift[] {
+  const byDate = new Map<string, ClassEvent[]>();
+  for (const c of classes) {
+    if (!byDate.has(c.date)) byDate.set(c.date, []);
+    byDate.get(c.date)!.push(c);
+  }
+
+  const shifts: GroupedShift[] = [];
+  for (const [date, dayClasses] of byDate) {
+    // Rule 7: sort chronologically
+    const sorted = [...dayClasses].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+    let groupStart = sorted[0].startMin;
+    let groupEnd = sorted[0].endMin;
+    let count = 1;
+
+    for (let i = 1; i < sorted.length; i++) {
+      const cls = sorted[i];
+      const gap = cls.startMin - groupEnd;
+      if (gap <= config.maxGapMin) {
+        // Rules 1, 2, 9: merge
+        groupEnd = Math.max(groupEnd, cls.endMin);
+        count++;
+      } else {
+        // Rule 3: split
+        shifts.push({
+          date,
+          day_of_week: dowOf(date),
+          startMin: groupStart - config.preClassBufferMin,
+          endMin: groupEnd + config.postClassBufferMin,
+          classCount: count,
+        });
+        groupStart = cls.startMin;
+        groupEnd = cls.endMin;
+        count = 1;
+      }
+    }
+    shifts.push({
+      date,
+      day_of_week: dowOf(date),
+      startMin: groupStart - config.preClassBufferMin,
+      endMin: groupEnd + config.postClassBufferMin,
+      classCount: count,
+    });
+  }
+
+  shifts.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin));
+  return shifts;
+}
+
 export type GcalSyncResult = {
   ok: boolean;
-  fetched: number;
-  created: number;
-  updated: number;
-  cancelled: number;
+  fetched: number; // classes imported
+  shifts: number; // shifts generated
+  removed: number; // stale generated shifts deleted
   error?: string;
 };
 
@@ -256,12 +347,12 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
       return {
         ok: false,
         fetched: 0,
-        created: 0,
-        updated: 0,
-        cancelled: 0,
+        shifts: 0,
+        removed: 0,
         error: "No calendar link set. Click the settings icon next to Sync to paste your public Google Calendar ICS link.",
       };
     }
+
     let icsText: string;
     try {
       const res = await fetch(icsUrl, { headers: { Accept: "text/calendar" } });
@@ -269,10 +360,9 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
         return {
           ok: false,
           fetched: 0,
-          created: 0,
-          updated: 0,
-          cancelled: 0,
-          error: `Calendar link returned HTTP ${res.status}. In Google Calendar → Settings for this calendar → "Access permissions for events", enable "Make available to public" with "See all event details", then copy the "Public address in iCal format" (ends in .ics).`,
+          shifts: 0,
+          removed: 0,
+          error: `Calendar link returned HTTP ${res.status}. In Google Calendar → Settings → "Access permissions", enable "Make available to public" and copy the "Public address in iCal format".`,
         };
       }
       icsText = await res.text();
@@ -280,9 +370,8 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
       return {
         ok: false,
         fetched: 0,
-        created: 0,
-        updated: 0,
-        cancelled: 0,
+        shifts: 0,
+        removed: 0,
         error: e instanceof Error ? e.message : "Failed to fetch calendar",
       };
     }
@@ -290,85 +379,93 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
     const events = parseIcs(icsText);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Only import upcoming / recent events (past 7 days → +180 days) to keep the table lean.
+    // Spec: import calendar events for the next 4 weeks. Include today.
     const now = new Date();
-    const lower = new Date(now.getTime() - 7 * 24 * 3600 * 1000)
+    const todayStr = new Date(now.getFullYear(), now.getMonth(), now.getDate())
       .toISOString()
       .slice(0, 10);
-    const upper = new Date(now.getTime() + 180 * 24 * 3600 * 1000)
+    const upperDate = new Date(now.getTime() + 28 * 24 * 3600 * 1000)
       .toISOString()
       .slice(0, 10);
-    const inRange = events.filter(
-      (e) => e.specific_date >= lower && e.specific_date <= upper,
-    );
 
-    // Namespace the UID by operator so different operators can share a UID without collisions.
-    const scopedUid = (uid: string) => `op:${displayName.toLowerCase()}:${uid}`;
+    // Filter to window + drop cancelled classes (Rule 10 — a removed class must not participate in grouping).
+    const activeClasses: ClassEvent[] = events
+      .filter((e) => e.status !== "cancelled")
+      .filter((e) => e.specific_date >= todayStr && e.specific_date <= upperDate)
+      .map((e) => ({
+        date: e.specific_date,
+        startMin: toMin(e.start_time),
+        endMin: toMin(e.end_time),
+      }));
 
-    // Fetch existing rows keyed by external_event_id in one query.
-    const uids = inRange.map((e) => scopedUid(e.uid));
-    const existingMap = new Map<string, { id: string; status: string }>();
-    if (uids.length) {
-      const { data: existing, error: exErr } = await supabaseAdmin
+    const grouped = groupClassesIntoShifts(activeClasses);
+
+    // Deterministic external id per generated shift so re-runs are idempotent.
+    const shiftUid = (date: string, startMin: number) =>
+      `op:${displayName.toLowerCase()}:shift:${date}:${String(Math.floor(startMin / 60)).padStart(2, "0")}${String(startMin % 60).padStart(2, "0")}`;
+
+    // Rule 8/10/11: fully regenerate the operator's shifts in the window rather than diffing per event.
+    // Only delete rows this sync feature produced (external_event_id prefixed op:<user>:shift:).
+    const prefix = `op:${displayName.toLowerCase()}:shift:`;
+    const { data: existingRows, error: exErr } = await supabaseAdmin
+      .from("scheduled_shifts")
+      .select("id, external_event_id, specific_date")
+      .like("external_event_id", `${prefix}%`)
+      .gte("specific_date", todayStr)
+      .lte("specific_date", upperDate);
+    if (exErr) throw new Error(exErr.message);
+
+    const desiredUids = new Set(grouped.map((g) => shiftUid(g.date, g.startMin)));
+    const staleIds = (existingRows ?? [])
+      .filter((r) => !r.external_event_id || !desiredUids.has(r.external_event_id))
+      .map((r) => r.id);
+    let removed = 0;
+    if (staleIds.length) {
+      const { error: delErr } = await supabaseAdmin
         .from("scheduled_shifts")
-        .select("id, external_event_id, status")
-        .in("external_event_id", uids);
-      if (exErr) throw new Error(exErr.message);
-      for (const row of existing ?? []) {
-        if (row.external_event_id) {
-          existingMap.set(row.external_event_id, { id: row.id, status: row.status });
-        }
-      }
+        .delete()
+        .in("id", staleIds);
+      if (delErr) throw new Error(delErr.message);
+      removed = staleIds.length;
     }
 
-    let created = 0;
-    let updated = 0;
-    let cancelled = 0;
+    const existingUids = new Set(
+      (existingRows ?? [])
+        .map((r) => r.external_event_id)
+        .filter((v): v is string => Boolean(v)),
+    );
 
-    for (const ev of inRange) {
-      const uid = scopedUid(ev.uid);
-      const existing = existingMap.get(uid);
+    // Upsert generated shifts.
+    for (const s of grouped) {
+      const uid = shiftUid(s.date, s.startMin);
       const payload = {
-        day_of_week: ev.day_of_week,
-        start_time: ev.start_time,
-        end_time: ev.end_time,
-        label: ev.summary || null,
-        specific_date: ev.specific_date,
+        day_of_week: s.day_of_week,
+        start_time: minToTime(s.startMin),
+        end_time: minToTime(s.endMin),
+        label: s.classCount === 1 ? "1 class" : `${s.classCount} classes`,
+        specific_date: s.date,
         assigned_operator: displayName,
-        status: ev.status === "cancelled" ? "cancelled" : "assigned",
+        status: "assigned",
         external_event_id: uid,
       };
-
-      if (existing) {
-        const patch = {
-          day_of_week: payload.day_of_week,
-          start_time: payload.start_time,
-          end_time: payload.end_time,
-          label: payload.label,
-          specific_date: payload.specific_date,
-          assigned_operator: displayName,
-          status: ev.status === "cancelled" ? "cancelled" : "assigned",
-        };
+      if (existingUids.has(uid)) {
         const { error } = await supabaseAdmin
           .from("scheduled_shifts")
-          .update(patch)
-          .eq("id", existing.id);
+          .update(payload)
+          .eq("external_event_id", uid);
         if (error) throw new Error(error.message);
-        if (ev.status === "cancelled") cancelled++;
-        else updated++;
       } else {
         const { error } = await supabaseAdmin.from("scheduled_shifts").insert(payload);
         if (error) throw new Error(error.message);
-        created++;
       }
     }
 
     return {
       ok: true,
-      fetched: inRange.length,
-      created,
-      updated,
-      cancelled,
+      fetched: activeClasses.length,
+      shifts: grouped.length,
+      removed,
     };
   },
 );
+
