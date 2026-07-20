@@ -212,6 +212,9 @@ function ProfilePage() {
                 <p className="text-[11px] text-muted-foreground">
                   Capitalization is preserved (e.g. <span className="font-medium">Shad</span>).
                 </p>
+              </div>
+
+
 
               <div className="space-y-2">
                 <Label htmlFor="profile-mobile">Mobile number</Label>
