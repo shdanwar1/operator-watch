@@ -1,0 +1,1 @@
+UPDATE public.operators SET username='Shad' WHERE username='shad';

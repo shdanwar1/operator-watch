@@ -19,9 +19,10 @@ import { ArrowLeft, LogIn, Save, Home, MapPin } from "lucide-react";
 function stripDePrefix(v: string | null | undefined): string {
   if (!v) return "";
   const digits = v.replace(/\D+/g, "");
-  if (digits.startsWith("49") && digits.length === 12) return digits.slice(2);
-  if (digits.startsWith("0")) return digits.slice(1);
-  return digits.slice(-10);
+  if (digits.startsWith("49") && digits.length === 13) return digits.slice(2);
+  if (digits.startsWith("0049") && digits.length === 15) return digits.slice(4);
+  if (digits.startsWith("0") && digits.length === 12) return digits.slice(1);
+  return digits.slice(-11);
 }
 
 
@@ -102,13 +103,16 @@ function ProfilePage() {
     if (!operator) return;
     if (mobile.length !== 11) return toast.error("Mobile number must be 11 digits");
     const fullMobile = `+49${mobile}`;
+    const trimmedUsername = username.trim();
+    const usernameChanged =
+      !!trimmedUsername && trimmedUsername !== operator.username;
     setSaving(true);
     try {
       await updateProfile({
         data: {
           id: operator.id,
           current_password: currentPassword,
-          username: username.trim().toLowerCase() !== operator.username ? username : undefined,
+          username: usernameChanged ? trimmedUsername : undefined,
           new_password: newPassword || undefined,
           mobile: fullMobile,
           magic_word: magicWord || undefined,
@@ -120,7 +124,7 @@ function ProfilePage() {
       setMagicWord("");
       setOperator({
         ...operator,
-        username: username.trim().toLowerCase() || operator.username,
+        username: usernameChanged ? trimmedUsername : operator.username,
         mobile: fullMobile,
       });
     } catch (e) {
@@ -201,10 +205,16 @@ function ProfilePage() {
                 <Input
                   autoCapitalize="none"
                   autoCorrect="off"
+                  spellCheck={false}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Capitalization is preserved (e.g. <span className="font-medium">Shad</span>).
+                </p>
               </div>
+
+
 
               <div className="space-y-2">
                 <Label htmlFor="profile-mobile">Mobile number</Label>
