@@ -41,6 +41,11 @@ export type OperatorProfile = {
 
 const USERNAME_RE = /^[a-zA-Z0-9_.-]{2,32}$/;
 
+/** Compare usernames case-insensitively. */
+function sameName(a: string | null | undefined, b: string | null | undefined) {
+  return (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
+}
+
 function requireNonEmpty(v: unknown, field: string, max = 200): string {
   if (typeof v !== "string") throw new Error(`${field} is required`);
   const t = v.trim();
@@ -70,7 +75,7 @@ function normalizeDeMobile(v: unknown): string {
 export const signupOperator = createServerFn({ method: "POST" })
   .inputValidator(
     (data: { username: string; password: string; mobile: string; magic_word: string }) => {
-      const username = requireNonEmpty(data?.username, "Username", 32).toLowerCase();
+      const username = requireNonEmpty(data?.username, "Username", 32);
       if (!USERNAME_RE.test(username)) {
         throw new Error("Username must be 2–32 chars: letters, numbers, . _ -");
       }
@@ -90,7 +95,7 @@ export const signupOperator = createServerFn({ method: "POST" })
     const { data: existing } = await supabaseAdmin
       .from("operators")
       .select("id")
-      .eq("username", data.username)
+      .ilike("username", data.username)
       .maybeSingle();
     if (existing) throw new Error("Username is already taken");
     const { data: newId, error } = await supabaseAdmin.rpc("create_operator", {
@@ -105,7 +110,7 @@ export const signupOperator = createServerFn({ method: "POST" })
 
 export const verifyOperatorLogin = createServerFn({ method: "POST" })
   .inputValidator((data: { username: string; password: string }) => ({
-    username: requireNonEmpty(data?.username, "Username", 32).toLowerCase(),
+    username: requireNonEmpty(data?.username, "Username", 32),
     password: requireNonEmpty(data?.password, "Password", 200),
   }))
   .handler(async ({ data }) => {
@@ -147,7 +152,7 @@ export const updateOperatorProfile = createServerFn({ method: "POST" })
         magic_word?: string;
       } = { id: String(data.id), current_password };
       if (data.username !== undefined && data.username !== "") {
-        const u = String(data.username).trim().toLowerCase();
+        const u = String(data.username).trim();
         if (!USERNAME_RE.test(u)) throw new Error("Invalid username");
         out.username = u;
       }
@@ -184,12 +189,12 @@ export const updateOperatorProfile = createServerFn({ method: "POST" })
     if (err1) throw new Error(err1.message);
     if (!verifiedId) throw new Error("Current password is incorrect");
 
-    // If username is changing, ensure not taken.
-    if (data.username && data.username !== (row as { username: string }).username) {
+    // If username is changing (case-insensitively), ensure not taken by another operator.
+    if (data.username && !sameName(data.username, (row as { username: string }).username)) {
       const { data: dup } = await supabaseAdmin
         .from("operators")
         .select("id")
-        .eq("username", data.username)
+        .ilike("username", data.username)
         .maybeSingle();
       if (dup && (dup as { id: string }).id !== data.id) {
         throw new Error("Username is already taken");
