@@ -83,8 +83,8 @@ export const signupOperator = createServerFn({ method: "POST" })
   )
 
   .handler(async ({ data }) => {
-    // Signup is intentionally accessible without the site gate so new
-    // operators can register from the unlock page.
+    // Only an authenticated admin may provision new operator accounts.
+    await requireAdminSession();
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing } = await supabaseAdmin

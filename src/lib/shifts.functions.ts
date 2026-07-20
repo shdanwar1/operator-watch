@@ -166,12 +166,21 @@ export const createPastShift = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data }) => {
-    await requireGate();
+    const { username, isAdmin } = await requireGate();
+    // Non-admins may only create past shifts under their own operator name.
+    const operator_name =
+      isAdmin
+        ? data.operator_name
+        : username && data.operator_name.toLowerCase() === username.toLowerCase()
+          ? username
+          : (() => {
+              throw new Response("Forbidden", { status: 403 });
+            })();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("shifts")
       .insert({
-        operator_name: data.operator_name,
+        operator_name,
         check_in_at: data.check_in_at,
         check_out_at: data.check_out_at,
         classes: data.classes,
@@ -238,17 +247,48 @@ function sanitizeShiftPatch(patch: ShiftPatch): ShiftPatch {
   return out;
 }
 
+/** Load a shift's owner and enforce that the caller is the owner or an admin. */
+async function assertShiftOwnership(
+  shiftId: string,
+  username: string | null,
+  isAdmin: boolean,
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: existing, error } = await supabaseAdmin
+    .from("shifts")
+    .select("id, operator_name")
+    .eq("id", shiftId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!existing) throw new Response("Shift not found", { status: 404 });
+  if (isAdmin) return existing as { id: string; operator_name: string };
+  const owner = String((existing as { operator_name: string }).operator_name ?? "");
+  if (!username || owner.toLowerCase() !== username.toLowerCase()) {
+    throw new Response("Forbidden", { status: 403 });
+  }
+  return existing as { id: string; operator_name: string };
+}
+
 export const updateShift = createServerFn({ method: "POST" })
   .inputValidator((data: { id: string; patch: ShiftPatch }) => {
     if (!data?.id) throw new Error("id required");
     return { id: String(data.id), patch: sanitizeShiftPatch(data.patch ?? {}) };
   })
   .handler(async ({ data }) => {
-    await requireGate();
+    const { username, isAdmin } = await requireGate();
+    await assertShiftOwnership(data.id, username, isAdmin);
+    // Non-admins may not reassign a shift to another operator.
+    const patch = { ...data.patch };
+    if (!isAdmin && patch.operator_name !== undefined) {
+      if (!username || patch.operator_name.toLowerCase() !== username.toLowerCase()) {
+        throw new Response("Forbidden", { status: 403 });
+      }
+      delete patch.operator_name;
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("shifts")
-      .update(data.patch as never)
+      .update(patch as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true as const };
@@ -260,7 +300,8 @@ export const deleteShift = createServerFn({ method: "POST" })
     return { id: String(data.id) };
   })
   .handler(async ({ data }) => {
-    await requireGate();
+    const { username, isAdmin } = await requireGate();
+    await assertShiftOwnership(data.id, username, isAdmin);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("shifts").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
