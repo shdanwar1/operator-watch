@@ -216,7 +216,7 @@ export const updateOperatorProfile = createServerFn({ method: "POST" })
 // through on every call — no separate admin session cookie.
 export const adminListShifts = createServerFn({ method: "POST" })
   .inputValidator((data: { username: string; password: string }) => ({
-    username: requireNonEmpty(data?.username, "Username", 32).toLowerCase(),
+    username: requireNonEmpty(data?.username, "Username", 32),
     password: requireNonEmpty(data?.password, "Password", 200),
   }))
   .handler(async ({ data }) => {
