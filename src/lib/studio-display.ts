@@ -144,9 +144,10 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
       pulse: false,
     };
   }
+  const sinceLive = nowMs - warmupEnd.getTime();
   return {
     phase: "live",
-    label: "Class Live",
+    label: sinceLive < 30_000 ? "Class Live" : "Time Remaining",
     bg: "bg-emerald-600",
     fg: "text-white",
     timerMs: untilEnd,
