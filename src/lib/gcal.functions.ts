@@ -244,7 +244,7 @@ function parseIcs(ics: string): ParsedEvent[] {
 export const SHIFT_CONFIG = {
   preClassBufferMin: 30,
   postClassBufferMin: 15,
-  maxGapMin: 15,
+  maxGapMin: 90,
 } as const;
 
 type ClassEvent = {
