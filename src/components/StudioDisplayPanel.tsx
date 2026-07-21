@@ -20,9 +20,8 @@ export function StudioDisplayPanel() {
 
   if (!ready) return null;
 
-  const { phase, remainingMs } = computeTimer(state);
-  const label =
-    phase === "before" ? "Class starts in" : phase === "running" ? "Time remaining" : "Class complete";
+  const stage = computeStage(state);
+  const label = stage.label;
 
   const openDisplay = () => {
     if (displayWinRef.current && !displayWinRef.current.closed) {
