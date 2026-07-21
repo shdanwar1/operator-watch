@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useStudioDisplay } from "@/hooks/useStudioDisplay";
-import { computeTimer, formatMMSS } from "@/lib/studio-display";
+import { computeStage, formatMMSS } from "@/lib/studio-display";
 
 export const Route = createFileRoute("/display")({
   component: DisplayScreen,
@@ -25,43 +25,61 @@ function DisplayScreen() {
 
   if (!ready) return null;
 
-  const { phase, remainingMs } = computeTimer(state);
-  const label =
-    phase === "before"
-      ? "Class starts in"
-      : phase === "running"
-        ? "Time remaining"
-        : "Class complete";
-
-  const timeColor =
-    phase === "running" && remainingMs < 60_000
-      ? "text-red-400"
-      : phase === "complete"
-        ? "text-emerald-400"
-        : "text-white";
-
-  const closingNote =
-    phase === "complete" && !state.notes.trim() ? "Thank you! See you next class." : state.notes;
+  const stage = computeStage(state);
+  const hasNotes = !!state.notes.trim();
+  const notesTone = stage.phase === "warn5" ? "text-neutral-900/85" : "text-white/85";
+  const dividerTone = stage.phase === "warn5" ? "bg-neutral-900/20" : "bg-white/20";
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center bg-black px-8 text-white">
-      <div className="mb-8 text-lg font-medium uppercase tracking-[0.35em] text-white/60 sm:text-2xl">
-        {label}
+    <div
+      className={`fixed inset-0 flex flex-col items-center justify-center overflow-hidden ${stage.bg} ${stage.fg} transition-colors duration-700 ease-out ${stage.pulse ? "sd-pulse-bg" : ""}`}
+      style={{ padding: "clamp(1rem, 4vmin, 4rem)" }}
+    >
+      <div className="flex w-full max-w-[92vw] flex-col items-center justify-center gap-[clamp(0.75rem,2vmin,2rem)] text-center">
+        <div
+          key={stage.label}
+          className="sd-fade font-medium uppercase opacity-70"
+          style={{
+            fontSize: "clamp(0.85rem, 2vw, 2rem)",
+            letterSpacing: "0.32em",
+          }}
+        >
+          {stage.label}
+        </div>
+
+        <div
+          className={`sd-fade font-mono font-bold leading-none tabular-nums ${stage.blink ? "sd-blink" : ""}`}
+          style={{
+            fontSize: "clamp(5rem, 26vmin, 32rem)",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {formatMMSS(stage.timerMs)}
+        </div>
+
+        {hasNotes && (
+          <>
+            <div
+              className={`${dividerTone} h-px w-[min(50vw,32rem)]`}
+              style={{ marginTop: "clamp(0.5rem, 2vmin, 2rem)" }}
+            />
+            <div
+              key={state.notes}
+              className={`sd-fade whitespace-pre-wrap text-center font-medium leading-snug ${notesTone}`}
+              style={{
+                fontSize:
+                  state.notes.length > 200
+                    ? "clamp(1rem, 1.6vw, 1.75rem)"
+                    : "clamp(1.15rem, 2.1vw, 2.25rem)",
+                maxWidth: "min(80ch, 90vw)",
+                marginTop: "clamp(0.5rem, 2vmin, 2rem)",
+              }}
+            >
+              {state.notes}
+            </div>
+          </>
+        )}
       </div>
-      <div
-        className={`font-mono text-[22vw] font-bold leading-none tabular-nums sm:text-[18vw] ${timeColor}`}
-        style={{ fontVariantNumeric: "tabular-nums" }}
-      >
-        {formatMMSS(remainingMs)}
-      </div>
-      {closingNote?.trim() && (
-        <>
-          <div className="my-10 h-px w-1/2 bg-white/15" />
-          <div className="max-w-4xl whitespace-pre-wrap text-center text-2xl leading-relaxed text-white/90 sm:text-3xl">
-            {closingNote}
-          </div>
-        </>
-      )}
     </div>
   );
 }

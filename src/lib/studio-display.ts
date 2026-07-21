@@ -35,7 +35,7 @@ export function writeStudioDisplayState(state: StudioDisplayState) {
   window.localStorage.setItem(STUDIO_DISPLAY_KEY, JSON.stringify(state));
 }
 
-/** Combines "HH:MM" with today's date, or tomorrow if already past + far into next day. */
+/** Combines "HH:MM" with today's date. */
 export function resolveStartAt(startTime: string, ref: Date = new Date()): Date {
   const [h, m] = startTime.split(":").map((n) => parseInt(n, 10));
   const d = new Date(ref);
@@ -43,25 +43,117 @@ export function resolveStartAt(startTime: string, ref: Date = new Date()): Date 
   return d;
 }
 
-export type TimerPhase = "before" | "running" | "complete";
+export type StagePhase =
+  | "before"
+  | "warmup"
+  | "live"
+  | "warn5"
+  | "warn1"
+  | "final30"
+  | "complete";
 
-export function computeTimer(state: StudioDisplayState, now: Date = new Date()) {
+export type StageInfo = {
+  phase: StagePhase;
+  label: string;
+  bg: string;      // tailwind bg class
+  fg: string;      // tailwind text class
+  timerMs: number; // ms to render in MM:SS
+  direction: "down" | "up";
+  blink: boolean;
+  pulse: boolean;
+};
+
+const WARMUP_MS = 60_000;
+
+export function computeStage(state: StudioDisplayState, now: Date = new Date()): StageInfo {
   const start = resolveStartAt(state.startTime, now);
-  const end = new Date(start.getTime() + state.durationMin * 60_000);
+  const warmupEnd = new Date(start.getTime() + WARMUP_MS);
+  const end = new Date(warmupEnd.getTime() + state.durationMin * 60_000);
   const nowMs = now.getTime();
-  let phase: TimerPhase;
-  let remainingMs: number;
+  const untilEnd = end.getTime() - nowMs;
+
   if (nowMs < start.getTime()) {
-    phase = "before";
-    remainingMs = start.getTime() - nowMs;
-  } else if (nowMs < end.getTime()) {
-    phase = "running";
-    remainingMs = end.getTime() - nowMs;
-  } else {
-    phase = "complete";
-    remainingMs = 0;
+    return {
+      phase: "before",
+      label: "Class starts in",
+      bg: "bg-black",
+      fg: "text-white",
+      timerMs: start.getTime() - nowMs,
+      direction: "down",
+      blink: false,
+      pulse: false,
+    };
   }
-  return { phase, remainingMs, start, end };
+  if (nowMs < warmupEnd.getTime()) {
+    return {
+      phase: "warmup",
+      label: "Wait for Participants",
+      bg: "bg-sky-600",
+      fg: "text-white",
+      timerMs: nowMs - start.getTime(), // counts up 0 → 60s
+      direction: "up",
+      blink: false,
+      pulse: false,
+    };
+  }
+  if (nowMs >= end.getTime()) {
+    return {
+      phase: "complete",
+      label: "Class Complete",
+      bg: "bg-black",
+      fg: "text-white",
+      timerMs: 0,
+      direction: "down",
+      blink: false,
+      pulse: false,
+    };
+  }
+  if (untilEnd <= 30_000) {
+    return {
+      phase: "final30",
+      label: "30 Seconds Remaining",
+      bg: "bg-red-600",
+      fg: "text-white",
+      timerMs: untilEnd,
+      direction: "down",
+      blink: true,
+      pulse: true,
+    };
+  }
+  if (untilEnd <= 60_000) {
+    return {
+      phase: "warn1",
+      label: "1 Minute Remaining",
+      bg: "bg-orange-500",
+      fg: "text-white",
+      timerMs: untilEnd,
+      direction: "down",
+      blink: false,
+      pulse: false,
+    };
+  }
+  if (untilEnd <= 5 * 60_000) {
+    return {
+      phase: "warn5",
+      label: "5 Minutes Remaining",
+      bg: "bg-yellow-400",
+      fg: "text-neutral-900",
+      timerMs: untilEnd,
+      direction: "down",
+      blink: false,
+      pulse: false,
+    };
+  }
+  return {
+    phase: "live",
+    label: "Class Live",
+    bg: "bg-emerald-600",
+    fg: "text-white",
+    timerMs: untilEnd,
+    direction: "down",
+    blink: false,
+    pulse: false,
+  };
 }
 
 export function formatMMSS(ms: number) {
@@ -69,4 +161,12 @@ export function formatMMSS(ms: number) {
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+// Back-compat shim for older callers.
+export function computeTimer(state: StudioDisplayState, now: Date = new Date()) {
+  const stage = computeStage(state, now);
+  const phase =
+    stage.phase === "before" ? "before" : stage.phase === "complete" ? "complete" : "running";
+  return { phase, remainingMs: stage.timerMs, stage };
 }

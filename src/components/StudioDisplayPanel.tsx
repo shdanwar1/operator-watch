@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Monitor, Timer } from "lucide-react";
 import { useStudioDisplay } from "@/hooks/useStudioDisplay";
-import { computeTimer, formatMMSS } from "@/lib/studio-display";
+import { computeStage, formatMMSS } from "@/lib/studio-display";
 
 export function StudioDisplayPanel() {
   const { state, update, ready } = useStudioDisplay("control");
@@ -20,9 +20,8 @@ export function StudioDisplayPanel() {
 
   if (!ready) return null;
 
-  const { phase, remainingMs } = computeTimer(state);
-  const label =
-    phase === "before" ? "Class starts in" : phase === "running" ? "Time remaining" : "Class complete";
+  const stage = computeStage(state);
+  const label = stage.label;
 
   const openDisplay = () => {
     if (displayWinRef.current && !displayWinRef.current.closed) {
@@ -66,7 +65,7 @@ export function StudioDisplayPanel() {
         <div className="rounded-lg border bg-muted/30 px-4 py-4 text-center">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
           <div className="mt-1 font-mono text-3xl font-semibold tabular-nums">
-            {formatMMSS(remainingMs)}
+            {formatMMSS(stage.timerMs)}
           </div>
         </div>
 
