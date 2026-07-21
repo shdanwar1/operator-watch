@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Monitor, Timer } from "lucide-react";
 import { useStudioDisplay } from "@/hooks/useStudioDisplay";
-import { computeTimer, formatMMSS } from "@/lib/studio-display";
+import { computeStage, formatMMSS } from "@/lib/studio-display";
 
 export function StudioDisplayPanel() {
   const { state, update, ready } = useStudioDisplay("control");

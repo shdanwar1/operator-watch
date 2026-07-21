@@ -184,3 +184,30 @@
 .hg-pulse {
   animation: hg-pulse 1s ease-in-out infinite;
 }
+
+/* Studio Display — fade-in for label/timer/notes swaps */
+@keyframes sd-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sd-fade {
+  animation: sd-fade-in 240ms ease-out both;
+}
+
+/* Studio Display — subtle blink for the final 30s timer */
+@keyframes sd-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.sd-blink {
+  animation: sd-blink 1s ease-in-out infinite;
+}
+
+/* Studio Display — gentle background pulse for the final stage */
+@keyframes sd-pulse-bg {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.12); }
+}
+.sd-pulse-bg {
+  animation: sd-pulse-bg 1.2s ease-in-out infinite;
+}
