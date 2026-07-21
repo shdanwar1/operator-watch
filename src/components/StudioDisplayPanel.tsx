@@ -65,7 +65,7 @@ export function StudioDisplayPanel() {
         <div className="rounded-lg border bg-muted/30 px-4 py-4 text-center">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
           <div className="mt-1 font-mono text-3xl font-semibold tabular-nums">
-            {formatMMSS(remainingMs)}
+            {formatMMSS(stage.timerMs)}
           </div>
         </div>
 
