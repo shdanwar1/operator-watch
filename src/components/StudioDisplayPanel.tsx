@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Monitor, Timer } from "lucide-react";
 import { useStudioDisplay } from "@/hooks/useStudioDisplay";
-import { computeStage, formatMMSS } from "@/lib/studio-display";
+import { computeStage, formatMMSS, MIN_DURATION_MIN } from "@/lib/studio-display";
 
 export function StudioDisplayPanel() {
   const { state, update, ready } = useStudioDisplay("control");
@@ -55,9 +55,9 @@ export function StudioDisplayPanel() {
             <Input
               id="sd-dur"
               type="number"
-              min={1}
+              min={MIN_DURATION_MIN}
               value={state.durationMin}
-              onChange={(e) => update({ durationMin: Math.max(1, parseInt(e.target.value) || 1) })}
+              onChange={(e) => update({ durationMin: Math.max(MIN_DURATION_MIN, parseInt(e.target.value) || MIN_DURATION_MIN) })}
             />
           </div>
         </div>

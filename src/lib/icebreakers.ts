@@ -1,76 +1,66 @@
-// Curated icebreaker sets shown before class begins.
-// Rotates every ~30s so the instructor always has a fresh prompt in view.
+// Rotating instructor prompts shown before class starts.
+// Categories combined; picker rotates every ~5 seconds and avoids
+// immediate repeats.
 
-export type IcebreakerItem = {
-  icon: "globe" | "smile" | "heart" | "sparkles" | "music" | "sun";
+export type PromptCategory = "greeting" | "starter" | "icebreaker" | "teaching";
+
+export type Prompt = {
   text: string;
+  category: PromptCategory;
 };
 
-export type IcebreakerSet = {
-  greeting: string; // shown as the big heading, e.g. "Hello everyone! 👋"
-  items: IcebreakerItem[];
-  tip: string;
-};
+export const PROMPTS: Prompt[] = [
+  // Greetings
+  { text: "Hello Elizabeth! 👋", category: "greeting" },
+  { text: "Hello Laura! 👋", category: "greeting" },
+  { text: "Nice to see everyone today! ✨", category: "greeting" },
+  { text: "Welcome in — glad you're here.", category: "greeting" },
+  { text: "Good to see familiar faces.", category: "greeting" },
+  { text: "Say hello to someone new today.", category: "greeting" },
 
-export const ICEBREAKERS: IcebreakerSet[] = [
-  {
-    greeting: "Hello everyone! 👋",
-    items: [
-      { icon: "globe", text: "Where are you joining us from today?" },
-      { icon: "smile", text: "How is everyone feeling today?" },
-      { icon: "heart", text: "Make everyone feel welcome and comfortable." },
-    ],
-    tip: "Break the ice, create a relaxed atmosphere, and connect with your participants.",
-  },
-  {
-    greeting: "Great to see you! 🌿",
-    items: [
-      { icon: "sun",  text: "What is one word to describe your mood right now?" },
-      { icon: "globe", text: "What city are you dancing from today?" },
-      { icon: "smile", text: "Give a wave to the person who just joined." },
-    ],
-    tip: "Greet participants by name — it instantly makes the room feel personal.",
-  },
-  {
-    greeting: "Welcome in! ✨",
-    items: [
-      { icon: "sparkles", text: "What are you looking forward to in today's class?" },
-      { icon: "music",    text: "Any song stuck in your head this morning?" },
-      { icon: "heart",    text: "Take a slow, deep breath together." },
-    ],
-    tip: "Lead the moment — do not just sit and wait for people to arrive.",
-  },
-  {
-    greeting: "Nice to have you here! 💫",
-    items: [
-      { icon: "smile", text: "What made you smile in the last 24 hours?" },
-      { icon: "sun",   text: "Coffee, tea, or water today?" },
-      { icon: "globe", text: "Any first-timers with us today?" },
-    ],
-    tip: "Keep it light and welcoming — questions with easy answers work best.",
-  },
-  {
-    greeting: "Let's warm up together! 🔥",
-    items: [
-      { icon: "music",    text: "What kind of music gets you moving?" },
-      { icon: "sparkles", text: "Roll your shoulders and shake out your hands." },
-      { icon: "heart",    text: "Say hi to someone whose name you recognise." },
-    ],
-    tip: "Movement + words = comfort. Get the room breathing and gently moving.",
-  },
-  {
-    greeting: "Hello beautiful people! 🌸",
-    items: [
-      { icon: "globe", text: "Tell us your city in the chat." },
-      { icon: "sun",   text: "How is the weather where you are?" },
-      { icon: "smile", text: "Wave hello to the camera." },
-    ],
-    tip: "Reading the chat out loud makes remote participants feel seen.",
-  },
+  // Conversation starters
+  { text: "How is everyone feeling today?", category: "starter" },
+  { text: "Where are you joining us from?", category: "starter" },
+  { text: "Has anyone attended before?", category: "starter" },
+  { text: "What are you excited for today?", category: "starter" },
+  { text: "What's one word to describe your mood?", category: "starter" },
+  { text: "Coffee, tea, or water today?", category: "starter" },
+  { text: "Any song stuck in your head this morning?", category: "starter" },
+  { text: "How's the weather where you are?", category: "starter" },
+
+  // Icebreaker reminders
+  { text: "Break the ice.", category: "icebreaker" },
+  { text: "Smile — the room follows your energy.", category: "icebreaker" },
+  { text: "Create a relaxed atmosphere.", category: "icebreaker" },
+  { text: "Don't wait silently — lead the room.", category: "icebreaker" },
+  { text: "Connect with everyone.", category: "icebreaker" },
+  { text: "Read chat messages out loud.", category: "icebreaker" },
+
+  // Teaching reminders
+  { text: "Welcome every participant by name.", category: "teaching" },
+  { text: "Create positive energy.", category: "teaching" },
+  { text: "Make everyone feel comfortable.", category: "teaching" },
+  { text: "Encourage interaction.", category: "teaching" },
+  { text: "Start conversations naturally.", category: "teaching" },
+  { text: "Keep it light and welcoming.", category: "teaching" },
 ];
 
-/** Deterministic rotation so all synced windows show the same set. */
-export function pickIcebreaker(now: Date = new Date()): IcebreakerSet {
-  const slot = Math.floor(now.getTime() / 30_000); // rotate every 30s
-  return ICEBREAKERS[slot % ICEBREAKERS.length];
+/**
+ * Deterministic rotation so every synced window shows the same prompt.
+ * Rotates every 5 seconds. Uses a stride that's coprime with the array
+ * length so the same prompt doesn't repeat back-to-back.
+ */
+export function pickPrompt(now: Date = new Date()): Prompt {
+  const slot = Math.floor(now.getTime() / 5_000);
+  const n = PROMPTS.length;
+  // stride coprime with n keeps the walk from repeating soon.
+  const stride = 7 % n === 0 ? 11 : 7;
+  return PROMPTS[(slot * stride) % n];
 }
+
+export const CATEGORY_LABEL: Record<PromptCategory, string> = {
+  greeting: "Greeting",
+  starter: "Conversation",
+  icebreaker: "Icebreaker",
+  teaching: "Reminder",
+};
