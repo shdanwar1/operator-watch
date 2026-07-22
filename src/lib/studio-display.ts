@@ -10,10 +10,11 @@ export type StudioDisplayState = {
 
 export const STUDIO_DISPLAY_KEY = "studio_display_state_v1";
 export const STUDIO_DISPLAY_CHANNEL = "studio-display";
+export const MIN_DURATION_MIN = 10;
 
 export const DEFAULT_STUDIO_DISPLAY_STATE: StudioDisplayState = {
   startTime: "14:00",
-  durationMin: 90,
+  durationMin: 60,
   notes: "",
   updatedAt: 0,
 };
@@ -44,91 +45,113 @@ export function resolveStartAt(startTime: string, ref: Date = new Date()): Date 
 }
 
 export type StagePhase =
-  | "before"
-  | "warmup"
-  | "live"
-  | "warn5"
-  | "warn1"
-  | "final30"
-  | "complete";
+  | "idle"          // no class scheduled recently / far in future
+  | "before"        // >10s before start, showing icebreakers
+  | "countdown10"   // final 10s cinematic countdown before class
+  | "joining"       // first 60s of class, blue, "Waiting for Participants"
+  | "startclass"    // 60s..90s, green, "Start the Class"
+  | "live"          // green, "Time Remaining"
+  | "warn5"         // yellow
+  | "warn1"         // orange
+  | "final30"       // red, blink
+  | "complete";     // black, "Class Complete"
 
 export type StageInfo = {
   phase: StagePhase;
   label: string;
-  bg: string;      // tailwind bg class (legacy — kept for control-panel preview)
-  bgColor: string; // hex color used by the display's fading background layer
-  fg: string;      // tailwind text class
-  timerMs: number; // ms to render in MM:SS
+  bgColor: string;
+  fg: "light" | "dark";
+  timerMs: number;
   direction: "down" | "up";
   blink: boolean;
   pulse: boolean;
+  // number to render for final-10 cinematic countdown
+  bigNumber?: number;
 };
 
-const WARMUP_MS = 60_000;
-
-// Palette used by the display's smooth background transition layer.
 export const STAGE_COLORS = {
   black: "#000000",
-  blue: "#0284c7",   // sky-600
-  green: "#059669",  // emerald-600
-  yellow: "#facc15", // yellow-400
-  orange: "#f97316", // orange-500
-  red: "#dc2626",    // red-600
+  blue: "#0b63d6",
+  green: "#059669",
+  yellow: "#facc15",
+  orange: "#f97316",
+  red: "#dc2626",
 } as const;
+
+const JOINING_MS = 60_000;   // first minute of class
+const STARTCLASS_MS = 30_000; // next 30s "START THE CLASS"
+const IDLE_AFTER_MS = 5 * 60_000; // 5 min after class ends → idle
 
 export function computeStage(state: StudioDisplayState, now: Date = new Date()): StageInfo {
   const start = resolveStartAt(state.startTime, now);
-  const warmupEnd = new Date(start.getTime() + WARMUP_MS);
-  const end = new Date(warmupEnd.getTime() + state.durationMin * 60_000);
+  const end = new Date(start.getTime() + state.durationMin * 60_000);
   const nowMs = now.getTime();
+  const untilStart = start.getTime() - nowMs;
   const untilEnd = end.getTime() - nowMs;
+  const sinceStart = nowMs - start.getTime();
 
+  // Before class
   if (nowMs < start.getTime()) {
+    if (untilStart <= 10_000) {
+      const n = Math.max(1, Math.ceil(untilStart / 1000));
+      return {
+        phase: "countdown10",
+        label: "",
+        bgColor: STAGE_COLORS.black,
+        fg: "light",
+        timerMs: untilStart,
+        direction: "down",
+        blink: false,
+        pulse: true,
+        bigNumber: n,
+      };
+    }
     return {
       phase: "before",
       label: "Class starts in",
-      bg: "bg-black",
       bgColor: STAGE_COLORS.black,
-      fg: "text-white",
-      timerMs: start.getTime() - nowMs,
+      fg: "light",
+      timerMs: untilStart,
       direction: "down",
       blink: false,
       pulse: false,
     };
   }
-  if (nowMs < warmupEnd.getTime()) {
-    return {
-      phase: "warmup",
-      label: "Wait for Participants",
-      bg: "bg-sky-600",
-      bgColor: STAGE_COLORS.blue,
-      fg: "text-white",
-      timerMs: nowMs - start.getTime(), // counts up 0 → 60s
-      direction: "up",
-      blink: false,
-      pulse: false,
-    };
-  }
+
+  // Ended
   if (nowMs >= end.getTime()) {
+    // Idle after a while
+    if (nowMs - end.getTime() > IDLE_AFTER_MS) {
+      return {
+        phase: "idle",
+        label: "Waiting for Next Class",
+        bgColor: STAGE_COLORS.black,
+        fg: "light",
+        timerMs: 0,
+        direction: "down",
+        blink: false,
+        pulse: false,
+      };
+    }
     return {
       phase: "complete",
       label: "Class Complete",
-      bg: "bg-black",
       bgColor: STAGE_COLORS.black,
-      fg: "text-white",
+      fg: "light",
       timerMs: 0,
       direction: "down",
       blink: false,
       pulse: false,
     };
   }
+
+  // In class — timer counts down from full duration
   if (untilEnd <= 30_000) {
     return {
       phase: "final30",
-      label: "30 Seconds Remaining",
-      bg: "bg-red-600",
+      label: "Final 30 Seconds",
       bgColor: STAGE_COLORS.red,
-      fg: "text-white",
+      fg: "light",
       timerMs: untilEnd,
       direction: "down",
       blink: true,
@@ -139,9 +162,8 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
     return {
       phase: "warn1",
       label: "1 Minute Remaining",
-      bg: "bg-orange-500",
       bgColor: STAGE_COLORS.orange,
-      fg: "text-white",
+      fg: "light",
       timerMs: untilEnd,
       direction: "down",
       blink: false,
@@ -152,29 +174,49 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
     return {
       phase: "warn5",
       label: "5 Minutes Remaining",
-      bg: "bg-yellow-400",
       bgColor: STAGE_COLORS.yellow,
-      fg: "text-neutral-900",
+      fg: "dark",
       timerMs: untilEnd,
       direction: "down",
       blink: false,
       pulse: false,
     };
   }
-  const sinceLive = nowMs - warmupEnd.getTime();
+  if (sinceStart < JOINING_MS) {
+    return {
+      phase: "joining",
+      label: "Waiting for Participants",
+      bgColor: STAGE_COLORS.blue,
+      fg: "light",
+      timerMs: untilEnd,
+      direction: "down",
+      blink: false,
+      pulse: false,
+    };
+  }
+  if (sinceStart < JOINING_MS + STARTCLASS_MS) {
+    return {
+      phase: "startclass",
+      label: "Start the Class",
+      bgColor: STAGE_COLORS.green,
+      fg: "light",
+      timerMs: untilEnd,
+      direction: "down",
+      blink: false,
+      pulse: false,
+    };
+  }
   return {
     phase: "live",
-    label: sinceLive < 30_000 ? "Class Live" : "Time Remaining",
-    bg: "bg-emerald-600",
+    label: "Time Remaining",
     bgColor: STAGE_COLORS.green,
-    fg: "text-white",
+    fg: "light",
     timerMs: untilEnd,
     direction: "down",
     blink: false,
     pulse: false,
   };
 }
-
 
 export function formatMMSS(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -183,10 +225,14 @@ export function formatMMSS(ms: number) {
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
-// Back-compat shim for older callers.
+// Back-compat shim
 export function computeTimer(state: StudioDisplayState, now: Date = new Date()) {
   const stage = computeStage(state, now);
   const phase =
-    stage.phase === "before" ? "before" : stage.phase === "complete" ? "complete" : "running";
+    stage.phase === "before" || stage.phase === "countdown10"
+      ? "before"
+      : stage.phase === "complete" || stage.phase === "idle"
+      ? "complete"
+      : "running";
   return { phase, remainingMs: stage.timerMs, stage };
 }
