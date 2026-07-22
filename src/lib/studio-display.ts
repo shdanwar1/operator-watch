@@ -55,7 +55,8 @@ export type StagePhase =
 export type StageInfo = {
   phase: StagePhase;
   label: string;
-  bg: string;      // tailwind bg class
+  bg: string;      // tailwind bg class (legacy — kept for control-panel preview)
+  bgColor: string; // hex color used by the display's fading background layer
   fg: string;      // tailwind text class
   timerMs: number; // ms to render in MM:SS
   direction: "down" | "up";
@@ -64,6 +65,16 @@ export type StageInfo = {
 };
 
 const WARMUP_MS = 60_000;
+
+// Palette used by the display's smooth background transition layer.
+export const STAGE_COLORS = {
+  black: "#000000",
+  blue: "#0284c7",   // sky-600
+  green: "#059669",  // emerald-600
+  yellow: "#facc15", // yellow-400
+  orange: "#f97316", // orange-500
+  red: "#dc2626",    // red-600
+} as const;
 
 export function computeStage(state: StudioDisplayState, now: Date = new Date()): StageInfo {
   const start = resolveStartAt(state.startTime, now);
@@ -77,6 +88,7 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
       phase: "before",
       label: "Class starts in",
       bg: "bg-black",
+      bgColor: STAGE_COLORS.black,
       fg: "text-white",
       timerMs: start.getTime() - nowMs,
       direction: "down",
@@ -89,6 +101,7 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
       phase: "warmup",
       label: "Wait for Participants",
       bg: "bg-sky-600",
+      bgColor: STAGE_COLORS.blue,
       fg: "text-white",
       timerMs: nowMs - start.getTime(), // counts up 0 → 60s
       direction: "up",
@@ -101,6 +114,7 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
       phase: "complete",
       label: "Class Complete",
       bg: "bg-black",
+      bgColor: STAGE_COLORS.black,
       fg: "text-white",
       timerMs: 0,
       direction: "down",
@@ -113,6 +127,7 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
       phase: "final30",
       label: "30 Seconds Remaining",
       bg: "bg-red-600",
+      bgColor: STAGE_COLORS.red,
       fg: "text-white",
       timerMs: untilEnd,
       direction: "down",
@@ -125,6 +140,7 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
       phase: "warn1",
       label: "1 Minute Remaining",
       bg: "bg-orange-500",
+      bgColor: STAGE_COLORS.orange,
       fg: "text-white",
       timerMs: untilEnd,
       direction: "down",
@@ -137,6 +153,7 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
       phase: "warn5",
       label: "5 Minutes Remaining",
       bg: "bg-yellow-400",
+      bgColor: STAGE_COLORS.yellow,
       fg: "text-neutral-900",
       timerMs: untilEnd,
       direction: "down",
@@ -149,6 +166,7 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
     phase: "live",
     label: sinceLive < 30_000 ? "Class Live" : "Time Remaining",
     bg: "bg-emerald-600",
+    bgColor: STAGE_COLORS.green,
     fg: "text-white",
     timerMs: untilEnd,
     direction: "down",
@@ -156,6 +174,7 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
     pulse: false,
   };
 }
+
 
 export function formatMMSS(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000));
