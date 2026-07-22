@@ -211,3 +211,14 @@
 .sd-pulse-bg {
   animation: sd-pulse-bg 1.2s ease-in-out infinite;
 }
+
+/* Studio Display — cinematic per-digit countdown (10..1) before class */
+@keyframes sd-countdown {
+  0%   { opacity: 0; transform: scale(1.35); }
+  25%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0.85; transform: scale(1.02); }
+}
+.sd-countdown {
+  animation: sd-countdown 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
