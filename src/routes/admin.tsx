@@ -726,7 +726,125 @@ function AdminDashboard() {
         operators={operators}
         onCreate={handleCreate}
       />
+
+      {/* Operator editor */}
+      <OperatorEditorDialog
+        operator={editingOp}
+        onClose={() => setEditingOp(null)}
+        onSave={async (patch) => {
+          if (!editingOp) return;
+          await updateOpFn({ data: { id: editingOp.id, ...patch } });
+          await refresh();
+          setEditingOp(null);
+          toast.success("Operator updated");
+        }}
+      />
     </div>
+  );
+}
+
+function OperatorEditorDialog({
+  operator,
+  onClose,
+  onSave,
+}: {
+  operator: OperatorBasic | null;
+  onClose: () => void;
+  onSave: (patch: { username?: string; pin?: string; magic_word?: string }) => Promise<void>;
+}) {
+  const [username, setUsername] = useState("");
+  const [pin, setPin] = useState("");
+  const [magic, setMagic] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (operator) {
+      setUsername(operator.username);
+      setPin("");
+      setMagic("");
+    }
+  }, [operator]);
+
+  if (!operator) return null;
+
+  async function submit() {
+    const changedName = username.trim() && username.trim() !== operator!.username;
+    if (changedName && !USERNAME_RE.test(username.trim())) {
+      return toast.error("Username must be 2–32 letters, numbers, . _ or -");
+    }
+    if (pin && !PIN_RE.test(pin)) {
+      return toast.error("PIN must contain exactly 4 digits");
+    }
+    if (!changedName && !pin && !magic.trim()) {
+      return toast.error("Nothing to save");
+    }
+    setSaving(true);
+    try {
+      await onSave({
+        username: changedName ? username.trim() : undefined,
+        pin: pin || undefined,
+        magic_word: magic.trim() || undefined,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Save failed";
+      toast.error(
+        /already in use|duplicate/i.test(msg) ? "This username is already in use." : msg,
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={!!operator} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit {operator.username}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Username</Label>
+            <Input
+              autoCapitalize="none"
+              autoCorrect="off"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">Capitalization is preserved.</p>
+          </div>
+          <div className="space-y-2">
+            <Label>New PIN</Label>
+            <Input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              placeholder="Leave blank to keep current"
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D+/g, ""))}
+              autoComplete="new-password"
+            />
+            <p className="text-[11px] text-muted-foreground">Exactly 4 digits.</p>
+          </div>
+          <div className="space-y-2">
+            <Label>New magic word</Label>
+            <Input
+              type="password"
+              placeholder="Leave blank to keep current"
+              value={magic}
+              onChange={(e) => setMagic(e.target.value)}
+              autoComplete="new-password"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={saving}>
+            <Save className="mr-1 h-4 w-4" />
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
