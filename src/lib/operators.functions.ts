@@ -8,7 +8,7 @@ import {
   sameUsername,
 } from "./validation";
 
-type GateSession = { unlocked?: boolean; username?: string; isAdmin?: boolean };
+type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
 function getGateConfig() {
   const password = process.env.SESSION_SECRET;

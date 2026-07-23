@@ -6,7 +6,7 @@ import {
   validateMagicWord,
 } from "./validation";
 
-type GateSession = { unlocked?: boolean; username?: string; isAdmin?: boolean };
+type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
 function getSessionConfig() {
   const password = process.env.SESSION_SECRET;
