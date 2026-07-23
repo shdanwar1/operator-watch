@@ -1141,16 +1141,17 @@ function TimeToLeaveDetails({
 
 function ProfileIncompleteBanner({ missing }: { missing: string[] }) {
   const parts: string[] = [];
-  if (missing.includes("home")) parts.push("travel time");
-  if (missing.includes("home") || missing.includes("calendar")) parts.push("check-in");
-  if (missing.includes("calendar")) parts.push("calendar availability");
+  if (missing.includes("home")) parts.push("Time to Leave");
+  if (missing.includes("home") || missing.includes("calendar") || missing.includes("magic"))
+    parts.push("Check In");
+  if (missing.includes("calendar")) parts.push("Google Calendar availability");
   const list = Array.from(new Set(parts));
   const featureText =
     list.length === 0
       ? "additional features"
       : list.length === 1
-        ? `${list[0]} features`
-        : `${list.slice(0, -1).join(", ")}, and ${list[list.length - 1]} features`;
+        ? list[0]
+        : `${list.slice(0, -1).join(", ")}, and ${list[list.length - 1]}`;
   return (
     <div className="mb-6 flex flex-col gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 sm:mb-8 sm:flex-row sm:items-center sm:gap-4">
       <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
