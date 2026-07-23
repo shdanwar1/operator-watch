@@ -79,16 +79,23 @@ export const listShifts = createServerFn({ method: "GET" }).handler(async () => 
 });
 
 export const listScheduledShifts = createServerFn({ method: "GET" }).handler(async () => {
-  await requireGate();
+  const { username, isAdmin } = await requireGate();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
+  let q = supabaseAdmin
     .from("scheduled_shifts")
     .select("*")
     .order("day_of_week")
     .order("start_time");
+  // Operators only see their own scheduled shifts. Admins see everything.
+  if (!isAdmin) {
+    if (!username) return [];
+    q = q.ilike("assigned_operator", username);
+  }
+  const { data, error } = await q;
   if (error) throw new Error(error.message);
   return (data ?? []) as ScheduledShiftRow[];
 });
+
 
 export const createShift = createServerFn({ method: "POST" })
   .inputValidator(
