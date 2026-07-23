@@ -313,25 +313,27 @@ function QAStage({ stage }: { stage: StageInfo }) {
   const progress = Math.max(0, Math.min(1, stage.timerMs / total));
 
   return (
-    <div className="flex w-full max-w-[95vw] flex-col items-center justify-center gap-[clamp(1rem,3vmin,2.5rem)] text-center">
+    <div className="flex h-full w-full max-w-[95vw] flex-col items-center justify-center text-center gap-[clamp(0.35rem,2vh,2rem)]">
       <div
-        className="font-medium uppercase text-white/70"
-        style={{ fontSize: "clamp(0.75rem, 1.3vw, 1.35rem)", letterSpacing: "0.36em" }}
+        className="shrink-0 font-medium uppercase text-white/70"
+        style={{ fontSize: "clamp(0.6rem, 1.6vmin, 1.35rem)", letterSpacing: "0.32em" }}
       >
         Class Complete
       </div>
       <div
-        className="font-semibold text-white"
-        style={{ fontSize: "clamp(1.75rem, 4vw, 3.25rem)", letterSpacing: "-0.02em" }}
+        className="shrink-0 font-semibold text-white"
+        style={{ fontSize: "clamp(1.1rem, 5vmin, 3.25rem)", letterSpacing: "-0.02em" }}
       >
         Q&amp;A
       </div>
 
-      <CircularTimer progress={progress} label={formatMMSS(stage.timerMs)} />
+      <div className="flex min-h-0 flex-1 items-center justify-center w-full">
+        <CircularTimer progress={progress} label={formatMMSS(stage.timerMs)} total={formatMMSS(total)} />
+      </div>
 
       <div
-        className="text-white/60"
-        style={{ fontSize: "clamp(0.85rem, 1.15vw, 1.15rem)", letterSpacing: "0.02em" }}
+        className="shrink-0 text-white/60"
+        style={{ fontSize: "clamp(0.65rem, 1.7vmin, 1.15rem)", letterSpacing: "0.02em" }}
       >
         Questions &amp; discussion
       </div>
@@ -339,25 +341,25 @@ function QAStage({ stage }: { stage: StageInfo }) {
   );
 }
 
-function CircularTimer({ progress, label }: { progress: number; label: string }) {
-  // SVG viewBox is 100x100 for easy math; the wrapper sets fluid size.
-  const size = "clamp(14rem, 42vmin, 34rem)";
+function CircularTimer({ progress, label, total }: { progress: number; label: string; total?: string }) {
   const R = 46;
   const C = 2 * Math.PI * R;
   const dash = C * progress;
   const stroke = 2.2;
 
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <div
+      className="relative aspect-square"
+      style={{
+        containerType: "inline-size",
+        width: "min(60vmin, 90vw)",
+        maxWidth: "100%",
+        maxHeight: "100%",
+        height: "auto",
+      }}
+    >
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90">
-        <circle
-          cx="50"
-          cy="50"
-          r={R}
-          fill="none"
-          stroke="rgba(255,255,255,0.12)"
-          strokeWidth={stroke}
-        />
+        <circle cx="50" cy="50" r={R} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
         <circle
           cx="50"
           cy="50"
@@ -370,13 +372,21 @@ function CircularTimer({ progress, label }: { progress: number; label: string })
           style={{ transition: "stroke-dasharray 900ms cubic-bezier(0.4, 0, 0.2, 1)" }}
         />
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-[0.2em]">
         <div
           className="font-mono font-semibold leading-none tabular-nums text-white"
-          style={{ fontSize: "clamp(2.5rem, 9vmin, 6.5rem)", letterSpacing: "-0.04em" }}
+          style={{ fontSize: "clamp(1rem, 18cqi, 6.5rem)", letterSpacing: "-0.04em" }}
         >
           {label}
         </div>
+        {total && (
+          <div
+            className="font-mono leading-none tabular-nums text-white/50"
+            style={{ fontSize: "clamp(0.5rem, 5cqi, 1.25rem)", letterSpacing: "0.05em" }}
+          >
+            / {total}
+          </div>
+        )}
       </div>
     </div>
   );
