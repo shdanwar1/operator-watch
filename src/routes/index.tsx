@@ -433,11 +433,15 @@ function Index() {
 
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
             {!loading && !active && focus === "time_to_leave" && (
-              !profileComplete ? (
+              checkInLocked ? (
                 <LockedFeatureCard
                   icon={<LogIn className="h-4 w-4" />}
                   title="Check In"
-                  reason="Complete your profile to enable Check In."
+                  reason={
+                    needsMagic
+                      ? "Set your magic word to enable Check In."
+                      : "Complete your profile to enable Check In."
+                  }
                 />
               ) : (
                 <CheckInPanel
