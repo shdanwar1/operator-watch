@@ -6,6 +6,7 @@ import {
   unlockSite,
   listOperatorProfiles,
   signInWithPin,
+  lockSite,
 } from "@/lib/gate.functions";
 import { getMyProfileStatus } from "@/lib/profile.functions";
 import { Button } from "@/components/ui/button";
