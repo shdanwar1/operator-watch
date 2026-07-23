@@ -6,6 +6,7 @@ import {
   unlockSite,
   listOperatorProfiles,
   signInWithPin,
+  lockSite,
 } from "@/lib/gate.functions";
 import { getMyProfileStatus } from "@/lib/profile.functions";
 import { Button } from "@/components/ui/button";
@@ -190,7 +191,19 @@ function Unlock() {
           />
         )}
         {stage === "select" && (
-          <SelectStage profiles={profiles} onPick={pickProfile} />
+          <SelectStage
+            profiles={profiles}
+            onPick={pickProfile}
+            onLock={async () => {
+              await lockSite();
+              setStage("site");
+              setProfiles([]);
+              setSelected(null);
+              setPin("");
+              setSitePw("");
+              toast.success("Studio locked");
+            }}
+          />
         )}
         {stage === "pin" && selected && (
           <PinStage
@@ -295,9 +308,11 @@ function SiteStage(props: {
 function SelectStage({
   profiles,
   onPick,
+  onLock,
 }: {
   profiles: Profile[];
   onPick: (p: Profile) => void;
+  onLock: () => void | Promise<void>;
 }) {
   return (
     <Card className="border-border/60 bg-card/60 backdrop-blur-xl p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-300">
@@ -332,9 +347,19 @@ function SelectStage({
           </button>
         ))}
       </div>
-      <div className="mt-5 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-        <Lock className="h-3 w-3" />
-        Switch users quickly without locking the studio.
+      <div className="mt-5 flex flex-col items-center gap-3">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void onLock()}
+          className="gap-1.5"
+        >
+          <Lock className="h-3.5 w-3.5" />
+          Lock studio
+        </Button>
+        <p className="text-xs text-muted-foreground text-center">
+          Locking requires the site password to re-enter.
+        </p>
       </div>
     </Card>
   );
