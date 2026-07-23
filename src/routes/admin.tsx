@@ -449,14 +449,22 @@ function AdminDashboard() {
                 return (
                   <label
                     key={op.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-muted"
+                    className={`flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-muted ${
+                      !op.is_active ? "opacity-50" : ""
+                    }`}
                   >
                     <Checkbox
-                      checked={checked}
+                      checked={checked && op.is_active}
+                      disabled={!op.is_active}
                       onCheckedChange={() => toggleOperatorFilter(op.username)}
                     />
                     <span className={`h-2 w-2 rounded-full ${c?.dot ?? "bg-muted-foreground"}`} />
                     <span className="truncate">{op.username}</span>
+                    {!op.is_active && (
+                      <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Inactive
+                      </span>
+                    )}
                   </label>
                 );
               })}
