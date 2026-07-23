@@ -172,6 +172,9 @@ function AdminDashboard() {
   const updateFn = useServerFn(updateScheduledShift);
   const deleteFn = useServerFn(deleteScheduledShift);
   const lockFn = useServerFn(signOutUser);
+  const updateOpFn = useServerFn(adminUpdateOperator);
+
+  const [editingOp, setEditingOp] = useState<OperatorBasic | null>(null);
 
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
