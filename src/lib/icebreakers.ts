@@ -1,66 +1,68 @@
-// Rotating instructor prompts shown before class starts.
-// Categories combined; picker rotates every ~5 seconds and avoids
-// immediate repeats.
-
-export type PromptCategory = "greeting" | "starter" | "icebreaker" | "teaching";
+// Short icebreaker prompts shown before class starts.
+// Each prompt: single emoji + one short sentence, readable in <2s.
 
 export type Prompt = {
+  emoji: string;
   text: string;
-  category: PromptCategory;
 };
 
 export const PROMPTS: Prompt[] = [
   // Greetings
-  { text: "Hello Elizabeth! 👋", category: "greeting" },
-  { text: "Hello Laura! 👋", category: "greeting" },
-  { text: "Nice to see everyone today! ✨", category: "greeting" },
-  { text: "Welcome in — glad you're here.", category: "greeting" },
-  { text: "Good to see familiar faces.", category: "greeting" },
-  { text: "Say hello to someone new today.", category: "greeting" },
+  { emoji: "👋", text: "Welcome everyone!" },
+  { emoji: "😊", text: "Great to see you all today." },
+  { emoji: "🌞", text: "Hope you're having a wonderful day." },
+  { emoji: "✨", text: "Thanks for joining today's class." },
+  { emoji: "💙", text: "Let's make today a great session." },
+  { emoji: "🌍", text: "Nice to see people from around the world." },
+  { emoji: "🎉", text: "Happy you're here." },
+  { emoji: "☕", text: "Hope you've got some energy today!" },
+  { emoji: "🌸", text: "Let's get ready for a beautiful class." },
+  { emoji: "💃", text: "Take a deep breath — we'll begin shortly." },
 
   // Conversation starters
-  { text: "How is everyone feeling today?", category: "starter" },
-  { text: "Where are you joining us from?", category: "starter" },
-  { text: "Has anyone attended before?", category: "starter" },
-  { text: "What are you excited for today?", category: "starter" },
-  { text: "What's one word to describe your mood?", category: "starter" },
-  { text: "Coffee, tea, or water today?", category: "starter" },
-  { text: "Any song stuck in your head this morning?", category: "starter" },
-  { text: "How's the weather where you are?", category: "starter" },
+  { emoji: "😊", text: "How are you feeling today?" },
+  { emoji: "🌍", text: "Where are you joining from today?" },
+  { emoji: "✨", text: "Is this your first class with us?" },
+  { emoji: "☀️", text: "How's your day been so far?" },
+  { emoji: "💃", text: "What made you choose today's class?" },
+  { emoji: "🎵", text: "Any song stuck in your head today?" },
+  { emoji: "☕", text: "Coffee, tea, or just surviving today?" },
+  { emoji: "🌦️", text: "What's the weather like where you are?" },
+  { emoji: "🌈", text: "What are you looking forward to this week?" },
+  { emoji: "🕺", text: "If your mood was a dance style, what would it be?" },
 
-  // Icebreaker reminders
-  { text: "Break the ice.", category: "icebreaker" },
-  { text: "Smile — the room follows your energy.", category: "icebreaker" },
-  { text: "Create a relaxed atmosphere.", category: "icebreaker" },
-  { text: "Don't wait silently — lead the room.", category: "icebreaker" },
-  { text: "Connect with everyone.", category: "icebreaker" },
-  { text: "Read chat messages out loud.", category: "icebreaker" },
-
-  // Teaching reminders
-  { text: "Welcome every participant by name.", category: "teaching" },
-  { text: "Create positive energy.", category: "teaching" },
-  { text: "Make everyone feel comfortable.", category: "teaching" },
-  { text: "Encourage interaction.", category: "teaching" },
-  { text: "Start conversations naturally.", category: "teaching" },
-  { text: "Keep it light and welcoming.", category: "teaching" },
+  // Encouragement
+  { emoji: "💙", text: "Smile before you begin." },
+  { emoji: "✨", text: "Create a relaxed atmosphere." },
+  { emoji: "🌸", text: "Make everyone feel welcome." },
+  { emoji: "👋", text: "Start with conversation before instruction." },
+  { emoji: "💬", text: "Give people a reason to speak." },
+  { emoji: "🤝", text: "Small interactions build stronger classes." },
+  { emoji: "😊", text: "Energy is contagious." },
+  { emoji: "🌞", text: "Keep the first minutes light." },
+  { emoji: "🎉", text: "A warm welcome creates a better class." },
+  { emoji: "💃", text: "Connection comes before choreography." },
 ];
 
 /**
- * Deterministic rotation so every synced window shows the same prompt.
- * Rotates every 5 seconds. Uses a stride that's coprime with the array
- * length so the same prompt doesn't repeat back-to-back.
+ * Deterministically pick 3 non-repeating prompts for the current 15s window.
+ * All synced windows show the same trio.
  */
-export function pickPrompt(now: Date = new Date()): Prompt {
-  const slot = Math.floor(now.getTime() / 5_000);
+export function pickPromptSet(now: Date = new Date()): Prompt[] {
+  const slot = Math.floor(now.getTime() / 15_000);
   const n = PROMPTS.length;
-  // stride coprime with n keeps the walk from repeating soon.
-  const stride = 7 % n === 0 ? 11 : 7;
-  return PROMPTS[(slot * stride) % n];
+  const stride = 7; // coprime with 30
+  const start = (slot * 3) % n;
+  const picks: Prompt[] = [];
+  const used = new Set<number>();
+  let i = 0;
+  while (picks.length < 3 && i < n * 2) {
+    const idx = (start + i * stride) % n;
+    if (!used.has(idx)) {
+      used.add(idx);
+      picks.push(PROMPTS[idx]);
+    }
+    i++;
+  }
+  return picks;
 }
-
-export const CATEGORY_LABEL: Record<PromptCategory, string> = {
-  greeting: "Greeting",
-  starter: "Conversation",
-  icebreaker: "Icebreaker",
-  teaching: "Reminder",
-};
