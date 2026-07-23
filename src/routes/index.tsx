@@ -473,7 +473,9 @@ function Index() {
                 reason="Google Calendar has not been connected."
               />
             )}
+            {!loading && !active && <StudioDisplayPanel />}
             {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
+
           </aside>
         </div>
 
