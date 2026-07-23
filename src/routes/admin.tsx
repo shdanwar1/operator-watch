@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { getGateStatus, lockSite } from "@/lib/gate.functions";
+import { getGateStatus, signOutUser } from "@/lib/gate.functions";
 import {
   adminListShiftsForSession,
   adminListOperators,
@@ -167,7 +167,7 @@ function AdminDashboard() {
   const createFn = useServerFn(createScheduledShift);
   const updateFn = useServerFn(updateScheduledShift);
   const deleteFn = useServerFn(deleteScheduledShift);
-  const lockFn = useServerFn(lockSite);
+  const lockFn = useServerFn(signOutUser);
 
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
