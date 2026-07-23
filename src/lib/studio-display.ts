@@ -54,7 +54,8 @@ export type StagePhase =
   | "warn5"         // yellow
   | "warn1"         // orange
   | "final30"       // red, blink
-  | "complete";     // black, "Class Complete"
+  | "qa"            // 5 min post-class Q&A with circular countdown
+  | "complete";     // (kept for back-compat) black, "Class Complete"
 
 export type StageInfo = {
   phase: StagePhase;
@@ -67,6 +68,8 @@ export type StageInfo = {
   pulse: boolean;
   // number to render for final-10 cinematic countdown
   bigNumber?: number;
+  // total duration of current phase (for progress rings)
+  totalMs?: number;
 };
 
 export const STAGE_COLORS = {
@@ -80,7 +83,7 @@ export const STAGE_COLORS = {
 
 const JOINING_MS = 60_000;   // first minute of class
 const STARTCLASS_MS = 30_000; // next 30s "START THE CLASS"
-const IDLE_AFTER_MS = 5 * 60_000; // 5 min after class ends → idle
+export const QA_MS = 5 * 60_000; // 5 min Q&A after class ends
 
 export function computeStage(state: StudioDisplayState, now: Date = new Date()): StageInfo {
   const start = resolveStartAt(state.startTime, now);
