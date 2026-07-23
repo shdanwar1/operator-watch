@@ -198,6 +198,7 @@ function CompleteProfile() {
                 title="Google Calendar"
                 value="Connected"
               />
+            )}
             {!needsMagic && profile.has_magic_word && (
               <CompletedRow
                 icon={<KeyRound className="h-4 w-4" />}
