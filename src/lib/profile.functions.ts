@@ -173,7 +173,13 @@ export const completeMyProfile = createServerFn({ method: "POST" })
     if (e0 || !op) throw new Error("Operator not found");
     const id = (op as { id: string }).id;
 
-    const patch: Record<string, unknown> = {};
+    const patch: {
+      home_label?: string;
+      home_lat?: number;
+      home_lng?: number;
+      calendar_ics_url?: string;
+      mobile?: string;
+    } = {};
 
     if (data.maps_url) {
       const { label, lat, lng } = await resolveGoogleMapsUrl(data.maps_url);
