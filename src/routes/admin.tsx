@@ -7,6 +7,7 @@ import {
   adminListOperators,
   adminUpdateOperator,
   adminCreateOperator,
+  adminSetOperatorActive,
   type OperatorBasic,
 } from "@/lib/operators.functions";
 import {
