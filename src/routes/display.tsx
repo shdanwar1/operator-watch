@@ -186,15 +186,14 @@ function PreClassStage({
     };
     const now = Date.now();
     const nextSlot = 15_000 - (now % 15_000);
-    const initial = setTimeout(function loop() {
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const initial = setTimeout(() => {
       tick();
-      // schedule next
-      const t = setInterval(tick, 15_000);
-      (loop as unknown as { _t?: number })._t = t as unknown as number;
+      interval = setInterval(tick, 15_000);
     }, nextSlot);
     return () => {
       clearTimeout(initial);
-      // best-effort interval cleanup — reload on unmount is fine
+      if (interval) clearInterval(interval);
     };
   }, []);
 
