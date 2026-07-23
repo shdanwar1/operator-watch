@@ -119,11 +119,28 @@ export const lockSite = createServerFn({ method: "POST" }).handler(async () => {
 export const getGateStatus = createServerFn({ method: "GET" }).handler(async () => {
   const session = await useSession<GateSession>(getSessionConfig());
   const siteUnlocked = Boolean(session.data.siteUnlocked);
-  const username = session.data.username ?? null;
-  const isAdmin = Boolean(session.data.isAdmin);
+  let username = session.data.username ?? null;
+  let isAdmin = Boolean(session.data.isAdmin);
+
+  // If the signed-in operator has been deactivated, drop them from the session
+  // so protected routes redirect back to the user-select screen immediately.
+  if (username && !isAdmin) {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin
+      .from("operators")
+      .select("is_active")
+      .ilike("username", username)
+      .maybeSingle();
+    if (!row || (row as { is_active: boolean }).is_active === false) {
+      await session.update({ siteUnlocked, username: undefined, isAdmin: false });
+      username = null;
+      isAdmin = false;
+    }
+  }
+
   return {
     siteUnlocked,
-    unlocked: siteUnlocked && Boolean(username), // fully signed in
+    unlocked: siteUnlocked && Boolean(username),
     username,
     isAdmin,
   };
