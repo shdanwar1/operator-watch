@@ -154,6 +154,8 @@ function Index() {
   const profileComplete = profileStatus?.complete ?? true;
   const needsHome = profileStatus?.missing.includes("home") ?? false;
   const needsCal = profileStatus?.missing.includes("calendar") ?? false;
+  const needsMagic = profileStatus?.missing.includes("magic") ?? false;
+  const checkInLocked = needsHome || needsCal || needsMagic;
 
   // Re-sync profile status when the tab regains focus (user may return
   // from /complete-profile or /profile with new information).
@@ -400,11 +402,15 @@ function Index() {
               ) : (
                 <TimeToLeaveCard scheduled={scheduled} now={now} variant="hero" />
               )
-            ) : !profileComplete ? (
+            ) : checkInLocked ? (
               <LockedFeatureCard
                 icon={<LogIn className="h-5 w-5" />}
                 title="Check In"
-                reason="Complete your profile to enable Check In."
+                reason={
+                  needsMagic
+                    ? "Set your magic word to enable Check In."
+                    : "Complete your profile to enable Check In."
+                }
                 hero
               />
             ) : (
@@ -427,11 +433,15 @@ function Index() {
 
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
             {!loading && !active && focus === "time_to_leave" && (
-              !profileComplete ? (
+              checkInLocked ? (
                 <LockedFeatureCard
                   icon={<LogIn className="h-4 w-4" />}
                   title="Check In"
-                  reason="Complete your profile to enable Check In."
+                  reason={
+                    needsMagic
+                      ? "Set your magic word to enable Check In."
+                      : "Complete your profile to enable Check In."
+                  }
                 />
               ) : (
                 <CheckInPanel
@@ -1131,16 +1141,17 @@ function TimeToLeaveDetails({
 
 function ProfileIncompleteBanner({ missing }: { missing: string[] }) {
   const parts: string[] = [];
-  if (missing.includes("home")) parts.push("travel time");
-  if (missing.includes("home") || missing.includes("calendar")) parts.push("check-in");
-  if (missing.includes("calendar")) parts.push("calendar availability");
+  if (missing.includes("home")) parts.push("Time to Leave");
+  if (missing.includes("home") || missing.includes("calendar") || missing.includes("magic"))
+    parts.push("Check In");
+  if (missing.includes("calendar")) parts.push("Google Calendar availability");
   const list = Array.from(new Set(parts));
   const featureText =
     list.length === 0
       ? "additional features"
       : list.length === 1
-        ? `${list[0]} features`
-        : `${list.slice(0, -1).join(", ")}, and ${list[list.length - 1]} features`;
+        ? list[0]
+        : `${list.slice(0, -1).join(", ")}, and ${list[list.length - 1]}`;
   return (
     <div className="mb-6 flex flex-col gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 sm:mb-8 sm:flex-row sm:items-center sm:gap-4">
       <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />

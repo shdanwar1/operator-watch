@@ -6,6 +6,7 @@ import {
   adminListShiftsForSession,
   adminListOperators,
   adminUpdateOperator,
+  adminCreateOperator,
   type OperatorBasic,
 } from "@/lib/operators.functions";
 import {
@@ -173,8 +174,10 @@ function AdminDashboard() {
   const deleteFn = useServerFn(deleteScheduledShift);
   const lockFn = useServerFn(signOutUser);
   const updateOpFn = useServerFn(adminUpdateOperator);
+  const createOpFn = useServerFn(adminCreateOperator);
 
   const [editingOp, setEditingOp] = useState<OperatorBasic | null>(null);
+  const [createOpOpen, setCreateOpOpen] = useState(false);
 
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
@@ -506,6 +509,14 @@ function AdminDashboard() {
           </div>
 
           {/* Operator workload */}
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Operators
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setCreateOpOpen(true)}>
+              <Plus className="mr-1 h-3.5 w-3.5" /> New operator
+            </Button>
+          </div>
           {operators.length > 0 && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {operators.map((op) => {
@@ -739,7 +750,105 @@ function AdminDashboard() {
           toast.success("Operator updated");
         }}
       />
+
+      {/* Create operator */}
+      <CreateOperatorDialog
+        open={createOpOpen}
+        onOpenChange={setCreateOpOpen}
+        onCreate={async ({ username, pin }) => {
+          await createOpFn({ data: { username, pin } });
+          await refresh();
+          setCreateOpOpen(false);
+          toast.success(`Operator ${username} created`);
+        }}
+      />
     </div>
+  );
+}
+
+function CreateOperatorDialog({
+  open,
+  onOpenChange,
+  onCreate,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onCreate: (data: { username: string; pin: string }) => Promise<void>;
+}) {
+  const [username, setUsername] = useState("");
+  const [pin, setPin] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setUsername("");
+      setPin("");
+      setSaving(false);
+    }
+  }, [open]);
+
+  async function submit() {
+    const u = username.trim();
+    if (!USERNAME_RE.test(u)) {
+      return toast.error("Username must be 2–32 letters, numbers, . _ or -");
+    }
+    if (!PIN_RE.test(pin)) {
+      return toast.error("PIN must contain exactly 4 digits");
+    }
+    setSaving(true);
+    try {
+      await onCreate({ username: u, pin });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to create operator");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>New operator</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Only a username and 4-digit PIN are needed. The operator sets their home
+            address, calendar, and magic word themselves on first login.
+          </p>
+          <div className="space-y-2">
+            <Label>Username</Label>
+            <Input
+              autoCapitalize="none"
+              autoCorrect="off"
+              placeholder="e.g. Alex"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">Capitalization is preserved.</p>
+          </div>
+          <div className="space-y-2">
+            <Label>PIN</Label>
+            <Input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              placeholder="4 digits"
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D+/g, ""))}
+              autoComplete="new-password"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={saving}>
+            <Save className="mr-1 h-4 w-4" />
+            {saving ? "Creating…" : "Create operator"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -300,3 +300,27 @@ export const adminUpdateOperator = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
+
+/** Admin: create a new operator. Only username + 4-digit PIN. Everything else is
+ *  left NULL so the new operator must complete their profile on first login. */
+export const adminCreateOperator = createServerFn({ method: "POST" })
+  .inputValidator((data: { username: string; pin: string }) => ({
+    username: validateUsername(data?.username),
+    pin: validatePin(data?.pin),
+  }))
+  .handler(async ({ data }) => {
+    await requireAdminSession();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: id, error } = await supabaseAdmin.rpc("admin_create_operator", {
+      p_username: data.username,
+      p_pin: data.pin,
+    });
+    if (error) {
+      const msg = error.message || "Failed to create operator";
+      if (/already in use|duplicate/i.test(msg)) {
+        throw new Error("This username is already in use.");
+      }
+      throw new Error(msg);
+    }
+    return { ok: true as const, id: id as string, username: data.username };
+  });
