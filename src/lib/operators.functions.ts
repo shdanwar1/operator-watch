@@ -62,6 +62,7 @@ export const getOperatorDisplayName = createServerFn({ method: "POST" })
     username: validateUsername(data?.username),
   }))
   .handler(async ({ data }): Promise<string | null> => {
+    await requireGate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row } = await supabaseAdmin
       .from("operators")
