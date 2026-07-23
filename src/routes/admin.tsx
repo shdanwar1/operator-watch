@@ -512,11 +512,19 @@ function AdminDashboard() {
                 const s = operatorStats.get(op.username) ?? { count: 0, minutes: 0 };
                 const c = opColor(op.username);
                 return (
-                  <Card key={op.id} className="overflow-hidden">
+                  <Card key={op.id} className="group overflow-hidden">
                     <CardContent className="p-3">
                       <div className="flex items-center gap-2">
                         <span className={`h-2.5 w-2.5 rounded-full ${c?.dot ?? "bg-muted-foreground"}`} />
                         <span className="truncate text-sm font-medium">{op.username}</span>
+                        <button
+                          type="button"
+                          onClick={() => setEditingOp(op)}
+                          className="ml-auto rounded-md p-1 text-muted-foreground opacity-0 transition hover:bg-muted hover:text-foreground group-hover:opacity-100 focus:opacity-100"
+                          aria-label={`Edit ${op.username}`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                       <div className="mt-2 flex items-baseline gap-1">
                         <span className="text-xl font-semibold tabular-nums">{s.count}</span>
