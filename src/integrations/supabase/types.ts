@@ -50,6 +50,7 @@ export type Database = {
           magic_word_hash: string
           mobile: string | null
           password_hash: string
+          pin_hash: string | null
           updated_at: string
           username: string
         }
@@ -64,6 +65,7 @@ export type Database = {
           magic_word_hash: string
           mobile?: string | null
           password_hash: string
+          pin_hash?: string | null
           updated_at?: string
           username: string
         }
@@ -78,6 +80,7 @@ export type Database = {
           magic_word_hash?: string
           mobile?: string | null
           password_hash?: string
+          pin_hash?: string | null
           updated_at?: string
           username?: string
         }
@@ -240,9 +243,21 @@ export type Database = {
           username: string
         }[]
       }
+      list_operators_for_selection: {
+        Args: never
+        Returns: {
+          id: string
+          is_admin: boolean
+          username: string
+        }[]
+      }
       mask_mobile: { Args: { p_mobile: string }; Returns: string }
       set_operator_home: {
         Args: { p_id: string; p_label: string; p_lat: number; p_lng: number }
+        Returns: undefined
+      }
+      set_operator_pin: {
+        Args: { p_id: string; p_pin: string }
         Returns: undefined
       }
       update_operator: {
@@ -261,6 +276,10 @@ export type Database = {
       }
       verify_operator_password: {
         Args: { p_password: string; p_username: string }
+        Returns: string
+      }
+      verify_operator_pin: {
+        Args: { p_pin: string; p_username: string }
         Returns: string
       }
     }
