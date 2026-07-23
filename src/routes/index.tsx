@@ -57,7 +57,6 @@ type Shift = ShiftRow;
 type ScheduledShift = ScheduledShiftRow;
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const OPERATOR_KEY = "lss_operator_name";
 
 function fmtTime(t: string) {
   const [hStr, mStr] = t.split(":");
