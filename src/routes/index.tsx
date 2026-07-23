@@ -41,9 +41,12 @@ export const Route = createFileRoute("/")({
   },
   loader: async () => {
     const { username } = await getGateStatus();
-    if (!username) return { username: null as string | null };
-    const canonical = await getOperatorDisplayName({ data: { username } });
-    return { username: canonical ?? username };
+    if (!username) return { username: null as string | null, profile: null as MyProfileStatus | null };
+    const [canonical, profile] = await Promise.all([
+      getOperatorDisplayName({ data: { username } }),
+      getMyProfileStatus().catch(() => null),
+    ]);
+    return { username: canonical ?? username, profile };
   },
   component: Index,
 });
