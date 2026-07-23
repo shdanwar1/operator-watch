@@ -176,6 +176,7 @@ function AdminDashboard() {
   const lockFn = useServerFn(signOutUser);
   const updateOpFn = useServerFn(adminUpdateOperator);
   const createOpFn = useServerFn(adminCreateOperator);
+  const setActiveFn = useServerFn(adminSetOperatorActive);
 
   const [editingOp, setEditingOp] = useState<OperatorBasic | null>(null);
   const [createOpOpen, setCreateOpOpen] = useState(false);
