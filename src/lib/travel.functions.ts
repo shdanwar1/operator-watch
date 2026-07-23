@@ -92,7 +92,7 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }): Promise<TimeToLeaveResult> => {
     const session = await useSession<GateSession>(getGateConfig());
-    if (!session.data.unlocked || !session.data.username) {
+    if (!session.data.siteUnlocked || !session.data.username) {
       return { ok: false, reason: "no_session" };
     }
 

@@ -21,7 +21,7 @@ function getSessionConfig() {
 
 async function requireGate() {
   const session = await useSession<GateSession>(getSessionConfig());
-  if (!session.data.unlocked) {
+  if (!session.data.siteUnlocked) {
     throw new Response("Unauthorized", { status: 401 });
   }
   return {

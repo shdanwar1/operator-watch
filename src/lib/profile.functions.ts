@@ -22,7 +22,7 @@ function getSessionConfig() {
 async function requireSignedIn() {
   const session = await useSession<GateSession>(getSessionConfig());
   const username = session.data.username;
-  if (!session.data.unlocked || !username) {
+  if (!session.data.siteUnlocked || !username) {
     throw new Response("Unauthorized", { status: 401 });
   }
   return { username, isAdmin: Boolean(session.data.isAdmin) };

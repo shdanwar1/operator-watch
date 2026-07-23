@@ -23,7 +23,7 @@ function getGateConfig() {
 
 async function requireGate() {
   const session = await useSession<GateSession>(getGateConfig());
-  if (!session.data.unlocked) throw new Response("Unauthorized", { status: 401 });
+  if (!session.data.siteUnlocked) throw new Response("Unauthorized", { status: 401 });
   return {
     username: session.data.username ?? null,
     isAdmin: !!session.data.isAdmin,

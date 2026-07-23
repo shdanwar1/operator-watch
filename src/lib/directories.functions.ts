@@ -16,7 +16,7 @@ function getSessionConfig() {
 
 async function requireGate() {
   const session = await useSession<GateSession>(getSessionConfig());
-  if (!session.data.unlocked) throw new Response("Unauthorized", { status: 401 });
+  if (!session.data.siteUnlocked) throw new Response("Unauthorized", { status: 401 });
 }
 
 export type DirectoryItem = {
