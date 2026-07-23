@@ -236,7 +236,7 @@ export function computeTimer(state: StudioDisplayState, now: Date = new Date()) 
   const phase =
     stage.phase === "before" || stage.phase === "countdown10"
       ? "before"
-      : stage.phase === "complete" || stage.phase === "idle"
+      : stage.phase === "complete" || stage.phase === "idle" || stage.phase === "qa"
       ? "complete"
       : "running";
   return { phase, remainingMs: stage.timerMs, stage };
