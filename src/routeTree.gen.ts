@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UnlockRouteImport } from './routes/unlock'
-import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ShiftsRouteImport } from './routes/shifts'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as EarningsRouteImport } from './routes/earnings'
@@ -23,11 +22,6 @@ import { Route as IndexRouteImport } from './routes/index'
 const UnlockRoute = UnlockRouteImport.update({
   id: '/unlock',
   path: '/unlock',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ShiftsRoute = ShiftsRouteImport.update({
@@ -80,7 +74,6 @@ export interface FileRoutesByFullPath {
   '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
   '/shifts': typeof ShiftsRoute
-  '/signup': typeof SignupRoute
   '/unlock': typeof UnlockRoute
 }
 export interface FileRoutesByTo {
@@ -92,7 +85,6 @@ export interface FileRoutesByTo {
   '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
   '/shifts': typeof ShiftsRoute
-  '/signup': typeof SignupRoute
   '/unlock': typeof UnlockRoute
 }
 export interface FileRoutesById {
@@ -105,7 +97,6 @@ export interface FileRoutesById {
   '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
   '/shifts': typeof ShiftsRoute
-  '/signup': typeof SignupRoute
   '/unlock': typeof UnlockRoute
 }
 export interface FileRouteTypes {
@@ -119,7 +110,6 @@ export interface FileRouteTypes {
     | '/earnings'
     | '/profile'
     | '/shifts'
-    | '/signup'
     | '/unlock'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -131,7 +121,6 @@ export interface FileRouteTypes {
     | '/earnings'
     | '/profile'
     | '/shifts'
-    | '/signup'
     | '/unlock'
   id:
     | '__root__'
@@ -143,7 +132,6 @@ export interface FileRouteTypes {
     | '/earnings'
     | '/profile'
     | '/shifts'
-    | '/signup'
     | '/unlock'
   fileRoutesById: FileRoutesById
 }
@@ -156,7 +144,6 @@ export interface RootRouteChildren {
   EarningsRoute: typeof EarningsRoute
   ProfileRoute: typeof ProfileRoute
   ShiftsRoute: typeof ShiftsRoute
-  SignupRoute: typeof SignupRoute
   UnlockRoute: typeof UnlockRoute
 }
 
@@ -167,13 +154,6 @@ declare module '@tanstack/react-router' {
       path: '/unlock'
       fullPath: '/unlock'
       preLoaderRoute: typeof UnlockRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/shifts': {
@@ -244,7 +224,6 @@ const rootRouteChildren: RootRouteChildren = {
   EarningsRoute: EarningsRoute,
   ProfileRoute: ProfileRoute,
   ShiftsRoute: ShiftsRoute,
-  SignupRoute: SignupRoute,
   UnlockRoute: UnlockRoute,
 }
 export const routeTree = rootRouteImport

@@ -94,7 +94,7 @@ export const createShift = createServerFn({ method: "POST" })
   .inputValidator(
     (data: { magic_word: string; scheduled_shift_id?: string | null }) => {
       if (!data || typeof data.magic_word !== "string") {
-        throw new Error("magic_word is required");
+        throw new Error("Magic word is required");
       }
       const magic_word = data.magic_word.trim();
       if (!magic_word) throw new Error("Magic word is required");
@@ -107,18 +107,32 @@ export const createShift = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data }) => {
-    await requireGate();
+    // Session-authenticated: the signed-in operator checks themselves in.
+    // The magic word is still verified as a physical-presence proof.
+    const { username, isAdmin } = await requireGate();
+    if (!username || isAdmin) {
+      throw new Response("Sign in as an operator to check in", { status: 403 });
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: found, error: verr } = await supabaseAdmin.rpc("find_operator_by_magic", {
+    const { data: verifiedId, error: verr } = await supabaseAdmin.rpc("verify_operator_magic", {
+      p_username: username,
       p_magic: data.magic_word,
     });
     if (verr) throw new Error(verr.message);
-    const match = Array.isArray(found) ? (found[0] as { username: string } | undefined) : null;
-    if (!match) throw new Error("Wrong magic word");
+    if (!verifiedId) throw new Error("Incorrect magic word.");
+
+    // Load the canonical (case-preserved) username for storage/display.
+    const { data: op } = await supabaseAdmin
+      .from("operators")
+      .select("username")
+      .eq("id", verifiedId as string)
+      .maybeSingle();
+    const canonical = (op as { username: string } | null)?.username ?? username;
+
     const { data: row, error } = await supabaseAdmin
       .from("shifts")
       .insert({
-        operator_name: match.username,
+        operator_name: canonical,
         scheduled_shift_id: data.scheduled_shift_id,
       })
       .select()
