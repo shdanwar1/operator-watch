@@ -47,7 +47,7 @@ export type Database = {
           home_lng: number | null
           id: string
           is_admin: boolean
-          magic_word_hash: string
+          magic_word_hash: string | null
           pin_hash: string | null
           updated_at: string
           username: string
@@ -60,7 +60,7 @@ export type Database = {
           home_lng?: number | null
           id?: string
           is_admin?: boolean
-          magic_word_hash: string
+          magic_word_hash?: string | null
           pin_hash?: string | null
           updated_at?: string
           username: string
@@ -73,7 +73,7 @@ export type Database = {
           home_lng?: number | null
           id?: string
           is_admin?: boolean
-          magic_word_hash?: string
+          magic_word_hash?: string | null
           pin_hash?: string | null
           updated_at?: string
           username?: string
@@ -221,6 +221,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_create_operator: {
+        Args: { p_pin: string; p_username: string }
+        Returns: string
+      }
       admin_update_operator: {
         Args: {
           p_id: string
