@@ -67,9 +67,7 @@ function CompleteProfile() {
       setMapsUrl("");
       setCalUrl("");
       toast.success("Profile updated");
-      if (fresh.complete) {
-        await router.navigate({ to: "/" });
-      }
+      if (fresh.complete) await router.navigate({ to: "/" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -105,8 +103,8 @@ function CompleteProfile() {
               <div className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <div>
-                  You can skip for now and continue with limited access. You'll
-                  be reminded on your dashboard.
+                  You can skip for now and continue with limited access. You'll be
+                  reminded on your dashboard.
                 </div>
               </div>
             )}
@@ -120,8 +118,8 @@ function CompleteProfile() {
                   </h2>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Used to calculate your travel time to the studio so we can
-                  tell you exactly when to leave for every shift.
+                  Used to calculate your travel time to the studio so we can tell you exactly
+                  when to leave for every shift.
                 </p>
                 <Input
                   placeholder="https://maps.app.goo.gl/..."
@@ -131,8 +129,7 @@ function CompleteProfile() {
                   autoCorrect="off"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Open your home in Google Maps → Share → Copy link, then paste
-                  it here.
+                  Open your home in Google Maps → Share → Copy link, then paste it here.
                 </p>
               </div>
             )}
@@ -142,13 +139,12 @@ function CompleteProfile() {
                 <div className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4 text-primary" />
                   <h2 className="text-sm font-medium">
-                    Google Calendar URL{" "}
-                    <span className="text-destructive">*</span>
+                    Google Calendar URL <span className="text-destructive">*</span>
                   </h2>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Used to show your Time to Leave, prevent shift conflicts, and
-                  enable Check In when you're available.
+                  Used to show your Time to Leave, prevent shift conflicts, and enable Check In
+                  when you're available.
                 </p>
                 <Input
                   placeholder="https://calendar.google.com/calendar/..."
@@ -161,7 +157,11 @@ function CompleteProfile() {
             )}
 
             {!needsHome && profile.home_label && (
-              <CompletedRow icon={<Home className="h-4 w-4" />} title="Home address" value={profile.home_label} />
+              <CompletedRow
+                icon={<Home className="h-4 w-4" />}
+                title="Home address"
+                value={profile.home_label}
+              />
             )}
             {!needsCal && profile.calendar_ics_url && (
               <CompletedRow
@@ -202,8 +202,7 @@ function CompleteProfile() {
 
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
               <ShieldCheck className="h-3 w-3" />
-              Your information is stored securely and only used to power studio
-              features.
+              Your information is stored securely and only used to power studio features.
             </div>
           </CardContent>
         </Card>
