@@ -11,7 +11,7 @@ export const OFFICE = {
 // Always arrive this many minutes before the shift starts.
 export const ARRIVAL_BUFFER_MIN = 15;
 
-type GateSession = { unlocked?: boolean; username?: string; isAdmin?: boolean };
+type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
 function getGateConfig() {
   const password = process.env.SESSION_SECRET;
@@ -92,7 +92,7 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }): Promise<TimeToLeaveResult> => {
     const session = await useSession<GateSession>(getGateConfig());
-    if (!session.data.unlocked || !session.data.username) {
+    if (!session.data.siteUnlocked || !session.data.username) {
       return { ok: false, reason: "no_session" };
     }
 

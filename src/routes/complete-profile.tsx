@@ -33,11 +33,38 @@ export const Route = createFileRoute("/complete-profile")({
       },
     ],
   }),
+  errorComponent: ({ error, reset }) => {
+    const router = useRouter();
+    return (
+      <div className="min-h-screen grid place-items-center p-6 text-center">
+        <div className="max-w-md space-y-3">
+          <h1 className="text-lg font-semibold">This page didn't load</h1>
+          <p className="text-sm text-muted-foreground">{error?.message ?? "Something went wrong."}</p>
+          <div className="flex justify-center gap-2">
+            <Button onClick={() => { router.invalidate(); reset(); }}>Try again</Button>
+            <Button variant="outline" asChild><Link to="/unlock">Back to unlock</Link></Button>
+          </div>
+        </div>
+      </div>
+    );
+  },
   component: CompleteProfile,
 });
 
 function CompleteProfile() {
-  const { profile: initial } = Route.useLoaderData();
+  const loaderData = Route.useLoaderData() as { profile: MyProfileStatus } | undefined;
+  const initial: MyProfileStatus = loaderData?.profile ?? {
+    id: "",
+    username: "",
+    is_admin: false,
+    home_label: null,
+    home_lat: null,
+    home_lng: null,
+    calendar_ics_url: null,
+    has_magic_word: false,
+    missing: ["home", "calendar", "magic"],
+    complete: false,
+  };
   const router = useRouter();
   const saveFn = useServerFn(completeMyProfile);
   const refetch = useServerFn(getMyProfileStatus);
@@ -48,10 +75,12 @@ function CompleteProfile() {
   const [magic, setMagic] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const needsHome = profile.missing.includes("home");
-  const needsCal = profile.missing.includes("calendar");
-  const needsMagic = profile.missing.includes("magic");
+  const missing = profile.missing ?? [];
+  const needsHome = missing.includes("home");
+  const needsCal = missing.includes("calendar");
+  const needsMagic = missing.includes("magic");
   const allDone = profile.complete;
+
 
   async function save() {
     if (needsHome && !mapsUrl.trim()) return toast.error("Add your home address");

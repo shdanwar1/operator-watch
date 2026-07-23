@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
 
-type GateSession = { unlocked?: boolean; username?: string; isAdmin?: boolean };
+type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
 function getSessionConfig() {
   const password = process.env.SESSION_SECRET;
@@ -21,7 +21,7 @@ function getSessionConfig() {
 
 async function requireGate() {
   const session = await useSession<GateSession>(getSessionConfig());
-  if (!session.data.unlocked) {
+  if (!session.data.siteUnlocked) {
     throw new Response("Unauthorized", { status: 401 });
   }
   return {

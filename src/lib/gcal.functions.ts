@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
 
-type GateSession = { unlocked?: boolean; username?: string; isAdmin?: boolean };
+type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
 function getSessionConfig() {
   const password = process.env.SESSION_SECRET;
@@ -17,7 +17,7 @@ function getSessionConfig() {
 async function requireOperator() {
   const session = await useSession<GateSession>(getSessionConfig());
   const username = session.data.username ?? "";
-  if (!session.data.unlocked || session.data.isAdmin || !username) {
+  if (!session.data.siteUnlocked || session.data.isAdmin || !username) {
     throw new Response("Unauthorized", { status: 401 });
   }
   // Case-preserved; downstream lookups use ILIKE for case-insensitive matches.
