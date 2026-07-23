@@ -535,12 +535,22 @@ function AdminDashboard() {
               {operators.map((op) => {
                 const s = operatorStats.get(op.username) ?? { count: 0, minutes: 0 };
                 const c = opColor(op.username);
+                const inactive = !op.is_active;
                 return (
-                  <Card key={op.id} className="group overflow-hidden">
+                  <Card key={op.id} className={`group overflow-hidden ${inactive ? "opacity-60" : ""}`}>
                     <CardContent className="p-3">
                       <div className="flex items-center gap-2">
-                        <span className={`h-2.5 w-2.5 rounded-full ${c?.dot ?? "bg-muted-foreground"}`} />
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${
+                            inactive ? "bg-muted-foreground/50" : c?.dot ?? "bg-muted-foreground"
+                          }`}
+                        />
                         <span className="truncate text-sm font-medium">{op.username}</span>
+                        {inactive && (
+                          <Badge variant="outline" className="ml-1 h-4 px-1.5 text-[9px] font-normal uppercase">
+                            Inactive
+                          </Badge>
+                        )}
                         <button
                           type="button"
                           onClick={() => setEditingOp(op)}
