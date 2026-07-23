@@ -733,7 +733,7 @@ function AdminDashboard() {
       {/* Side panel: edit */}
       <ShiftEditSheet
         shift={selected}
-        operators={operators}
+        operators={activeOperators}
         weekDays={weekDays}
         shiftsByDay={shiftsByDay}
         onClose={() => setSelected(null)}
@@ -757,7 +757,7 @@ function AdminDashboard() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         defaultDayIndex={createDayIndex}
-        operators={operators}
+        operators={activeOperators}
         onCreate={handleCreate}
       />
 
@@ -771,6 +771,21 @@ function AdminDashboard() {
           await refresh();
           setEditingOp(null);
           toast.success("Operator updated");
+        }}
+        onSetActive={async (active, unassignFuture) => {
+          if (!editingOp) return;
+          const res = await setActiveFn({
+            data: { id: editingOp.id, active, unassign_future: unassignFuture },
+          });
+          await refresh();
+          setEditingOp(null);
+          if (active) {
+            toast.success(`${editingOp.username} activated`);
+          } else if (res.unassigned > 0) {
+            toast.success(`${editingOp.username} deactivated · ${res.unassigned} future shift(s) unassigned`);
+          } else {
+            toast.success(`${editingOp.username} deactivated`);
+          }
         }}
       />
 
