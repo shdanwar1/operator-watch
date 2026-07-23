@@ -5,6 +5,7 @@ import { getGateStatus, signOutUser } from "@/lib/gate.functions";
 import {
   adminListShiftsForSession,
   adminListOperators,
+  adminUpdateOperator,
   type OperatorBasic,
 } from "@/lib/operators.functions";
 import {
@@ -44,7 +45,10 @@ import {
   XCircle,
   Sparkles,
   RefreshCw,
+  Pencil,
+  Save,
 } from "lucide-react";
+import { USERNAME_RE, PIN_RE } from "@/lib/validation";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin")({
