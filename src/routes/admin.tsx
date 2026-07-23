@@ -850,6 +850,7 @@ function CreateOperatorDialog({
       </DialogContent>
     </Dialog>
   );
+}
 
 function OperatorEditorDialog({
   operator,
