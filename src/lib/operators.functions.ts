@@ -262,6 +262,7 @@ export const adminListOperators = createServerFn({ method: "GET" }).handler(asyn
   const { data, error } = await supabaseAdmin
     .from("operators")
     .select("id, username, is_admin")
+    .eq("is_admin", false)
     .order("username");
   if (error) throw new Error(error.message);
   return (data ?? []) as OperatorBasic[];
