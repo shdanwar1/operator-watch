@@ -261,11 +261,25 @@ export const adminListOperators = createServerFn({ method: "GET" }).handler(asyn
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("operators")
-    .select("id, username, is_admin")
+    .select("id, username, is_admin, is_active")
     .eq("is_admin", false)
     .order("username");
   if (error) throw new Error(error.message);
-  return (data ?? []) as OperatorBasic[];
+  const rows = (data ?? []) as { id: string; username: string; is_admin: boolean; is_active: boolean }[];
+
+  // Count future assigned shifts per operator (scheduled_shifts).
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const { data: futureRows } = await supabaseAdmin
+    .from("scheduled_shifts")
+    .select("assigned_operator, specific_date")
+    .not("assigned_operator", "is", null)
+    .or(`specific_date.gte.${todayIso},specific_date.is.null`);
+  const counts = new Map<string, number>();
+  for (const r of (futureRows ?? []) as { assigned_operator: string | null }[]) {
+    if (!r.assigned_operator) continue;
+    counts.set(r.assigned_operator, (counts.get(r.assigned_operator) ?? 0) + 1);
+  }
+  return rows.map((r) => ({ ...r, future_shift_count: counts.get(r.username) ?? 0 })) as OperatorBasic[];
 });
 
 /** Admin: update any operator's username / PIN / magic word. */
@@ -300,6 +314,52 @@ export const adminUpdateOperator = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     return { ok: true as const };
+  });
+
+/** Admin: activate or deactivate an operator. */
+export const adminSetOperatorActive = createServerFn({ method: "POST" })
+  .inputValidator(
+    (data: { id: string; active: boolean; unassign_future?: boolean }) => {
+      if (!data?.id) throw new Error("id required");
+      return {
+        id: String(data.id),
+        active: Boolean(data.active),
+        unassign_future: Boolean(data.unassign_future),
+      };
+    },
+  )
+  .handler(async ({ data }) => {
+    await requireAdminSession();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: opRow, error: e0 } = await supabaseAdmin
+      .from("operators")
+      .select("username")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (e0) throw new Error(e0.message);
+    if (!opRow) throw new Error("Operator not found");
+    const username = (opRow as { username: string }).username;
+
+    const { error } = await supabaseAdmin.rpc("admin_set_operator_active", {
+      p_id: data.id,
+      p_active: data.active,
+    });
+    if (error) throw new Error(error.message);
+
+    let unassigned = 0;
+    if (!data.active && data.unassign_future) {
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const { data: rows, error: e1 } = await supabaseAdmin
+        .from("scheduled_shifts")
+        .update({ assigned_operator: null, status: "unassigned" })
+        .eq("assigned_operator", username)
+        .or(`specific_date.gte.${todayIso},specific_date.is.null`)
+        .select("id");
+      if (e1) throw new Error(e1.message);
+      unassigned = (rows ?? []).length;
+    }
+    return { ok: true as const, unassigned };
   });
 
 /** Admin: create a new operator. Only username + 4-digit PIN. Everything else is
