@@ -154,6 +154,8 @@ function Index() {
   const profileComplete = profileStatus?.complete ?? true;
   const needsHome = profileStatus?.missing.includes("home") ?? false;
   const needsCal = profileStatus?.missing.includes("calendar") ?? false;
+  const needsMagic = profileStatus?.missing.includes("magic") ?? false;
+  const checkInLocked = needsHome || needsCal || needsMagic;
 
   // Re-sync profile status when the tab regains focus (user may return
   // from /complete-profile or /profile with new information).
