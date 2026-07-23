@@ -749,6 +749,8 @@ function AdminDashboard() {
           setEditingOp(null);
           toast.success("Operator updated");
         }}
+      />
+
       {/* Create operator */}
       <CreateOperatorDialog
         open={createOpOpen}
