@@ -52,7 +52,7 @@ export type OperatorProfile = {
   calendar_ics_url: string | null;
 };
 
-export type OperatorBasic = { id: string; username: string; is_admin: boolean };
+export type OperatorBasic = { id: string; username: string; is_admin: boolean; is_active: boolean; future_shift_count: number };
 
 // ---------- self-service ----------
 
