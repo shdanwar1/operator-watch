@@ -191,7 +191,19 @@ function Unlock() {
           />
         )}
         {stage === "select" && (
-          <SelectStage profiles={profiles} onPick={pickProfile} />
+          <SelectStage
+            profiles={profiles}
+            onPick={pickProfile}
+            onLock={async () => {
+              await lockSite();
+              setStage("site");
+              setProfiles([]);
+              setSelected(null);
+              setPin("");
+              setSitePw("");
+              toast.success("Studio locked");
+            }}
+          />
         )}
         {stage === "pin" && selected && (
           <PinStage
