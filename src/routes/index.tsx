@@ -1129,3 +1129,85 @@ function TimeToLeaveDetails({
   );
 }
 
+
+function ProfileIncompleteBanner({ missing }: { missing: string[] }) {
+  const parts: string[] = [];
+  if (missing.includes("home")) parts.push("travel time");
+  if (missing.includes("home") || missing.includes("calendar")) parts.push("check-in");
+  if (missing.includes("calendar")) parts.push("calendar availability");
+  const list = Array.from(new Set(parts));
+  const featureText =
+    list.length === 0
+      ? "additional features"
+      : list.length === 1
+        ? `${list[0]} features`
+        : `${list.slice(0, -1).join(", ")}, and ${list[list.length - 1]} features`;
+  return (
+    <div className="mb-6 flex flex-col gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 sm:mb-8 sm:flex-row sm:items-center sm:gap-4">
+      <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-medium text-foreground">
+          Your profile isn't complete
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Complete your profile to enable {featureText}.
+        </div>
+      </div>
+      <Button size="sm" asChild className="shrink-0">
+        <Link to="/complete-profile">Complete Profile</Link>
+      </Button>
+    </div>
+  );
+}
+
+function LockedFeatureCard({
+  icon,
+  title,
+  reason,
+  hero = false,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  reason: string;
+  hero?: boolean;
+}) {
+  return (
+    <Card className="border-dashed">
+      <CardContent
+        className={
+          hero
+            ? "flex flex-col items-center gap-4 px-4 py-10 text-center sm:py-12"
+            : "space-y-3 p-4"
+        }
+      >
+        <div
+          className={`flex items-center gap-2 ${hero ? "justify-center" : ""} text-muted-foreground`}
+        >
+          {icon}
+          <h2
+            className={
+              hero
+                ? "text-sm font-semibold uppercase tracking-wider"
+                : "text-xs font-semibold uppercase tracking-wider"
+            }
+          >
+            {title}
+          </h2>
+          <Lock className={hero ? "h-4 w-4" : "h-3 w-3"} />
+        </div>
+        <p
+          className={
+            hero
+              ? "max-w-xs text-sm text-muted-foreground"
+              : "text-xs text-muted-foreground"
+          }
+        >
+          {reason}
+        </p>
+        <Button size={hero ? "lg" : "sm"} asChild className={hero ? "mt-1" : "w-full"}>
+          <Link to="/complete-profile">Complete Profile</Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
