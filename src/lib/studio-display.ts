@@ -121,24 +121,26 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
     };
   }
 
-  // Ended
+  // Ended → Q&A window, then idle
   if (nowMs >= end.getTime()) {
-    // Idle after a while
-    if (nowMs - end.getTime() > IDLE_AFTER_MS) {
+    const sinceEnd = nowMs - end.getTime();
+    if (sinceEnd < QA_MS) {
+      const remaining = QA_MS - sinceEnd;
       return {
-        phase: "idle",
-        label: "Waiting for Next Class",
+        phase: "qa",
+        label: "Class Complete",
         bgColor: STAGE_COLORS.black,
         fg: "light",
-        timerMs: 0,
+        timerMs: remaining,
         direction: "down",
         blink: false,
         pulse: false,
+        totalMs: QA_MS,
       };
     }
     return {
-      phase: "complete",
-      label: "Class Complete",
+      phase: "idle",
+      label: "Waiting for Next Class",
       bgColor: STAGE_COLORS.black,
       fg: "light",
       timerMs: 0,
