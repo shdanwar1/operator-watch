@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, useRouter, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getGateStatus, lockSite } from "@/lib/gate.functions";
+import { getGateStatus, signOutUser } from "@/lib/gate.functions";
 import {
   listShifts,
   listScheduledShifts,
@@ -145,7 +145,7 @@ export function scheduledWindow(
 function Index() {
   const { username } = Route.useLoaderData();
   const router = useRouter();
-  const signOut = useServerFn(lockSite);
+  const signOut = useServerFn(signOutUser);
   const fetchShifts = useServerFn(listShifts);
   const fetchScheduled = useServerFn(listScheduledShifts);
   const fetchTeachers = useServerFn(listTeachers);
