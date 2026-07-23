@@ -7,6 +7,7 @@ import {
   listOperatorProfiles,
   signInWithPin,
 } from "@/lib/gate.functions";
+import { getMyProfileStatus } from "@/lib/profile.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
