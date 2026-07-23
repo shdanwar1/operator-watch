@@ -283,10 +283,13 @@ function AdminDashboard() {
     return map;
   }, [shiftsByDay, statusFilter, operatorFilter]);
 
-  // Operator workload (this week)
+  // Active-only operator list for scheduling / stats / assignment.
+  const activeOperators = useMemo(() => operators.filter((o) => o.is_active), [operators]);
+
+  // Operator workload (this week) — active operators only.
   const operatorStats = useMemo(() => {
     const stats = new Map<string, { count: number; minutes: number; next?: Assignment; nextDate?: Date }>();
-    for (const op of operators) stats.set(op.username, { count: 0, minutes: 0 });
+    for (const op of activeOperators) stats.set(op.username, { count: 0, minutes: 0 });
     const now = new Date();
     for (const d of weekDays) {
       const key = ymd(d);
@@ -307,7 +310,7 @@ function AdminDashboard() {
       }
     }
     return stats;
-  }, [operators, shiftsByDay, weekDays]);
+  }, [activeOperators, shiftsByDay, weekDays]);
 
   // Side statistics
   const sideStats = useMemo(() => {
