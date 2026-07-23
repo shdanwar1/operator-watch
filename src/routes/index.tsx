@@ -402,11 +402,15 @@ function Index() {
               ) : (
                 <TimeToLeaveCard scheduled={scheduled} now={now} variant="hero" />
               )
-            ) : !profileComplete ? (
+            ) : checkInLocked ? (
               <LockedFeatureCard
                 icon={<LogIn className="h-5 w-5" />}
                 title="Check In"
-                reason="Complete your profile to enable Check In."
+                reason={
+                  needsMagic
+                    ? "Set your magic word to enable Check In."
+                    : "Complete your profile to enable Check In."
+                }
                 hero
               />
             ) : (
