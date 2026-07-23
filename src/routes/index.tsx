@@ -371,6 +371,10 @@ function Index() {
           </div>
         </header>
 
+        {!profileComplete && !active && (
+          <ProfileIncompleteBanner missing={profileStatus?.missing ?? []} />
+        )}
+
         <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
             {loading ? (
@@ -387,10 +391,22 @@ function Index() {
                 classes={classes}
               />
             ) : focus === "time_to_leave" ? (
-              <TimeToLeaveCard
-                scheduled={scheduled}
-                now={now}
-                variant="hero"
+              needsHome || needsCal ? (
+                <LockedFeatureCard
+                  icon={<Train className="h-5 w-5" />}
+                  title="Time to Leave"
+                  reason="Complete your profile to enable Time to Leave."
+                  hero
+                />
+              ) : (
+                <TimeToLeaveCard scheduled={scheduled} now={now} variant="hero" />
+              )
+            ) : !profileComplete ? (
+              <LockedFeatureCard
+                icon={<LogIn className="h-5 w-5" />}
+                title="Check In"
+                reason="Complete your profile to enable Check In."
+                hero
               />
             ) : (
               <CheckInPanel
@@ -412,22 +428,46 @@ function Index() {
 
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
             {!loading && !active && focus === "time_to_leave" && (
-              <CheckInPanel
-                magicWord={magicWord}
-                setMagicWord={setMagicWord}
-                openScheduled={openScheduled}
-                scheduled={scheduled}
-                onCheckIn={checkIn}
-                checkingIn={checkingIn}
-                variant="compact"
-              />
+              !profileComplete ? (
+                <LockedFeatureCard
+                  icon={<LogIn className="h-4 w-4" />}
+                  title="Check In"
+                  reason="Complete your profile to enable Check In."
+                />
+              ) : (
+                <CheckInPanel
+                  magicWord={magicWord}
+                  setMagicWord={setMagicWord}
+                  openScheduled={openScheduled}
+                  scheduled={scheduled}
+                  onCheckIn={checkIn}
+                  checkingIn={checkingIn}
+                  variant="compact"
+                />
+              )
             )}
             {!active && focus === "check_in" && (
-              <TimeToLeaveCard scheduled={scheduled} now={now} />
+              needsHome || needsCal ? (
+                <LockedFeatureCard
+                  icon={<Train className="h-4 w-4" />}
+                  title="Time to Leave"
+                  reason="Complete your profile to enable Time to Leave."
+                />
+              ) : (
+                <TimeToLeaveCard scheduled={scheduled} now={now} />
+              )
+            )}
+            {!loading && needsCal && (
+              <LockedFeatureCard
+                icon={<CalendarDays className="h-4 w-4" />}
+                title="Calendar availability"
+                reason="Google Calendar has not been connected."
+              />
             )}
             {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
           </aside>
         </div>
+
 
       </div>
     </div>
