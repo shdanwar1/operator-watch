@@ -147,9 +147,25 @@ export function scheduledWindow(
 }
 
 function Index() {
-  const { username } = Route.useLoaderData();
+  const { username, profile } = Route.useLoaderData();
   const router = useRouter();
   const signOut = useServerFn(signOutUser);
+  const fetchProfile = useServerFn(getMyProfileStatus);
+  const [profileStatus, setProfileStatus] = useState<MyProfileStatus | null>(profile);
+  const profileComplete = profileStatus?.complete ?? true;
+  const needsHome = profileStatus?.missing.includes("home") ?? false;
+  const needsCal = profileStatus?.missing.includes("calendar") ?? false;
+
+  // Re-sync profile status when the tab regains focus (user may return
+  // from /complete-profile or /profile with new information).
+  useEffect(() => {
+    const onFocus = () => {
+      fetchProfile().then(setProfileStatus).catch(() => {});
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [fetchProfile]);
+
   const fetchShifts = useServerFn(listShifts);
   const fetchScheduled = useServerFn(listScheduledShifts);
   const fetchTeachers = useServerFn(listTeachers);
