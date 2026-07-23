@@ -18,13 +18,14 @@ import {
 } from "@/lib/directories.functions";
 import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/lib/travel.functions";
 import { getOperatorDisplayName } from "@/lib/operators.functions";
+import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, Train, Home, MapPin, Wallet } from "lucide-react";
+import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, Train, Home, MapPin, Wallet, AlertTriangle, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 import { computeMonthly, CONTRACT_MONTHLY_HOURS } from "@/lib/earnings";
@@ -40,9 +41,12 @@ export const Route = createFileRoute("/")({
   },
   loader: async () => {
     const { username } = await getGateStatus();
-    if (!username) return { username: null as string | null };
-    const canonical = await getOperatorDisplayName({ data: { username } });
-    return { username: canonical ?? username };
+    if (!username) return { username: null as string | null, profile: null as MyProfileStatus | null };
+    const [canonical, profile] = await Promise.all([
+      getOperatorDisplayName({ data: { username } }),
+      getMyProfileStatus().catch(() => null),
+    ]);
+    return { username: canonical ?? username, profile };
   },
   component: Index,
 });
@@ -143,9 +147,25 @@ export function scheduledWindow(
 }
 
 function Index() {
-  const { username } = Route.useLoaderData();
+  const { username, profile } = Route.useLoaderData();
   const router = useRouter();
   const signOut = useServerFn(signOutUser);
+  const fetchProfile = useServerFn(getMyProfileStatus);
+  const [profileStatus, setProfileStatus] = useState<MyProfileStatus | null>(profile);
+  const profileComplete = profileStatus?.complete ?? true;
+  const needsHome = profileStatus?.missing.includes("home") ?? false;
+  const needsCal = profileStatus?.missing.includes("calendar") ?? false;
+
+  // Re-sync profile status when the tab regains focus (user may return
+  // from /complete-profile or /profile with new information).
+  useEffect(() => {
+    const onFocus = () => {
+      fetchProfile().then(setProfileStatus).catch(() => {});
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [fetchProfile]);
+
   const fetchShifts = useServerFn(listShifts);
   const fetchScheduled = useServerFn(listScheduledShifts);
   const fetchTeachers = useServerFn(listTeachers);
@@ -351,6 +371,10 @@ function Index() {
           </div>
         </header>
 
+        {!profileComplete && !active && (
+          <ProfileIncompleteBanner missing={profileStatus?.missing ?? []} />
+        )}
+
         <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
             {loading ? (
@@ -367,10 +391,22 @@ function Index() {
                 classes={classes}
               />
             ) : focus === "time_to_leave" ? (
-              <TimeToLeaveCard
-                scheduled={scheduled}
-                now={now}
-                variant="hero"
+              needsHome || needsCal ? (
+                <LockedFeatureCard
+                  icon={<Train className="h-5 w-5" />}
+                  title="Time to Leave"
+                  reason="Complete your profile to enable Time to Leave."
+                  hero
+                />
+              ) : (
+                <TimeToLeaveCard scheduled={scheduled} now={now} variant="hero" />
+              )
+            ) : !profileComplete ? (
+              <LockedFeatureCard
+                icon={<LogIn className="h-5 w-5" />}
+                title="Check In"
+                reason="Complete your profile to enable Check In."
+                hero
               />
             ) : (
               <CheckInPanel
@@ -392,22 +428,46 @@ function Index() {
 
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
             {!loading && !active && focus === "time_to_leave" && (
-              <CheckInPanel
-                magicWord={magicWord}
-                setMagicWord={setMagicWord}
-                openScheduled={openScheduled}
-                scheduled={scheduled}
-                onCheckIn={checkIn}
-                checkingIn={checkingIn}
-                variant="compact"
-              />
+              !profileComplete ? (
+                <LockedFeatureCard
+                  icon={<LogIn className="h-4 w-4" />}
+                  title="Check In"
+                  reason="Complete your profile to enable Check In."
+                />
+              ) : (
+                <CheckInPanel
+                  magicWord={magicWord}
+                  setMagicWord={setMagicWord}
+                  openScheduled={openScheduled}
+                  scheduled={scheduled}
+                  onCheckIn={checkIn}
+                  checkingIn={checkingIn}
+                  variant="compact"
+                />
+              )
             )}
             {!active && focus === "check_in" && (
-              <TimeToLeaveCard scheduled={scheduled} now={now} />
+              needsHome || needsCal ? (
+                <LockedFeatureCard
+                  icon={<Train className="h-4 w-4" />}
+                  title="Time to Leave"
+                  reason="Complete your profile to enable Time to Leave."
+                />
+              ) : (
+                <TimeToLeaveCard scheduled={scheduled} now={now} />
+              )
+            )}
+            {!loading && needsCal && (
+              <LockedFeatureCard
+                icon={<CalendarDays className="h-4 w-4" />}
+                title="Calendar availability"
+                reason="Google Calendar has not been connected."
+              />
             )}
             {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
           </aside>
         </div>
+
 
       </div>
     </div>
@@ -1069,3 +1129,85 @@ function TimeToLeaveDetails({
   );
 }
 
+
+function ProfileIncompleteBanner({ missing }: { missing: string[] }) {
+  const parts: string[] = [];
+  if (missing.includes("home")) parts.push("travel time");
+  if (missing.includes("home") || missing.includes("calendar")) parts.push("check-in");
+  if (missing.includes("calendar")) parts.push("calendar availability");
+  const list = Array.from(new Set(parts));
+  const featureText =
+    list.length === 0
+      ? "additional features"
+      : list.length === 1
+        ? `${list[0]} features`
+        : `${list.slice(0, -1).join(", ")}, and ${list[list.length - 1]} features`;
+  return (
+    <div className="mb-6 flex flex-col gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 sm:mb-8 sm:flex-row sm:items-center sm:gap-4">
+      <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-medium text-foreground">
+          Your profile isn't complete
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Complete your profile to enable {featureText}.
+        </div>
+      </div>
+      <Button size="sm" asChild className="shrink-0">
+        <Link to="/complete-profile">Complete Profile</Link>
+      </Button>
+    </div>
+  );
+}
+
+function LockedFeatureCard({
+  icon,
+  title,
+  reason,
+  hero = false,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  reason: string;
+  hero?: boolean;
+}) {
+  return (
+    <Card className="border-dashed">
+      <CardContent
+        className={
+          hero
+            ? "flex flex-col items-center gap-4 px-4 py-10 text-center sm:py-12"
+            : "space-y-3 p-4"
+        }
+      >
+        <div
+          className={`flex items-center gap-2 ${hero ? "justify-center" : ""} text-muted-foreground`}
+        >
+          {icon}
+          <h2
+            className={
+              hero
+                ? "text-sm font-semibold uppercase tracking-wider"
+                : "text-xs font-semibold uppercase tracking-wider"
+            }
+          >
+            {title}
+          </h2>
+          <Lock className={hero ? "h-4 w-4" : "h-3 w-3"} />
+        </div>
+        <p
+          className={
+            hero
+              ? "max-w-xs text-sm text-muted-foreground"
+              : "text-xs text-muted-foreground"
+          }
+        >
+          {reason}
+        </p>
+        <Button size={hero ? "lg" : "sm"} asChild className={hero ? "mt-1" : "w-full"}>
+          <Link to="/complete-profile">Complete Profile</Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}

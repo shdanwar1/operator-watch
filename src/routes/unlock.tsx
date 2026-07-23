@@ -7,6 +7,7 @@ import {
   listOperatorProfiles,
   signInWithPin,
 } from "@/lib/gate.functions";
+import { getMyProfileStatus } from "@/lib/profile.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -141,7 +142,18 @@ function Unlock() {
         data: { username: selected.username, pin: value },
       });
       if (res.ok) {
-        await router.navigate({ to: res.isAdmin ? "/admin" : "/" });
+        if (res.isAdmin) {
+          await router.navigate({ to: "/admin" });
+        } else {
+          try {
+            const status = await getMyProfileStatus();
+            await router.navigate({
+              to: status.complete ? "/" : "/complete-profile",
+            });
+          } catch {
+            await router.navigate({ to: "/" });
+          }
+        }
       } else {
         setPinErr(true);
         setPin("");
