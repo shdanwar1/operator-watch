@@ -48,8 +48,6 @@ export type Database = {
           id: string
           is_admin: boolean
           magic_word_hash: string
-          mobile: string | null
-          password_hash: string
           pin_hash: string | null
           updated_at: string
           username: string
@@ -63,8 +61,6 @@ export type Database = {
           id?: string
           is_admin?: boolean
           magic_word_hash: string
-          mobile?: string | null
-          password_hash: string
           pin_hash?: string | null
           updated_at?: string
           username: string
@@ -78,8 +74,6 @@ export type Database = {
           id?: string
           is_admin?: boolean
           magic_word_hash?: string
-          mobile?: string | null
-          password_hash?: string
           pin_hash?: string | null
           updated_at?: string
           username?: string
@@ -227,14 +221,14 @@ export type Database = {
       }
     }
     Functions: {
-      create_operator: {
+      admin_update_operator: {
         Args: {
-          p_magic: string
-          p_mobile: string
-          p_password: string
-          p_username: string
+          p_id: string
+          p_magic?: string
+          p_pin?: string
+          p_username?: string
         }
-        Returns: string
+        Returns: undefined
       }
       find_operator_by_magic: {
         Args: { p_magic: string }
@@ -251,31 +245,24 @@ export type Database = {
           username: string
         }[]
       }
-      mask_mobile: { Args: { p_mobile: string }; Returns: string }
       set_operator_home: {
         Args: { p_id: string; p_label: string; p_lat: number; p_lng: number }
+        Returns: undefined
+      }
+      set_operator_magic: {
+        Args: { p_id: string; p_magic: string }
         Returns: undefined
       }
       set_operator_pin: {
         Args: { p_id: string; p_pin: string }
         Returns: undefined
       }
-      update_operator: {
-        Args: {
-          p_id: string
-          p_magic: string
-          p_mobile: string
-          p_password: string
-          p_username: string
-        }
+      set_operator_username: {
+        Args: { p_id: string; p_username: string }
         Returns: undefined
       }
       verify_operator_magic: {
         Args: { p_magic: string; p_username: string }
-        Returns: string
-      }
-      verify_operator_password: {
-        Args: { p_password: string; p_username: string }
         Returns: string
       }
       verify_operator_pin: {

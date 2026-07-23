@@ -16,10 +16,11 @@ function getSessionConfig() {
 
 async function requireOperator() {
   const session = await useSession<GateSession>(getSessionConfig());
-  const username = (session.data.username ?? "").toLowerCase();
+  const username = session.data.username ?? "";
   if (!session.data.unlocked || session.data.isAdmin || !username) {
     throw new Response("Unauthorized", { status: 401 });
   }
+  // Case-preserved; downstream lookups use ILIKE for case-insensitive matches.
   return { username };
 }
 
@@ -401,12 +402,15 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
     const grouped = groupClassesIntoShifts(activeClasses);
 
     // Deterministic external id per generated shift so re-runs are idempotent.
+    // Lower-casing here is an internal id-stability choice; the stored
+    // `assigned_operator` is always the case-preserved display name.
+    const opKey = displayName.toLowerCase();
     const shiftUid = (date: string, startMin: number) =>
-      `op:${displayName.toLowerCase()}:shift:${date}:${String(Math.floor(startMin / 60)).padStart(2, "0")}${String(startMin % 60).padStart(2, "0")}`;
+      `op:${opKey}:shift:${date}:${String(Math.floor(startMin / 60)).padStart(2, "0")}${String(startMin % 60).padStart(2, "0")}`;
 
     // Rule 8/10/11: fully regenerate the operator's shifts in the window rather than diffing per event.
     // Only delete rows this sync feature produced (external_event_id prefixed op:<user>:shift:).
-    const prefix = `op:${displayName.toLowerCase()}:shift:`;
+    const prefix = `op:${opKey}:shift:`;
     const { data: existingRows, error: exErr } = await supabaseAdmin
       .from("scheduled_shifts")
       .select("id, external_event_id, specific_date")

@@ -305,10 +305,7 @@ function AddPastDialog({
 
   useEffect(() => {
     if (open) {
-      const savedName = typeof window !== "undefined"
-        ? localStorage.getItem("lss_operator_name") ?? ""
-        : "";
-      setOperatorName(savedName);
+      setOperatorName("");
       setCheckIn("");
       setCheckOut("");
       setClasses([{ class: "", teacher: "" }]);

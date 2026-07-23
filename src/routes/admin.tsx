@@ -5,6 +5,7 @@ import { getGateStatus, signOutUser } from "@/lib/gate.functions";
 import {
   adminListShiftsForSession,
   adminListOperators,
+  adminUpdateOperator,
   type OperatorBasic,
 } from "@/lib/operators.functions";
 import {
@@ -44,7 +45,10 @@ import {
   XCircle,
   Sparkles,
   RefreshCw,
+  Pencil,
+  Save,
 } from "lucide-react";
+import { USERNAME_RE, PIN_RE } from "@/lib/validation";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin")({
@@ -168,6 +172,9 @@ function AdminDashboard() {
   const updateFn = useServerFn(updateScheduledShift);
   const deleteFn = useServerFn(deleteScheduledShift);
   const lockFn = useServerFn(signOutUser);
+  const updateOpFn = useServerFn(adminUpdateOperator);
+
+  const [editingOp, setEditingOp] = useState<OperatorBasic | null>(null);
 
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
@@ -505,11 +512,19 @@ function AdminDashboard() {
                 const s = operatorStats.get(op.username) ?? { count: 0, minutes: 0 };
                 const c = opColor(op.username);
                 return (
-                  <Card key={op.id} className="overflow-hidden">
+                  <Card key={op.id} className="group overflow-hidden">
                     <CardContent className="p-3">
                       <div className="flex items-center gap-2">
                         <span className={`h-2.5 w-2.5 rounded-full ${c?.dot ?? "bg-muted-foreground"}`} />
                         <span className="truncate text-sm font-medium">{op.username}</span>
+                        <button
+                          type="button"
+                          onClick={() => setEditingOp(op)}
+                          className="ml-auto rounded-md p-1 text-muted-foreground opacity-0 transition hover:bg-muted hover:text-foreground group-hover:opacity-100 focus:opacity-100"
+                          aria-label={`Edit ${op.username}`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                       <div className="mt-2 flex items-baseline gap-1">
                         <span className="text-xl font-semibold tabular-nums">{s.count}</span>
@@ -711,7 +726,125 @@ function AdminDashboard() {
         operators={operators}
         onCreate={handleCreate}
       />
+
+      {/* Operator editor */}
+      <OperatorEditorDialog
+        operator={editingOp}
+        onClose={() => setEditingOp(null)}
+        onSave={async (patch) => {
+          if (!editingOp) return;
+          await updateOpFn({ data: { id: editingOp.id, ...patch } });
+          await refresh();
+          setEditingOp(null);
+          toast.success("Operator updated");
+        }}
+      />
     </div>
+  );
+}
+
+function OperatorEditorDialog({
+  operator,
+  onClose,
+  onSave,
+}: {
+  operator: OperatorBasic | null;
+  onClose: () => void;
+  onSave: (patch: { username?: string; pin?: string; magic_word?: string }) => Promise<void>;
+}) {
+  const [username, setUsername] = useState("");
+  const [pin, setPin] = useState("");
+  const [magic, setMagic] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (operator) {
+      setUsername(operator.username);
+      setPin("");
+      setMagic("");
+    }
+  }, [operator]);
+
+  if (!operator) return null;
+
+  async function submit() {
+    const changedName = username.trim() && username.trim() !== operator!.username;
+    if (changedName && !USERNAME_RE.test(username.trim())) {
+      return toast.error("Username must be 2–32 letters, numbers, . _ or -");
+    }
+    if (pin && !PIN_RE.test(pin)) {
+      return toast.error("PIN must contain exactly 4 digits");
+    }
+    if (!changedName && !pin && !magic.trim()) {
+      return toast.error("Nothing to save");
+    }
+    setSaving(true);
+    try {
+      await onSave({
+        username: changedName ? username.trim() : undefined,
+        pin: pin || undefined,
+        magic_word: magic.trim() || undefined,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Save failed";
+      toast.error(
+        /already in use|duplicate/i.test(msg) ? "This username is already in use." : msg,
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={!!operator} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit {operator.username}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Username</Label>
+            <Input
+              autoCapitalize="none"
+              autoCorrect="off"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">Capitalization is preserved.</p>
+          </div>
+          <div className="space-y-2">
+            <Label>New PIN</Label>
+            <Input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              placeholder="Leave blank to keep current"
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D+/g, ""))}
+              autoComplete="new-password"
+            />
+            <p className="text-[11px] text-muted-foreground">Exactly 4 digits.</p>
+          </div>
+          <div className="space-y-2">
+            <Label>New magic word</Label>
+            <Input
+              type="password"
+              placeholder="Leave blank to keep current"
+              value={magic}
+              onChange={(e) => setMagic(e.target.value)}
+              autoComplete="new-password"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={saving}>
+            <Save className="mr-1 h-4 w-4" />
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
