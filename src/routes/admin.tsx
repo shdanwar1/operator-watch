@@ -7,6 +7,7 @@ import {
   adminListOperators,
   adminUpdateOperator,
   adminCreateOperator,
+  adminSetOperatorActive,
   type OperatorBasic,
 } from "@/lib/operators.functions";
 import {
@@ -30,6 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import { toast, Toaster } from "sonner";
 import {
   ChevronLeft,
@@ -175,6 +177,7 @@ function AdminDashboard() {
   const lockFn = useServerFn(signOutUser);
   const updateOpFn = useServerFn(adminUpdateOperator);
   const createOpFn = useServerFn(adminCreateOperator);
+  const setActiveFn = useServerFn(adminSetOperatorActive);
 
   const [editingOp, setEditingOp] = useState<OperatorBasic | null>(null);
   const [createOpOpen, setCreateOpOpen] = useState(false);
@@ -281,10 +284,13 @@ function AdminDashboard() {
     return map;
   }, [shiftsByDay, statusFilter, operatorFilter]);
 
-  // Operator workload (this week)
+  // Active-only operator list for scheduling / stats / assignment.
+  const activeOperators = useMemo(() => operators.filter((o) => o.is_active), [operators]);
+
+  // Operator workload (this week) — active operators only.
   const operatorStats = useMemo(() => {
     const stats = new Map<string, { count: number; minutes: number; next?: Assignment; nextDate?: Date }>();
-    for (const op of operators) stats.set(op.username, { count: 0, minutes: 0 });
+    for (const op of activeOperators) stats.set(op.username, { count: 0, minutes: 0 });
     const now = new Date();
     for (const d of weekDays) {
       const key = ymd(d);
@@ -305,7 +311,7 @@ function AdminDashboard() {
       }
     }
     return stats;
-  }, [operators, shiftsByDay, weekDays]);
+  }, [activeOperators, shiftsByDay, weekDays]);
 
   // Side statistics
   const sideStats = useMemo(() => {
@@ -444,14 +450,22 @@ function AdminDashboard() {
                 return (
                   <label
                     key={op.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-muted"
+                    className={`flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-muted ${
+                      !op.is_active ? "opacity-50" : ""
+                    }`}
                   >
                     <Checkbox
-                      checked={checked}
+                      checked={checked && op.is_active}
+                      disabled={!op.is_active}
                       onCheckedChange={() => toggleOperatorFilter(op.username)}
                     />
                     <span className={`h-2 w-2 rounded-full ${c?.dot ?? "bg-muted-foreground"}`} />
                     <span className="truncate">{op.username}</span>
+                    {!op.is_active && (
+                      <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Inactive
+                      </span>
+                    )}
                   </label>
                 );
               })}
@@ -522,12 +536,22 @@ function AdminDashboard() {
               {operators.map((op) => {
                 const s = operatorStats.get(op.username) ?? { count: 0, minutes: 0 };
                 const c = opColor(op.username);
+                const inactive = !op.is_active;
                 return (
-                  <Card key={op.id} className="group overflow-hidden">
+                  <Card key={op.id} className={`group overflow-hidden ${inactive ? "opacity-60" : ""}`}>
                     <CardContent className="p-3">
                       <div className="flex items-center gap-2">
-                        <span className={`h-2.5 w-2.5 rounded-full ${c?.dot ?? "bg-muted-foreground"}`} />
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${
+                            inactive ? "bg-muted-foreground/50" : c?.dot ?? "bg-muted-foreground"
+                          }`}
+                        />
                         <span className="truncate text-sm font-medium">{op.username}</span>
+                        {inactive && (
+                          <Badge variant="outline" className="ml-1 h-4 px-1.5 text-[9px] font-normal uppercase">
+                            Inactive
+                          </Badge>
+                        )}
                         <button
                           type="button"
                           onClick={() => setEditingOp(op)}
@@ -710,7 +734,7 @@ function AdminDashboard() {
       {/* Side panel: edit */}
       <ShiftEditSheet
         shift={selected}
-        operators={operators}
+        operators={activeOperators}
         weekDays={weekDays}
         shiftsByDay={shiftsByDay}
         onClose={() => setSelected(null)}
@@ -734,7 +758,7 @@ function AdminDashboard() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         defaultDayIndex={createDayIndex}
-        operators={operators}
+        operators={activeOperators}
         onCreate={handleCreate}
       />
 
@@ -748,6 +772,21 @@ function AdminDashboard() {
           await refresh();
           setEditingOp(null);
           toast.success("Operator updated");
+        }}
+        onSetActive={async (active, unassignFuture) => {
+          if (!editingOp) return;
+          const res = await setActiveFn({
+            data: { id: editingOp.id, active, unassign_future: unassignFuture },
+          });
+          await refresh();
+          setEditingOp(null);
+          if (active) {
+            toast.success(`${editingOp.username} activated`);
+          } else if (res.unassigned > 0) {
+            toast.success(`${editingOp.username} deactivated · ${res.unassigned} future shift(s) unassigned`);
+          } else {
+            toast.success(`${editingOp.username} deactivated`);
+          }
         }}
       />
 
@@ -856,21 +895,26 @@ function OperatorEditorDialog({
   operator,
   onClose,
   onSave,
+  onSetActive,
 }: {
   operator: OperatorBasic | null;
   onClose: () => void;
   onSave: (patch: { username?: string; pin?: string; magic_word?: string }) => Promise<void>;
+  onSetActive: (active: boolean, unassignFuture: boolean) => Promise<void>;
 }) {
   const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
-  const [magic, setMagic] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [unassignFuture, setUnassignFuture] = useState(false);
+  const [statusBusy, setStatusBusy] = useState(false);
 
   useEffect(() => {
     if (operator) {
       setUsername(operator.username);
       setPin("");
-      setMagic("");
+      setConfirmDeactivate(false);
+      setUnassignFuture(false);
     }
   }, [operator]);
 
@@ -884,7 +928,7 @@ function OperatorEditorDialog({
     if (pin && !PIN_RE.test(pin)) {
       return toast.error("PIN must contain exactly 4 digits");
     }
-    if (!changedName && !pin && !magic.trim()) {
+    if (!changedName && !pin) {
       return toast.error("Nothing to save");
     }
     setSaving(true);
@@ -892,7 +936,6 @@ function OperatorEditorDialog({
       await onSave({
         username: changedName ? username.trim() : undefined,
         pin: pin || undefined,
-        magic_word: magic.trim() || undefined,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Save failed";
@@ -904,56 +947,175 @@ function OperatorEditorDialog({
     }
   }
 
+  async function toggleStatus() {
+    if (!operator) return;
+    if (operator.is_active) {
+      setConfirmDeactivate(true);
+      return;
+    }
+    setStatusBusy(true);
+    try {
+      await onSetActive(true, false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setStatusBusy(false);
+    }
+  }
+
+  async function confirmDeactivateNow() {
+    setStatusBusy(true);
+    try {
+      await onSetActive(false, unassignFuture);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setStatusBusy(false);
+      setConfirmDeactivate(false);
+    }
+  }
+
+  const active = operator.is_active;
+  const futureCount = operator.future_shift_count ?? 0;
+
   return (
-    <Dialog open={!!operator} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Edit {operator.username}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Username</Label>
-            <Input
-              autoCapitalize="none"
-              autoCorrect="off"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
-            <p className="text-[11px] text-muted-foreground">Capitalization is preserved.</p>
+    <>
+      <Dialog open={!!operator && !confirmDeactivate} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit {operator.username}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label>Username</Label>
+              <Input
+                autoCapitalize="none"
+                autoCorrect="off"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">Capitalization is preserved.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>New PIN</Label>
+              <Input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="Leave blank to keep current"
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D+/g, ""))}
+                autoComplete="new-password"
+              />
+              <p className="text-[11px] text-muted-foreground">Exactly 4 digits.</p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label>Operator status</Label>
+              <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <span
+                      className={`inline-block h-2.5 w-2.5 rounded-full ${
+                        active ? "bg-emerald-500" : "bg-muted-foreground/60"
+                      }`}
+                    />
+                    {active ? "Active" : "Inactive"}
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {active
+                      ? "This operator can log in and receive shifts."
+                      : "This operator cannot log in or receive shifts."}
+                  </p>
+                </div>
+                <Switch
+                  checked={active}
+                  disabled={statusBusy}
+                  onCheckedChange={toggleStatus}
+                  aria-label="Toggle operator active status"
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Home address, calendar and magic word can only be edited by the operator from
+                their own dashboard.
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>New PIN</Label>
-            <Input
-              type="password"
-              inputMode="numeric"
-              maxLength={4}
-              placeholder="Leave blank to keep current"
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D+/g, ""))}
-              autoComplete="new-password"
-            />
-            <p className="text-[11px] text-muted-foreground">Exactly 4 digits.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>Close</Button>
+            <Button onClick={submit} disabled={saving}>
+              <Save className="mr-1 h-4 w-4" />
+              {saving ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmDeactivate} onOpenChange={(o) => !o && setConfirmDeactivate(false)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Deactivate {operator.username}?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">This operator will no longer be able to:</p>
+            <ul className="ml-5 list-disc space-y-1 text-muted-foreground">
+              <li>Log into the application</li>
+              <li>Appear on the operator login page</li>
+              <li>Be assigned new shifts</li>
+              <li>Appear in scheduling views</li>
+            </ul>
+            <p className="text-muted-foreground">
+              Existing attendance history, worked hours and historical shifts remain unchanged.
+            </p>
+
+            {futureCount > 0 && (
+              <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-4 w-4" />
+                  {futureCount} upcoming shift{futureCount === 1 ? "" : "s"}
+                </div>
+                <label className="flex cursor-pointer items-start gap-2 text-xs">
+                  <input
+                    type="radio"
+                    name="future-shifts"
+                    className="mt-0.5"
+                    checked={!unassignFuture}
+                    onChange={() => setUnassignFuture(false)}
+                  />
+                  <span>
+                    <span className="font-medium">Keep future shifts assigned.</span>{" "}
+                    The operator cannot receive new shifts but stays assigned to existing ones.
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-2 text-xs">
+                  <input
+                    type="radio"
+                    name="future-shifts"
+                    className="mt-0.5"
+                    checked={unassignFuture}
+                    onChange={() => setUnassignFuture(true)}
+                  />
+                  <span>
+                    <span className="font-medium">Remove future shifts.</span>{" "}
+                    Automatically unassign all future scheduled shifts.
+                  </span>
+                </label>
+              </div>
+            )}
           </div>
-          <div className="space-y-2">
-            <Label>New magic word</Label>
-            <Input
-              type="password"
-              placeholder="Leave blank to keep current"
-              value={magic}
-              onChange={(e) => setMagic(e.target.value)}
-              autoComplete="new-password"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={submit} disabled={saving}>
-            <Save className="mr-1 h-4 w-4" />
-            {saving ? "Saving…" : "Save"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeactivate(false)} disabled={statusBusy}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeactivateNow} disabled={statusBusy}>
+              {statusBusy ? "Deactivating…" : "Deactivate operator"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

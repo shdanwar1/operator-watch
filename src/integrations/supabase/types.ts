@@ -46,6 +46,7 @@ export type Database = {
           home_lat: number | null
           home_lng: number | null
           id: string
+          is_active: boolean
           is_admin: boolean
           magic_word_hash: string | null
           pin_hash: string | null
@@ -59,6 +60,7 @@ export type Database = {
           home_lat?: number | null
           home_lng?: number | null
           id?: string
+          is_active?: boolean
           is_admin?: boolean
           magic_word_hash?: string | null
           pin_hash?: string | null
@@ -72,6 +74,7 @@ export type Database = {
           home_lat?: number | null
           home_lng?: number | null
           id?: string
+          is_active?: boolean
           is_admin?: boolean
           magic_word_hash?: string | null
           pin_hash?: string | null
@@ -224,6 +227,10 @@ export type Database = {
       admin_create_operator: {
         Args: { p_pin: string; p_username: string }
         Returns: string
+      }
+      admin_set_operator_active: {
+        Args: { p_active: boolean; p_id: string }
+        Returns: undefined
       }
       admin_update_operator: {
         Args: {
