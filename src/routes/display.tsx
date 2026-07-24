@@ -313,49 +313,36 @@ function QAStage({ stage }: { stage: StageInfo }) {
   const progress = Math.max(0, Math.min(1, stage.timerMs / total));
 
   return (
-    <div className="flex h-full w-full max-w-[95vw] flex-col items-center justify-center text-center gap-[clamp(0.35rem,2vh,2rem)]">
+    <div className="relative flex h-full w-full items-center justify-center">
+      <CircularTimer progress={progress} label={formatMMSS(stage.timerMs)} />
       <div
-        className="shrink-0 font-medium uppercase text-white/70"
-        style={{ fontSize: "clamp(0.6rem, 1.6vmin, 1.35rem)", letterSpacing: "0.32em" }}
+        className="pointer-events-none absolute left-1/2 -translate-x-1/2 font-medium uppercase text-white/60"
+        style={{
+          bottom: "clamp(1.5rem, 4vh, 3rem)",
+          fontSize: "clamp(0.65rem, 1.5vmin, 1.1rem)",
+          letterSpacing: "0.32em",
+        }}
       >
-        Class Complete
-      </div>
-      <div
-        className="shrink-0 font-semibold text-white"
-        style={{ fontSize: "clamp(1.1rem, 5vmin, 3.25rem)", letterSpacing: "-0.02em" }}
-      >
-        Q&amp;A
-      </div>
-
-      <div className="flex min-h-0 flex-1 items-center justify-center w-full">
-        <CircularTimer progress={progress} label={formatMMSS(stage.timerMs)} total={formatMMSS(total)} />
-      </div>
-
-      <div
-        className="shrink-0 text-white/60"
-        style={{ fontSize: "clamp(0.65rem, 1.7vmin, 1.15rem)", letterSpacing: "0.02em" }}
-      >
-        Questions &amp; discussion
+        Questions &amp; Discussion
       </div>
     </div>
   );
 }
 
-function CircularTimer({ progress, label, total }: { progress: number; label: string; total?: string }) {
+function CircularTimer({ progress, label }: { progress: number; label: string }) {
   const R = 46;
   const C = 2 * Math.PI * R;
   const dash = C * progress;
-  const stroke = 2.2;
+  const stroke = 0.6;
 
   return (
     <div
       className="relative aspect-square"
       style={{
         containerType: "inline-size",
-        width: "min(60vmin, 90vw)",
+        width: "min(80vmin, 92vw)",
         maxWidth: "100%",
         maxHeight: "100%",
-        height: "auto",
       }}
     >
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90">
@@ -366,27 +353,40 @@ function CircularTimer({ progress, label, total }: { progress: number; label: st
           r={R}
           fill="none"
           stroke="white"
-          strokeWidth={stroke}
+          strokeWidth={stroke * 1.6}
           strokeLinecap="round"
           strokeDasharray={`${dash} ${C - dash}`}
-          style={{ transition: "stroke-dasharray 900ms cubic-bezier(0.4, 0, 0.2, 1)" }}
+          style={{
+            transition: "stroke-dasharray 900ms cubic-bezier(0.4, 0, 0.2, 1)",
+            filter: "drop-shadow(0 0 6px rgba(255,255,255,0.55))",
+          }}
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-[0.2em]">
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-[3cqi]">
         <div
-          className="font-mono font-semibold leading-none tabular-nums text-white"
-          style={{ fontSize: "clamp(1rem, 18cqi, 6.5rem)", letterSpacing: "-0.04em" }}
+          className="font-light uppercase text-white/85"
+          style={{ fontSize: "clamp(0.6rem, 2.4cqi, 1.1rem)", letterSpacing: "0.38em" }}
+        >
+          Class Complete
+        </div>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="rgba(255,255,255,0.55)"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ width: "6cqi", height: "6cqi" }}
+        >
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+        <div
+          className="font-light leading-none tabular-nums text-white"
+          style={{ fontSize: "clamp(2rem, 22cqi, 10rem)", letterSpacing: "-0.02em" }}
         >
           {label}
         </div>
-        {total && (
-          <div
-            className="font-mono leading-none tabular-nums text-white/50"
-            style={{ fontSize: "clamp(0.5rem, 5cqi, 1.25rem)", letterSpacing: "0.05em" }}
-          >
-            / {total}
-          </div>
-        )}
       </div>
     </div>
   );
