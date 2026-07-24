@@ -49,6 +49,21 @@ function useAspect() {
   return { ref, ratio, isLandscape: ratio >= 1.35 };
 }
 
+function useSize<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    const el = ref.current;
+    const measure = () => setSize({ width: el.clientWidth, height: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return { ref, size };
+}
+
 function DisplayScreen() {
   const { state, ready } = useStudioDisplay("display");
   useTicker(250);
@@ -311,25 +326,41 @@ function CountdownCinematic({ n }: { n: number }) {
 function QAStage({ stage }: { stage: StageInfo }) {
   const total = stage.totalMs ?? QA_MS;
   const progress = Math.max(0, Math.min(1, stage.timerMs / total));
+  const { ref, size } = useSize<HTMLDivElement>();
+  const viewport = Math.min(size.width, size.height);
+
+  const mode: QAMode = viewport < 360 ? "minimal" : viewport < 600 ? "compact" : "full";
 
   return (
-    <div className="relative flex h-full w-full items-center justify-center">
-      <CircularTimer progress={progress} label={formatMMSS(stage.timerMs)} />
-      <div
-        className="pointer-events-none absolute left-1/2 -translate-x-1/2 font-medium uppercase text-white/60"
-        style={{
-          bottom: "clamp(1.5rem, 4vh, 3rem)",
-          fontSize: "clamp(0.65rem, 1.5vmin, 1.1rem)",
-          letterSpacing: "0.32em",
-        }}
-      >
-        Questions &amp; Discussion
-      </div>
+    <div ref={ref} className="relative flex h-full w-full items-center justify-center">
+      <CircularTimer progress={progress} label={formatMMSS(stage.timerMs)} mode={mode} />
+      {mode === "full" && (
+        <div
+          className="pointer-events-none absolute left-1/2 -translate-x-1/2 font-medium uppercase text-white/60"
+          style={{
+            bottom: "clamp(1.5rem, 4vh, 3rem)",
+            fontSize: "clamp(0.65rem, 1.5vmin, 1.1rem)",
+            letterSpacing: "0.32em",
+          }}
+        >
+          Questions &amp; Discussion
+        </div>
+      )}
     </div>
   );
 }
 
-function CircularTimer({ progress, label }: { progress: number; label: string }) {
+type QAMode = "full" | "compact" | "minimal";
+
+function CircularTimer({
+  progress,
+  label,
+  mode = "full",
+}: {
+  progress: number;
+  label: string;
+  mode?: QAMode;
+}) {
   const R = 46;
   const C = 2 * Math.PI * R;
   const dash = C * progress;
@@ -363,12 +394,30 @@ function CircularTimer({ progress, label }: { progress: number; label: string })
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-[3cqi]">
-        <div
-          className="font-light uppercase text-white/85"
-          style={{ fontSize: "clamp(0.6rem, 2.4cqi, 1.1rem)", letterSpacing: "0.38em" }}
-        >
-          Class Complete
-        </div>
+        {mode === "full" && (
+          <div
+            className="font-light uppercase text-white/85"
+            style={{ fontSize: "clamp(0.6rem, 2.4cqi, 1.1rem)", letterSpacing: "0.38em" }}
+          >
+            Class Complete
+          </div>
+        )}
+        {mode === "compact" && (
+          <div
+            className="font-light uppercase text-white/85"
+            style={{ fontSize: "clamp(0.65rem, 2.8cqi, 1.15rem)", letterSpacing: "0.12em" }}
+          >
+            Q&amp;A
+          </div>
+        )}
+        {mode === "minimal" && (
+          <div
+            className="font-light uppercase text-white/85"
+            style={{ fontSize: "clamp(0.6rem, 3.2cqi, 1.2rem)", letterSpacing: "0.3em" }}
+          >
+            Q &amp; A
+          </div>
+        )}
         <svg
           viewBox="0 0 24 24"
           fill="none"
