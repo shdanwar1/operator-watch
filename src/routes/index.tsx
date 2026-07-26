@@ -426,7 +426,7 @@ function Index() {
 
             {!active && history.length > 0 && (
               <section className="mt-8 sm:mt-12">
-                <MonthlySummary shifts={history} />
+                <MonthlySummary shifts={history} scheduled={scheduled} />
               </section>
             )}
           </div>
