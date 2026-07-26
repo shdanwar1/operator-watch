@@ -873,11 +873,21 @@ function ActiveShiftPanel({
 }
 
 
-function MonthlySummary({ shifts }: { shifts: Shift[] }) {
-  const monthly = useMemo(() => computeMonthly(shifts, new Date()), [shifts]);
-  const progressPct = Math.min(100, (monthly.totalHours / CONTRACT_MONTHLY_HOURS) * 100);
-  const overtimeActive = monthly.totalHours > CONTRACT_MONTHLY_HOURS;
-  const netWhole = Math.round(monthly.netSalary);
+function MonthlySummary({
+  shifts,
+  scheduled,
+}: {
+  shifts: Shift[];
+  scheduled: ScheduledShift[];
+}) {
+  const summary = useMemo(
+    () => summarizeMonth(shifts, scheduled, new Date()),
+    [shifts, scheduled],
+  );
+  const workedH = summary.workedMin / 60;
+  const scheduledH = summary.scheduledMin / 60;
+  const progressPct =
+    scheduledH > 0 ? Math.min(100, (workedH / scheduledH) * 100) : 0;
 
   return (
     <Link to="/earnings" className="group block">
@@ -885,36 +895,40 @@ function MonthlySummary({ shifts }: { shifts: Shift[] }) {
         <CardContent className="space-y-5 p-5">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Wallet className="h-4 w-4 text-primary" />
+              <ClipboardList className="h-4 w-4 text-primary" />
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Estimated earnings · {new Date().toLocaleDateString(undefined, { month: "long" })}
+                Payroll · {new Date().toLocaleDateString(undefined, { month: "long" })}
               </h3>
             </div>
-            {overtimeActive && (
-              <Badge variant="destructive" className="text-[10px]">Overtime</Badge>
-            )}
           </div>
 
-          <div className="text-4xl font-semibold tabular-nums tracking-tight sm:text-5xl">
-            {netWhole}€
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                Worked
+              </div>
+              <div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl">
+                {formatHM(summary.workedMin)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                Scheduled
+              </div>
+              <div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl">
+                {formatHM(summary.scheduledMin)}
+              </div>
+            </div>
           </div>
 
           <div>
             <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>Hours worked this month</span>
-              <span className="tabular-nums">
-                {monthly.totalHours.toFixed(1)} / {CONTRACT_MONTHLY_HOURS}h
-              </span>
+              <span>Progress</span>
+              <span className="tabular-nums">{Math.round(progressPct)}%</span>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className={`h-full rounded-full transition-all duration-700 ${
-                  overtimeActive
-                    ? "bg-destructive"
-                    : progressPct >= 90
-                      ? "bg-amber-500"
-                      : "bg-primary"
-                }`}
+                className="h-full rounded-full bg-primary transition-all duration-700"
                 style={{ width: `${progressPct}%` }}
               />
             </div>
