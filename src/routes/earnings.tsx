@@ -170,7 +170,7 @@ function EarningsPage() {
         data.cell.styles.textColor = 255;
         data.cell.styles.fontStyle = "bold";
       },
-      didParseCell2: undefined,
+      
     });
 
     // Summary section
