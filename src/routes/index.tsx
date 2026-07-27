@@ -31,6 +31,7 @@ import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 import { summarizeMonth, formatHM } from "@/lib/attendance";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { StudioDisplayPanel } from "@/components/StudioDisplayPanel";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 
 export const Route = createFileRoute("/")({
@@ -365,6 +366,7 @@ function Index() {
                 <span className="hidden sm:inline">Shifts</span>
               </Link>
             </Button>
+            <ThemeToggle className="h-8 w-8 sm:h-9 sm:w-9" size="icon" />
             <Button variant="ghost" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" onClick={handleSignOut}>
               <LogOut className="h-3.5 w-3.5 sm:mr-1" />
               <span className="hidden sm:inline">Sign out</span>
@@ -694,8 +696,9 @@ function CheckInPanel({
   }
 
   return (
-    <Card className="border-border/60">
-      <CardContent className="flex flex-col items-center gap-5 px-4 py-8 text-center sm:gap-6 sm:px-6 sm:py-10">
+    <Card className="border-border/60 overflow-hidden hero-aurora">
+      <CardContent className="flex flex-col items-center gap-5 px-4 py-10 text-center text-foreground sm:gap-6 sm:px-6 sm:py-14">
+
 
         {showCountdownCard ? (
           <div className="flex flex-col items-center gap-3 sm:gap-4">
@@ -795,15 +798,15 @@ function ActiveShiftPanel({
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <Card className="border-primary/40 bg-primary/5">
-        <CardContent className="flex flex-col items-center gap-3 px-4 py-8 text-center sm:px-6 sm:py-10">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground sm:text-xs">
+      <Card className="border-border/60 overflow-hidden hero-aurora">
+        <CardContent className="flex flex-col items-center gap-3 px-4 py-10 text-center text-foreground sm:px-6 sm:py-14">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-foreground/70 sm:text-xs">
             Checked in as {shift.operator_name}
           </div>
-          <div className="font-mono text-4xl font-semibold tabular-nums tracking-tight sm:text-6xl">
+          <div className="font-mono text-5xl font-semibold tabular-nums tracking-tight sm:text-7xl">
             {d.long}
           </div>
-          <div className="text-[11px] text-muted-foreground sm:text-xs">
+          <div className="text-[11px] text-foreground/70 sm:text-xs">
             Since{" "}
             {new Date(shift.check_in_at).toLocaleTimeString(undefined, {
               hour: "2-digit",
