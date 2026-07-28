@@ -669,7 +669,6 @@ function AdminDashboard() {
                           <button
                             className="rounded-md p-1 text-muted-foreground hover:bg-muted"
                             onClick={() => {
-                              const dayIdx = (d.getDay() + 6) % 7;
                               setCreateDate(d);
                               setCreateOpen(true);
                             }}
