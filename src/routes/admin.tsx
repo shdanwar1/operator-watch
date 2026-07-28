@@ -765,7 +765,7 @@ function AdminDashboard() {
       <CreateShiftDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        defaultDayIndex={createDayIndex}
+        selectedDate={createDate}
         operators={activeOperators}
         onCreate={handleCreate}
       />
