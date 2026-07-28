@@ -379,21 +379,30 @@ function AdminDashboard() {
     }
   };
 
-  const handleCreate = async (input: {
-    day_of_week: number;
-    start_time: string;
-    end_time: string;
-    label: string;
-    assigned_operator: string | null;
-    notes: string | null;
-    specific_date: string | null;
-  }) => {
+  const handleCreate = async (
+    input: {
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+      label: string;
+      assigned_operator: string | null;
+      notes: string | null;
+    },
+    dates: string[],
+  ) => {
     try {
-      await createFn({ data: input });
+      for (const date of dates) {
+        const dow = new Date(date + "T00:00:00").getDay();
+        await createFn({
+          data: { ...input, day_of_week: dow, specific_date: date },
+        });
+      }
       setCreateOpen(false);
-      setCreateDayIndex(null);
+      setCreateDate(null);
       await refresh();
-      toast.success("Shift created");
+      toast.success(
+        dates.length === 1 ? "Shift created" : `${dates.length} shifts created`,
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     }
