@@ -522,7 +522,7 @@ function AdminDashboard() {
               <Button
                 size="sm"
                 onClick={() => {
-                  setCreateDayIndex(null);
+                  setCreateDate(new Date());
                   setCreateOpen(true);
                 }}
               >
@@ -624,7 +624,7 @@ function AdminDashboard() {
                           <button
                             className="rounded-md p-1 text-muted-foreground hover:bg-muted"
                             onClick={() => {
-                              setCreateDayIndex(i);
+                              setCreateDate(weekDays[i]);
                               setCreateOpen(true);
                             }}
                             aria-label="Add shift"
@@ -670,7 +670,7 @@ function AdminDashboard() {
                             className="rounded-md p-1 text-muted-foreground hover:bg-muted"
                             onClick={() => {
                               const dayIdx = (d.getDay() + 6) % 7;
-                              setCreateDayIndex(dayIdx);
+                              setCreateDate(d);
                               setCreateOpen(true);
                             }}
                           >
@@ -731,7 +731,7 @@ function AdminDashboard() {
       {/* Floating add button (mobile) */}
       <button
         onClick={() => {
-          setCreateDayIndex(null);
+          setCreateDate(new Date());
           setCreateOpen(true);
         }}
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition hover:scale-105 lg:hidden"
