@@ -190,7 +190,7 @@ function AdminDashboard() {
 
   const [selected, setSelected] = useState<ScheduledShiftRow | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [createDayIndex, setCreateDayIndex] = useState<number | null>(null);
+  const [createDate, setCreateDate] = useState<Date | null>(null);
 
   const [operatorFilter, setOperatorFilter] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<string>>(
@@ -379,21 +379,30 @@ function AdminDashboard() {
     }
   };
 
-  const handleCreate = async (input: {
-    day_of_week: number;
-    start_time: string;
-    end_time: string;
-    label: string;
-    assigned_operator: string | null;
-    notes: string | null;
-    specific_date: string | null;
-  }) => {
+  const handleCreate = async (
+    input: {
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+      label: string;
+      assigned_operator: string | null;
+      notes: string | null;
+    },
+    dates: string[],
+  ) => {
     try {
-      await createFn({ data: input });
+      for (const date of dates) {
+        const dow = new Date(date + "T00:00:00").getDay();
+        await createFn({
+          data: { ...input, day_of_week: dow, specific_date: date },
+        });
+      }
       setCreateOpen(false);
-      setCreateDayIndex(null);
+      setCreateDate(null);
       await refresh();
-      toast.success("Shift created");
+      toast.success(
+        dates.length === 1 ? "Shift created" : `${dates.length} shifts created`,
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     }
@@ -513,7 +522,7 @@ function AdminDashboard() {
               <Button
                 size="sm"
                 onClick={() => {
-                  setCreateDayIndex(null);
+                  setCreateDate(new Date());
                   setCreateOpen(true);
                 }}
               >
@@ -615,7 +624,7 @@ function AdminDashboard() {
                           <button
                             className="rounded-md p-1 text-muted-foreground hover:bg-muted"
                             onClick={() => {
-                              setCreateDayIndex(i);
+                              setCreateDate(weekDays[i]);
                               setCreateOpen(true);
                             }}
                             aria-label="Add shift"
@@ -660,8 +669,7 @@ function AdminDashboard() {
                           <button
                             className="rounded-md p-1 text-muted-foreground hover:bg-muted"
                             onClick={() => {
-                              const dayIdx = (d.getDay() + 6) % 7;
-                              setCreateDayIndex(dayIdx);
+                              setCreateDate(d);
                               setCreateOpen(true);
                             }}
                           >
@@ -722,7 +730,7 @@ function AdminDashboard() {
       {/* Floating add button (mobile) */}
       <button
         onClick={() => {
-          setCreateDayIndex(null);
+          setCreateDate(new Date());
           setCreateOpen(true);
         }}
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition hover:scale-105 lg:hidden"
@@ -757,7 +765,7 @@ function AdminDashboard() {
       <CreateShiftDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        defaultDayIndex={createDayIndex}
+        selectedDate={createDate}
         operators={activeOperators}
         onCreate={handleCreate}
       />
@@ -1432,110 +1440,233 @@ function ShiftEditSheet({
 function CreateShiftDialog({
   open,
   onOpenChange,
-  defaultDayIndex,
+  selectedDate,
   operators,
   onCreate,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  defaultDayIndex: number | null;
+  selectedDate: Date | null;
   operators: OperatorBasic[];
-  onCreate: (input: {
-    day_of_week: number;
-    start_time: string;
-    end_time: string;
-    label: string;
-    assigned_operator: string | null;
-    notes: string | null;
-    specific_date: string | null;
-  }) => Promise<void>;
+  onCreate: (
+    input: {
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+      label: string;
+      assigned_operator: string | null;
+      notes: string | null;
+    },
+    dates: string[],
+  ) => Promise<void>;
 }) {
-  const [day, setDay] = useState<number>(1); // Monday
   const [start, setStart] = useState("10:00");
   const [end, setEnd] = useState("13:00");
   const [label, setLabel] = useState("");
   const [notes, setNotes] = useState("");
   const [op, setOp] = useState<string>("");
+  const [repeat, setRepeat] = useState(false);
+  const [preset, setPreset] = useState<"2" | "3" | "4" | "custom">("4");
+  const [customWeeks, setCustomWeeks] = useState(4);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
-      const idx = defaultDayIndex ?? 0;
-      // idx is Monday=0..Sunday=6 → convert to Sun=0..Sat=6
-      const jsDow = (idx + 1) % 7;
-      setDay(jsDow);
+      setRepeat(false);
+      setPreset("4");
+      setCustomWeeks(4);
+      setConfirmOpen(false);
     }
-  }, [open, defaultDayIndex]);
+  }, [open]);
 
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const baseDate = selectedDate ?? new Date();
+  const occurrences =
+    !repeat ? 1 : preset === "custom" ? Math.max(1, Math.min(52, customWeeks)) : Number(preset);
+
+  const dates = useMemo(() => {
+    const out: Date[] = [];
+    for (let i = 0; i < occurrences; i++) out.push(addDays(baseDate, i * 7));
+    return out;
+  }, [baseDate, occurrences]);
+
+  const fmtLong = (d: Date) =>
+    d.toLocaleDateString(undefined, {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  const fmtShort = (d: Date) =>
+    d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+  const submit = async () => {
+    setSubmitting(true);
+    try {
+      await onCreate(
+        {
+          day_of_week: baseDate.getDay(),
+          start_time: start,
+          end_time: end,
+          label,
+          assigned_operator: op || null,
+          notes: notes || null,
+        },
+        dates.map((d) => ymd(d)),
+      );
+    } finally {
+      setSubmitting(false);
+      setConfirmOpen(false);
+    }
+  };
+
+  const onPrimary = () => {
+    if (repeat && dates.length > 1) setConfirmOpen(true);
+    else submit();
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>New shift</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Day of week</Label>
-            <Select value={String(day)} onValueChange={(v) => setDay(Number(v))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {[1, 2, 3, 4, 5, 6, 0].map((d) => (
-                  <SelectItem key={d} value={String(d)}>{dayNames[d]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New shift</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Start</Label>
-              <Input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+              <Label>Shift date</Label>
+              <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm font-medium">
+                {fmtLong(baseDate)}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Start</Label>
+                <Input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>End</Label>
+                <Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label>End</Label>
-              <Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+              <Label>Operator</Label>
+              <Select value={op || "__none"} onValueChange={(v) => setOp(v === "__none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">— Unassigned —</SelectItem>
+                  {operators.map((o) => (
+                    <SelectItem key={o.id} value={o.username}>{o.username}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Label (optional)</Label>
+              <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Morning shift" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes (optional)</Label>
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+            </div>
+
+            <div className="rounded-lg border p-3 space-y-3">
+              <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                <Checkbox
+                  checked={repeat}
+                  onCheckedChange={(v) => setRepeat(v === true)}
+                />
+                Repeat weekly
+              </label>
+              {repeat && (
+                <div className="space-y-3 pl-6">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Occurrences</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {(["2", "3", "4", "custom"] as const).map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setPreset(p)}
+                          className={`rounded-md border px-3 py-1 text-xs transition ${
+                            preset === p
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "hover:bg-muted"
+                          }`}
+                        >
+                          {p === "custom" ? "Custom" : `Next ${p} weeks`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {preset === "custom" && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Number of weeks</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={52}
+                        value={customWeeks}
+                        onChange={(e) => setCustomWeeks(Number(e.target.value) || 1)}
+                        className="w-24"
+                      />
+                    </div>
+                  )}
+                  <div className="rounded-md bg-muted/50 p-2 text-xs">
+                    <div className="mb-1 font-medium text-muted-foreground">
+                      This will create shifts on:
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                      {dates.map((d) => (
+                        <span key={d.toISOString()} className="tabular-nums">
+                          {fmtShort(d)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Operator</Label>
-            <Select value={op || "__none"} onValueChange={(v) => setOp(v === "__none" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">— Unassigned —</SelectItem>
-                {operators.map((o) => (
-                  <SelectItem key={o.id} value={o.username}>{o.username}</SelectItem>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button onClick={onPrimary} disabled={submitting}>
+              {repeat && dates.length > 1 ? `Review ${dates.length} shifts` : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Create recurring shift?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            <div>This will create {dates.length} scheduled shifts.</div>
+            <div className="rounded-md bg-muted/50 p-2 text-xs">
+              <div className="mb-1 font-medium text-muted-foreground">Dates:</div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                {dates.map((d) => (
+                  <span key={d.toISOString()} className="tabular-nums">
+                    {fmtShort(d)}
+                  </span>
                 ))}
-              </SelectContent>
-            </Select>
+              </div>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Label (optional)</Label>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Morning shift" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Notes (optional)</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button
-            onClick={() =>
-              onCreate({
-                day_of_week: day,
-                start_time: start,
-                end_time: end,
-                label,
-                assigned_operator: op || null,
-                notes: notes || null,
-                specific_date: null,
-              })
-            }
-          >
-            Create
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button onClick={submit} disabled={submitting}>
+              {submitting ? "Creating…" : `Create ${dates.length} Shifts`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
