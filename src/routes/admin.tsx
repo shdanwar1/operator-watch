@@ -190,7 +190,7 @@ function AdminDashboard() {
 
   const [selected, setSelected] = useState<ScheduledShiftRow | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [createDayIndex, setCreateDayIndex] = useState<number | null>(null);
+  const [createDate, setCreateDate] = useState<Date | null>(null);
 
   const [operatorFilter, setOperatorFilter] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<string>>(
