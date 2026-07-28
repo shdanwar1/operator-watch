@@ -216,13 +216,15 @@ export function formatHM(mins: number): string {
 }
 
 export function formatDiff(mins: number): string {
-  const sign = mins > 0 ? "+" : mins < 0 ? "−" : "";
-  const abs = Math.abs(Math.round(mins));
+  const rounded = Math.round(mins);
+  const sign = rounded > 0 ? "+" : rounded < 0 ? "-" : "";
+  const abs = Math.abs(rounded);
   if (abs < 60) return `${sign}${abs}m`;
   const h = Math.floor(abs / 60);
   const m = abs % 60;
   return `${sign}${h}h ${String(m).padStart(2, "0")}m`;
 }
+
 
 export const CATEGORY_LABEL: Record<HourCategory, string> = {
   day: "Day",
