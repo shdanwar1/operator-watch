@@ -1254,8 +1254,7 @@ function TimeToLeaveDetails({
 function ProfileIncompleteBanner({ missing }: { missing: string[] }) {
   const parts: string[] = [];
   if (missing.includes("home")) parts.push("Time to Leave");
-  if (missing.includes("home") || missing.includes("calendar") || missing.includes("magic"))
-    parts.push("Check In");
+  if (missing.includes("home") || missing.includes("calendar")) parts.push("Check In");
   if (missing.includes("calendar")) parts.push("Google Calendar availability");
   const list = Array.from(new Set(parts));
   const featureText =
