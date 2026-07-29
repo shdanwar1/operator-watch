@@ -59,6 +59,47 @@ type ScheduledShift = ScheduledShiftRow;
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+/** How long after the scheduled end a shift can still be started (late check-in). */
+const LATE_GRACE_MS = 4 * 60 * 60 * 1000;
+
+/** Reads the number of classes scheduled from the scheduled shift's label. */
+function scheduledClassCount(label: string | null | undefined): number | null {
+  if (!label) return null;
+  const m = label.match(/(\d+)\s*(?:x\s*)?class/i) ?? label.match(/^\s*(\d+)\s*$/);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  return Number.isFinite(n) && n > 0 && n <= 20 ? n : null;
+}
+
+/** Minutes the operator checked in after the scheduled start (0 when on time). */
+function minutesLate(scheduledStart: Date | null, checkInAt: Date): number {
+  if (!scheduledStart) return 0;
+  return Math.max(0, Math.round((checkInAt.getTime() - scheduledStart.getTime()) / 60000));
+}
+
+/** Resolves the concrete start/end Date for a scheduled shift nearest to `at`. */
+function instanceTimes(s: ScheduledShift, at: Date): { startAt: Date; endAt: Date } {
+  const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
+  const [eh, em] = s.end_time.split(":").map((n) => parseInt(n, 10));
+  let best: { startAt: Date; endAt: Date } | null = null;
+  for (let offset = -1; offset <= 1; offset++) {
+    const day = new Date(at);
+    day.setDate(day.getDate() + offset);
+    const startAt = new Date(day);
+    startAt.setHours(sh, sm, 0, 0);
+    const endAt = new Date(day);
+    endAt.setHours(eh, em, 0, 0);
+    if (endAt.getTime() <= startAt.getTime()) endAt.setDate(endAt.getDate() + 1);
+    if (
+      !best ||
+      Math.abs(startAt.getTime() - at.getTime()) < Math.abs(best.startAt.getTime() - at.getTime())
+    ) {
+      best = { startAt, endAt };
+    }
+  }
+  return best!;
+}
+
 function fmtTime(t: string) {
   const [hStr, mStr] = t.split(":");
   const h = parseInt(hStr, 10);
