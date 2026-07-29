@@ -127,8 +127,12 @@ export function scheduledWindow(
     start.setHours(sh, sm, 0, 0);
     const end = new Date(day);
     end.setHours(eh, em, 0, 0);
+    if (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1);
     const openAt = new Date(start.getTime() - 45 * 60 * 1000);
-    if (now >= openAt && now <= end) {
+    // Late check-in is always allowed: the window stays open for a few hours
+    // after the scheduled end so nobody is ever blocked from starting a shift.
+    const closeAt = new Date(end.getTime() + LATE_GRACE_MS);
+    if (now >= openAt && now <= closeAt) {
       return { canStart: true, reason: "" };
     }
     if (openAt > now && (!nearestFutureOpen || openAt < nearestFutureOpen)) {
