@@ -299,19 +299,13 @@ function Index() {
 
 
   async function checkIn() {
-    const word = magicWord.trim();
-    if (!word) return toast.error("Enter the magic word");
     setCheckingIn(true);
     try {
       const row = await createShiftFn({
-        data: {
-          magic_word: word,
-          scheduled_shift_id: openScheduled?.id ?? null,
-        },
+        data: { scheduled_shift_id: openScheduled?.id ?? null },
       });
       setActive(row);
-      setMagicWord("");
-      toast.success(`Checked in — welcome, ${row.operator_name}`);
+      setShowActivation(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Check-in failed");
     } finally {
