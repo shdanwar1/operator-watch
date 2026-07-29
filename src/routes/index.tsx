@@ -379,6 +379,14 @@ function Index() {
       <Toaster richColors position="top-center" />
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-5 sm:py-10">
         <header className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 sm:mb-10">
+          {showActivation && (
+            <StudioActivation
+              onDone={() => {
+                setShowActivation(false);
+                toast.success("Studio live — you're checked in");
+              }}
+            />
+          )}
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground sm:h-11 sm:w-11">
             <Radio className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
