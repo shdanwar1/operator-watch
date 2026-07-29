@@ -32,6 +32,8 @@ import { summarizeMonth, formatHM } from "@/lib/attendance";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { StudioDisplayPanel } from "@/components/StudioDisplayPanel";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { HoldButton } from "@/components/HoldButton";
+import { StudioActivation } from "@/components/StudioActivation";
 
 
 export const Route = createFileRoute("/")({
