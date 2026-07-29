@@ -473,18 +473,13 @@ function Index() {
                 <LockedFeatureCard
                   icon={<LogIn className="h-4 w-4" />}
                   title="Check In"
-                  reason={
-                    needsMagic
-                      ? "Set your magic word to enable Check In."
-                      : "Complete your profile to enable Check In."
-                  }
+                  reason="Complete your profile to enable Check In."
                 />
               ) : (
                 <CheckInPanel
-                  magicWord={magicWord}
-                  setMagicWord={setMagicWord}
                   openScheduled={openScheduled}
                   scheduled={scheduled}
+                  now={now}
                   onCheckIn={checkIn}
                   checkingIn={checkingIn}
                   variant="compact"
