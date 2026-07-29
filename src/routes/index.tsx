@@ -221,7 +221,7 @@ function Index() {
   const createShiftFn = useServerFn(createShift);
   const updateShiftServer = useServerFn(updateShiftFn);
 
-  const [magicWord, setMagicWord] = useState("");
+  const [showActivation, setShowActivation] = useState(false);
   const [active, setActive] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
   const [scheduled, setScheduled] = useState<ScheduledShift[]>([]);
