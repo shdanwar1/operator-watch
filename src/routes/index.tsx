@@ -426,6 +426,8 @@ function Index() {
             ) : active ? (
               <ActiveShiftPanel
                 shift={active}
+                scheduledShift={activeScheduled}
+                now={now}
                 onCheckOut={checkOut}
                 onAddClass={addClassRow}
                 onUpdateClass={updateClassRow}
