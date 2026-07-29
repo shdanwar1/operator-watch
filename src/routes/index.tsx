@@ -299,6 +299,12 @@ function Index() {
   const focus: "check_in" | "time_to_leave" =
     !active && minutesToNext > 45 ? "time_to_leave" : "check_in";
 
+  // The scheduled shift the active attendance record belongs to.
+  const activeScheduled =
+    (active?.scheduled_shift_id
+      ? scheduled.find((s) => s.id === active.scheduled_shift_id)
+      : null) ?? null;
+
 
   async function checkIn() {
     setCheckingIn(true);
