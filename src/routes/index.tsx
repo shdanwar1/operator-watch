@@ -627,32 +627,32 @@ function formatCountdown(ms: number) {
 }
 
 function CheckInPanel({
-  magicWord,
-  setMagicWord,
   openScheduled,
   scheduled,
+  now,
   onCheckIn,
   checkingIn,
   variant = "hero",
 }: {
-  magicWord: string;
-  setMagicWord: (v: string) => void;
   openScheduled: ScheduledShift | null;
   scheduled: ScheduledShift[];
+  now: Date;
   onCheckIn: () => void;
   checkingIn: boolean;
   variant?: "hero" | "compact";
 }) {
-
-  const canCheckIn = magicWord.trim().length > 0 && !!openScheduled;
-  const now = new Date();
+  const canCheckIn = !!openScheduled;
   const next = openScheduled ? null : nextShiftInstance(scheduled, now);
   const opensAt = next ? new Date(next.startAt.getTime() - 45 * 60 * 1000) : null;
   const msUntilOpen = opensAt ? Math.max(0, opensAt.getTime() - now.getTime()) : 0;
 
+  // How late we are relative to the scheduled start (informational only).
+  const openStart = openScheduled ? instanceTimes(openScheduled, now).startAt : null;
+  const lateMin = openStart ? minutesLate(openStart, now) : 0;
+  const classCount = scheduledClassCount(openScheduled?.label);
+
   // Anchor the "total" duration to the first render where this target became
-  // active. Percent = remaining / total, so the sand level actually maps to
-  // the real countdown instead of resetting or looping.
+  // active, so the hourglass level maps to the real countdown.
   const anchorRef = useRef<{ targetMs: number; anchoredAt: number; totalMs: number } | null>(null);
   if (opensAt) {
     const targetMs = opensAt.getTime();
@@ -696,29 +696,24 @@ function CheckInPanel({
           </div>
           <p className="text-xs text-muted-foreground">
             {openScheduled
-              ? "Ready — enter your magic word."
+              ? lateMin > 0
+                ? `Running ${lateMin}m late — you can still check in.`
+                : "Ready when you are."
               : msUntilOpen > 0
                 ? `Opens in ${formatCountdown(msUntilOpen)}`
                 : "No open shift right now."}
           </p>
-          <Input
-            type="password"
-            placeholder="Magic word"
-            value={magicWord}
-            onChange={(e) => setMagicWord(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && canCheckIn && !checkingIn) onCheckIn();
-            }}
-          />
-          <Button
-            size="sm"
-            className="w-full"
-            onClick={onCheckIn}
-            disabled={!canCheckIn || checkingIn}
-          >
-            <LogIn className="mr-1.5 h-3.5 w-3.5" />
-            {checkingIn ? "Checking in…" : "Check in"}
-          </Button>
+          <div className="flex justify-center py-1">
+            <HoldButton
+              label="Hold to Check In"
+              successLabel="Checked in"
+              disabled={!canCheckIn}
+              busy={checkingIn}
+              onComplete={onCheckIn}
+              size={150}
+              hint="Hold 3s"
+            />
+          </div>
         </CardContent>
       </Card>
     );
@@ -726,17 +721,11 @@ function CheckInPanel({
 
   return (
     <Card className="border-border/60 overflow-hidden hero-aurora">
-      <CardContent className="flex flex-col items-center gap-5 px-4 py-10 text-center text-foreground sm:gap-6 sm:px-6 sm:py-14">
-
-
+      <CardContent className="flex flex-col items-center gap-6 px-4 py-10 text-center text-foreground sm:gap-8 sm:px-6 sm:py-14">
         {showCountdownCard ? (
           <div className="flex flex-col items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-2.5">
-              <Hourglass
-                percent={percent}
-                state={state}
-                className="h-8 w-8 sm:h-10 sm:w-10"
-              />
+              <Hourglass percent={percent} state={state} className="h-8 w-8 sm:h-10 sm:w-10" />
               <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
                 {state === "ready" ? "Ready for Check-In" : "Check-in opens in"}
               </div>
@@ -761,6 +750,11 @@ function CheckInPanel({
                 </>
               )}
             </p>
+            {classCount ? (
+              <p className="text-xs text-muted-foreground">
+                {classCount} {classCount === 1 ? "class" : "classes"} scheduled
+              </p>
+            ) : null}
           </div>
         ) : (
           <>
@@ -771,34 +765,24 @@ function CheckInPanel({
           </>
         )}
 
-        <div className="w-full max-w-xs space-y-3 text-left">
-          <div className="space-y-2">
-            <Label htmlFor="mw" className="text-xs uppercase tracking-wide text-muted-foreground">
-              Magic word
-            </Label>
-            <Input
-              id="mw"
-              type="password"
-              placeholder="Secret check-in word"
-              autoFocus
-              value={magicWord}
-              onChange={(e) => setMagicWord(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && canCheckIn && !checkingIn) onCheckIn();
-              }}
-            />
-          </div>
-        </div>
+        <HoldButton
+          label="Hold to Check In"
+          successLabel="Checked in"
+          disabled={!canCheckIn}
+          busy={checkingIn}
+          onComplete={onCheckIn}
+          size={240}
+        />
 
-        <Button
-          size="lg"
-          className="h-12 w-full max-w-xs text-base sm:h-14"
-          onClick={onCheckIn}
-          disabled={!canCheckIn || checkingIn}
-        >
-          <LogIn className="mr-2 h-5 w-5" />
-          {checkingIn ? "Checking in…" : "Check in"}
-        </Button>
+        {canCheckIn && lateMin > 0 ? (
+          <div className="flex max-w-sm items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-left">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+            <p className="text-xs text-muted-foreground">
+              Your shift started {lateMin >= 60 ? `${Math.floor(lateMin / 60)}h ${lateMin % 60}m` : `${lateMin}m`} ago.
+              You can still check in — the actual time is recorded for attendance.
+            </p>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -806,6 +790,8 @@ function CheckInPanel({
 
 function ActiveShiftPanel({
   shift,
+  scheduledShift,
+  now,
   onCheckOut,
   onAddClass,
   onUpdateClass,
@@ -815,6 +801,8 @@ function ActiveShiftPanel({
   classes,
 }: {
   shift: Shift;
+  scheduledShift: ScheduledShift | null;
+  now: Date;
   onCheckOut: () => void;
   onAddClass: () => void;
   onUpdateClass: (i: number, patch: Partial<ShiftClass>) => void;
@@ -824,6 +812,27 @@ function ActiveShiftPanel({
   classes: DirectoryItem[];
 }) {
   const d = formatDuration(shift.check_in_at, null);
+  const checkInAt = new Date(shift.check_in_at);
+
+  const times = scheduledShift ? instanceTimes(scheduledShift, checkInAt) : null;
+  const lateMin = minutesLate(times?.startAt ?? null, checkInAt);
+  const expected = scheduledClassCount(scheduledShift?.label);
+
+  // Pre-generate the scheduled number of empty class rows once.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current) return;
+    if (!expected || shift.classes.length > 0) return;
+    seededRef.current = true;
+    for (let i = 0; i < expected; i++) onAddClass();
+  }, [expected, shift.classes.length, onAddClass]);
+
+  const filled = shift.classes.filter((c) => c.class.trim() || c.teacher.trim()).length;
+  const target = Math.max(expected ?? 0, shift.classes.length);
+  const progressPct = target > 0 ? Math.min(100, (filled / target) * 100) : 0;
+
+  const earlyMin = times ? Math.max(0, Math.round((times.endAt.getTime() - now.getTime()) / 60000)) : 0;
+  const early = earlyMin > 0;
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -837,22 +846,47 @@ function ActiveShiftPanel({
           </div>
           <div className="text-[11px] text-foreground/70 sm:text-xs">
             Since{" "}
-            {new Date(shift.check_in_at).toLocaleTimeString(undefined, {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            {checkInAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+            {lateMin > 0 ? ` · ${lateMin}m after scheduled start` : ""}
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardContent className="space-y-3 p-4 sm:p-5">
+        <CardContent className="space-y-4 p-4 sm:p-5">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">Classes & teachers</h3>
+            <div>
+              <h3 className="text-sm font-medium">
+                {expected ? "Today's schedule" : "Classes & teachers"}
+              </h3>
+              {times ? (
+                <p className="text-xs text-muted-foreground">
+                  {fmtTime(scheduledShift!.start_time)} — {fmtTime(scheduledShift!.end_time)}
+                </p>
+              ) : null}
+            </div>
             <Button variant="secondary" size="sm" onClick={onAddClass}>
               <Plus className="mr-1 h-3.5 w-3.5" /> Add
             </Button>
           </div>
+
+          {target > 0 ? (
+            <div>
+              <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Completed</span>
+                <span className="tabular-nums">
+                  {filled} / {target}
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-500"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+
           {shift.classes.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               No classes yet. Add a class name and the teacher running it.
@@ -860,7 +894,10 @@ function ActiveShiftPanel({
           ) : (
             <div className="space-y-2">
               {shift.classes.map((c, i) => (
-                <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                <div key={i} className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2">
+                  <span className="w-5 text-center text-xs tabular-nums text-muted-foreground">
+                    {i + 1}
+                  </span>
                   <DirectoryCombobox
                     value={c.class}
                     onChange={(v) => onUpdateClass(i, { class: v })}
@@ -890,16 +927,25 @@ function ActiveShiftPanel({
 
       <StudioDisplayPanel />
 
-      <Button
-        onClick={onCheckOut}
-        variant="destructive"
-        size="lg"
-        className="h-12 w-full text-base sm:h-14"
-        disabled={checkingOut}
-      >
-        <LogOut className="mr-2 h-5 w-5" />
-        {checkingOut ? "Checking out…" : "Check out"}
-      </Button>
+      <Card>
+        <CardContent className="flex flex-col items-center gap-4 px-4 py-8">
+          <HoldButton
+            label="Hold to Check Out"
+            successLabel="Checked out"
+            tone="danger"
+            busy={checkingOut}
+            onComplete={onCheckOut}
+            size={200}
+          />
+          {early ? (
+            <p className="max-w-sm text-center text-xs text-muted-foreground">
+              Your shift is scheduled until {fmtTime(scheduledShift!.end_time)} —
+              checking out now records an early finish of{" "}
+              {earlyMin >= 60 ? `${Math.floor(earlyMin / 60)}h ${earlyMin % 60}m` : `${earlyMin}m`}.
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
     </div>
   );
 }
