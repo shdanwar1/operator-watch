@@ -52,7 +52,7 @@ function computeMissing(row: {
   const missing: ProfileMissing[] = [];
   if (row.home_lat == null || row.home_lng == null) missing.push("home");
   if (!row.calendar_ics_url || !row.calendar_ics_url.trim()) missing.push("calendar");
-  if (!row.has_magic_word) missing.push("magic");
+  // Magic word is no longer required for attendance; kept in the profile only.
   return missing;
 }
 
