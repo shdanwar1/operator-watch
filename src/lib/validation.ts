@@ -23,14 +23,6 @@ export function validatePin(v: unknown): string {
   return t;
 }
 
-export function validateMagicWord(v: unknown): string {
-  if (typeof v !== "string") throw new Error("Magic word is required");
-  const t = v.trim();
-  if (!t) throw new Error("Magic word is required");
-  if (t.length > 100) throw new Error("Magic word is too long");
-  return t;
-}
-
 export function validateCalendarUrl(v: unknown): string {
   if (typeof v !== "string") throw new Error("Calendar URL is required");
   const s = v.trim();
