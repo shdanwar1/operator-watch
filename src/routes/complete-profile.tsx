@@ -61,8 +61,7 @@ function CompleteProfile() {
     home_lat: null,
     home_lng: null,
     calendar_ics_url: null,
-    has_magic_word: false,
-    missing: ["home", "calendar", "magic"],
+    missing: ["home", "calendar"],
     complete: false,
   };
   const router = useRouter();
