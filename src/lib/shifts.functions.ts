@@ -236,10 +236,6 @@ function sanitizeShiftPatch(patch: ShiftPatch): ShiftPatch {
     if (!Number.isFinite(n) || n < 0 || n > 100000) throw new Error("Invalid live_streams_count");
     out.live_streams_count = n;
   }
-  if (patch.dance_teachers !== undefined) {
-    if (!Array.isArray(patch.dance_teachers)) throw new Error("Invalid dance_teachers");
-    out.dance_teachers = patch.dance_teachers.slice(0, 100).map((t) => String(t).slice(0, 100));
-  }
   if (patch.notes !== undefined) {
     out.notes = patch.notes === null ? null : String(patch.notes).slice(0, 5000);
   }
