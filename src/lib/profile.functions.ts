@@ -1,10 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
-import {
-  validateCalendarUrl,
-  validateMapsUrl,
-  validateMagicWord,
-} from "./validation";
+import { validateCalendarUrl, validateMapsUrl } from "./validation";
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
