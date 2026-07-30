@@ -207,7 +207,6 @@ type ShiftPatch = {
   check_in_at?: string;
   check_out_at?: string | null;
   live_streams_count?: number;
-  dance_teachers?: string[];
   notes?: string | null;
   classes?: ShiftClass[];
 };
