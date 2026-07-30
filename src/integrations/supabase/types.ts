@@ -48,7 +48,6 @@ export type Database = {
           id: string
           is_active: boolean
           is_admin: boolean
-          magic_word_hash: string | null
           pin_hash: string | null
           updated_at: string
           username: string
@@ -62,7 +61,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_admin?: boolean
-          magic_word_hash?: string | null
           pin_hash?: string | null
           updated_at?: string
           username: string
@@ -76,7 +74,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_admin?: boolean
-          magic_word_hash?: string | null
           pin_hash?: string | null
           updated_at?: string
           username?: string
@@ -87,39 +84,39 @@ export type Database = {
         Row: {
           assigned_operator: string | null
           created_at: string
-          day_of_week: number
+          day_of_week: number | null
           end_time: string
           external_event_id: string | null
           id: string
           label: string | null
           notes: string | null
-          specific_date: string | null
+          specific_date: string
           start_time: string
           status: string
         }
         Insert: {
           assigned_operator?: string | null
           created_at?: string
-          day_of_week: number
+          day_of_week?: number | null
           end_time: string
           external_event_id?: string | null
           id?: string
           label?: string | null
           notes?: string | null
-          specific_date?: string | null
+          specific_date: string
           start_time: string
           status?: string
         }
         Update: {
           assigned_operator?: string | null
           created_at?: string
-          day_of_week?: number
+          day_of_week?: number | null
           end_time?: string
           external_event_id?: string | null
           id?: string
           label?: string | null
           notes?: string | null
-          specific_date?: string | null
+          specific_date?: string
           start_time?: string
           status?: string
         }
@@ -131,7 +128,6 @@ export type Database = {
           check_out_at: string | null
           classes: Json
           created_at: string
-          dance_teachers: string[]
           id: string
           live_streams_count: number
           notes: string | null
@@ -143,7 +139,6 @@ export type Database = {
           check_out_at?: string | null
           classes?: Json
           created_at?: string
-          dance_teachers?: string[]
           id?: string
           live_streams_count?: number
           notes?: string | null
@@ -155,7 +150,6 @@ export type Database = {
           check_out_at?: string | null
           classes?: Json
           created_at?: string
-          dance_teachers?: string[]
           id?: string
           live_streams_count?: number
           notes?: string | null
@@ -233,20 +227,8 @@ export type Database = {
         Returns: undefined
       }
       admin_update_operator: {
-        Args: {
-          p_id: string
-          p_magic?: string
-          p_pin?: string
-          p_username?: string
-        }
+        Args: { p_id: string; p_pin?: string; p_username?: string }
         Returns: undefined
-      }
-      find_operator_by_magic: {
-        Args: { p_magic: string }
-        Returns: {
-          id: string
-          username: string
-        }[]
       }
       list_operators_for_selection: {
         Args: never
@@ -260,10 +242,6 @@ export type Database = {
         Args: { p_id: string; p_label: string; p_lat: number; p_lng: number }
         Returns: undefined
       }
-      set_operator_magic: {
-        Args: { p_id: string; p_magic: string }
-        Returns: undefined
-      }
       set_operator_pin: {
         Args: { p_id: string; p_pin: string }
         Returns: undefined
@@ -271,10 +249,6 @@ export type Database = {
       set_operator_username: {
         Args: { p_id: string; p_username: string }
         Returns: undefined
-      }
-      verify_operator_magic: {
-        Args: { p_magic: string; p_username: string }
-        Returns: string
       }
       verify_operator_pin: {
         Args: { p_pin: string; p_username: string }

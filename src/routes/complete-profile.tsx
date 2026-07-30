@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
-import { Home, CalendarDays, Info, Save, ArrowRight, ShieldCheck, User, KeyRound } from "lucide-react";
+import { Home, CalendarDays, Info, Save, ArrowRight, ShieldCheck, User } from "lucide-react";
 
 export const Route = createFileRoute("/complete-profile")({
   beforeLoad: async () => {
@@ -61,8 +61,7 @@ function CompleteProfile() {
     home_lat: null,
     home_lng: null,
     calendar_ics_url: null,
-    has_magic_word: false,
-    missing: ["home", "calendar", "magic"],
+    missing: ["home", "calendar"],
     complete: false,
   };
   const router = useRouter();
@@ -72,34 +71,29 @@ function CompleteProfile() {
   const [profile, setProfile] = useState<MyProfileStatus>(initial);
   const [mapsUrl, setMapsUrl] = useState("");
   const [calUrl, setCalUrl] = useState("");
-  const [magic, setMagic] = useState("");
   const [saving, setSaving] = useState(false);
 
   const missing = profile.missing ?? [];
   const needsHome = missing.includes("home");
   const needsCal = missing.includes("calendar");
-  const needsMagic = missing.includes("magic");
   const allDone = profile.complete;
 
 
   async function save() {
     if (needsHome && !mapsUrl.trim()) return toast.error("Add your home address");
     if (needsCal && !calUrl.trim()) return toast.error("Add your Google Calendar URL");
-    if (needsMagic && !magic.trim()) return toast.error("Set your magic word");
     setSaving(true);
     try {
       await saveFn({
         data: {
           maps_url: needsHome ? mapsUrl.trim() : undefined,
           calendar_ics_url: needsCal ? calUrl.trim() : undefined,
-          magic_word: needsMagic ? magic.trim() : undefined,
         },
       });
       const fresh = await refetch();
       setProfile(fresh);
       setMapsUrl("");
       setCalUrl("");
-      setMagic("");
       toast.success("Profile updated");
       if (fresh.complete) await router.navigate({ to: "/" });
     } catch (e) {
@@ -190,30 +184,6 @@ function CompleteProfile() {
               </div>
             )}
 
-            {needsMagic && (
-              <div className="space-y-2 rounded-xl border border-border/60 p-4">
-                <div className="flex items-center gap-2">
-                  <KeyRound className="h-4 w-4 text-primary" />
-                  <h2 className="text-sm font-medium">
-                    Magic word <span className="text-destructive">*</span>
-                  </h2>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Used to confirm your identity when checking in for a shift. Choose
-                  something only you would know.
-                </p>
-                <Input
-                  type="password"
-                  placeholder="Your secret magic word"
-                  value={magic}
-                  onChange={(e) => setMagic(e.target.value)}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  autoComplete="new-password"
-                />
-              </div>
-            )}
-
             {!needsHome && profile.home_label && (
               <CompletedRow
                 icon={<Home className="h-4 w-4" />}
@@ -228,14 +198,6 @@ function CompleteProfile() {
                 value="Connected"
               />
             )}
-            {!needsMagic && profile.has_magic_word && (
-              <CompletedRow
-                icon={<KeyRound className="h-4 w-4" />}
-                title="Magic word"
-                value="Set"
-              />
-            )}
-
 
             <div className="space-y-2 pt-2">
               {!allDone ? (

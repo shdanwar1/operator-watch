@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
-import { ArrowLeft, Save, Home, MapPin, KeyRound, User, Sparkles, CalendarDays, LogOut } from "lucide-react";
+import { ArrowLeft, Save, Home, MapPin, KeyRound, User, CalendarDays, LogOut } from "lucide-react";
 import { USERNAME_RE, PIN_RE } from "@/lib/validation";
 
 export const Route = createFileRoute("/profile")({
@@ -35,7 +35,7 @@ export const Route = createFileRoute("/profile")({
       { title: "Operator profile — Studio Operator" },
       {
         name: "description",
-        content: "Edit your username, PIN, home address, Google Calendar URL, and magic word.",
+        content: "Edit your username, PIN, home address, and Google Calendar URL.",
       },
     ],
   }),
@@ -56,7 +56,6 @@ function ProfilePage() {
 
   const [username, setUsername] = useState(profile.username);
   const [pin, setPin] = useState("");
-  const [magicWord, setMagicWord] = useState("");
   const [mapsUrl, setMapsUrl] = useState("");
   const [calDraft, setCalDraft] = useState(icsUrl ?? "");
 
@@ -77,7 +76,7 @@ function ProfilePage() {
     if (pin && !PIN_RE.test(pin)) {
       return toast.error("PIN must contain exactly 4 digits");
     }
-    if (!usernameChanged() && !pin && !magicWord.trim()) {
+    if (!usernameChanged() && !pin) {
       return toast.error("Nothing to save");
     }
 
@@ -87,12 +86,10 @@ function ProfilePage() {
         data: {
           username: usernameChanged() ? username.trim() : undefined,
           pin: pin || undefined,
-          magic_word: magicWord.trim() || undefined,
         },
       });
       toast.success("Profile updated");
       setPin("");
-      setMagicWord("");
       const fresh = await reloadProfile();
       setProfile(fresh);
       setUsername(fresh.username);
@@ -174,7 +171,7 @@ function ProfilePage() {
               </div>
             </div>
 
-            {/* Username + PIN + Magic Word (grouped save) */}
+            {/* Username + PIN (grouped save) */}
             <section className="space-y-4">
               <div className="space-y-2">
                 <Label>Username</Label>
@@ -204,22 +201,6 @@ function ProfilePage() {
                   autoComplete="new-password"
                 />
                 <p className="text-[11px] text-muted-foreground">Exactly 4 digits.</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5" /> Magic word
-                </Label>
-                <Input
-                  type="password"
-                  placeholder="Leave blank to keep current"
-                  value={magicWord}
-                  onChange={(e) => setMagicWord(e.target.value)}
-                  autoComplete="new-password"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Spoken at check-in to go on-air.
-                </p>
               </div>
 
               <Button

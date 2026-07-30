@@ -3,7 +3,6 @@ import { useSession } from "@tanstack/react-start/server";
 import {
   validateUsername,
   validatePin,
-  validateMagicWord,
   validateMapsUrl,
   sameUsername,
 } from "./validation";
@@ -96,19 +95,16 @@ async function ensureUsernameAvailable(username: string, excludeId: string) {
   }
 }
 
-/** Update the currently signed-in operator's own username / PIN / magic word. */
+/** Update the currently signed-in operator's own username / PIN. */
 export const updateMyProfile = createServerFn({ method: "POST" })
   .inputValidator(
-    (data: { username?: string; pin?: string; magic_word?: string }) => {
-      const out: { username?: string; pin?: string; magic_word?: string } = {};
+    (data: { username?: string; pin?: string }) => {
+      const out: { username?: string; pin?: string } = {};
       if (data?.username !== undefined && data.username !== "") {
         out.username = validateUsername(data.username);
       }
       if (data?.pin !== undefined && data.pin !== "") {
         out.pin = validatePin(data.pin);
-      }
-      if (data?.magic_word !== undefined && data.magic_word !== "") {
-        out.magic_word = validateMagicWord(data.magic_word);
       }
       return out;
     },
@@ -126,7 +122,6 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       p_id: id,
       p_username: (data.username ?? null) as string,
       p_pin: (data.pin ?? null) as string,
-      p_magic: (data.magic_word ?? null) as string,
     });
     if (error) throw new Error(error.message);
 
@@ -246,9 +241,6 @@ export const adminListShiftsForSession = createServerFn({ method: "GET" }).handl
       check_in_at: String(row.check_in_at ?? ""),
       check_out_at: (row.check_out_at as string | null) ?? null,
       live_streams_count: Number(row.live_streams_count ?? 0),
-      dance_teachers: Array.isArray(row.dance_teachers)
-        ? (row.dance_teachers as unknown[]).map(String)
-        : [],
       notes: (row.notes as string | null) ?? null,
       scheduled_shift_id: (row.scheduled_shift_id as string | null) ?? null,
       classes,
@@ -282,12 +274,12 @@ export const adminListOperators = createServerFn({ method: "GET" }).handler(asyn
   return rows.map((r) => ({ ...r, future_shift_count: counts.get(r.username) ?? 0 })) as OperatorBasic[];
 });
 
-/** Admin: update any operator's username / PIN / magic word. */
+/** Admin: update any operator's username / PIN. */
 export const adminUpdateOperator = createServerFn({ method: "POST" })
   .inputValidator(
-    (data: { id: string; username?: string; pin?: string; magic_word?: string }) => {
+    (data: { id: string; username?: string; pin?: string }) => {
       if (!data?.id) throw new Error("id required");
-      const out: { id: string; username?: string; pin?: string; magic_word?: string } = {
+      const out: { id: string; username?: string; pin?: string } = {
         id: String(data.id),
       };
       if (data.username !== undefined && data.username !== "") {
@@ -295,9 +287,6 @@ export const adminUpdateOperator = createServerFn({ method: "POST" })
       }
       if (data.pin !== undefined && data.pin !== "") {
         out.pin = validatePin(data.pin);
-      }
-      if (data.magic_word !== undefined && data.magic_word !== "") {
-        out.magic_word = validateMagicWord(data.magic_word);
       }
       return out;
     },
@@ -310,7 +299,6 @@ export const adminUpdateOperator = createServerFn({ method: "POST" })
       p_id: data.id,
       p_username: (data.username ?? null) as string,
       p_pin: (data.pin ?? null) as string,
-      p_magic: (data.magic_word ?? null) as string,
     });
     if (error) throw new Error(error.message);
     return { ok: true as const };

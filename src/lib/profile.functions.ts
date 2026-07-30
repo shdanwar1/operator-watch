@@ -1,10 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
-import {
-  validateCalendarUrl,
-  validateMapsUrl,
-  validateMagicWord,
-} from "./validation";
+import { validateCalendarUrl, validateMapsUrl } from "./validation";
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
@@ -28,7 +24,7 @@ async function requireSignedIn() {
   return { username, isAdmin: Boolean(session.data.isAdmin) };
 }
 
-export type ProfileMissing = "home" | "calendar" | "magic";
+export type ProfileMissing = "home" | "calendar";
 
 export type MyProfileStatus = {
   id: string;
@@ -38,7 +34,6 @@ export type MyProfileStatus = {
   home_lat: number | null;
   home_lng: number | null;
   calendar_ics_url: string | null;
-  has_magic_word: boolean;
   missing: ProfileMissing[];
   complete: boolean;
 };
@@ -47,12 +42,10 @@ function computeMissing(row: {
   home_lat: number | null;
   home_lng: number | null;
   calendar_ics_url: string | null;
-  has_magic_word: boolean;
 }): ProfileMissing[] {
   const missing: ProfileMissing[] = [];
   if (row.home_lat == null || row.home_lng == null) missing.push("home");
   if (!row.calendar_ics_url || !row.calendar_ics_url.trim()) missing.push("calendar");
-  // Magic word is no longer required for attendance; kept in the profile only.
   return missing;
 }
 
@@ -62,12 +55,12 @@ export const getMyProfileStatus = createServerFn({ method: "GET" }).handler(
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("operators")
-      .select("id, username, is_admin, home_label, home_lat, home_lng, calendar_ics_url, magic_word_hash")
+      .select("id, username, is_admin, home_label, home_lat, home_lng, calendar_ics_url")
       .ilike("username", username)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) throw new Error("Operator not found");
-    const row = data as {
+    const publicRow = data as {
       id: string;
       username: string;
       is_admin: boolean;
@@ -75,18 +68,6 @@ export const getMyProfileStatus = createServerFn({ method: "GET" }).handler(
       home_lat: number | null;
       home_lng: number | null;
       calendar_ics_url: string | null;
-      magic_word_hash: string | null;
-    };
-    const has_magic_word = !!row.magic_word_hash && row.magic_word_hash.trim().length > 0;
-    const publicRow = {
-      id: row.id,
-      username: row.username,
-      is_admin: row.is_admin,
-      home_label: row.home_label,
-      home_lat: row.home_lat,
-      home_lng: row.home_lng,
-      calendar_ics_url: row.calendar_ics_url,
-      has_magic_word,
     };
     const missing = computeMissing(publicRow);
     return { ...publicRow, missing, complete: missing.length === 0 };
@@ -141,15 +122,12 @@ async function resolveGoogleMapsUrl(
 }
 
 export const completeMyProfile = createServerFn({ method: "POST" })
-  .inputValidator(
-    (data: { maps_url?: string; calendar_ics_url?: string; magic_word?: string }) => ({
-      maps_url: data?.maps_url ? String(data.maps_url).trim() : undefined,
-      calendar_ics_url: data?.calendar_ics_url
-        ? String(data.calendar_ics_url).trim()
-        : undefined,
-      magic_word: data?.magic_word ? String(data.magic_word).trim() : undefined,
-    }),
-  )
+  .inputValidator((data: { maps_url?: string; calendar_ics_url?: string }) => ({
+    maps_url: data?.maps_url ? String(data.maps_url).trim() : undefined,
+    calendar_ics_url: data?.calendar_ics_url
+      ? String(data.calendar_ics_url).trim()
+      : undefined,
+  }))
   .handler(async ({ data }) => {
     const { username } = await requireSignedIn();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -184,16 +162,6 @@ export const completeMyProfile = createServerFn({ method: "POST" })
       const { error: e1 } = await supabaseAdmin.from("operators").update(patch).eq("id", id);
       if (e1) throw new Error(e1.message);
       updated += Object.keys(patch).length;
-    }
-
-    if (data.magic_word) {
-      const magic = validateMagicWord(data.magic_word);
-      const { error: e2 } = await supabaseAdmin.rpc("set_operator_magic", {
-        p_id: id,
-        p_magic: magic,
-      });
-      if (e2) throw new Error(e2.message);
-      updated += 1;
     }
 
     return { ok: true as const, updated };

@@ -38,7 +38,6 @@ export type ShiftRow = {
   check_in_at: string;
   check_out_at: string | null;
   live_streams_count: number;
-  dance_teachers: string[];
   notes: string | null;
   scheduled_shift_id: string | null;
   classes: ShiftClass[];
@@ -46,11 +45,12 @@ export type ShiftRow = {
 
 export type ScheduledShiftRow = {
   id: string;
+  /** Derived from `specific_date` by the database (0 = Sunday). Read-only. */
   day_of_week: number;
   start_time: string;
   end_time: string;
   label: string | null;
-  specific_date: string | null;
+  specific_date: string;
   assigned_operator: string | null;
   status: string;
   notes: string | null;
@@ -207,7 +207,6 @@ type ShiftPatch = {
   check_in_at?: string;
   check_out_at?: string | null;
   live_streams_count?: number;
-  dance_teachers?: string[];
   notes?: string | null;
   classes?: ShiftClass[];
 };
@@ -236,10 +235,6 @@ function sanitizeShiftPatch(patch: ShiftPatch): ShiftPatch {
     const n = Math.floor(Number(patch.live_streams_count));
     if (!Number.isFinite(n) || n < 0 || n > 100000) throw new Error("Invalid live_streams_count");
     out.live_streams_count = n;
-  }
-  if (patch.dance_teachers !== undefined) {
-    if (!Array.isArray(patch.dance_teachers)) throw new Error("Invalid dance_teachers");
-    out.dance_teachers = patch.dance_teachers.slice(0, 100).map((t) => String(t).slice(0, 100));
   }
   if (patch.notes !== undefined) {
     out.notes = patch.notes === null ? null : String(patch.notes).slice(0, 5000);
@@ -317,8 +312,23 @@ export const deleteShift = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Every scheduled shift carries a stable external id. Calendar-generated rows
+ * use the `op:` prefix (see gcal.functions.ts); rows created inside the app use
+ * `manual:` so the calendar sync never deletes them.
+ */
+function manualEventId(date: string, startTime: string, operator: string | null) {
+  const op = (operator ?? "unassigned").trim().toLowerCase() || "unassigned";
+  const hhmm = startTime.slice(0, 5).replace(":", "");
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `manual:${op}:shift:${date}:${hhmm}:${rand}`;
+}
+
 type ScheduledInsert = {
-  day_of_week: number;
+  specific_date: string;
   start_time: string;
   end_time: string;
   label: string;
@@ -327,16 +337,15 @@ type ScheduledInsert = {
 function sanitizeScheduled(rows: unknown): ScheduledInsert[] {
   if (!Array.isArray(rows)) throw new Error("rows must be an array");
   if (rows.length > 500) throw new Error("Too many rows");
-  const timeRe = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
   return rows.map((r) => {
     const row = r as Partial<ScheduledInsert>;
-    const dow = Number(row.day_of_week);
-    if (!Number.isInteger(dow) || dow < 0 || dow > 6) throw new Error("Invalid day_of_week");
+    const date = String(row.specific_date ?? "");
+    if (!DATE_RE.test(date)) throw new Error("Invalid specific_date");
     const st = String(row.start_time ?? "");
     const et = String(row.end_time ?? "");
-    if (!timeRe.test(st) || !timeRe.test(et)) throw new Error("Invalid time format");
+    if (!TIME_RE.test(st) || !TIME_RE.test(et)) throw new Error("Invalid time format");
     const label = String(row.label ?? "").slice(0, 200);
-    return { day_of_week: dow, start_time: st, end_time: et, label };
+    return { specific_date: date, start_time: st, end_time: et, label };
   });
 }
 
@@ -345,20 +354,20 @@ export const insertScheduledShifts = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireGate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("scheduled_shifts").insert(data.rows);
+    const rows = data.rows.map((r) => ({
+      ...r,
+      external_event_id: manualEventId(r.specific_date, r.start_time, null),
+    }));
+    const { error } = await supabaseAdmin.from("scheduled_shifts").insert(rows);
     if (error) throw new Error(error.message);
-    return { inserted: data.rows.length };
+    return { inserted: rows.length };
   });
 
-const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
 type ScheduledPatch = {
-  day_of_week?: number;
   start_time?: string;
   end_time?: string;
   label?: string | null;
-  specific_date?: string | null;
+  specific_date?: string;
   assigned_operator?: string | null;
   status?: string;
   notes?: string | null;
@@ -368,11 +377,6 @@ const VALID_STATUSES = new Set(["assigned", "unassigned", "completed", "cancelle
 
 function sanitizeScheduledPatch(patch: ScheduledPatch): ScheduledPatch {
   const out: ScheduledPatch = {};
-  if (patch.day_of_week !== undefined) {
-    const dow = Number(patch.day_of_week);
-    if (!Number.isInteger(dow) || dow < 0 || dow > 6) throw new Error("Invalid day_of_week");
-    out.day_of_week = dow;
-  }
   if (patch.start_time !== undefined) {
     const st = String(patch.start_time);
     if (!TIME_RE.test(st)) throw new Error("Invalid start_time");
@@ -387,13 +391,9 @@ function sanitizeScheduledPatch(patch: ScheduledPatch): ScheduledPatch {
     out.label = patch.label === null ? null : String(patch.label).slice(0, 200);
   }
   if (patch.specific_date !== undefined) {
-    if (patch.specific_date === null || patch.specific_date === "") {
-      out.specific_date = null;
-    } else {
-      const d = String(patch.specific_date);
-      if (!DATE_RE.test(d)) throw new Error("Invalid specific_date");
-      out.specific_date = d;
-    }
+    const d = String(patch.specific_date);
+    if (!DATE_RE.test(d)) throw new Error("Invalid specific_date");
+    out.specific_date = d;
   }
   if (patch.assigned_operator !== undefined) {
     if (patch.assigned_operator === null || patch.assigned_operator === "") {
@@ -416,15 +416,14 @@ function sanitizeScheduledPatch(patch: ScheduledPatch): ScheduledPatch {
 export const createScheduledShift = createServerFn({ method: "POST" })
   .inputValidator((data: ScheduledPatch) => {
     const p = sanitizeScheduledPatch(data ?? {});
-    if (p.day_of_week === undefined) throw new Error("day_of_week required");
+    if (!p.specific_date) throw new Error("specific_date required");
     if (!p.start_time) throw new Error("start_time required");
     if (!p.end_time) throw new Error("end_time required");
     return {
-      day_of_week: p.day_of_week,
       start_time: p.start_time,
       end_time: p.end_time,
       label: p.label ?? "",
-      specific_date: p.specific_date ?? null,
+      specific_date: p.specific_date,
       assigned_operator: p.assigned_operator ?? null,
       status: p.status ?? (p.assigned_operator ? "assigned" : "unassigned"),
       notes: p.notes ?? null,
@@ -435,7 +434,14 @@ export const createScheduledShift = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("scheduled_shifts")
-      .insert(data)
+      .insert({
+        ...data,
+        external_event_id: manualEventId(
+          data.specific_date,
+          data.start_time,
+          data.assigned_operator,
+        ),
+      })
       .select()
       .single();
     if (error) throw new Error(error.message);
