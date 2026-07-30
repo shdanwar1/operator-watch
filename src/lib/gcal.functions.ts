@@ -443,7 +443,6 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
     for (const s of grouped) {
       const uid = shiftUid(s.date, s.startMin);
       const payload = {
-        day_of_week: s.day_of_week,
         start_time: minToTime(s.startMin),
         end_time: minToTime(s.endMin),
         label: s.classCount === 1 ? "1 class" : `${s.classCount} classes`,
