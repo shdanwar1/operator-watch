@@ -122,15 +122,12 @@ async function resolveGoogleMapsUrl(
 }
 
 export const completeMyProfile = createServerFn({ method: "POST" })
-  .inputValidator(
-    (data: { maps_url?: string; calendar_ics_url?: string; magic_word?: string }) => ({
-      maps_url: data?.maps_url ? String(data.maps_url).trim() : undefined,
-      calendar_ics_url: data?.calendar_ics_url
-        ? String(data.calendar_ics_url).trim()
-        : undefined,
-      magic_word: data?.magic_word ? String(data.magic_word).trim() : undefined,
-    }),
-  )
+  .inputValidator((data: { maps_url?: string; calendar_ics_url?: string }) => ({
+    maps_url: data?.maps_url ? String(data.maps_url).trim() : undefined,
+    calendar_ics_url: data?.calendar_ics_url
+      ? String(data.calendar_ics_url).trim()
+      : undefined,
+  }))
   .handler(async ({ data }) => {
     const { username } = await requireSignedIn();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -165,16 +162,6 @@ export const completeMyProfile = createServerFn({ method: "POST" })
       const { error: e1 } = await supabaseAdmin.from("operators").update(patch).eq("id", id);
       if (e1) throw new Error(e1.message);
       updated += Object.keys(patch).length;
-    }
-
-    if (data.magic_word) {
-      const magic = validateMagicWord(data.magic_word);
-      const { error: e2 } = await supabaseAdmin.rpc("set_operator_magic", {
-        p_id: id,
-        p_magic: magic,
-      });
-      if (e2) throw new Error(e2.message);
-      updated += 1;
     }
 
     return { ok: true as const, updated };
