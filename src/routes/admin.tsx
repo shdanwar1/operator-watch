@@ -381,7 +381,6 @@ function AdminDashboard() {
 
   const handleCreate = async (
     input: {
-      day_of_week: number;
       start_time: string;
       end_time: string;
       label: string;
@@ -392,9 +391,8 @@ function AdminDashboard() {
   ) => {
     try {
       for (const date of dates) {
-        const dow = new Date(date + "T00:00:00").getDay();
         await createFn({
-          data: { ...input, day_of_week: dow, specific_date: date },
+          data: { ...input, specific_date: date },
         });
       }
       setCreateOpen(false);
@@ -861,7 +859,7 @@ function CreateOperatorDialog({
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground">
             Only a username and 4-digit PIN are needed. The operator sets their home
-            address, calendar, and magic word themselves on first login.
+            address and calendar themselves on first login.
           </p>
           <div className="space-y-2">
             <Label>Username</Label>
@@ -907,7 +905,7 @@ function OperatorEditorDialog({
 }: {
   operator: OperatorBasic | null;
   onClose: () => void;
-  onSave: (patch: { username?: string; pin?: string; magic_word?: string }) => Promise<void>;
+  onSave: (patch: { username?: string; pin?: string }) => Promise<void>;
   onSetActive: (active: boolean, unassignFuture: boolean) => Promise<void>;
 }) {
   const [username, setUsername] = useState("");
@@ -1046,7 +1044,7 @@ function OperatorEditorDialog({
                 />
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Home address, calendar and magic word can only be edited by the operator from
+                Home address and calendar can only be edited by the operator from
                 their own dashboard.
               </p>
             </div>
@@ -1241,7 +1239,6 @@ function ShiftEditSheet({
     assigned_operator?: string | null;
     status?: string;
     notes?: string | null;
-    day_of_week?: number;
   }) => Promise<void>;
 }) {
   const [start, setStart] = useState("");
@@ -1415,7 +1412,6 @@ function ShiftEditSheet({
                     notes: notes || null,
                     assigned_operator: op || null,
                     status,
-                    day_of_week: dow,
                   })
                 }
               >
@@ -1450,7 +1446,6 @@ function CreateShiftDialog({
   operators: OperatorBasic[];
   onCreate: (
     input: {
-      day_of_week: number;
       start_time: string;
       end_time: string;
       label: string;
@@ -1505,7 +1500,6 @@ function CreateShiftDialog({
     try {
       await onCreate(
         {
-          day_of_week: baseDate.getDay(),
           start_time: start,
           end_time: end,
           label,

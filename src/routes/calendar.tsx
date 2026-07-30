@@ -253,7 +253,6 @@ function CalendarPage() {
       if (editor.mode === "create") {
         await createSched({
           data: {
-            day_of_week: editor.date.getDay(),
             start_time: payload.start_time,
             end_time: payload.end_time,
             label: payload.label,
