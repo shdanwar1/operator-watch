@@ -38,7 +38,6 @@ export type ShiftRow = {
   check_in_at: string;
   check_out_at: string | null;
   live_streams_count: number;
-  dance_teachers: string[];
   notes: string | null;
   scheduled_shift_id: string | null;
   classes: ShiftClass[];
@@ -46,11 +45,12 @@ export type ShiftRow = {
 
 export type ScheduledShiftRow = {
   id: string;
+  /** Derived from `specific_date` by the database (0 = Sunday). Read-only. */
   day_of_week: number;
   start_time: string;
   end_time: string;
   label: string | null;
-  specific_date: string | null;
+  specific_date: string;
   assigned_operator: string | null;
   status: string;
   notes: string | null;
