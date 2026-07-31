@@ -465,7 +465,8 @@ export const createScheduledShift = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data }) => {
-    await requireGate();
+    const { username, isAdmin } = await requireGate();
+    assertAssignedToSelf(data.assigned_operator, username, isAdmin);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("scheduled_shifts")
@@ -489,7 +490,12 @@ export const updateScheduledShift = createServerFn({ method: "POST" })
     return { id: String(data.id), patch: sanitizeScheduledPatch(data.patch ?? {}) };
   })
   .handler(async ({ data }) => {
-    await requireGate();
+    const { username, isAdmin } = await requireGate();
+    await assertScheduledOwnership(data.id, username, isAdmin);
+    // Non-admins may not reassign a shift to somebody else.
+    if (!isAdmin && data.patch.assigned_operator !== undefined) {
+      assertAssignedToSelf(data.patch.assigned_operator, username, isAdmin);
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("scheduled_shifts")
@@ -505,10 +511,12 @@ export const deleteScheduledShift = createServerFn({ method: "POST" })
     return { id: String(data.id) };
   })
   .handler(async ({ data }) => {
-    await requireGate();
+    const { username, isAdmin } = await requireGate();
+    await assertScheduledOwnership(data.id, username, isAdmin);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("scheduled_shifts").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
+
 
