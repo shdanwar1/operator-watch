@@ -14,6 +14,91 @@ export type Database = {
   }
   public: {
     Tables: {
+      calendar_classes: {
+        Row: {
+          class_id: string | null
+          class_name: string
+          created_at: string
+          description: string | null
+          duration_min: number
+          end_time: string
+          id: string
+          meet_link: string | null
+          operator: string
+          scheduled_shift_id: string | null
+          source: string
+          specific_date: string
+          start_time: string
+          status: string
+          teacher_id: string | null
+          teacher_name: string
+          uid: string
+          updated_at: string
+        }
+        Insert: {
+          class_id?: string | null
+          class_name: string
+          created_at?: string
+          description?: string | null
+          duration_min?: number
+          end_time: string
+          id?: string
+          meet_link?: string | null
+          operator: string
+          scheduled_shift_id?: string | null
+          source?: string
+          specific_date: string
+          start_time: string
+          status?: string
+          teacher_id?: string | null
+          teacher_name: string
+          uid: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string | null
+          class_name?: string
+          created_at?: string
+          description?: string | null
+          duration_min?: number
+          end_time?: string
+          id?: string
+          meet_link?: string | null
+          operator?: string
+          scheduled_shift_id?: string | null
+          source?: string
+          specific_date?: string
+          start_time?: string
+          status?: string
+          teacher_id?: string | null
+          teacher_name?: string
+          uid?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_classes_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_classes_scheduled_shift_id_fkey"
+            columns: ["scheduled_shift_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_classes_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classes: {
         Row: {
           created_at: string

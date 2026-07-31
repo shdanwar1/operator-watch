@@ -31,9 +31,12 @@ import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 import { summarizeMonth, formatHM } from "@/lib/attendance";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { StudioDisplayPanel } from "@/components/StudioDisplayPanel";
+import { ClassScheduleCard } from "@/components/ClassScheduleCard";
+import { listMyCalendarClasses, type CalendarClassRow } from "@/lib/gcal.functions";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
+
 
 
 export const Route = createFileRoute("/")({
@@ -219,6 +222,7 @@ function Index() {
   const fetchScheduled = useServerFn(listScheduledShifts);
   const fetchTeachers = useServerFn(listTeachers);
   const fetchClasses = useServerFn(listClasses);
+  const fetchCalendarClasses = useServerFn(listMyCalendarClasses);
   const recordUsage = useServerFn(recordDirectoryUsage);
   const createShiftFn = useServerFn(createShift);
   const updateShiftServer = useServerFn(updateShiftFn);
@@ -229,6 +233,8 @@ function Index() {
   const [scheduled, setScheduled] = useState<ScheduledShift[]>([]);
   const [teachers, setTeachers] = useState<DirectoryItem[]>([]);
   const [classes, setClasses] = useState<DirectoryItem[]>([]);
+  const [calendarClasses, setCalendarClasses] = useState<CalendarClassRow[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
@@ -258,23 +264,26 @@ function Index() {
   async function load() {
     setLoading(true);
     try {
-      const [rows, sched, tRows, cRows] = await Promise.all([
+      const [rows, sched, tRows, cRows, calRows] = await Promise.all([
         fetchShifts(),
         fetchScheduled(),
         fetchTeachers(),
         fetchClasses(),
+        fetchCalendarClasses().catch(() => [] as CalendarClassRow[]),
       ]);
       setActive(rows.find((r) => !r.check_out_at) ?? null);
       setHistory(rows.filter((r) => r.check_out_at));
       setScheduled(sched);
       setTeachers(tRows);
       setClasses(cRows);
+      setCalendarClasses(calRows);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setLoading(false);
     }
   }
+
 
   async function handleSignOut() {
     await signOut();
@@ -304,6 +313,23 @@ function Index() {
     (active?.scheduled_shift_id
       ? scheduled.find((s) => s.id === active.scheduled_shift_id)
       : null) ?? null;
+
+  // Classes imported from Google Calendar (Detailed Mode). Empty in Busy Mode,
+  // where the dashboard keeps showing shift times only.
+  const todayKey = (() => {
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+  })();
+  const activeShiftClasses = activeScheduled
+    ? calendarClasses.filter(
+        (c) =>
+          c.scheduled_shift_id === activeScheduled.id ||
+          c.specific_date === activeScheduled.specific_date,
+      )
+    : calendarClasses.filter((c) => c.specific_date === todayKey);
+  const todayClasses = calendarClasses.filter((c) => c.specific_date === todayKey);
+
+
 
 
   async function checkIn() {
@@ -449,7 +475,9 @@ function Index() {
                 checkingOut={checkingOut}
                 teachers={teachers}
                 classes={classes}
+                importedClasses={activeShiftClasses}
               />
+
             ) : focus === "time_to_leave" ? (
               needsHome || needsCal ? (
                 <LockedFeatureCard
@@ -522,8 +550,12 @@ function Index() {
                 reason="Google Calendar has not been connected."
               />
             )}
+            {!loading && !active && todayClasses.length > 0 && (
+              <ClassScheduleCard classes={todayClasses} now={now} />
+            )}
             {!loading && !active && <StudioDisplayPanel />}
             {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
+
 
           </aside>
         </div>
@@ -817,6 +849,7 @@ function ActiveShiftPanel({
   checkingOut,
   teachers,
   classes,
+  importedClasses,
 }: {
   shift: Shift;
   scheduledShift: ScheduledShift | null;
@@ -828,6 +861,7 @@ function ActiveShiftPanel({
   checkingOut: boolean;
   teachers: DirectoryItem[];
   classes: DirectoryItem[];
+  importedClasses: CalendarClassRow[];
 }) {
   const d = formatDuration(shift.check_in_at, null);
   const checkInAt = new Date(shift.check_in_at);
@@ -835,15 +869,18 @@ function ActiveShiftPanel({
   const times = scheduledShift ? instanceTimes(scheduledShift, checkInAt) : null;
   const lateMin = minutesLate(times?.startAt ?? null, checkInAt);
   const expected = scheduledClassCount(scheduledShift?.label);
+  const hasImported = importedClasses.length > 0;
 
-  // Pre-generate the scheduled number of empty class rows once.
+  // Pre-generate the scheduled number of empty class rows once. In Detailed
+  // Mode the classes already come from the calendar, so nothing is seeded.
   const seededRef = useRef(false);
   useEffect(() => {
     if (seededRef.current) return;
-    if (!expected || shift.classes.length > 0) return;
+    if (hasImported || !expected || shift.classes.length > 0) return;
     seededRef.current = true;
     for (let i = 0; i < expected; i++) onAddClass();
-  }, [expected, shift.classes.length, onAddClass]);
+  }, [expected, hasImported, shift.classes.length, onAddClass]);
+
 
   const filled = shift.classes.filter((c) => c.class.trim() || c.teacher.trim()).length;
   const target = Math.max(expected ?? 0, shift.classes.length);
@@ -870,80 +907,85 @@ function ActiveShiftPanel({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="space-y-4 p-4 sm:p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium">
-                {expected ? "Today's schedule" : "Classes & teachers"}
-              </h3>
-              {times ? (
-                <p className="text-xs text-muted-foreground">
-                  {fmtTime(scheduledShift!.start_time)} — {fmtTime(scheduledShift!.end_time)}
-                </p>
-              ) : null}
-            </div>
-            <Button variant="secondary" size="sm" onClick={onAddClass}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Add
-            </Button>
-          </div>
-
-          {target > 0 ? (
-            <div>
-              <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Completed</span>
-                <span className="tabular-nums">
-                  {filled} / {target}
-                </span>
+      {hasImported ? (
+        <ClassScheduleCard classes={importedClasses} now={now} title="Today's classes" />
+      ) : (
+        <Card>
+          <CardContent className="space-y-4 p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium">
+                  {expected ? "Today's schedule" : "Classes & teachers"}
+                </h3>
+                {times ? (
+                  <p className="text-xs text-muted-foreground">
+                    {fmtTime(scheduledShift!.start_time)} — {fmtTime(scheduledShift!.end_time)}
+                  </p>
+                ) : null}
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary transition-all duration-500"
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
+              <Button variant="secondary" size="sm" onClick={onAddClass}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> Add
+              </Button>
             </div>
-          ) : null}
 
-          {shift.classes.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              No classes yet. Add a class name and the teacher running it.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {shift.classes.map((c, i) => (
-                <div key={i} className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2">
-                  <span className="w-5 text-center text-xs tabular-nums text-muted-foreground">
-                    {i + 1}
+            {target > 0 ? (
+              <div>
+                <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Completed</span>
+                  <span className="tabular-nums">
+                    {filled} / {target}
                   </span>
-                  <DirectoryCombobox
-                    value={c.class}
-                    onChange={(v) => onUpdateClass(i, { class: v })}
-                    options={classes}
-                    placeholder="Class"
-                  />
-                  <DirectoryCombobox
-                    value={c.teacher}
-                    onChange={(v) => onUpdateClass(i, { teacher: v })}
-                    options={teachers}
-                    placeholder="Teacher"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onRemoveClass(i)}
-                    aria-label="Remove row"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-500"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {shift.classes.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No classes yet. Add a class name and the teacher running it.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {shift.classes.map((c, i) => (
+                  <div key={i} className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2">
+                    <span className="w-5 text-center text-xs tabular-nums text-muted-foreground">
+                      {i + 1}
+                    </span>
+                    <DirectoryCombobox
+                      value={c.class}
+                      onChange={(v) => onUpdateClass(i, { class: v })}
+                      options={classes}
+                      placeholder="Class"
+                    />
+                    <DirectoryCombobox
+                      value={c.teacher}
+                      onChange={(v) => onUpdateClass(i, { teacher: v })}
+                      options={teachers}
+                      placeholder="Teacher"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onRemoveClass(i)}
+                      aria-label="Remove row"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <StudioDisplayPanel />
+
 
       <Card>
         <CardContent className="flex flex-col items-center gap-4 px-4 py-8">
