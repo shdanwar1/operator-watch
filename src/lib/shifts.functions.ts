@@ -349,19 +349,54 @@ function sanitizeScheduled(rows: unknown): ScheduledInsert[] {
   });
 }
 
+/** A non-admin may only touch scheduled shifts assigned to themselves. */
+function assertAssignedToSelf(
+  assigned: string | null | undefined,
+  username: string | null,
+  isAdmin: boolean,
+) {
+  if (isAdmin) return;
+  const owner = String(assigned ?? "");
+  if (!username || owner.toLowerCase() !== username.toLowerCase()) {
+    throw new Response("Forbidden", { status: 403 });
+  }
+}
+
+/** Load a scheduled shift and enforce that the caller owns it or is an admin. */
+async function assertScheduledOwnership(id: string, username: string | null, isAdmin: boolean) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: existing, error } = await supabaseAdmin
+    .from("scheduled_shifts")
+    .select("id, assigned_operator")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!existing) throw new Response("Scheduled shift not found", { status: 404 });
+  assertAssignedToSelf(
+    (existing as { assigned_operator: string | null }).assigned_operator,
+    username,
+    isAdmin,
+  );
+  return existing as { id: string; assigned_operator: string | null };
+}
+
 export const insertScheduledShifts = createServerFn({ method: "POST" })
   .inputValidator((data: { rows: unknown }) => ({ rows: sanitizeScheduled(data?.rows) }))
   .handler(async ({ data }) => {
-    await requireGate();
+    const { username, isAdmin } = await requireGate();
+    if (!isAdmin && !username) throw new Response("Forbidden", { status: 403 });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const rows = data.rows.map((r) => ({
       ...r,
-      external_event_id: manualEventId(r.specific_date, r.start_time, null),
+      // Non-admins can only create shifts for themselves.
+      ...(isAdmin ? {} : { assigned_operator: username, status: "assigned" }),
+      external_event_id: manualEventId(r.specific_date, r.start_time, isAdmin ? null : username),
     }));
     const { error } = await supabaseAdmin.from("scheduled_shifts").insert(rows);
     if (error) throw new Error(error.message);
     return { inserted: rows.length };
   });
+
 
 type ScheduledPatch = {
   start_time?: string;
@@ -430,7 +465,8 @@ export const createScheduledShift = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data }) => {
-    await requireGate();
+    const { username, isAdmin } = await requireGate();
+    assertAssignedToSelf(data.assigned_operator, username, isAdmin);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("scheduled_shifts")
@@ -454,7 +490,12 @@ export const updateScheduledShift = createServerFn({ method: "POST" })
     return { id: String(data.id), patch: sanitizeScheduledPatch(data.patch ?? {}) };
   })
   .handler(async ({ data }) => {
-    await requireGate();
+    const { username, isAdmin } = await requireGate();
+    await assertScheduledOwnership(data.id, username, isAdmin);
+    // Non-admins may not reassign a shift to somebody else.
+    if (!isAdmin && data.patch.assigned_operator !== undefined) {
+      assertAssignedToSelf(data.patch.assigned_operator, username, isAdmin);
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("scheduled_shifts")
@@ -470,10 +511,12 @@ export const deleteScheduledShift = createServerFn({ method: "POST" })
     return { id: String(data.id) };
   })
   .handler(async ({ data }) => {
-    await requireGate();
+    const { username, isAdmin } = await requireGate();
+    await assertScheduledOwnership(data.id, username, isAdmin);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("scheduled_shifts").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
+
 

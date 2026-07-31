@@ -6,8 +6,10 @@ import {
   formatMMSS,
   resolveStartAt,
   QA_MS,
+  CLASS_INFO_CUTOFF_MS,
   type StageInfo,
 } from "@/lib/studio-display";
+
 import { pickPromptSet, type Prompt } from "@/lib/icebreakers";
 
 export const Route = createFileRoute("/display")({
@@ -65,16 +67,51 @@ function useSize<T extends HTMLElement>() {
 }
 
 function DisplayScreen() {
-  const { state, ready } = useStudioDisplay("display");
+  const { state: shared, ready } = useStudioDisplay("display");
   useTicker(250);
   const { ref, isLandscape } = useAspect();
 
+  // A class-specific display is opened with ?c=&t=&s=&d= — no manual setup.
+  const [override, setOverride] = useState<{
+    className: string;
+    teacherName: string;
+    startTime: string;
+    durationMin: number;
+  } | null>(null);
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const s = p.get("s");
+    if (!s) return;
+    setOverride({
+      className: p.get("c") ?? "",
+      teacherName: p.get("t") ?? "",
+      startTime: s,
+      durationMin: Math.max(1, parseInt(p.get("d") ?? "60", 10) || 60),
+    });
+  }, []);
+
   if (!ready) return null;
+
+  const state = override
+    ? {
+        ...shared,
+        startTime: override.startTime,
+        durationMin: override.durationMin,
+        className: override.className,
+        teacherName: override.teacherName,
+      }
+    : shared;
 
   const now = new Date();
   const stage = computeStage(state, now);
   const startAt = resolveStartAt(state.startTime, now);
   const untilStart = startAt.getTime() - now.getTime();
+
+  const hasClassInfo = !!(state.className?.trim() || state.teacherName?.trim());
+  // Class name + teacher until exactly 5 minutes before start, then the
+  // existing countdown interface takes over unchanged.
+  const showClassInfo =
+    hasClassInfo && stage.phase === "before" && untilStart > CLASS_INFO_CUTOFF_MS;
 
   const showPreClass =
     (stage.phase === "before" && untilStart <= PRECLASS_WINDOW_MS) ||
@@ -98,7 +135,16 @@ function DisplayScreen() {
         className="relative z-10 flex h-full w-full items-center justify-center"
         style={{ padding: "clamp(0.75rem, 3vmin, 3.5rem)" }}
       >
-        {stage.phase === "countdown10" ? (
+        {showClassInfo ? (
+          <ClassInfoStage
+            className={state.className ?? ""}
+            teacherName={state.teacherName ?? ""}
+            stage={stage}
+            startsAt={state.startTime}
+            durationMin={state.durationMin}
+            isLandscape={isLandscape}
+          />
+        ) : stage.phase === "countdown10" ? (
           <CountdownCinematic n={stage.bigNumber ?? 1} />
         ) : stage.phase === "qa" ? (
           <QAStage stage={stage} />
@@ -111,6 +157,78 @@ function DisplayScreen() {
     </div>
   );
 }
+
+/* --------------------------- Class information banner --------------------------- */
+
+function ClassInfoStage({
+  className,
+  teacherName,
+  stage,
+  startsAt,
+  durationMin,
+  isLandscape,
+}: {
+  className: string;
+  teacherName: string;
+  stage: StageInfo;
+  startsAt: string;
+  durationMin: number;
+  isLandscape: boolean;
+}) {
+  return (
+    <div
+      className={`grid h-full w-full max-w-[1800px] items-center gap-[clamp(1rem,4vw,4rem)] ${
+        isLandscape ? "md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]" : ""
+      }`}
+    >
+      <div className="flex flex-col justify-center gap-[clamp(0.5rem,1.6vmin,1.5rem)] text-left">
+        <div
+          className="font-medium uppercase text-white/50"
+          style={{ fontSize: "clamp(0.65rem, 1.1vw, 1.1rem)", letterSpacing: "0.36em" }}
+        >
+          Up next
+        </div>
+        <div
+          className="font-semibold leading-[1.05]"
+          style={{ fontSize: "clamp(2rem, 7vmin, 6rem)", letterSpacing: "-0.03em" }}
+        >
+          {className || "Class"}
+        </div>
+        {teacherName && (
+          <div
+            className="font-medium text-white/70"
+            style={{ fontSize: "clamp(1rem, 2.6vmin, 2.2rem)" }}
+          >
+            {teacherName}
+          </div>
+        )}
+        <div
+          className="mt-[clamp(0.4rem,1.4vmin,1.4rem)] flex flex-wrap items-center gap-[clamp(0.75rem,2vw,2rem)] text-white/45"
+          style={{ fontSize: "clamp(0.7rem, 1.1vw, 1.05rem)", letterSpacing: "0.14em" }}
+        >
+          <span>{startsAt}</span>
+          <span>{durationMin} MIN</span>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center justify-center gap-[clamp(0.4rem,1.4vmin,1.2rem)] text-center md:items-end md:text-right">
+        <div
+          className="font-medium uppercase text-white/50"
+          style={{ fontSize: "clamp(0.6rem, 1vw, 1rem)", letterSpacing: "0.34em" }}
+        >
+          Class starts in
+        </div>
+        <div
+          className="font-mono font-semibold leading-none tabular-nums"
+          style={{ fontSize: "clamp(3rem, 16vmin, 16rem)", letterSpacing: "-0.05em" }}
+        >
+          {formatMMSS(stage.timerMs)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 /* --------------------------- Main class stage --------------------------- */
 

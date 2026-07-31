@@ -5,6 +5,9 @@ export type StudioDisplayState = {
   startTime: string; // "HH:MM" 24h
   durationMin: number;
   notes: string;
+  /** Optional class context (Detailed calendar mode). */
+  className?: string;
+  teacherName?: string;
   updatedAt: number;
 };
 
@@ -12,12 +15,34 @@ export const STUDIO_DISPLAY_KEY = "studio_display_state_v1";
 export const STUDIO_DISPLAY_CHANNEL = "studio-display";
 export const MIN_DURATION_MIN = 10;
 
+/** Class name + teacher stay on screen until 5 minutes before the start. */
+export const CLASS_INFO_CUTOFF_MS = 5 * 60_000;
+
 export const DEFAULT_STUDIO_DISPLAY_STATE: StudioDisplayState = {
   startTime: "14:00",
   durationMin: 60,
   notes: "",
+  className: "",
+  teacherName: "",
   updatedAt: 0,
 };
+
+/** Builds the popup URL that pre-loads a class into the Studio Display. */
+export function buildClassDisplayUrl(input: {
+  className: string;
+  teacherName: string;
+  startTime: string; // "HH:MM" or "HH:MM:SS"
+  durationMin: number;
+}) {
+  const params = new URLSearchParams({
+    c: input.className,
+    t: input.teacherName,
+    s: input.startTime.slice(0, 5),
+    d: String(Math.max(MIN_DURATION_MIN, Math.round(input.durationMin))),
+  });
+  return `/display?${params.toString()}`;
+}
+
 
 export function readStudioDisplayState(): StudioDisplayState {
   if (typeof window === "undefined") return DEFAULT_STUDIO_DISPLAY_STATE;

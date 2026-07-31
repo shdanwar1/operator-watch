@@ -1,4 +1,6 @@
+import { safeRemoteUrl } from "./gcal-core";
 /**
+
  * Shared validators used by both client components and server functions.
  * Any user-facing string must go through here before it hits the DB.
  */
@@ -27,14 +29,12 @@ export function validateCalendarUrl(v: unknown): string {
   if (typeof v !== "string") throw new Error("Calendar URL is required");
   const s = v.trim();
   if (!s) throw new Error("Calendar URL is required");
-  try {
-    const u = new URL(s);
-    if (!/^https?:$/.test(u.protocol)) throw new Error("bad protocol");
-    return u.toString();
-  } catch {
-    throw new Error("That does not look like a valid URL");
-  }
+  // http(s) only, and never an internal/private destination (SSRF guard).
+  const safe = safeRemoteUrl(s);
+  if (!safe) throw new Error("That does not look like a valid public calendar URL");
+  return safe;
 }
+
 
 export function validateMapsUrl(v: unknown): string {
   if (typeof v !== "string") throw new Error("Paste a Google Maps link");
