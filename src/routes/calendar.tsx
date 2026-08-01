@@ -406,6 +406,8 @@ function CalendarPage() {
           </div>
         </header>
 
+        {debugPanel}
+
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm font-medium sm:text-base">{rangeLabel}</div>
           <div className="flex items-center gap-3 text-[11px] text-muted-foreground sm:text-xs">
