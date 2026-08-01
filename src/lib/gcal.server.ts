@@ -85,19 +85,41 @@ export async function runCalendarSync(username: string): Promise<GcalSyncResult>
 
   let icsText: string;
   try {
-    const res = await fetch(safeUrl, {
-      headers: { Accept: "text/calendar" },
-      redirect: "error",
-    });
-    if (!res.ok) {
+    // The edge runtime does not support redirect: "error"; follow redirects
+    // manually so every hop can be re-validated against the SSRF guard.
+    let target = safeUrl;
+    let res: Response | null = null;
+    for (let hop = 0; hop < 5; hop++) {
+      res = await fetch(target, {
+        headers: { Accept: "text/calendar, text/plain;q=0.9, */*;q=0.8" },
+        redirect: "manual",
+      });
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get("location");
+        if (!loc) break;
+        const next = safeRemoteUrl(new URL(loc, target).toString());
+        if (!next) return fail("busy", "That calendar link redirects to a blocked address.");
+        target = next;
+        continue;
+      }
+      break;
+    }
+    if (!res || !res.ok) {
       return fail(
         "busy",
-        `Calendar link returned HTTP ${res.status}. In Google Calendar → Settings → "Access permissions", enable "Make available to public" and copy the "Public address in iCal format".`,
+        `Calendar link returned HTTP ${res ? res.status : "error"}. In Google Calendar → Settings → "Access permissions", enable "Make available to public" and copy the "Public address in iCal format".`,
       );
     }
     icsText = await res.text();
   } catch (e) {
     return fail("busy", e instanceof Error ? e.message : "Failed to fetch calendar");
+  }
+
+  if (!/BEGIN:VCALENDAR/i.test(icsText)) {
+    return fail(
+      "busy",
+      "That link did not return calendar data. Use the \"Public address in iCal format\" (ends in .ics) from Google Calendar settings.",
+    );
   }
 
   const events = parseIcs(icsText);
