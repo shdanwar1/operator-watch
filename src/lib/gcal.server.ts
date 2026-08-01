@@ -9,12 +9,10 @@
  *                     stored individually and grouped into shifts.
  */
 import {
-  buildDirectory,
   busyWindow,
   detailedWindow,
   detectCalendarMode,
   groupClassesIntoShifts,
-  matchTitle,
   minToTime,
   parseIcs,
   safeRemoteUrl,
@@ -24,6 +22,7 @@ import {
   type ClassEvent,
   type ParsedEvent,
 } from "./gcal-core";
+import { matchEvent, type MatchLog } from "./gcal-match";
 
 export type GcalSyncResult = {
   ok: boolean;
@@ -33,6 +32,8 @@ export type GcalSyncResult = {
   shifts: number;
   removed: number;
   error?: string;
+  /** Per-event accept/reject trace (admin/debug view only). */
+  logs?: MatchLog[];
 };
 
 export type CalendarClassRow = {
@@ -298,8 +299,8 @@ async function syncDetailed(displayName: string, events: ParsedEvent[]): Promise
     supabaseAdmin.from("classes").select("id,name").limit(2000),
     supabaseAdmin.from("teachers").select("id,name").limit(2000),
   ]);
-  const classDir = buildDirectory((classRows ?? []) as { id: string; name: string }[]);
-  const teacherDir = buildDirectory((teacherRows ?? []) as { id: string; name: string }[]);
+  const classDir = (classRows ?? []) as { id: string; name: string }[];
+  const teacherDir = (teacherRows ?? []) as { id: string; name: string }[];
 
   const inWindow = events.filter(
     (e) => e.specific_date >= window.from && e.specific_date <= window.to,
@@ -314,18 +315,33 @@ async function syncDetailed(displayName: string, events: ParsedEvent[]): Promise
   };
 
   const imported: Imported[] = [];
+  const logs: MatchLog[] = [];
   let ignored = 0;
   for (const e of inWindow) {
     if (e.status === "cancelled") {
       ignored++;
+      logs.push({
+        title: e.summary,
+        accepted: false,
+        confidence: 0,
+        reason: "Event cancelled in Google Calendar",
+      });
       continue;
     }
-    const match = matchTitle(e.summary, classDir, teacherDir);
-    if (!match) {
-      ignored++; // personal event or unknown class/teacher combination
+    const { result, log } = matchEvent(e.summary, classDir, teacherDir);
+    logs.push(log);
+    if (!result) {
+      ignored++; // personal event or below the confidence threshold
       continue;
     }
-    imported.push({ event: e, ...match });
+    // The database is the source of truth: calendar text is discarded here.
+    imported.push({
+      event: e,
+      className: result.className,
+      teacherName: result.teacherName,
+      classId: result.classId,
+      teacherId: result.teacherId,
+    });
   }
 
   // Build shifts from the validated classes only.
@@ -414,6 +430,7 @@ async function syncDetailed(displayName: string, events: ParsedEvent[]): Promise
     ignored,
     shifts: plans.length,
     removed,
+    logs,
   };
 }
 

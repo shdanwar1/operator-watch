@@ -462,72 +462,8 @@ export function detectCalendarMode(events: ParsedEvent[]): CalendarMode {
     : "busy";
 }
 
-/* ───────────────────────── Title → class + teacher ───────────────────────── */
+/* Title → class + teacher resolution lives in ./gcal-match (confidence-based). */
 
-const SEPARATORS = [" — ", " – ", " - "];
-
-export function normalizeName(v: string): string {
-  return v.trim().toLowerCase().replace(/\s+/g, " ").replace(/[’']/g, "'");
-}
-
-export type TitleMatch = {
-  className: string;
-  teacherName: string;
-  classId: string | null;
-  teacherId: string | null;
-};
-
-type Directory = Map<string, { id: string; name: string }>;
-
-export function buildDirectory(rows: { id: string; name: string }[]): Directory {
-  const m: Directory = new Map();
-  for (const r of rows) m.set(normalizeName(r.name), { id: r.id, name: r.name });
-  return m;
-}
-
-/**
- * Splits "Class - Teacher" while tolerating hyphenated class names by trying
- * every separator position and keeping the split where BOTH sides exist in the
- * Dance Masterclass directories. Returns null for personal events (gym,
- * birthday, meetings, …) which must never become shifts.
- */
-export function matchTitle(
-  summary: string,
-  classes: Directory,
-  teachers: Directory,
-): TitleMatch | null {
-  const title = summary.replace(/\s+/g, " ").trim();
-  if (!title) return null;
-
-  const candidates: { left: string; right: string }[] = [];
-  for (const sep of SEPARATORS) {
-    let idx = title.indexOf(sep);
-    while (idx !== -1) {
-      candidates.push({
-        left: title.slice(0, idx).trim(),
-        right: title.slice(idx + sep.length).trim(),
-      });
-      idx = title.indexOf(sep, idx + sep.length);
-    }
-  }
-  // Prefer the longest class name (the last separator) so hyphenated class
-  // names such as "Barre - Full Body Toning" stay intact.
-  candidates.sort((a, b) => b.left.length - a.left.length);
-
-  for (const c of candidates) {
-    const cls = classes.get(normalizeName(c.left));
-    const tea = teachers.get(normalizeName(c.right));
-    if (cls && tea) {
-      return {
-        className: cls.name,
-        teacherName: tea.name,
-        classId: cls.id,
-        teacherId: tea.id,
-      };
-    }
-  }
-  return null;
-}
 
 /* ───────────────────────── Shift grouping ───────────────────────── */
 
