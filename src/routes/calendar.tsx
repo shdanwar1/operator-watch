@@ -12,6 +12,7 @@ import {
   type ShiftRow,
 } from "@/lib/shifts.functions";
 import { syncGoogleCalendar, getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
+import type { MatchLog } from "@/lib/gcal-match";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -128,6 +129,15 @@ function CalendarPage() {
   const [calDialogOpen, setCalDialogOpen] = useState(false);
   const [calDraft, setCalDraft] = useState("");
   const [savingUrl, setSavingUrl] = useState(false);
+  const [matchLogs, setMatchLogs] = useState<MatchLog[]>([]);
+  const [debug, setDebug] = useState(false);
+
+  // Match trace is a debug-only surface: opt in with ?debug=1.
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setDebug(new URLSearchParams(window.location.search).get("debug") === "1");
+    }
+  }, []);
 
   const hasGoogleCalendar = !!icsUrl;
   void username;
@@ -179,6 +189,7 @@ function CalendarPage() {
       try {
         const res = await syncFn();
         setLastSync(new Date());
+        setMatchLogs(res.logs ?? []);
         if (!res.ok) {
           if (!opts?.silent) toast.error(res.error ?? "Sync failed");
         } else if (!opts?.silent) {
@@ -291,6 +302,35 @@ function CalendarPage() {
       toast.error(e instanceof Error ? e.message : "Delete failed");
     }
   }
+
+  const debugPanel =
+    debug && matchLogs.length ? (
+      <Card className="mb-4">
+        <CardContent className="p-4">
+          <h2 className="mb-2 text-sm font-semibold">Calendar match log (debug)</h2>
+          <div className="max-h-72 space-y-1 overflow-auto text-xs">
+            {matchLogs.map((l, i) => (
+              <div
+                key={`${l.title}-${i}`}
+                className="flex flex-wrap items-baseline gap-x-2 border-b border-border/60 py-1"
+              >
+                <span className={l.accepted ? "font-medium text-emerald-600" : "text-muted-foreground"}>
+                  {l.accepted ? "Imported" : "Ignored"}
+                </span>
+                <span className="font-medium">{l.title}</span>
+                {l.accepted ? (
+                  <span className="text-muted-foreground">
+                    → {l.className} · {l.teacherName}
+                  </span>
+                ) : null}
+                <span className="text-muted-foreground">{l.reason}</span>
+                <span className="ml-auto tabular-nums text-muted-foreground">{l.confidence}%</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    ) : null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
