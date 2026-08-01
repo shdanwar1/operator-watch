@@ -54,10 +54,10 @@ export function normalizeText(input: string): string {
 /** Aggressive comparison key: words only, "&"/"and" unified, no punctuation. */
 export function matchKey(input: string): string {
   return normalizeText(input)
-    .replace(/&/g, " and ")
-    .replace(/\+/g, " and ")
     .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\b(the|a|an|with|for|class|session)\b/g, " ")
+    // Connector / filler words carry no identity: "Pilates & Stretching",
+    // "Pilates and Stretching" and "Pilates Stretching" are the same class.
+    .replace(/\b(and|the|a|an|with|for|class|session)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
