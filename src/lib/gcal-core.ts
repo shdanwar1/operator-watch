@@ -153,6 +153,7 @@ function parseIcsDateTime(value: string, isUtc: boolean) {
     date: `${localDate.getFullYear()}-${pad(localDate.getMonth() + 1)}-${pad(localDate.getDate())}`,
     time: `${pad(localDate.getHours())}:${pad(localDate.getMinutes())}:${pad(localDate.getSeconds())}`,
     dow: localDate.getDay(),
+    local: localDate,
   };
 }
 
