@@ -122,7 +122,11 @@ export async function runCalendarSync(username: string): Promise<GcalSyncResult>
     );
   }
 
-  const events = parseIcs(icsText);
+  const nowDate = new Date();
+  const events = parseIcs(icsText, {
+    from: new Date(nowDate.getFullYear(), nowDate.getMonth(), 1),
+    to: new Date(nowDate.getFullYear(), nowDate.getMonth() + 2, 0, 23, 59, 59),
+  });
   const mode = detectCalendarMode(events);
   return mode === "detailed"
     ? syncDetailed(displayName, events)
