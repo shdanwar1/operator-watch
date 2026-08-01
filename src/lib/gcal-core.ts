@@ -175,38 +175,155 @@ function findMeetLink(...sources: (string | null | undefined)[]): string | null 
   return null;
 }
 
-export function parseIcs(ics: string): ParsedEvent[] {
+const DAY_CODES: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+
+type RawEvent = {
+  uid: string;
+  summary: string;
+  description: string;
+  organizer: string | null;
+  meetLink: string | null;
+  conference: string | null;
+  recurrenceId: string | null;
+  status: "confirmed" | "cancelled";
+  start: Date | null;
+  end: Date | null;
+  rrule: string | null;
+  exdates: string[]; // YYYY-MM-DD keys (local)
+};
+
+function fmtOccurrence(start: Date, end: Date) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return {
+    specific_date: `${start.getFullYear()}-${p(start.getMonth() + 1)}-${p(start.getDate())}`,
+    start_time: `${p(start.getHours())}:${p(start.getMinutes())}:00`,
+    end_time: `${p(end.getHours())}:${p(end.getMinutes())}:00`,
+    day_of_week: start.getDay(),
+  };
+}
+
+/** Expands a simple RRULE (FREQ/INTERVAL/COUNT/UNTIL/BYDAY) inside a date window. */
+function expandRrule(start: Date, rrule: string, windowFrom: Date, windowTo: Date): Date[] {
+  const parts = Object.fromEntries(
+    rrule
+      .split(";")
+      .map((p) => p.split("="))
+      .filter((kv) => kv.length === 2)
+      .map(([k, v]) => [k.toUpperCase(), v.toUpperCase()]),
+  ) as Record<string, string>;
+
+  const freq = parts.FREQ;
+  if (!freq) return [start];
+  const interval = Math.max(1, Number(parts.INTERVAL || "1"));
+  const count = parts.COUNT ? Number(parts.COUNT) : Infinity;
+  let until: Date | null = null;
+  if (parts.UNTIL) {
+    const u = parseIcsDateTime(parts.UNTIL, /Z$/i.test(parts.UNTIL));
+    until = u.local;
+  }
+  const byDay = parts.BYDAY
+    ? parts.BYDAY.split(",")
+        .map((d) => DAY_CODES[d.replace(/^[-+]?\d+/, "")])
+        .filter((n) => n !== undefined)
+    : [];
+
+  const out: Date[] = [];
+  const hard = 800; // safety bound on iterations
+  let emitted = 0;
+
+  const push = (d: Date) => {
+    if (emitted >= count) return;
+    if (until && d.getTime() > until.getTime()) return;
+    emitted++;
+    if (d.getTime() >= windowFrom.getTime() && d.getTime() <= windowTo.getTime()) out.push(new Date(d));
+  };
+
+  if (freq === "WEEKLY") {
+    const days = byDay.length ? byDay : [start.getDay()];
+    // start of the week (Sunday) containing the DTSTART
+    const weekStart = new Date(start);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    for (let w = 0; w < hard; w++) {
+      const base = new Date(weekStart);
+      base.setDate(base.getDate() + w * 7 * interval);
+      if (base.getTime() > windowTo.getTime() + 7 * 864e5) break;
+      if (emitted >= count) break;
+      for (const dow of [...days].sort((a, b) => a - b)) {
+        const occ = new Date(base);
+        occ.setDate(occ.getDate() + dow);
+        occ.setHours(start.getHours(), start.getMinutes(), start.getSeconds(), 0);
+        if (occ.getTime() < start.getTime()) continue;
+        push(occ);
+      }
+    }
+  } else if (freq === "DAILY") {
+    for (let i = 0; i < hard; i++) {
+      const occ = new Date(start);
+      occ.setDate(occ.getDate() + i * interval);
+      if (occ.getTime() > windowTo.getTime()) break;
+      if (emitted >= count) break;
+      push(occ);
+    }
+  } else if (freq === "MONTHLY") {
+    for (let i = 0; i < 60; i++) {
+      const occ = new Date(start);
+      occ.setMonth(occ.getMonth() + i * interval);
+      if (occ.getTime() > windowTo.getTime()) break;
+      if (emitted >= count) break;
+      push(occ);
+    }
+  } else if (freq === "YEARLY") {
+    for (let i = 0; i < 10; i++) {
+      const occ = new Date(start);
+      occ.setFullYear(occ.getFullYear() + i * interval);
+      if (occ.getTime() > windowTo.getTime()) break;
+      if (emitted >= count) break;
+      push(occ);
+    }
+  } else {
+    return [start];
+  }
+
+  return out;
+}
+
+/**
+ * Parses an ICS feed into concrete dated events. Recurring events (RRULE) are
+ * expanded across the given window; EXDATEs and RECURRENCE-ID overrides win.
+ */
+export function parseIcs(ics: string, window?: { from: Date; to: Date }): ParsedEvent[] {
+  const now = new Date();
+  const windowFrom = window?.from ?? new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const windowTo = window?.to ?? new Date(now.getFullYear(), now.getMonth() + 3, 0, 23, 59, 59);
+
   const lines = unfoldIcs(ics);
-  const events: ParsedEvent[] = [];
-  let cur: Partial<ParsedEvent> & { _rrule?: boolean; _conference?: string } = {};
-  let inEvent = false;
+  const raws: RawEvent[] = [];
+  let cur: RawEvent | null = null;
 
   for (const line of lines) {
     if (line === "BEGIN:VEVENT") {
-      cur = {};
-      inEvent = true;
+      cur = {
+        uid: "",
+        summary: "",
+        description: "",
+        organizer: null,
+        meetLink: null,
+        conference: null,
+        recurrenceId: null,
+        status: "confirmed",
+        start: null,
+        end: null,
+        rrule: null,
+        exdates: [],
+      };
       continue;
     }
     if (line === "END:VEVENT") {
-      if (inEvent && !cur._rrule && cur.uid && cur.specific_date && cur.start_time && cur.end_time) {
-        events.push({
-          uid: cur.recurrenceId ? `${cur.uid}::${cur.recurrenceId}` : cur.uid,
-          summary: cur.summary || "",
-          description: cur.description || "",
-          organizer: cur.organizer ?? null,
-          meetLink: findMeetLink(cur.meetLink, cur._conference, cur.description),
-          recurrenceId: cur.recurrenceId ?? null,
-          specific_date: cur.specific_date,
-          start_time: cur.start_time,
-          end_time: cur.end_time,
-          day_of_week: cur.day_of_week ?? 0,
-          status: cur.status ?? "confirmed",
-        });
-      }
-      inEvent = false;
+      if (cur && cur.uid && cur.start) raws.push(cur);
+      cur = null;
       continue;
     }
-    if (!inEvent) continue;
+    if (!cur) continue;
 
     const colonIdx = line.indexOf(":");
     if (colonIdx === -1) continue;
@@ -224,9 +341,11 @@ export function parseIcs(ics: string): ParsedEvent[] {
       case "UID":
         cur.uid = val.trim();
         break;
-      case "RECURRENCE-ID":
-        cur.recurrenceId = val.trim();
+      case "RECURRENCE-ID": {
+        const p = parseIcsDateTime(val, val.endsWith("Z") && !params.TZID);
+        cur.recurrenceId = p.date;
         break;
+      }
       case "SUMMARY":
         cur.summary = decodeIcsText(val);
         break;
@@ -237,7 +356,7 @@ export function parseIcs(ics: string): ParsedEvent[] {
         cur.meetLink = cur.meetLink ?? findMeetLink(decodeIcsText(val));
         break;
       case "X-GOOGLE-CONFERENCE":
-        cur._conference = val.trim();
+        cur.conference = val.trim();
         break;
       case "ORGANIZER":
         cur.organizer = val.replace(/^mailto:/i, "").trim() || null;
@@ -246,22 +365,67 @@ export function parseIcs(ics: string): ParsedEvent[] {
         cur.status = val.trim().toLowerCase() === "cancelled" ? "cancelled" : "confirmed";
         break;
       case "RRULE":
-        cur._rrule = true;
+        cur.rrule = val.trim();
         break;
-      case "DTSTART": {
-        const p = parseIcsDateTime(val, val.endsWith("Z") && !params.TZID);
-        cur.specific_date = p.date;
-        cur.start_time = p.time;
-        cur.day_of_week = p.dow;
+      case "EXDATE":
+        for (const piece of val.split(",")) {
+          const p = parseIcsDateTime(piece.trim(), piece.trim().endsWith("Z") && !params.TZID);
+          cur.exdates.push(p.date);
+        }
         break;
-      }
-      case "DTEND": {
-        const p = parseIcsDateTime(val, val.endsWith("Z") && !params.TZID);
-        cur.end_time = p.time;
+      case "DTSTART":
+        cur.start = parseIcsDateTime(val, val.endsWith("Z") && !params.TZID).local;
         break;
-      }
+      case "DTEND":
+        cur.end = parseIcsDateTime(val, val.endsWith("Z") && !params.TZID).local;
+        break;
     }
   }
+
+  // RECURRENCE-ID rows override a single occurrence of their master event.
+  const overrides = new Set(
+    raws.filter((r) => r.recurrenceId).map((r) => `${r.uid}::${r.recurrenceId}`),
+  );
+
+  const events: ParsedEvent[] = [];
+  for (const r of raws) {
+    if (!r.start) continue;
+    const end = r.end ?? new Date(r.start.getTime() + 60 * 60 * 1000);
+    const durationMs = Math.max(0, end.getTime() - r.start.getTime());
+
+    const base = {
+      summary: r.summary,
+      description: r.description,
+      organizer: r.organizer,
+      meetLink: findMeetLink(r.meetLink, r.conference, r.description),
+      status: r.status,
+    };
+
+    if (!r.rrule || r.recurrenceId) {
+      const f = fmtOccurrence(r.start, end);
+      events.push({
+        uid: r.recurrenceId ? `${r.uid}::${r.recurrenceId}` : r.uid,
+        recurrenceId: r.recurrenceId,
+        ...base,
+        ...f,
+      });
+      continue;
+    }
+
+    for (const occStart of expandRrule(r.start, r.rrule, windowFrom, windowTo)) {
+      const occEnd = new Date(occStart.getTime() + durationMs);
+      const f = fmtOccurrence(occStart, occEnd);
+      if (r.exdates.includes(f.specific_date)) continue;
+      if (overrides.has(`${r.uid}::${f.specific_date}`)) continue;
+      events.push({
+        uid: `${r.uid}::${f.specific_date}`,
+        recurrenceId: f.specific_date,
+        ...base,
+        ...f,
+      });
+    }
+  }
+
   return events;
 }
 
