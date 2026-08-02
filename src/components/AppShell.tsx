@@ -13,14 +13,15 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+const NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: boolean }[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard, exact: true },
   { label: "Calendar", to: "/calendar", icon: CalendarDays },
   { label: "Shifts", to: "/shifts", icon: ListChecks },
   { label: "Attendance", to: "/earnings", icon: ClipboardList },
   { label: "Studio Display", to: "/display", icon: Monitor },
   { label: "Profile", to: "/profile", icon: User },
-] as const;
+];
+
 
 export const STUDIO_NAME = "DMC Studio";
 
