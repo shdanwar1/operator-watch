@@ -2,9 +2,13 @@ import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/lib/use-theme";
 
+/**
+ * Icon state is driven by CSS (`.dark` on <html>), not by React state, so the
+ * server and client render identical markup and hydration never mismatches.
+ */
 export function ThemeToggle({
-  variant = "outline",
-  size = "sm",
+  variant = "ghost",
+  size = "icon",
   className,
   showLabel = false,
 }: {
@@ -13,21 +17,24 @@ export function ThemeToggle({
   className?: string;
   showLabel?: boolean;
 }) {
-  const { theme, toggle } = useTheme();
-  const isDark = theme === "dark";
+  const { toggle } = useTheme();
   return (
     <Button
       type="button"
       variant={variant}
       size={size}
       onClick={toggle}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label="Toggle colour theme"
+      title="Toggle colour theme"
       className={className}
     >
-      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      <Moon className="h-4 w-4 dark:hidden" />
+      <Sun className="hidden h-4 w-4 dark:block" />
       {showLabel && (
-        <span className="ml-1.5 text-xs">{isDark ? "Light" : "Dark"}</span>
+        <span className="ml-1.5 text-xs">
+          <span className="dark:hidden">Dark</span>
+          <span className="hidden dark:inline">Light</span>
+        </span>
       )}
     </Button>
   );
