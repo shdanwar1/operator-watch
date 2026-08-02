@@ -749,55 +749,52 @@ function ActiveShiftPanel({
   const early = earlyMin > 0;
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <Card className="border-border/60 overflow-hidden hero-aurora">
-        <CardContent className="flex flex-col items-center gap-3 px-4 py-10 text-center text-foreground sm:px-6 sm:py-14">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-foreground/70 sm:text-xs">
-            Checked in as {shift.operator_name}
+    <div className="space-y-6">
+      <Card className="rise-in hero-aurora overflow-hidden">
+        <CardContent className="flex flex-col items-center gap-3 px-5 py-14 text-center">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span className="status-dot bg-current" />
+            Checked in
           </div>
-          <div className="font-mono text-5xl font-semibold tabular-nums tracking-tight sm:text-7xl">
-            {d.long}
-          </div>
-          <div className="text-[11px] text-foreground/70 sm:text-xs">
-            Since{" "}
-            {checkInAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-            {lateMin > 0 ? ` · ${lateMin}m after scheduled start` : ""}
+          <div className="text-7xl font-semibold tabular-nums tracking-tight">{d.long}</div>
+          <div className="text-[13px] text-muted-foreground">
+            Started {checkInAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+            {times ? ` · Ends ${fmtTime(scheduledShift!.end_time)}` : ""}
+            {lateMin > 0 ? ` · ${lateMin}m late` : ""}
           </div>
         </CardContent>
       </Card>
 
       {hasImported ? (
-        <ClassScheduleCard classes={importedClasses} now={now} title="Today's classes" />
+        <ClassScheduleCard classes={importedClasses} now={now} title="Today's schedule" />
       ) : (
         <Card>
-          <CardContent className="space-y-4 p-4 sm:p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium">
-                  {expected ? "Today's schedule" : "Classes & teachers"}
-                </h3>
-                {times ? (
-                  <p className="text-xs text-muted-foreground">
-                    {fmtTime(scheduledShift!.start_time)} — {fmtTime(scheduledShift!.end_time)}
-                  </p>
-                ) : null}
-              </div>
-              <Button variant="secondary" size="sm" onClick={onAddClass}>
-                <Plus className="mr-1 h-3.5 w-3.5" /> Add
-              </Button>
-            </div>
+          <CardContent className="space-y-5 p-5">
+            <SectionTitle
+              title="Today's schedule"
+              meta={
+                target > 0
+                  ? `${target} ${target === 1 ? "class" : "classes"} scheduled`
+                  : "No classes scheduled"
+              }
+              action={
+                <Button variant="secondary" size="sm" onClick={onAddClass}>
+                  <Plus className="mr-1 h-3.5 w-3.5" /> Add
+                </Button>
+              }
+            />
 
             {target > 0 ? (
               <div>
-                <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
                   <span>Completed</span>
                   <span className="tabular-nums">
                     {filled} / {target}
                   </span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-primary transition-all duration-500"
+                    className="h-full rounded-full bg-complete transition-[width] duration-700 ease-out"
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>
@@ -845,9 +842,8 @@ function ActiveShiftPanel({
 
       <StudioDisplayPanel />
 
-
       <Card>
-        <CardContent className="flex flex-col items-center gap-4 px-4 py-8">
+        <CardContent className="flex flex-col items-center gap-4 px-5 py-10">
           <HoldButton
             label="Hold to Check Out"
             successLabel="Checked out"
@@ -858,8 +854,8 @@ function ActiveShiftPanel({
           />
           {early ? (
             <p className="max-w-sm text-center text-xs text-muted-foreground">
-              Your shift is scheduled until {fmtTime(scheduledShift!.end_time)} —
-              checking out now records an early finish of{" "}
+              Scheduled until {fmtTime(scheduledShift!.end_time)} — checking out now records an early
+              finish of{" "}
               {earlyMin >= 60 ? `${Math.floor(earlyMin / 60)}h ${earlyMin % 60}m` : `${earlyMin}m`}.
             </p>
           ) : null}
@@ -868,6 +864,7 @@ function ActiveShiftPanel({
     </div>
   );
 }
+
 
 
 
