@@ -20,22 +20,19 @@ import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/li
 import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.functions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, Train, Home, MapPin, ClipboardList, AlertTriangle, Lock } from "lucide-react";
+import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
-import { summarizeMonth, formatHM } from "@/lib/attendance";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { StudioDisplayPanel } from "@/components/StudioDisplayPanel";
 import { ClassScheduleCard } from "@/components/ClassScheduleCard";
 import { listMyCalendarClasses, type CalendarClassRow } from "@/lib/gcal.functions";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
+
 
 
 
@@ -401,125 +398,58 @@ function Index() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <AppShell username={username} onAir={!!active} onSignOut={handleSignOut}>
       <Toaster richColors position="top-center" />
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-5 sm:py-10">
-        <header className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 sm:mb-10">
-          {showActivation && (
-            <StudioActivation
-              onDone={() => {
-                setShowActivation(false);
-                toast.success("Studio live — you're checked in");
-              }}
+      {showActivation && (
+        <StudioActivation
+          onDone={() => {
+            setShowActivation(false);
+            toast.success("Studio live — you're checked in");
+          }}
+        />
+      )}
+
+      {!profileComplete && !active && (
+        <ProfileIncompleteBanner missing={profileStatus?.missing ?? []} />
+      )}
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-6">
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : active ? (
+            <ActiveShiftPanel
+              shift={active}
+              scheduledShift={activeScheduled}
+              now={now}
+              onCheckOut={checkOut}
+              onAddClass={addClassRow}
+              onUpdateClass={updateClassRow}
+              onRemoveClass={removeClassRow}
+              checkingOut={checkingOut}
+              teachers={teachers}
+              classes={classes}
+              importedClasses={activeShiftClasses}
             />
-          )}
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground sm:h-11 sm:w-11">
-            <Radio className="h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Studio Operator</h1>
-            <p className="text-xs text-muted-foreground sm:text-sm">Live stream shift tracker</p>
-          </div>
-          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-            {active && (
-              <Badge className="animate-pulse px-2 py-0.5 text-[10px] sm:text-xs" variant="destructive">
-                ● ON AIR
-              </Badge>
-            )}
-            {username && (
-              <Link
-                to="/profile"
-                className="hidden text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:inline"
-                title="Edit your profile"
-              >
-                {username}
-              </Link>
-            )}
-            <Button variant="outline" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" asChild>
-              <Link to="/calendar">
-                <CalendarDays className="h-3.5 w-3.5 sm:mr-1" />
-                <span className="hidden sm:inline">Calendar</span>
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" asChild>
-              <Link to="/shifts">
-                <ListChecks className="h-3.5 w-3.5 sm:mr-1" />
-                <span className="hidden sm:inline">Shifts</span>
-              </Link>
-            </Button>
-            <ThemeToggle className="h-8 w-8 sm:h-9 sm:w-9" size="icon" />
-            <Button variant="ghost" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" onClick={handleSignOut}>
-              <LogOut className="h-3.5 w-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Sign out</span>
-            </Button>
-          </div>
-        </header>
-
-        {!profileComplete && !active && (
-          <ProfileIncompleteBanner missing={profileStatus?.missing ?? []} />
-        )}
-
-        <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="min-w-0">
-            {loading ? (
-              <p className="text-sm text-muted-foreground">Loading…</p>
-            ) : active ? (
-              <ActiveShiftPanel
-                shift={active}
-                scheduledShift={activeScheduled}
-                now={now}
-                onCheckOut={checkOut}
-                onAddClass={addClassRow}
-                onUpdateClass={updateClassRow}
-                onRemoveClass={removeClassRow}
-                checkingOut={checkingOut}
-                teachers={teachers}
-                classes={classes}
-                importedClasses={activeShiftClasses}
-              />
-
-            ) : focus === "time_to_leave" ? (
-              needsHome || needsCal ? (
-                <LockedFeatureCard
-                  icon={<Train className="h-5 w-5" />}
-                  title="Time to Leave"
-                  reason="Complete your profile to enable Time to Leave."
-                  hero
-                />
-              ) : (
-                <TimeToLeaveCard scheduled={scheduled} now={now} variant="hero" />
-              )
-            ) : checkInLocked ? (
-              <LockedFeatureCard
-                icon={<LogIn className="h-5 w-5" />}
-                title="Check In"
-                reason="Complete your profile to enable Check In."
-                hero
-              />
-            ) : (
-              <CheckInPanel
-                openScheduled={openScheduled}
-                scheduled={scheduled}
-                now={now}
-                onCheckIn={checkIn}
-                checkingIn={checkingIn}
-              />
-            )}
-
-            {!active && history.length > 0 && (
-              <section className="mt-8 sm:mt-12">
-                <MonthlySummary shifts={history} scheduled={scheduled} />
-              </section>
-            )}
-          </div>
-
-          <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-            {!loading && !active && focus === "time_to_leave" && (
-              checkInLocked ? (
+          ) : (
+            <>
+              {focus === "time_to_leave" ? (
+                checkInLocked ? (
+                  <LockedFeatureCard
+                    icon={<Train className="h-4 w-4" />}
+                    title="Time to Leave"
+                    reason="Complete your profile to enable Time to Leave."
+                    hero
+                  />
+                ) : (
+                  <TimeToLeaveCard scheduled={scheduled} now={now} variant="hero" />
+                )
+              ) : checkInLocked ? (
                 <LockedFeatureCard
                   icon={<LogIn className="h-4 w-4" />}
                   title="Check In"
                   reason="Complete your profile to enable Check In."
+                  hero
                 />
               ) : (
                 <CheckInPanel
@@ -528,61 +458,39 @@ function Index() {
                   now={now}
                   onCheckIn={checkIn}
                   checkingIn={checkingIn}
-                  variant="compact"
                 />
-              )
-            )}
-            {!active && focus === "check_in" && (
-              needsHome || needsCal ? (
-                <LockedFeatureCard
-                  icon={<Train className="h-4 w-4" />}
-                  title="Time to Leave"
-                  reason="Complete your profile to enable Time to Leave."
-                />
-              ) : (
-                <TimeToLeaveCard scheduled={scheduled} now={now} />
-              )
-            )}
-            {!loading && needsCal && (
-              <LockedFeatureCard
-                icon={<CalendarDays className="h-4 w-4" />}
-                title="Calendar availability"
-                reason="Google Calendar has not been connected."
-              />
-            )}
-            {!loading && !active && todayClasses.length > 0 && (
-              <ClassScheduleCard classes={todayClasses} now={now} />
-            )}
-            {!loading && !active && <StudioDisplayPanel />}
-            {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
+              )}
 
+              {todayClasses.length > 0 && (
+                <ClassScheduleCard classes={todayClasses} now={now} title="Today's schedule" />
+              )}
 
-          </aside>
+              <StudioDisplayPanel />
+            </>
+          )}
         </div>
 
-
+        <aside className="xl:sticky xl:top-24 xl:self-start">
+          {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
+        </aside>
       </div>
-    </div>
+    </AppShell>
   );
 }
+
 
 
 function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: Date }) {
   const instances = upcomingInstances(scheduled, now, 6);
   return (
-    <Card>
+    <Card className="rise-in">
       <CardContent className="p-5">
-        <div className="mb-4 flex items-center gap-2">
-          <Clock className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Upcoming shifts
-          </h2>
-        </div>
+        <SectionTitle title="Upcoming shifts" />
         {instances.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No upcoming shifts scheduled.</p>
+          <p className="mt-4 text-sm text-muted-foreground">No upcoming shifts scheduled.</p>
         ) : (
-          <ul className="space-y-3">
-            {instances.map(({ shift, startAt, endAt }, i) => {
+          <ul className="mt-4 divide-y divide-border">
+            {instances.map(({ shift, startAt }, i) => {
               const isToday = startAt.toDateString() === now.toDateString();
               const tomorrow = new Date(now);
               tomorrow.setDate(tomorrow.getDate() + 1);
@@ -593,21 +501,16 @@ function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: 
                   ? "Tomorrow"
                   : startAt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
               return (
-                <li
-                  key={`${shift.id}-${i}`}
-                  className="flex items-baseline justify-between gap-3 border-b border-border/50 pb-3 last:border-b-0 last:pb-0"
-                >
+                <li key={`${shift.id}-${i}`} className="flex items-baseline justify-between gap-3 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0">
-                    <div className="text-sm font-medium">{dayLabel}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-[13px] font-medium">{dayLabel}</div>
+                    <div className="mt-0.5 text-xs tabular-nums text-muted-foreground">
                       {fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}
                     </div>
-                    {shift.label && (
-                      <div className="mt-0.5 truncate text-xs text-muted-foreground/80">
-                        {shift.label}
-                      </div>
-                    )}
                   </div>
+                  {shift.label && (
+                    <span className="shrink-0 text-xs text-muted-foreground">{shift.label}</span>
+                  )}
                 </li>
               );
             })}
@@ -617,6 +520,7 @@ function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: 
     </Card>
   );
 }
+
 
 function upcomingInstances(
   scheduled: ScheduledShift[],
@@ -682,14 +586,12 @@ function CheckInPanel({
   now,
   onCheckIn,
   checkingIn,
-  variant = "hero",
 }: {
   openScheduled: ScheduledShift | null;
   scheduled: ScheduledShift[];
   now: Date;
   onCheckIn: () => void;
   checkingIn: boolean;
-  variant?: "hero" | "compact";
 }) {
   const canCheckIn = !!openScheduled;
   const next = openScheduled ? null : nextShiftInstance(scheduled, now);
@@ -720,99 +622,54 @@ function CheckInPanel({
   const total = anchorRef.current?.totalMs ?? 1;
   const percent = openScheduled ? 0 : Math.max(0, Math.min(1, msUntilOpen / total));
   const state = openScheduled ? "ready" : hourglassStateFor(msUntilOpen);
-
   const showCountdownCard = !!next || !!openScheduled;
 
   const countdownColor =
     state === "urgent"
-      ? "text-red-500"
-      : state === "fast"
-        ? "text-amber-400"
-        : state === "warm"
-          ? "text-amber-300"
-          : state === "ready"
-            ? "text-emerald-400"
-            : "text-foreground";
-
-  if (variant === "compact") {
-    return (
-      <Card>
-        <CardContent className="space-y-3 p-4">
-          <div className="flex items-center gap-2">
-            <LogIn className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Check in
-            </h2>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {openScheduled
-              ? lateMin > 0
-                ? `Running ${lateMin}m late — you can still check in.`
-                : "Ready when you are."
-              : msUntilOpen > 0
-                ? `Opens in ${formatCountdown(msUntilOpen)}`
-                : "No open shift right now."}
-          </p>
-          <div className="flex justify-center py-1">
-            <HoldButton
-              label="Hold to Check In"
-              successLabel="Checked in"
-              disabled={!canCheckIn}
-              busy={checkingIn}
-              onComplete={onCheckIn}
-              size={150}
-              hint="Hold 3s"
-            />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+      ? "text-alert"
+      : state === "fast" || state === "warm"
+        ? "text-warn"
+        : state === "ready"
+          ? "text-done"
+          : "text-foreground";
 
   return (
-    <Card className="border-border/60 overflow-hidden hero-aurora">
-      <CardContent className="flex flex-col items-center gap-6 px-4 py-10 text-center text-foreground sm:gap-8 sm:px-6 sm:py-14">
+    <Card className="rise-in hero-aurora overflow-hidden">
+      <CardContent className="flex flex-col items-center gap-8 px-5 py-14 text-center">
         {showCountdownCard ? (
-          <div className="flex flex-col items-center gap-3 sm:gap-4">
+          <div className="flex flex-col items-center gap-4">
             <div className="flex items-center gap-2.5">
-              <Hourglass percent={percent} state={state} className="h-8 w-8 sm:h-10 sm:w-10" />
-              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
-                {state === "ready" ? "Ready for Check-In" : "Check-in opens in"}
-              </div>
+              <Hourglass percent={percent} state={state} className="h-8 w-8" />
+              <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                {state === "ready" ? "Ready for check-in" : "Check-in opens in"}
+              </span>
             </div>
             {state !== "ready" && (
               <div
-                className={`font-mono text-3xl font-semibold tabular-nums tracking-tight transition-colors sm:text-4xl ${countdownColor}`}
+                className={`text-5xl font-semibold tabular-nums tracking-tight transition-colors ${countdownColor}`}
               >
                 {formatCountdown(msUntilOpen)}
               </div>
             )}
-            <p className="text-xs text-muted-foreground sm:text-sm">
+            <p className="text-[13px] text-muted-foreground">
               {openScheduled ? (
                 <>
-                  {openScheduled.label ?? "Scheduled shift"} ·{" "}
-                  {fmtTime(openScheduled.start_time)} — {fmtTime(openScheduled.end_time)}
+                  {fmtTime(openScheduled.start_time)} – {fmtTime(openScheduled.end_time)}
+                  {classCount ? ` · ${classCount} ${classCount === 1 ? "class" : "classes"}` : ""}
                 </>
               ) : (
                 <>
-                  {next!.shift.label ?? "Scheduled shift"} ·{" "}
-                  {DAY_NAMES[next!.shift.day_of_week]} at {fmtTime(next!.shift.start_time)}
+                  {DAY_NAMES[next!.shift.day_of_week]} · {fmtTime(next!.shift.start_time)} –{" "}
+                  {fmtTime(next!.shift.end_time)}
                 </>
               )}
             </p>
-            {classCount ? (
-              <p className="text-xs text-muted-foreground">
-                {classCount} {classCount === 1 ? "class" : "classes"} scheduled
-              </p>
-            ) : null}
           </div>
         ) : (
-          <>
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted sm:h-16 sm:w-16">
-              <Clock className="h-6 w-6 text-muted-foreground sm:h-7 sm:w-7" />
-            </div>
-            <h2 className="text-lg font-semibold tracking-tight sm:text-xl">No scheduled shifts yet</h2>
-          </>
+          <div className="flex flex-col items-center gap-3">
+            <Clock className="h-6 w-6 text-muted-foreground" />
+            <h2 className="text-lg font-medium tracking-tight">No scheduled shifts</h2>
+          </div>
         )}
 
         <HoldButton
@@ -825,11 +682,12 @@ function CheckInPanel({
         />
 
         {canCheckIn && lateMin > 0 ? (
-          <div className="flex max-w-sm items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-left">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <div className="flex max-w-sm items-start gap-2.5 rounded-xl bg-warn-soft px-4 py-3 text-left">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
             <p className="text-xs text-muted-foreground">
-              Your shift started {lateMin >= 60 ? `${Math.floor(lateMin / 60)}h ${lateMin % 60}m` : `${lateMin}m`} ago.
-              You can still check in — the actual time is recorded for attendance.
+              Your shift started{" "}
+              {lateMin >= 60 ? `${Math.floor(lateMin / 60)}h ${lateMin % 60}m` : `${lateMin}m`} ago.
+              The actual time is recorded for attendance.
             </p>
           </div>
         ) : null}
@@ -837,6 +695,7 @@ function CheckInPanel({
     </Card>
   );
 }
+
 
 function ActiveShiftPanel({
   shift,
@@ -890,55 +749,52 @@ function ActiveShiftPanel({
   const early = earlyMin > 0;
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <Card className="border-border/60 overflow-hidden hero-aurora">
-        <CardContent className="flex flex-col items-center gap-3 px-4 py-10 text-center text-foreground sm:px-6 sm:py-14">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-foreground/70 sm:text-xs">
-            Checked in as {shift.operator_name}
+    <div className="space-y-6">
+      <Card className="rise-in hero-aurora overflow-hidden">
+        <CardContent className="flex flex-col items-center gap-3 px-5 py-14 text-center">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span className="status-dot bg-live" />
+            Checked in
           </div>
-          <div className="font-mono text-5xl font-semibold tabular-nums tracking-tight sm:text-7xl">
-            {d.long}
-          </div>
-          <div className="text-[11px] text-foreground/70 sm:text-xs">
-            Since{" "}
-            {checkInAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-            {lateMin > 0 ? ` · ${lateMin}m after scheduled start` : ""}
+          <div className="text-7xl font-semibold tabular-nums tracking-tight">{d.long}</div>
+          <div className="text-[13px] text-muted-foreground">
+            Started {checkInAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+            {times ? ` · Ends ${fmtTime(scheduledShift!.end_time)}` : ""}
+            {lateMin > 0 ? ` · ${lateMin}m late` : ""}
           </div>
         </CardContent>
       </Card>
 
       {hasImported ? (
-        <ClassScheduleCard classes={importedClasses} now={now} title="Today's classes" />
+        <ClassScheduleCard classes={importedClasses} now={now} title="Today's schedule" />
       ) : (
         <Card>
-          <CardContent className="space-y-4 p-4 sm:p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium">
-                  {expected ? "Today's schedule" : "Classes & teachers"}
-                </h3>
-                {times ? (
-                  <p className="text-xs text-muted-foreground">
-                    {fmtTime(scheduledShift!.start_time)} — {fmtTime(scheduledShift!.end_time)}
-                  </p>
-                ) : null}
-              </div>
-              <Button variant="secondary" size="sm" onClick={onAddClass}>
-                <Plus className="mr-1 h-3.5 w-3.5" /> Add
-              </Button>
-            </div>
+          <CardContent className="space-y-5 p-5">
+            <SectionTitle
+              title="Today's schedule"
+              meta={
+                target > 0
+                  ? `${target} ${target === 1 ? "class" : "classes"} scheduled`
+                  : "No classes scheduled"
+              }
+              action={
+                <Button variant="secondary" size="sm" onClick={onAddClass}>
+                  <Plus className="mr-1 h-3.5 w-3.5" /> Add
+                </Button>
+              }
+            />
 
             {target > 0 ? (
               <div>
-                <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
                   <span>Completed</span>
                   <span className="tabular-nums">
                     {filled} / {target}
                   </span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-primary transition-all duration-500"
+                    className="h-full rounded-full bg-done transition-[width] duration-700 ease-out"
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>
@@ -986,9 +842,8 @@ function ActiveShiftPanel({
 
       <StudioDisplayPanel />
 
-
       <Card>
-        <CardContent className="flex flex-col items-center gap-4 px-4 py-8">
+        <CardContent className="flex flex-col items-center gap-4 px-5 py-10">
           <HoldButton
             label="Hold to Check Out"
             successLabel="Checked out"
@@ -999,8 +854,8 @@ function ActiveShiftPanel({
           />
           {early ? (
             <p className="max-w-sm text-center text-xs text-muted-foreground">
-              Your shift is scheduled until {fmtTime(scheduledShift!.end_time)} —
-              checking out now records an early finish of{" "}
+              Scheduled until {fmtTime(scheduledShift!.end_time)} — checking out now records an early
+              finish of{" "}
               {earlyMin >= 60 ? `${Math.floor(earlyMin / 60)}h ${earlyMin % 60}m` : `${earlyMin}m`}.
             </p>
           ) : null}
@@ -1011,75 +866,7 @@ function ActiveShiftPanel({
 }
 
 
-function MonthlySummary({
-  shifts,
-  scheduled,
-}: {
-  shifts: Shift[];
-  scheduled: ScheduledShift[];
-}) {
-  const summary = useMemo(
-    () => summarizeMonth(shifts, scheduled, new Date()),
-    [shifts, scheduled],
-  );
-  const workedH = summary.workedMin / 60;
-  const scheduledH = summary.scheduledMin / 60;
-  const progressPct =
-    scheduledH > 0 ? Math.min(100, (workedH / scheduledH) * 100) : 0;
 
-  return (
-    <Link to="/earnings" className="group block">
-      <Card className="border-primary/30 transition-colors group-hover:border-primary/60">
-        <CardContent className="space-y-5 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <ClipboardList className="h-4 w-4 text-primary" />
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Payroll · {new Date().toLocaleDateString(undefined, { month: "long" })}
-              </h3>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Worked
-              </div>
-              <div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl">
-                {formatHM(summary.workedMin)}
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Scheduled
-              </div>
-              <div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl">
-                {formatHM(summary.scheduledMin)}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>Progress</span>
-              <span className="tabular-nums">{Math.round(progressPct)}%</span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-700"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="text-right text-xs text-primary underline-offset-4 group-hover:underline">
-            Open payroll dashboard →
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
 
 
 function fmtHM(d: Date) {
