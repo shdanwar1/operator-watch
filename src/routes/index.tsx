@@ -626,11 +626,11 @@ function CheckInPanel({
 
   const countdownColor =
     state === "urgent"
-      ? "text-problem"
+      ? "text-alert"
       : state === "fast" || state === "warm"
-        ? "text-attention"
+        ? "text-warn"
         : state === "ready"
-          ? "text-complete"
+          ? "text-done"
           : "text-foreground";
 
   return (
@@ -682,8 +682,8 @@ function CheckInPanel({
         />
 
         {canCheckIn && lateMin > 0 ? (
-          <div className="flex max-w-sm items-start gap-2.5 rounded-xl bg-attention-soft px-4 py-3 text-left">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-attention" />
+          <div className="flex max-w-sm items-start gap-2.5 rounded-xl bg-warn-soft px-4 py-3 text-left">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
             <p className="text-xs text-muted-foreground">
               Your shift started{" "}
               {lateMin >= 60 ? `${Math.floor(lateMin / 60)}h ${lateMin % 60}m` : `${lateMin}m`} ago.
@@ -753,7 +753,7 @@ function ActiveShiftPanel({
       <Card className="rise-in hero-aurora overflow-hidden">
         <CardContent className="flex flex-col items-center gap-3 px-5 py-14 text-center">
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-            <span className="status-dot bg-current" />
+            <span className="status-dot bg-live" />
             Checked in
           </div>
           <div className="text-7xl font-semibold tabular-nums tracking-tight">{d.long}</div>
@@ -794,7 +794,7 @@ function ActiveShiftPanel({
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-complete transition-[width] duration-700 ease-out"
+                    className="h-full rounded-full bg-done transition-[width] duration-700 ease-out"
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>

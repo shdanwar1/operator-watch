@@ -61,14 +61,14 @@
   --color-sidebar-ring: var(--sidebar-ring);
 
   /* Status — the only colour in the system. */
-  --color-current: var(--status-current);
-  --color-current-soft: var(--status-current-soft);
-  --color-complete: var(--status-complete);
-  --color-complete-soft: var(--status-complete-soft);
-  --color-attention: var(--status-attention);
-  --color-attention-soft: var(--status-attention-soft);
-  --color-problem: var(--status-problem);
-  --color-problem-soft: var(--status-problem-soft);
+  --color-live: var(--status-current);
+  --color-live-soft: var(--status-current-soft);
+  --color-done: var(--status-complete);
+  --color-done-soft: var(--status-complete-soft);
+  --color-warn: var(--status-attention);
+  --color-warn-soft: var(--status-attention-soft);
+  --color-alert: var(--status-problem);
+  --color-alert-soft: var(--status-problem-soft);
 
   /* Surfaces — layered elevation inside a near-monochrome shell. */
   --color-surface: var(--surface);

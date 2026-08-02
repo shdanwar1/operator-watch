@@ -120,8 +120,8 @@ export function AppShell({
 
           <div className="ml-auto flex items-center gap-4">
             {onAir && (
-              <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-complete">
-                <span className="status-dot bg-complete" />
+              <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-done">
+                <span className="status-dot bg-done" />
                 On air
               </span>
             )}
