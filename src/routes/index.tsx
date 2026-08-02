@@ -401,125 +401,58 @@ function Index() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <AppShell username={username} onAir={!!active} onSignOut={handleSignOut}>
       <Toaster richColors position="top-center" />
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-5 sm:py-10">
-        <header className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 sm:mb-10">
-          {showActivation && (
-            <StudioActivation
-              onDone={() => {
-                setShowActivation(false);
-                toast.success("Studio live — you're checked in");
-              }}
+      {showActivation && (
+        <StudioActivation
+          onDone={() => {
+            setShowActivation(false);
+            toast.success("Studio live — you're checked in");
+          }}
+        />
+      )}
+
+      {!profileComplete && !active && (
+        <ProfileIncompleteBanner missing={profileStatus?.missing ?? []} />
+      )}
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-6">
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : active ? (
+            <ActiveShiftPanel
+              shift={active}
+              scheduledShift={activeScheduled}
+              now={now}
+              onCheckOut={checkOut}
+              onAddClass={addClassRow}
+              onUpdateClass={updateClassRow}
+              onRemoveClass={removeClassRow}
+              checkingOut={checkingOut}
+              teachers={teachers}
+              classes={classes}
+              importedClasses={activeShiftClasses}
             />
-          )}
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground sm:h-11 sm:w-11">
-            <Radio className="h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Studio Operator</h1>
-            <p className="text-xs text-muted-foreground sm:text-sm">Live stream shift tracker</p>
-          </div>
-          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-            {active && (
-              <Badge className="animate-pulse px-2 py-0.5 text-[10px] sm:text-xs" variant="destructive">
-                ● ON AIR
-              </Badge>
-            )}
-            {username && (
-              <Link
-                to="/profile"
-                className="hidden text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:inline"
-                title="Edit your profile"
-              >
-                {username}
-              </Link>
-            )}
-            <Button variant="outline" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" asChild>
-              <Link to="/calendar">
-                <CalendarDays className="h-3.5 w-3.5 sm:mr-1" />
-                <span className="hidden sm:inline">Calendar</span>
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" asChild>
-              <Link to="/shifts">
-                <ListChecks className="h-3.5 w-3.5 sm:mr-1" />
-                <span className="hidden sm:inline">Shifts</span>
-              </Link>
-            </Button>
-            <ThemeToggle className="h-8 w-8 sm:h-9 sm:w-9" size="icon" />
-            <Button variant="ghost" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" onClick={handleSignOut}>
-              <LogOut className="h-3.5 w-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Sign out</span>
-            </Button>
-          </div>
-        </header>
-
-        {!profileComplete && !active && (
-          <ProfileIncompleteBanner missing={profileStatus?.missing ?? []} />
-        )}
-
-        <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="min-w-0">
-            {loading ? (
-              <p className="text-sm text-muted-foreground">Loading…</p>
-            ) : active ? (
-              <ActiveShiftPanel
-                shift={active}
-                scheduledShift={activeScheduled}
-                now={now}
-                onCheckOut={checkOut}
-                onAddClass={addClassRow}
-                onUpdateClass={updateClassRow}
-                onRemoveClass={removeClassRow}
-                checkingOut={checkingOut}
-                teachers={teachers}
-                classes={classes}
-                importedClasses={activeShiftClasses}
-              />
-
-            ) : focus === "time_to_leave" ? (
-              needsHome || needsCal ? (
-                <LockedFeatureCard
-                  icon={<Train className="h-5 w-5" />}
-                  title="Time to Leave"
-                  reason="Complete your profile to enable Time to Leave."
-                  hero
-                />
-              ) : (
-                <TimeToLeaveCard scheduled={scheduled} now={now} variant="hero" />
-              )
-            ) : checkInLocked ? (
-              <LockedFeatureCard
-                icon={<LogIn className="h-5 w-5" />}
-                title="Check In"
-                reason="Complete your profile to enable Check In."
-                hero
-              />
-            ) : (
-              <CheckInPanel
-                openScheduled={openScheduled}
-                scheduled={scheduled}
-                now={now}
-                onCheckIn={checkIn}
-                checkingIn={checkingIn}
-              />
-            )}
-
-            {!active && history.length > 0 && (
-              <section className="mt-8 sm:mt-12">
-                <MonthlySummary shifts={history} scheduled={scheduled} />
-              </section>
-            )}
-          </div>
-
-          <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-            {!loading && !active && focus === "time_to_leave" && (
-              checkInLocked ? (
+          ) : (
+            <>
+              {focus === "time_to_leave" ? (
+                checkInLocked ? (
+                  <LockedFeatureCard
+                    icon={<Train className="h-4 w-4" />}
+                    title="Time to Leave"
+                    reason="Complete your profile to enable Time to Leave."
+                    hero
+                  />
+                ) : (
+                  <TimeToLeaveCard scheduled={scheduled} now={now} variant="hero" />
+                )
+              ) : checkInLocked ? (
                 <LockedFeatureCard
                   icon={<LogIn className="h-4 w-4" />}
                   title="Check In"
                   reason="Complete your profile to enable Check In."
+                  hero
                 />
               ) : (
                 <CheckInPanel
@@ -528,43 +461,26 @@ function Index() {
                   now={now}
                   onCheckIn={checkIn}
                   checkingIn={checkingIn}
-                  variant="compact"
                 />
-              )
-            )}
-            {!active && focus === "check_in" && (
-              needsHome || needsCal ? (
-                <LockedFeatureCard
-                  icon={<Train className="h-4 w-4" />}
-                  title="Time to Leave"
-                  reason="Complete your profile to enable Time to Leave."
-                />
-              ) : (
-                <TimeToLeaveCard scheduled={scheduled} now={now} />
-              )
-            )}
-            {!loading && needsCal && (
-              <LockedFeatureCard
-                icon={<CalendarDays className="h-4 w-4" />}
-                title="Calendar availability"
-                reason="Google Calendar has not been connected."
-              />
-            )}
-            {!loading && !active && todayClasses.length > 0 && (
-              <ClassScheduleCard classes={todayClasses} now={now} />
-            )}
-            {!loading && !active && <StudioDisplayPanel />}
-            {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
+              )}
 
+              {todayClasses.length > 0 && (
+                <ClassScheduleCard classes={todayClasses} now={now} title="Today's schedule" />
+              )}
 
-          </aside>
+              <StudioDisplayPanel />
+            </>
+          )}
         </div>
 
-
+        <aside className="xl:sticky xl:top-24 xl:self-start">
+          {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
+        </aside>
       </div>
-    </div>
+    </AppShell>
   );
 }
+
 
 
 function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: Date }) {
