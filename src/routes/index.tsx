@@ -20,22 +20,19 @@ import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/li
 import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.functions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { toast, Toaster } from "sonner";
-import { Radio, LogOut, Plus, X, Clock, ListChecks, LogIn, CalendarDays, Train, Home, MapPin, ClipboardList, AlertTriangle, Lock } from "lucide-react";
+import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
-import { summarizeMonth, formatHM } from "@/lib/attendance";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { StudioDisplayPanel } from "@/components/StudioDisplayPanel";
 import { ClassScheduleCard } from "@/components/ClassScheduleCard";
 import { listMyCalendarClasses, type CalendarClassRow } from "@/lib/gcal.functions";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
+
 
 
 
