@@ -586,14 +586,12 @@ function CheckInPanel({
   now,
   onCheckIn,
   checkingIn,
-  variant = "hero",
 }: {
   openScheduled: ScheduledShift | null;
   scheduled: ScheduledShift[];
   now: Date;
   onCheckIn: () => void;
   checkingIn: boolean;
-  variant?: "hero" | "compact";
 }) {
   const canCheckIn = !!openScheduled;
   const next = openScheduled ? null : nextShiftInstance(scheduled, now);
@@ -624,99 +622,54 @@ function CheckInPanel({
   const total = anchorRef.current?.totalMs ?? 1;
   const percent = openScheduled ? 0 : Math.max(0, Math.min(1, msUntilOpen / total));
   const state = openScheduled ? "ready" : hourglassStateFor(msUntilOpen);
-
   const showCountdownCard = !!next || !!openScheduled;
 
   const countdownColor =
     state === "urgent"
-      ? "text-red-500"
-      : state === "fast"
-        ? "text-amber-400"
-        : state === "warm"
-          ? "text-amber-300"
-          : state === "ready"
-            ? "text-emerald-400"
-            : "text-foreground";
-
-  if (variant === "compact") {
-    return (
-      <Card>
-        <CardContent className="space-y-3 p-4">
-          <div className="flex items-center gap-2">
-            <LogIn className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Check in
-            </h2>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {openScheduled
-              ? lateMin > 0
-                ? `Running ${lateMin}m late — you can still check in.`
-                : "Ready when you are."
-              : msUntilOpen > 0
-                ? `Opens in ${formatCountdown(msUntilOpen)}`
-                : "No open shift right now."}
-          </p>
-          <div className="flex justify-center py-1">
-            <HoldButton
-              label="Hold to Check In"
-              successLabel="Checked in"
-              disabled={!canCheckIn}
-              busy={checkingIn}
-              onComplete={onCheckIn}
-              size={150}
-              hint="Hold 3s"
-            />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+      ? "text-problem"
+      : state === "fast" || state === "warm"
+        ? "text-attention"
+        : state === "ready"
+          ? "text-complete"
+          : "text-foreground";
 
   return (
-    <Card className="border-border/60 overflow-hidden hero-aurora">
-      <CardContent className="flex flex-col items-center gap-6 px-4 py-10 text-center text-foreground sm:gap-8 sm:px-6 sm:py-14">
+    <Card className="rise-in hero-aurora overflow-hidden">
+      <CardContent className="flex flex-col items-center gap-8 px-5 py-14 text-center">
         {showCountdownCard ? (
-          <div className="flex flex-col items-center gap-3 sm:gap-4">
+          <div className="flex flex-col items-center gap-4">
             <div className="flex items-center gap-2.5">
-              <Hourglass percent={percent} state={state} className="h-8 w-8 sm:h-10 sm:w-10" />
-              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
-                {state === "ready" ? "Ready for Check-In" : "Check-in opens in"}
-              </div>
+              <Hourglass percent={percent} state={state} className="h-8 w-8" />
+              <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                {state === "ready" ? "Ready for check-in" : "Check-in opens in"}
+              </span>
             </div>
             {state !== "ready" && (
               <div
-                className={`font-mono text-3xl font-semibold tabular-nums tracking-tight transition-colors sm:text-4xl ${countdownColor}`}
+                className={`text-5xl font-semibold tabular-nums tracking-tight transition-colors ${countdownColor}`}
               >
                 {formatCountdown(msUntilOpen)}
               </div>
             )}
-            <p className="text-xs text-muted-foreground sm:text-sm">
+            <p className="text-[13px] text-muted-foreground">
               {openScheduled ? (
                 <>
-                  {openScheduled.label ?? "Scheduled shift"} ·{" "}
-                  {fmtTime(openScheduled.start_time)} — {fmtTime(openScheduled.end_time)}
+                  {fmtTime(openScheduled.start_time)} – {fmtTime(openScheduled.end_time)}
+                  {classCount ? ` · ${classCount} ${classCount === 1 ? "class" : "classes"}` : ""}
                 </>
               ) : (
                 <>
-                  {next!.shift.label ?? "Scheduled shift"} ·{" "}
-                  {DAY_NAMES[next!.shift.day_of_week]} at {fmtTime(next!.shift.start_time)}
+                  {DAY_NAMES[next!.shift.day_of_week]} · {fmtTime(next!.shift.start_time)} –{" "}
+                  {fmtTime(next!.shift.end_time)}
                 </>
               )}
             </p>
-            {classCount ? (
-              <p className="text-xs text-muted-foreground">
-                {classCount} {classCount === 1 ? "class" : "classes"} scheduled
-              </p>
-            ) : null}
           </div>
         ) : (
-          <>
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted sm:h-16 sm:w-16">
-              <Clock className="h-6 w-6 text-muted-foreground sm:h-7 sm:w-7" />
-            </div>
-            <h2 className="text-lg font-semibold tracking-tight sm:text-xl">No scheduled shifts yet</h2>
-          </>
+          <div className="flex flex-col items-center gap-3">
+            <Clock className="h-6 w-6 text-muted-foreground" />
+            <h2 className="text-lg font-medium tracking-tight">No scheduled shifts</h2>
+          </div>
         )}
 
         <HoldButton
@@ -729,11 +682,12 @@ function CheckInPanel({
         />
 
         {canCheckIn && lateMin > 0 ? (
-          <div className="flex max-w-sm items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-left">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <div className="flex max-w-sm items-start gap-2.5 rounded-xl bg-attention-soft px-4 py-3 text-left">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-attention" />
             <p className="text-xs text-muted-foreground">
-              Your shift started {lateMin >= 60 ? `${Math.floor(lateMin / 60)}h ${lateMin % 60}m` : `${lateMin}m`} ago.
-              You can still check in — the actual time is recorded for attendance.
+              Your shift started{" "}
+              {lateMin >= 60 ? `${Math.floor(lateMin / 60)}h ${lateMin % 60}m` : `${lateMin}m`} ago.
+              The actual time is recorded for attendance.
             </p>
           </div>
         ) : null}
@@ -741,6 +695,7 @@ function CheckInPanel({
     </Card>
   );
 }
+
 
 function ActiveShiftPanel({
   shift,
