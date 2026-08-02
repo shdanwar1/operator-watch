@@ -483,19 +483,14 @@ function Index() {
 function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: Date }) {
   const instances = upcomingInstances(scheduled, now, 6);
   return (
-    <Card>
+    <Card className="rise-in">
       <CardContent className="p-5">
-        <div className="mb-4 flex items-center gap-2">
-          <Clock className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Upcoming shifts
-          </h2>
-        </div>
+        <SectionTitle title="Upcoming shifts" />
         {instances.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No upcoming shifts scheduled.</p>
+          <p className="mt-4 text-sm text-muted-foreground">No upcoming shifts scheduled.</p>
         ) : (
-          <ul className="space-y-3">
-            {instances.map(({ shift, startAt, endAt }, i) => {
+          <ul className="mt-4 divide-y divide-border">
+            {instances.map(({ shift, startAt }, i) => {
               const isToday = startAt.toDateString() === now.toDateString();
               const tomorrow = new Date(now);
               tomorrow.setDate(tomorrow.getDate() + 1);
@@ -506,21 +501,16 @@ function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: 
                   ? "Tomorrow"
                   : startAt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
               return (
-                <li
-                  key={`${shift.id}-${i}`}
-                  className="flex items-baseline justify-between gap-3 border-b border-border/50 pb-3 last:border-b-0 last:pb-0"
-                >
+                <li key={`${shift.id}-${i}`} className="flex items-baseline justify-between gap-3 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0">
-                    <div className="text-sm font-medium">{dayLabel}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-[13px] font-medium">{dayLabel}</div>
+                    <div className="mt-0.5 text-xs tabular-nums text-muted-foreground">
                       {fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}
                     </div>
-                    {shift.label && (
-                      <div className="mt-0.5 truncate text-xs text-muted-foreground/80">
-                        {shift.label}
-                      </div>
-                    )}
                   </div>
+                  {shift.label && (
+                    <span className="shrink-0 text-xs text-muted-foreground">{shift.label}</span>
+                  )}
                 </li>
               );
             })}
@@ -530,6 +520,7 @@ function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: 
     </Card>
   );
 }
+
 
 function upcomingInstances(
   scheduled: ScheduledShift[],
