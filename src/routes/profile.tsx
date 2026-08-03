@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { getGateStatus, signOutUser } from "@/lib/gate.functions";
+import { getGateStatus } from "@/lib/gate.functions";
 import {
   updateMyProfile,
   setMyHomeAddress,
@@ -45,11 +45,9 @@ export const Route = createFileRoute("/profile")({
 
 function ProfilePage() {
   const { profile: initialProfile, icsUrl: initialIcs } = Route.useLoaderData();
-  const router = useRouter();
   const saveProfile = useServerFn(updateMyProfile);
   const saveHome = useServerFn(setMyHomeAddress);
   const saveCal = useServerFn(setMyCalendarUrl);
-  const signOut = useServerFn(signOutUser);
   const reloadProfile = useServerFn(getMyOperatorProfile);
 
   const [profile, setProfile] = useState<OperatorProfile>(initialProfile);
@@ -132,11 +130,6 @@ function ProfilePage() {
     } finally {
       setSavingCal(false);
     }
-  }
-
-  async function handleSignOut() {
-    await signOut();
-    await router.navigate({ to: "/unlock" });
   }
 
   return (
