@@ -26,7 +26,6 @@ import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle
 import { supabase } from "@/integrations/supabase/client";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
-import { StudioDisplayPanel } from "@/components/StudioDisplayPanel";
 import { ClassScheduleCard } from "@/components/ClassScheduleCard";
 import { listMyCalendarClasses, type CalendarClassRow } from "@/lib/gcal.functions";
 import { AppShell, SectionTitle } from "@/components/AppShell";
@@ -303,7 +302,7 @@ function Index() {
     ? Math.round((nextInstance.startAt.getTime() - now.getTime()) / 60000)
     : Infinity;
   const focus: "check_in" | "time_to_leave" =
-    !active && minutesToNext > 45 ? "time_to_leave" : "check_in";
+    !active && minutesToNext > 60 ? "time_to_leave" : "check_in";
 
   // The scheduled shift the active attendance record belongs to.
   const activeScheduled =
@@ -462,10 +461,8 @@ function Index() {
               )}
 
               {todayClasses.length > 0 && (
-                <ClassScheduleCard classes={todayClasses} now={now} title="Today's schedule" />
+                <ClassScheduleCard classes={todayClasses} now={now} title="Today's overview" />
               )}
-
-              <StudioDisplayPanel />
             </>
           )}
         </div>
@@ -839,8 +836,6 @@ function ActiveShiftPanel({
           </CardContent>
         </Card>
       )}
-
-      <StudioDisplayPanel />
 
       <Card>
         <CardContent className="flex flex-col items-center gap-4 px-5 py-10">
