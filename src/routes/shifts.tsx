@@ -249,7 +249,7 @@ function ShiftsPage() {
             ))}
           </div>
         )}
-      </div>
+
 
       <EditDialog
         shift={editing}
