@@ -1,7 +1,8 @@
-import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Download } from "lucide-react";
+import { Download } from "lucide-react";
+import { AppShell, PageHeader } from "@/components/AppShell";
 import { getGateStatus } from "@/lib/gate.functions";
 import {
   listShifts,
@@ -218,19 +219,8 @@ function EarningsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
-        <header className="mb-8 flex items-center gap-3">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/">
-              <ArrowLeft className="mr-1 h-4 w-4" /> Back
-            </Link>
-          </Button>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">Payroll</h1>
-            <p className="text-sm text-muted-foreground">{summary.monthLabel}</p>
-          </div>
-        </header>
+    <AppShell>
+      <PageHeader title="Attendance" subtitle={summary.monthLabel} />
 
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
@@ -325,9 +315,8 @@ function EarningsPage() {
               </CardContent>
             </Card>
           </div>
-        )}
-      </div>
-    </div>
+      )}
+    </AppShell>
   );
 }
 

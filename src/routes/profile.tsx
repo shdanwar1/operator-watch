@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { getGateStatus, signOutUser } from "@/lib/gate.functions";
@@ -14,7 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
-import { ArrowLeft, Save, Home, MapPin, KeyRound, User, CalendarDays, LogOut } from "lucide-react";
+import { Save, Home, MapPin, KeyRound, User, CalendarDays } from "lucide-react";
+import { AppShell } from "@/components/AppShell";
 import { USERNAME_RE, PIN_RE } from "@/lib/validation";
 
 export const Route = createFileRoute("/profile")({
@@ -139,21 +140,9 @@ function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <AppShell>
       <Toaster richColors position="top-center" />
-      <div className="mx-auto max-w-lg px-4 py-8 sm:py-12">
-        <header className="mb-6 flex items-center gap-2">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/">
-              <ArrowLeft className="mr-1 h-4 w-4" /> Home
-            </Link>
-          </Button>
-          <div className="ml-auto">
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
-              <LogOut className="mr-1 h-4 w-4" /> Sign out
-            </Button>
-          </div>
-        </header>
+      <div className="mx-auto max-w-lg">
 
         <Card>
           <CardContent className="space-y-6 p-6">
@@ -286,7 +275,7 @@ function ProfilePage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AppShell>
   );
 }
 
