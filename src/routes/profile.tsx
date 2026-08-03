@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { getGateStatus } from "@/lib/gate.functions";
@@ -44,6 +44,7 @@ export const Route = createFileRoute("/profile")({
 });
 
 function ProfilePage() {
+  const router = useRouter();
   const { profile: initialProfile, icsUrl: initialIcs } = Route.useLoaderData();
   const saveProfile = useServerFn(updateMyProfile);
   const saveHome = useServerFn(setMyHomeAddress);
