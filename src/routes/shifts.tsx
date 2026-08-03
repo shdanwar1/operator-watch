@@ -266,7 +266,8 @@ function ShiftsPage() {
         teachers={teachers}
         classDir={classDir}
       />
-    </div>
+    </AppShell>
+
   );
 }
 
