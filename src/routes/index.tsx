@@ -763,12 +763,12 @@ function ActiveShiftPanel({
       </Card>
 
       {hasImported ? (
-        <ClassScheduleCard classes={importedClasses} now={now} title="Today's schedule" />
+        <ClassScheduleCard classes={importedClasses} now={now} title="Today's overview" />
       ) : (
         <Card>
           <CardContent className="space-y-5 p-5">
             <SectionTitle
-              title="Today's schedule"
+              title="Today's overview"
               meta={
                 target > 0
                   ? `${target} ${target === 1 ? "class" : "classes"} scheduled`
