@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarDays,
   ClipboardList,
@@ -11,6 +12,7 @@ import {
   User,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { signOutUser } from "@/lib/gate.functions";
 import { cn } from "@/lib/utils";
 
 const NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: boolean }[] = [
@@ -18,10 +20,11 @@ const NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: bo
   { label: "Calendar", to: "/calendar", icon: CalendarDays },
   { label: "Shifts", to: "/shifts", icon: ListChecks },
   { label: "Attendance", to: "/earnings", icon: ClipboardList },
-  { label: "Studio Display", to: "/display", icon: Monitor },
+  { label: "Studio Display", to: "/studio-display", icon: Monitor },
   { label: "Profile", to: "/profile", icon: User },
 ];
 
+const COLLAPSE_KEY = "so.sidebar.collapsed";
 
 export const STUDIO_NAME = "DMC Studio";
 
@@ -30,18 +33,45 @@ export const STUDIO_NAME = "DMC Studio";
  * 1600px content column. Every operator screen renders inside this.
  */
 export function AppShell({
-  username,
   onAir = false,
-  onSignOut,
   children,
 }: {
-  username: string | null;
+  /** Kept for API compatibility; the top bar no longer shows the name. */
+  username?: string | null;
   onAir?: boolean;
-  onSignOut: () => void;
+  onSignOut?: () => void;
   children: ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const router = useRouter();
+  const signOut = useServerFn(signOutUser);
+
+  // Restore after hydration so server and client markup match.
+  useEffect(() => {
+    try {
+      setCollapsed(window.localStorage.getItem(COLLAPSE_KEY) === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        window.localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    await router.navigate({ to: "/unlock" });
+  };
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
@@ -91,10 +121,11 @@ export function AppShell({
           })}
         </nav>
 
-        <div className="px-2 pb-4">
+        <div className="border-t border-sidebar-border px-2 py-3">
           <button
             type="button"
-            onClick={onSignOut}
+            onClick={handleSignOut}
+            title={collapsed ? "Logout" : undefined}
             className={cn(
               "press flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
               collapsed && "justify-center px-0",
@@ -110,7 +141,7 @@ export function AppShell({
         <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-background/85 px-6 backdrop-blur-sm lg:px-8">
           <button
             type="button"
-            onClick={() => setCollapsed((c) => !c)}
+            onClick={toggleCollapsed}
             aria-label="Toggle navigation"
             className="press hidden rounded-md p-1.5 text-muted-foreground transition-colors hover:text-foreground lg:block"
           >
@@ -125,26 +156,39 @@ export function AppShell({
                 On air
               </span>
             )}
-            {username && (
-              <Link
-                to="/profile"
-                className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {username}
-              </Link>
-            )}
             <ThemeToggle className="h-8 w-8" />
-            <button
-              type="button"
-              onClick={onSignOut}
-              aria-label="Log out"
-              title="Log out"
-              className="press rounded-md p-1.5 text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
           </div>
         </header>
+
+        {/* Mobile navigation: the sidebar is hidden below lg. */}
+        <nav className="flex gap-1 overflow-x-auto border-b border-border px-4 py-2 lg:hidden">
+          {NAV.map((item) => {
+            const active = item.exact
+              ? pathname === item.to
+              : pathname === item.to || pathname.startsWith(`${item.to}/`);
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  "shrink-0 rounded-lg px-3 py-1.5 text-xs transition-colors",
+                  active
+                    ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                    : "text-muted-foreground",
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="shrink-0 rounded-lg px-3 py-1.5 text-xs text-muted-foreground"
+          >
+            Logout
+          </button>
+        </nav>
 
         <main className="flex-1">
           <div className="mx-auto w-full max-w-[1600px] px-6 py-8 lg:px-8">{children}</div>
@@ -169,6 +213,27 @@ export function SectionTitle({
       <div>
         <h2 className="text-[15px] font-medium tracking-tight">{title}</h2>
         {meta && <p className="mt-0.5 text-xs text-muted-foreground">{meta}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+/** Page-level heading used at the top of each screen's content column. */
+export function PageHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="text-[22px] font-semibold tracking-tight">{title}</h1>
+        {subtitle && <p className="mt-0.5 text-[13px] text-muted-foreground">{subtitle}</p>}
       </div>
       {action}
     </div>

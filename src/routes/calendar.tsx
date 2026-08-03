@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getGateStatus } from "@/lib/gate.functions";
@@ -13,6 +13,7 @@ import {
 } from "@/lib/shifts.functions";
 import { syncGoogleCalendar, getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
 import type { MatchLog } from "@/lib/gcal-match";
+import { AppShell, PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft, Plus, Trash2, Save, RefreshCw, Settings2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Save, RefreshCw, Settings2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 export const Route = createFileRoute("/calendar")({
@@ -38,15 +39,21 @@ export const Route = createFileRoute("/calendar")({
   loader: ({ context }) => ({ username: (context as { username: string }).username }),
   head: () => ({
     meta: [
-      { title: "Shift Calendar — Studio Operator" },
-      { name: "description", content: "Four-week calendar view of upcoming and past studio operator shifts." },
+      { title: "Monthly Schedule — Studio Operator" },
+      {
+        name: "description",
+        content: "Month view of your scheduled studio operator shifts and classes.",
+      },
+      { property: "og:title", content: "Monthly Schedule — Studio Operator" },
+      { property: "og:description", content: "Month view of your scheduled studio operator shifts." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: CalendarPage,
 });
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
 
 function dateKey(d: Date) {
   const y = d.getFullYear();
@@ -58,7 +65,6 @@ function dateKey(d: Date) {
 function startOfWeek(d: Date) {
   const c = new Date(d);
   c.setHours(0, 0, 0, 0);
-  // Monday-start week: Sunday (0) is 6 days after Monday, others shift by 1.
   const offset = (c.getDay() + 6) % 7;
   c.setDate(c.getDate() - offset);
   return c;
@@ -77,6 +83,15 @@ function fmtTime(t: string) {
   const period = h >= 12 ? "PM" : "AM";
   const h12 = ((h + 11) % 12) + 1;
   return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+/** Number of classes encoded in the shift label, when present. */
+function classCount(label: string | null | undefined): number | null {
+  if (!label) return null;
+  const m = label.match(/(\d+)\s*(?:x\s*)?class/i) ?? label.match(/^\s*(\d+)\s*$/);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  return Number.isFinite(n) && n > 0 && n <= 20 ? n : null;
 }
 
 type Instance = {
@@ -121,7 +136,7 @@ function CalendarPage() {
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
   const [logged, setLogged] = useState<ShiftRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [monthOffset, setMonthOffset] = useState(0);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
@@ -158,29 +173,19 @@ function CalendarPage() {
     load();
   }, [load]);
 
-  // Load the operator's saved calendar URL once.
   useEffect(() => {
     let cancelled = false;
     getUrlFn()
-      .then((r) => { if (!cancelled) setIcsUrl(r.icsUrl); })
-      .catch(() => { /* non-fatal */ });
-    return () => { cancelled = true; };
+      .then((r) => {
+        if (!cancelled) setIcsUrl(r.icsUrl);
+      })
+      .catch(() => {
+        /* non-fatal */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [getUrlFn]);
-
-  async function handleSaveCalendarUrl() {
-    setSavingUrl(true);
-    try {
-      const res = await setUrlFn({ data: { url: calDraft } });
-      setIcsUrl(res.icsUrl);
-      toast.success(res.icsUrl ? "Calendar link updated" : "Calendar link removed");
-      setCalDialogOpen(false);
-      if (res.icsUrl) runSync();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save link");
-    } finally {
-      setSavingUrl(false);
-    }
-  }
 
   const runSync = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -201,7 +206,6 @@ function CalendarPage() {
               ? `Calendar synced — ${parts.join(", ")} from ${res.fetched} classes`
               : `Calendar synced — no shifts (${res.fetched} classes)`,
           );
-
         }
         await load();
       } catch (e) {
@@ -213,6 +217,21 @@ function CalendarPage() {
     [hasGoogleCalendar, syncFn, load],
   );
 
+  async function handleSaveCalendarUrl() {
+    setSavingUrl(true);
+    try {
+      const res = await setUrlFn({ data: { url: calDraft } });
+      setIcsUrl(res.icsUrl);
+      toast.success(res.icsUrl ? "Calendar link updated" : "Calendar link removed");
+      setCalDialogOpen(false);
+      if (res.icsUrl) runSync();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save link");
+    } finally {
+      setSavingUrl(false);
+    }
+  }
+
   // Auto-sync on mount and every 5 minutes for operators with a linked calendar.
   useEffect(() => {
     if (!hasGoogleCalendar) return;
@@ -221,12 +240,17 @@ function CalendarPage() {
     return () => clearInterval(t);
   }, [hasGoogleCalendar, runSync]);
 
-
   const now = new Date();
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
 
-  const firstWeekStart = useMemo(() => addDays(startOfWeek(now), weekOffset * 7), [weekOffset]);
+  const monthStart = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(1);
+    d.setMonth(d.getMonth() + monthOffset);
+    return d;
+  }, [monthOffset]);
 
   const overrides = useMemo(
     () => new Set(scheduled.map((s) => s.specific_date).filter((v): v is string => !!v)),
@@ -243,22 +267,23 @@ function CalendarPage() {
     return map;
   }, [logged]);
 
+  // Full weeks covering the visible month (Apple Calendar style grid).
   const weeks: Date[][] = useMemo(() => {
+    const gridStart = startOfWeek(monthStart);
+    const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
     const w: Date[][] = [];
-    for (let i = 0; i < 4; i++) {
-      const start = addDays(firstWeekStart, i * 7);
-      w.push(Array.from({ length: 7 }, (_, d) => addDays(start, d)));
+    let cursor = gridStart;
+    while (cursor <= monthEnd || w.length < 5) {
+      w.push(Array.from({ length: 7 }, (_, d) => addDays(cursor, d)));
+      cursor = addDays(cursor, 7);
+      if (w.length >= 6) break;
     }
     return w;
-  }, [firstWeekStart]);
+  }, [monthStart]);
 
-  const rangeLabel = `${firstWeekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${addDays(firstWeekStart, 27).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
+  const monthLabel = monthStart.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
-  async function handleSave(payload: {
-    start_time: string;
-    end_time: string;
-    label: string;
-  }) {
+  async function handleSave(payload: { start_time: string; end_time: string; label: string }) {
     if (!editor) return;
     try {
       if (editor.mode === "create") {
@@ -303,56 +328,17 @@ function CalendarPage() {
     }
   }
 
-  const debugPanel =
-    debug && matchLogs.length ? (
-      <Card className="mb-4">
-        <CardContent className="p-4">
-          <h2 className="mb-2 text-sm font-semibold">Calendar match log (debug)</h2>
-          <div className="max-h-72 space-y-1 overflow-auto text-xs">
-            {matchLogs.map((l, i) => (
-              <div
-                key={`${l.title}-${i}`}
-                className="flex flex-wrap items-baseline gap-x-2 border-b border-border/60 py-1"
-              >
-                <span className={l.accepted ? "font-medium text-emerald-600" : "text-muted-foreground"}>
-                  {l.accepted ? "Imported" : "Ignored"}
-                </span>
-                <span className="font-medium">{l.title}</span>
-                {l.accepted ? (
-                  <span className="text-muted-foreground">
-                    → {l.className} · {l.teacherName}
-                  </span>
-                ) : null}
-                <span className="text-muted-foreground">{l.reason}</span>
-                <span className="ml-auto tabular-nums text-muted-foreground">{l.confidence}%</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    ) : null;
-
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <AppShell>
       <Toaster richColors position="top-center" />
-      <div className="mx-auto max-w-7xl px-3 py-5 sm:px-5 sm:py-8">
-        <header className="mb-5 flex flex-wrap items-center gap-2 sm:mb-8 sm:gap-3">
-          <Button variant="ghost" size="sm" asChild className="h-8 px-2 sm:h-9">
-            <Link to="/">
-              <ArrowLeft className="h-4 w-4 sm:mr-1" />
-              <span className="hidden sm:inline">Home</span>
-            </Link>
-          </Button>
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground sm:h-11 sm:w-11">
-            <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-base font-semibold tracking-tight sm:text-2xl">Upcoming shifts</h1>
-            <p className="text-xs text-muted-foreground sm:text-sm">Four-week calendar view</p>
-          </div>
-          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+
+      <PageHeader
+        title="Calendar"
+        subtitle="Your monthly schedule"
+        action={
+          <div className="flex items-center gap-1.5">
             {lastSync && hasGoogleCalendar ? (
-              <span className="hidden text-xs text-muted-foreground sm:inline">
+              <span className="mr-1 hidden text-xs text-muted-foreground sm:inline">
                 Synced {lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </span>
             ) : null}
@@ -368,12 +354,11 @@ function CalendarPage() {
                 }
               }}
               disabled={syncing}
-              className="h-8 px-2 sm:h-9"
               title={hasGoogleCalendar ? "Sync shifts from your Google Calendar" : "Set your Google Calendar link"}
             >
               <RefreshCw className={`h-4 w-4 sm:mr-1 ${syncing ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">
-                {syncing ? "Syncing…" : hasGoogleCalendar ? "Sync calendar" : "Connect calendar"}
+                {syncing ? "Syncing…" : hasGoogleCalendar ? "Sync" : "Connect calendar"}
               </span>
             </Button>
             <Button
@@ -383,168 +368,153 @@ function CalendarPage() {
                 setCalDraft(icsUrl ?? "");
                 setCalDialogOpen(true);
               }}
-              className="h-8 px-2 sm:h-9"
               title="Update Google Calendar link"
             >
               <Settings2 className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setWeekOffset((n) => n - 1)} className="h-8 px-2 sm:h-9">
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setWeekOffset(0)}
-              disabled={weekOffset === 0}
-              className="h-8 px-3 text-xs sm:h-9 sm:text-sm"
-            >
-              Today
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setWeekOffset((n) => n + 1)} className="h-8 px-2 sm:h-9">
-              <ChevronRight className="h-4 w-4" />
-            </Button>
           </div>
-        </header>
+        }
+      />
 
-        {debugPanel}
+      {debug && matchLogs.length ? (
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            <h2 className="mb-2 text-sm font-semibold">Calendar match log (debug)</h2>
+            <div className="max-h-72 space-y-1 overflow-auto text-xs">
+              {matchLogs.map((l, i) => (
+                <div
+                  key={`${l.title}-${i}`}
+                  className="flex flex-wrap items-baseline gap-x-2 border-b border-border/60 py-1"
+                >
+                  <span className={l.accepted ? "font-medium text-done" : "text-muted-foreground"}>
+                    {l.accepted ? "Imported" : "Ignored"}
+                  </span>
+                  <span className="font-medium">{l.title}</span>
+                  {l.accepted ? (
+                    <span className="text-muted-foreground">
+                      → {l.className} · {l.teacherName}
+                    </span>
+                  ) : null}
+                  <span className="text-muted-foreground">{l.reason}</span>
+                  <span className="ml-auto tabular-nums text-muted-foreground">{l.confidence}%</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm font-medium sm:text-base">{rangeLabel}</div>
-          <div className="flex items-center gap-3 text-[11px] text-muted-foreground sm:text-xs">
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-muted-foreground/30" />
-              Past
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary" />
-              Upcoming
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500" />
-              Logged
-            </span>
-          </div>
-        </div>
-
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              <div className="hidden grid-cols-7 border-b border-border/60 sm:grid">
-                {DAY_LABELS.map((d) => (
-                  <div
-                    key={d}
-                    className="px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  >
-                    {d}
-                  </div>
-                ))}
-              </div>
-              <div className="divide-y divide-border/60">
-                {weeks.map((week, wi) => (
-                  <div key={wi} className="grid grid-cols-1 sm:grid-cols-7">
-                    {week.map((day) => {
-                      const key = dateKey(day);
-                      const isPastDay = day.getTime() < today.getTime();
-                      const isToday = day.getTime() === today.getTime();
-                      const insts = instancesFor(day, scheduled, overrides);
-                      const dayLogged = loggedByDay.get(key) ?? [];
-                      return (
-                        <div
-                          key={key}
-                          className={`group relative min-h-[92px] border-border/60 p-2 sm:min-h-[120px] sm:border-r sm:last:border-r-0 ${
-                            isPastDay ? "bg-muted/30" : ""
-                          } ${isToday ? "bg-primary/5" : ""}`}
-                        >
-                          <div className="mb-1.5 flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-semibold uppercase text-muted-foreground sm:hidden">
-                                {DAY_LABELS[(day.getDay() + 6) % 7]}
-                              </span>
-                              <span
-                                className={`text-xs font-semibold sm:text-sm ${
-                                  isToday
-                                    ? "flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground"
-                                    : isPastDay
-                                      ? "text-muted-foreground"
-                                      : "text-foreground"
-                                }`}
-                              >
-                                {day.getDate()}
-                              </span>
-                              {day.getDate() === 1 && (
-                                <span className="text-[10px] text-muted-foreground">
-                                  {day.toLocaleDateString(undefined, { month: "short" })}
-                                </span>
-                              )}
-                            </div>
-                            {!isPastDay && (
-                              <button
-                                type="button"
-                                onClick={() => setEditor({ mode: "create", date: day })}
-                                className="rounded-md p-0.5 text-muted-foreground opacity-0 transition hover:bg-muted hover:text-foreground focus:opacity-100 group-hover:opacity-100"
-                                aria-label="Add shift"
-                              >
-                                <Plus className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                          </div>
-                          <div className="space-y-1">
-                            {insts.map((inst, i) => {
-                              const past = inst.endAt.getTime() < now.getTime();
-                              const hasLog = dayLogged.some(
-                                (l) => l.scheduled_shift_id === inst.shift.id,
-                              );
-                              const cls = hasLog
-                                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                                : past
-                                  ? "border-border/60 bg-muted/60 text-muted-foreground"
-                                  : "border-primary/40 bg-primary/10 text-foreground hover:bg-primary/20";
-                              const clickable = !past;
-                              return (
-                                <button
-                                  key={`${inst.shift.id}-${i}`}
-                                  type="button"
-                                  disabled={!clickable}
-                                  onClick={() =>
-                                    clickable && setEditor({ mode: "edit", date: day, instance: inst })
-                                  }
-                                  className={`w-full rounded-md border px-1.5 py-1 text-left text-[10px] leading-tight transition sm:text-[11px] ${cls} ${
-                                    clickable ? "cursor-pointer" : "cursor-default"
-                                  }`}
-                                  title={inst.shift.label ?? ""}
-                                >
-                                  <div className="font-medium">{fmtTime(inst.shift.start_time)}</div>
-                                  {inst.shift.label && (
-                                    <div className="truncate opacity-80">{inst.shift.label}</div>
-                                  )}
-                                </button>
-                              );
-                            })}
-                            {insts.length === 0 && !isPastDay && (
-                              <button
-                                type="button"
-                                onClick={() => setEditor({ mode: "create", date: day })}
-                                className="w-full rounded-md border border-dashed border-border/60 px-1.5 py-1 text-left text-[10px] text-muted-foreground/70 transition hover:border-primary/40 hover:text-foreground sm:text-[11px]"
-                              >
-                                + Add shift
-                              </button>
-                            )}
-                            {insts.length === 0 && isPastDay && (
-                              <div className="text-[10px] text-muted-foreground/50 sm:text-[11px]">—</div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      <div className="mb-4 flex items-center gap-2">
+        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setMonthOffset((n) => n - 1)} aria-label="Previous month">
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="min-w-[180px] text-[15px] font-medium tracking-tight">{monthLabel}</div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8"
+          onClick={() => setMonthOffset(0)}
+          disabled={monthOffset === 0}
+        >
+          Today
+        </Button>
+        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setMonthOffset((n) => n + 1)} aria-label="Next month">
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <Card className="rise-in overflow-hidden">
+          <CardContent className="p-0">
+            <div className="grid grid-cols-7 border-b border-border/60">
+              {DAY_LABELS.map((d) => (
+                <div
+                  key={d}
+                  className="px-3 py-2 text-center text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground"
+                >
+                  {d}
+                </div>
+              ))}
+            </div>
+            <div className="divide-y divide-border/60">
+              {weeks.map((week, wi) => (
+                <div key={wi} className="grid grid-cols-7">
+                  {week.map((day) => {
+                    const key = dateKey(day);
+                    const inMonth = day.getMonth() === monthStart.getMonth();
+                    const isPastDay = day.getTime() < today.getTime();
+                    const isToday = day.getTime() === today.getTime();
+                    const insts = instancesFor(day, scheduled, overrides);
+                    const dayLogged = loggedByDay.get(key) ?? [];
+                    return (
+                      <div
+                        key={key}
+                        className={`group relative min-h-[104px] border-border/60 p-1.5 sm:min-h-[124px] sm:border-r sm:last:border-r-0 ${
+                          inMonth ? "" : "opacity-40"
+                        }`}
+                      >
+                        <div className="mb-1 flex items-center justify-between">
+                          <span
+                            className={`text-xs tabular-nums ${
+                              isToday
+                                ? "flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background font-medium"
+                                : isPastDay
+                                  ? "text-muted-foreground"
+                                  : "text-foreground"
+                            }`}
+                          >
+                            {day.getDate()}
+                          </span>
+                          {!isPastDay && (
+                            <button
+                              type="button"
+                              onClick={() => setEditor({ mode: "create", date: day })}
+                              className="rounded-md px-1 text-xs text-muted-foreground opacity-0 transition hover:text-foreground focus:opacity-100 group-hover:opacity-100"
+                              aria-label="Add shift"
+                            >
+                              +
+                            </button>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          {insts.map((inst, i) => {
+                            const past = inst.endAt.getTime() < now.getTime();
+                            const hasLog = dayLogged.some((l) => l.scheduled_shift_id === inst.shift.id);
+                            const n = classCount(inst.shift.label);
+                            const tone = hasLog
+                              ? "border-done/40 bg-done/10"
+                              : past
+                                ? "border-border/60 bg-muted/50 text-muted-foreground"
+                                : "border-live/40 bg-live/10 hover:bg-live/20";
+                            return (
+                              <button
+                                key={`${inst.shift.id}-${i}`}
+                                type="button"
+                                onClick={() => setEditor({ mode: "edit", date: day, instance: inst })}
+                                className={`press w-full rounded-lg border px-2 py-1 text-left text-[11px] leading-tight transition ${tone}`}
+                                title={inst.shift.label ?? ""}
+                              >
+                                <div className="truncate font-medium tabular-nums">
+                                  {fmtTime(inst.shift.start_time)} – {fmtTime(inst.shift.end_time)}
+                                </div>
+                                <div className="truncate text-muted-foreground">
+                                  {n ? `${n} ${n === 1 ? "class" : "classes"}` : (inst.shift.label ?? "Shift")}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <ShiftEditorDialog
         state={editor}
@@ -558,7 +528,8 @@ function CalendarPage() {
           <DialogHeader>
             <DialogTitle>Google Calendar link</DialogTitle>
             <DialogDescription>
-              Paste the public iCal URL from Google Calendar → Settings → Integrate calendar → “Public address in iCal format” (ends in <code>.ics</code>). Shifts refresh here every 5 minutes.
+              Paste the public iCal URL from Google Calendar → Settings → Integrate calendar → “Public
+              address in iCal format” (ends in <code>.ics</code>). Shifts refresh here every 5 minutes.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -570,15 +541,13 @@ function CalendarPage() {
               placeholder="https://calendar.google.com/calendar/ical/…/public/basic.ics"
               autoFocus
             />
-            {icsUrl && (
-              <p className="text-xs text-muted-foreground break-all">Current: {icsUrl}</p>
-            )}
+            {icsUrl && <p className="break-all text-xs text-muted-foreground">Current: {icsUrl}</p>}
           </div>
           <DialogFooter className="flex-row justify-between">
             <Button
               variant="ghost"
               className="text-destructive hover:text-destructive"
-              onClick={() => { setCalDraft(""); }}
+              onClick={() => setCalDraft("")}
               disabled={savingUrl || !calDraft}
             >
               Clear
@@ -594,7 +563,7 @@ function CalendarPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AppShell>
   );
 }
 
@@ -646,7 +615,7 @@ function ShiftEditorDialog({
     <Dialog open={!!state} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit shift" : "Add shift"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Shift details" : "Add shift"}</DialogTitle>
           <DialogDescription>{dayLabel}</DialogDescription>
         </DialogHeader>
 
@@ -667,21 +636,28 @@ function ShiftEditorDialog({
             <Input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="e.g. Morning shift"
+              placeholder="e.g. 4 classes"
             />
           </div>
         </div>
 
         <DialogFooter className="flex-row justify-between sm:justify-between">
           {isEdit ? (
-            <Button variant="ghost" size="sm" onClick={onDelete} className="text-destructive hover:text-destructive">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDelete}
+              className="text-destructive hover:text-destructive"
+            >
               <Trash2 className="mr-1 h-4 w-4" /> Delete
             </Button>
           ) : (
             <span />
           )}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
             <Button onClick={submit}>
               <Save className="mr-1 h-4 w-4" /> Save
             </Button>

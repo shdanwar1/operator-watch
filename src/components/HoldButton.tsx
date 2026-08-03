@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Radio } from "lucide-react";
 
-const HOLD_MS = 3000;
+const HOLD_MS = 2000;
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);

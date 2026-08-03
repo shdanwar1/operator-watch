@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { getGateStatus } from "@/lib/gate.functions";
@@ -29,7 +29,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast, Toaster } from "sonner";
-import { ArrowLeft, Pencil, Plus, Trash2, X, Save } from "lucide-react";
+import { Pencil, Plus, Trash2, X, Save } from "lucide-react";
+import { AppShell, PageHeader } from "@/components/AppShell";
 import type { ShiftClass } from "./index";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 
@@ -173,25 +174,17 @@ function ShiftsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <AppShell>
       <Toaster richColors position="top-center" />
-      <div className="mx-auto max-w-4xl px-5 py-10">
-        <header className="mb-6 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/">
-                <ArrowLeft className="mr-1 h-4 w-4" /> Back
-              </Link>
-            </Button>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">All shifts</h1>
-              <p className="text-sm text-muted-foreground">Review and edit any shift.</p>
-            </div>
-          </div>
+      <PageHeader
+        title="Shifts"
+        subtitle="Review and edit any shift."
+        action={
           <Button size="sm" onClick={() => setAddingPast(true)}>
             <Plus className="mr-1 h-3.5 w-3.5" /> Add past shift
           </Button>
-        </header>
+        }
+      />
 
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
@@ -256,7 +249,7 @@ function ShiftsPage() {
             ))}
           </div>
         )}
-      </div>
+
 
       <EditDialog
         shift={editing}
@@ -273,7 +266,8 @@ function ShiftsPage() {
         teachers={teachers}
         classDir={classDir}
       />
-    </div>
+    </AppShell>
+
   );
 }
 
