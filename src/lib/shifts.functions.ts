@@ -139,17 +139,12 @@ export const createShift = createServerFn({ method: "POST" })
 export const createPastShift = createServerFn({ method: "POST" })
   .inputValidator(
     (data: {
-      operator_name: string;
       check_in_at: string;
       check_out_at: string;
       classes?: ShiftClass[];
       notes?: string | null;
     }) => {
-      if (!data || typeof data.operator_name !== "string") {
-        throw new Error("operator_name is required");
-      }
-      const name = data.operator_name.trim();
-      if (!name || name.length > 100) throw new Error("Invalid operator_name");
+      if (!data) throw new Error("Invalid payload");
       const ci = new Date(data.check_in_at);
       const co = new Date(data.check_out_at);
       if (isNaN(ci.getTime())) throw new Error("Invalid check_in_at");
