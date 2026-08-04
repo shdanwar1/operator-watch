@@ -56,13 +56,15 @@ export const setMyCalendarUrl = createServerFn({ method: "POST" })
     return { ok: true, icsUrl: normalized };
   });
 
-export const syncGoogleCalendar = createServerFn({ method: "POST" }).handler(
-  async (): Promise<GcalSyncResult> => {
+export const syncGoogleCalendar = createServerFn({ method: "POST" })
+  .inputValidator((data?: { includeNextMonth?: boolean }) => ({
+    includeNextMonth: data?.includeNextMonth === true,
+  }))
+  .handler(async ({ data }): Promise<GcalSyncResult> => {
     const { username } = await requireOperator();
     const { runCalendarSync } = await import("./gcal.server");
-    return runCalendarSync(username);
-  },
-);
+    return runCalendarSync(username, { includeNextMonth: data.includeNextMonth });
+  });
 
 /** Classes imported from the operator's calendar (Detailed Mode only). */
 export const listMyCalendarClasses = createServerFn({ method: "GET" }).handler(
