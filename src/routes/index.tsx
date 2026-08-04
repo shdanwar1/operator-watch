@@ -522,7 +522,9 @@ function Index() {
         </div>
 
         <aside className="xl:sticky xl:top-24 xl:self-start">
-          {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
+          {!loading && (
+            <UpcomingShifts scheduled={scheduled} now={now} calendarClasses={calendarClasses} />
+          )}
         </aside>
       </div>
     </AppShell>
@@ -531,7 +533,16 @@ function Index() {
 
 
 
-function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: Date }) {
+function UpcomingShifts({
+  scheduled,
+  now,
+  calendarClasses = [],
+}: {
+  scheduled: ScheduledShift[];
+  now: Date;
+  /** Used to show how many classes a continuous shift contains. */
+  calendarClasses?: CalendarClassRow[];
+}) {
   const instances = upcomingInstances(scheduled, now, 6);
   return (
     <Card className="rise-in">
@@ -551,13 +562,21 @@ function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: 
                 : isTomorrow
                   ? "Tomorrow"
                   : startAt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+              const overnight = shift.end_time <= shift.start_time;
+              const classCount = calendarClasses.filter((c) => c.scheduled_shift_id === shift.id).length;
               return (
                 <li key={`${shift.id}-${i}`} className="flex items-baseline justify-between gap-3 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0">
                     <div className="text-[13px] font-medium">{dayLabel}</div>
                     <div className="mt-0.5 text-xs tabular-nums text-muted-foreground">
                       {fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}
+                      {overnight && <span className="ml-1 not-italic">(+1 day)</span>}
                     </div>
+                    {classCount > 0 && (
+                      <div className="mt-0.5 text-[11px] text-muted-foreground">
+                        {classCount} {classCount === 1 ? "class" : "classes"}
+                      </div>
+                    )}
                   </div>
                   {shift.label && (
                     <span className="shrink-0 text-xs text-muted-foreground">{shift.label}</span>
