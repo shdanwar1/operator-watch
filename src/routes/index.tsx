@@ -295,12 +295,17 @@ function Index() {
       .filter((s) => scheduledWindow(s, scheduled, now).canStart)
       .sort((a, b) => a.start_time.localeCompare(b.start_time))[0] ?? null;
 
+  // Continuous "display shifts": raw rows split at midnight are merged back
+  // into the single operator shift they represent.
+  const displayShifts = buildDisplayShifts(scheduled, now);
+  const upcomingDisplay = displayShifts.filter((s) => s.endAt.getTime() > now.getTime());
+  const nextDisplay = upcomingDisplay[0] ?? null;
+
   // Focus mode:
-  //  - More than 45 min before the next shift → "Time to leave" is the hero
-  //  - 45 min or less before the next shift (or during the shift) → check-in is the hero
-  const nextInstance = nextShiftInstance(scheduled, now);
-  const minutesToNext = nextInstance
-    ? Math.round((nextInstance.startAt.getTime() - now.getTime()) / 60000)
+  //  - More than 60 min before the next shift → "Time to leave" is the hero
+  //  - 60 min or less before the next shift (or during the shift) → check-in is the hero
+  const minutesToNext = nextDisplay
+    ? Math.round((nextDisplay.startAt.getTime() - now.getTime()) / 60000)
     : Infinity;
   const focus: "check_in" | "time_to_leave" =
     !active && minutesToNext > 60 ? "time_to_leave" : "check_in";
@@ -316,47 +321,40 @@ function Index() {
   //
   // Shift-centric, never day-centric: a shift that crosses midnight keeps every
   // one of its classes (including the ones dated "tomorrow") in one list.
-  const classAt = (c: CalendarClassRow) => {
-    const [y, mo, d] = c.specific_date.split("-").map(Number);
-    const [h, mi] = c.start_time.split(":").map((n) => parseInt(n, 10));
-    return new Date(y, mo - 1, d, h, mi, 0, 0).getTime();
-  };
-  const activeWindow = (() => {
+  const classAt = (c: CalendarClassRow) => classStartAt(c);
+  const activeDisplayShift = (() => {
     if (!active) return null;
-    const from = new Date(active.check_in_at).getTime() - 60 * 60 * 1000;
-    const end = activeScheduled ? instanceTimes(activeScheduled, new Date(active.check_in_at)).endAt : null;
-    const to = Math.max(end ? end.getTime() : 0, now.getTime()) + 60 * 60 * 1000;
-    return { from, to };
+    const t = new Date(active.check_in_at).getTime();
+    return (
+      displayShifts.find(
+        (s) => t >= s.startAt.getTime() - 90 * 60_000 && t <= s.endAt.getTime() + 60 * 60_000,
+      ) ?? nextDisplay
+    );
   })();
   const activeShiftClasses = (() => {
     if (!active) return [] as CalendarClassRow[];
-    const byShift = activeScheduled
-      ? calendarClasses.filter((c) => c.scheduled_shift_id === activeScheduled.id)
-      : [];
-    const rows = byShift.length
-      ? byShift
-      : activeWindow
-        ? calendarClasses.filter(
-            (c) => classAt(c) >= activeWindow.from && classAt(c) <= activeWindow.to,
-          )
-        : [];
-    return [...rows].sort((a, b) => classAt(a) - classAt(b));
+    if (activeDisplayShift) return classesForShift(calendarClasses, activeDisplayShift);
+    const from = new Date(active.check_in_at).getTime() - 60 * 60 * 1000;
+    const to = now.getTime() + 6 * 60 * 60 * 1000;
+    return calendarClasses
+      .filter((c) => classAt(c) >= from && classAt(c) <= to)
+      .sort((a, b) => classAt(a) - classAt(b));
   })();
 
 
   // Before check-in, preview the next continuous shift's classes.
   const nextShiftClasses = (() => {
     if (active) return [];
-    const target = openScheduled ?? nextInstance?.shift ?? null;
-    if (target) {
-      const byShift = calendarClasses.filter((c) => c.scheduled_shift_id === target.id);
-      if (byShift.length) return byShift.sort((a, b) => classAt(a) - classAt(b));
+    if (nextDisplay) {
+      const rows = classesForShift(calendarClasses, nextDisplay);
+      if (rows.length) return rows;
     }
     const soon = now.getTime() + 14 * 60 * 60 * 1000;
     return calendarClasses
       .filter((c) => classAt(c) >= now.getTime() - 60 * 60 * 1000 && classAt(c) <= soon)
       .sort((a, b) => classAt(a) - classAt(b));
   })();
+
 
 
 
