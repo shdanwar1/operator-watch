@@ -96,3 +96,26 @@ export const setMyClassStatus = createServerFn({ method: "POST" })
     const { displayName } = await loadOperatorCalendar(username);
     return setClassStatus(displayName, data.id, data.status);
   });
+
+/**
+ * Fixes the class/teacher a synced calendar event resolved to. The correction
+ * is stored as an alias so future syncs match the same title automatically.
+ */
+export const correctMyClassMatch = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string; classId: string; teacherId?: string | null }) => {
+    if (!data || typeof data.id !== "string" || typeof data.classId !== "string") {
+      throw new Error("Invalid input");
+    }
+    return {
+      id: data.id,
+      classId: data.classId,
+      teacherId: typeof data.teacherId === "string" && data.teacherId ? data.teacherId : null,
+    };
+  })
+  .handler(async ({ data }): Promise<CalendarClassRow> => {
+    const { username } = await requireOperator();
+    const { loadOperatorCalendar, correctClassMapping } = await import("./gcal.server");
+    const { displayName } = await loadOperatorCalendar(username);
+    return correctClassMapping(displayName, data.id, data.classId, data.teacherId);
+  });
+

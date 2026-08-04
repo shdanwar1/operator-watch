@@ -21,7 +21,7 @@ import {
   type ClassEvent,
   type ParsedEvent,
 } from "./gcal-core";
-import { matchEvent, type MatchLog } from "./gcal-match";
+import { aliasKeyFor, matchEvent, type AliasEntry, type MatchLog } from "./gcal-match";
 
 export type GcalSyncResult = {
   ok: boolean;
@@ -43,10 +43,10 @@ export type CalendarClassRow = {
   specific_date: string;
   start_time: string;
   end_time: string;
-  duration_min: number;
   status: string;
-  meet_link: string | null;
-  description: string | null;
+  class_id: string | null;
+  teacher_id: string | null;
+  raw_title: string | null;
   scheduled_shift_id: string | null;
 };
 
@@ -326,12 +326,19 @@ async function syncDetailed(
   const now = new Date();
   const opKey = displayName.toLowerCase();
 
-  const [{ data: classRows }, { data: teacherRows }] = await Promise.all([
+  const [{ data: classRows }, { data: teacherRows }, { data: aliasRows }] = await Promise.all([
     supabaseAdmin.from("classes").select("id,name").limit(2000),
     supabaseAdmin.from("teachers").select("id,name").limit(2000),
+    supabaseAdmin.from("class_aliases").select("alias_key,class_id,teacher_id").limit(5000),
   ]);
   const classDir = (classRows ?? []) as { id: string; name: string }[];
   const teacherDir = (teacherRows ?? []) as { id: string; name: string }[];
+  const aliases: AliasEntry[] = (aliasRows ?? []).map((a) => ({
+    aliasKey: a.alias_key as string,
+    classId: (a.class_id ?? null) as string | null,
+    teacherId: (a.teacher_id ?? null) as string | null,
+  }));
+
 
   const inWindow = events.filter(
     (e) => e.specific_date >= window.from && e.specific_date <= window.to,
@@ -359,27 +366,21 @@ async function syncDetailed(
       });
       continue;
     }
-    const { result, log } = matchEvent(e.summary, classDir, teacherDir);
+    const { result, log } = matchEvent(e.summary, classDir, teacherDir, aliases);
     logs.push(log);
-    if (result) {
-      // The database is the source of truth: calendar text is discarded here.
-      imported.push({
-        event: e,
-        className: result.className,
-        teacherName: result.teacherName,
-        classId: result.classId,
-        teacherId: result.teacherId,
-      });
-      continue;
-    }
-    // Directory matching failed. The event is still a real calendar block, so
-    // it MUST be imported — otherwise the same calendar produces fewer shifts
-    // in "see all event details" mode than in free/busy mode. Only the
-    // metadata degrades: raw calendar text instead of canonical directory
-    // values, and no class/teacher ids.
-    const { className, teacherName } = fallbackTitle(e.summary);
-    imported.push({ event: e, className, teacherName, classId: null, teacherId: null });
+    // Nothing is ever dropped: an event without a confident directory match is
+    // still a real calendar block, so it imports with its raw title and no ids.
+    // Only the metadata degrades — shift boundaries stay identical.
+    const fb = fallbackTitle(e.summary);
+    imported.push({
+      event: e,
+      className: result.className ?? fb.className,
+      teacherName: result.teacherName ?? fb.teacherName,
+      classId: result.classId,
+      teacherId: result.teacherId,
+    });
   }
+
 
 
   // Build shifts from the validated classes only.
@@ -430,28 +431,21 @@ async function syncDetailed(
   );
   const rows = imported
     .filter((i) => inScopeKeys.has(i.event.uid))
-    .map((i) => {
-    const startMin = toMin(i.event.start_time);
-    const endMin = toMin(i.event.end_time);
-    return {
+    .map((i) => ({
       operator: displayName,
       uid: i.event.uid,
       class_id: i.classId,
       teacher_id: i.teacherId,
       class_name: i.className,
       teacher_name: i.teacherName,
+      raw_title: (i.event.summary ?? "").slice(0, 500),
       specific_date: i.event.specific_date,
       start_time: i.event.start_time,
       end_time: i.event.end_time,
-      duration_min: Math.max(0, endMin - startMin),
       status: keptStatus.get(i.event.uid) ?? i.event.status,
-
-      meet_link: i.event.meetLink,
-      description: i.event.description ? i.event.description.slice(0, 5000) : null,
-      source: "google_calendar",
       scheduled_shift_id: shiftIdByClassKey.get(i.event.uid) ?? null,
-    };
-  });
+    }));
+
 
   if (rows.length) {
     for (let i = 0; i < rows.length; i += 200) {
@@ -499,7 +493,7 @@ export async function listClassesForOperator(
   const { data, error } = await supabaseAdmin
     .from("calendar_classes")
     .select(
-      "id, uid, class_name, teacher_name, specific_date, start_time, end_time, duration_min, status, meet_link, description, scheduled_shift_id",
+      "id, uid, class_id, teacher_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id",
     )
     .ilike("operator", displayName)
     .gte("specific_date", fromDate)
@@ -532,9 +526,74 @@ export async function setClassStatus(
     .update({ status })
     .eq("id", id)
     .select(
-      "id, uid, class_name, teacher_name, specific_date, start_time, end_time, duration_min, status, meet_link, description, scheduled_shift_id",
+      "id, uid, class_id, teacher_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id",
     )
     .single();
   if (error) throw new Error(error.message);
+  return data as CalendarClassRow;
+}
+
+/**
+ * Operator correction of a class/teacher mapping.
+ *
+ * The correction is applied to the row AND remembered as an alias keyed on the
+ * raw Google Calendar title, so every future sync resolves it automatically.
+ */
+export async function correctClassMapping(
+  displayName: string,
+  id: string,
+  classId: string,
+  teacherId: string | null,
+): Promise<CalendarClassRow> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: row, error: readErr } = await supabaseAdmin
+    .from("calendar_classes")
+    .select("id, operator, raw_title, class_name")
+    .eq("id", id)
+    .maybeSingle();
+  if (readErr) throw new Error(readErr.message);
+  if (!row) throw new Response("Not found", { status: 404 });
+  if ((row.operator as string).toLowerCase() !== displayName.toLowerCase()) {
+    throw new Response("Forbidden", { status: 403 });
+  }
+
+  const [{ data: cls }, teacherRes] = await Promise.all([
+    supabaseAdmin.from("classes").select("id,name").eq("id", classId).maybeSingle(),
+    teacherId
+      ? supabaseAdmin.from("teachers").select("id,name").eq("id", teacherId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  if (!cls) throw new Error("Unknown class");
+  const tea = (teacherRes as { data: { id: string; name: string } | null }).data;
+
+  const { data, error } = await supabaseAdmin
+    .from("calendar_classes")
+    .update({
+      class_id: cls.id,
+      teacher_id: tea?.id ?? null,
+      class_name: cls.name,
+      teacher_name: tea?.name ?? "—",
+    })
+    .eq("id", id)
+    .select(
+      "id, uid, class_id, teacher_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id",
+    )
+    .single();
+  if (error) throw new Error(error.message);
+
+  const rawTitle = (row.raw_title as string | null) ?? (row.class_name as string);
+  const aliasKey = aliasKeyFor(rawTitle);
+  if (aliasKey) {
+    await supabaseAdmin.from("class_aliases").upsert(
+      {
+        alias_key: aliasKey,
+        raw_title: rawTitle.slice(0, 500),
+        class_id: cls.id,
+        teacher_id: tea?.id ?? null,
+      },
+      { onConflict: "alias_key" },
+    );
+  }
+
   return data as CalendarClassRow;
 }

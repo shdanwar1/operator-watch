@@ -27,7 +27,12 @@ import { RouteMapPreview } from "@/components/RouteMapPreview";
 import { supabase } from "@/integrations/supabase/client";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf } from "@/components/ClassScheduleCard";
-import { listMyCalendarClasses, setMyClassStatus, type CalendarClassRow } from "@/lib/gcal.functions";
+import {
+  listMyCalendarClasses,
+  setMyClassStatus,
+  correctMyClassMatch,
+  type CalendarClassRow,
+} from "@/lib/gcal.functions";
 import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
@@ -231,6 +236,7 @@ function Index() {
   const createShiftFn = useServerFn(createShift);
   const updateShiftServer = useServerFn(updateShiftFn);
   const setClassStatusFn = useServerFn(setMyClassStatus);
+  const correctClassMatchFn = useServerFn(correctMyClassMatch);
 
   const [showActivation, setShowActivation] = useState(false);
   const [active, setActive] = useState<Shift | null>(null);
@@ -403,6 +409,17 @@ function Index() {
     }
   }
 
+  /** Operator fixes a mis-matched class; the server remembers it as an alias. */
+  async function correctClassMatch(id: string, classId: string, teacherId: string | null) {
+    try {
+      const row = await correctClassMatchFn({ data: { id, classId, teacherId } });
+      setCalendarClasses((prev) => prev.map((c) => (c.id === id ? row : c)));
+      toast.success("Match saved — future syncs will use it");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save the match");
+    }
+  }
+
   async function checkOut() {
     if (!active) return;
     setCheckingOut(true);
@@ -470,6 +487,7 @@ function Index() {
               classes={classes}
               importedClasses={activeShiftClasses}
               onSetClassStatus={setClassStatus}
+              onCorrectClassMatch={correctClassMatch}
             />
           ) : (
             <>
@@ -682,6 +700,7 @@ function ActiveShiftPanel({
   classes,
   importedClasses,
   onSetClassStatus,
+  onCorrectClassMatch,
 }: {
   shift: Shift;
   scheduledShift: ScheduledShift | null;
@@ -695,6 +714,7 @@ function ActiveShiftPanel({
   classes: DirectoryItem[];
   importedClasses: CalendarClassRow[];
   onSetClassStatus: (id: string, status: "scheduled" | "completed" | "cancelled") => void;
+  onCorrectClassMatch: (id: string, classId: string, teacherId: string | null) => void;
 }) {
   const d = formatDuration(shift.check_in_at, null);
   const checkInAt = new Date(shift.check_in_at);
@@ -788,6 +808,9 @@ function ActiveShiftPanel({
           now={now}
           title="Shift Overview"
           onSetStatus={onSetClassStatus}
+          onCorrect={onCorrectClassMatch}
+          classOptions={classes}
+          teacherOptions={teachers}
         />
       ) : (
         <Card>
