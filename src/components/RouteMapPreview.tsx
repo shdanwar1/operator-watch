@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type * as L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 type Pt = { lat: number; lng: number };
 
@@ -100,6 +101,7 @@ export function RouteMapPreview({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.Layer[]>([]);
+  const boundsRef = useRef<L.LatLngBounds | null>(null);
   const [visible, setVisible] = useState(false);
   const [routeFailed, setRouteFailed] = useState(false);
 
@@ -130,9 +132,15 @@ export function RouteMapPreview({
 
     (async () => {
       const leaflet = (await import("leaflet")).default;
-      await import("leaflet/dist/leaflet.css");
       const el = hostRef.current;
       if (cancelled || !el) return;
+
+      // Leaflet locks its zoom to the container size at init time; wait for
+      // layout so the initial fitBounds isn't computed against a 0x0 box.
+      for (let i = 0; i < 30 && el.clientHeight < 20; i++) {
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
+        if (cancelled) return;
+      }
 
       if (!mapRef.current) {
         mapRef.current = leaflet.map(el, {
@@ -176,9 +184,18 @@ export function RouteMapPreview({
         [office.lat, office.lng],
       ];
       const fit = (coords: [number, number][]) => {
-        map.fitBounds(leaflet.latLngBounds(coords), { padding: [56, 72] });
-        setTimeout(() => map.invalidateSize(), 0);
+        const bounds = leaflet.latLngBounds(coords);
+        boundsRef.current = bounds;
+        map.invalidateSize();
+        map.fitBounds(bounds, { padding: [56, 72] });
+        // Re-frame once more after the browser has settled the layout.
+        requestAnimationFrame(() => {
+          if (cancelled || !mapRef.current) return;
+          mapRef.current.invalidateSize();
+          mapRef.current.fitBounds(bounds, { padding: [56, 72] });
+        });
       };
+
 
       const provisional = leaflet
         .polyline(straight, {
@@ -218,6 +235,20 @@ export function RouteMapPreview({
     };
   }, [visible, home.lat, home.lng, office.lat, office.lng]);
 
+  // Keep the map filling its container (and framed) on every layout change.
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!visible || !el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      const map = mapRef.current;
+      if (!map) return;
+      map.invalidateSize();
+      if (boundsRef.current) map.fitBounds(boundsRef.current, { padding: [56, 72] });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [visible]);
+
   useEffect(() => {
     return () => {
       mapRef.current?.remove();
@@ -226,7 +257,7 @@ export function RouteMapPreview({
   }, []);
 
   return (
-    <div className={`relative overflow-hidden bg-muted ${className ?? ""}`}>
+    <div className={`overflow-hidden bg-muted ${className ?? "relative h-full w-full"}`}>
       <div ref={hostRef} className="absolute inset-0 h-full w-full" />
       {routeFailed ? (
         <div className="pointer-events-none absolute left-3 top-3 rounded-lg border border-border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
