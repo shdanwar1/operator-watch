@@ -24,7 +24,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
 import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf } from "@/components/ClassScheduleCard";
 import { listMyCalendarClasses, setMyClassStatus, type CalendarClassRow } from "@/lib/gcal.functions";
@@ -350,24 +349,6 @@ function Index() {
   })();
 
 
-  // Before check-in, preview the next continuous shift's classes.
-  const nextShiftClasses = (() => {
-    if (active) return [];
-    if (nextDisplay) {
-      const rows = classesForShift(calendarClasses, nextDisplay);
-      if (rows.length) return rows;
-    }
-    const soon = now.getTime() + 14 * 60 * 60 * 1000;
-    return calendarClasses
-      .filter((c) => classAt(c) >= now.getTime() - 60 * 60 * 1000 && classAt(c) <= soon)
-      .sort((a, b) => classAt(a) - classAt(b));
-  })();
-
-
-
-
-
-
   async function checkIn() {
     setCheckingIn(true);
     try {
@@ -504,29 +485,23 @@ function Index() {
                 ))}
 
               {/* Check In is always present — only its state changes. */}
-              {checkInLocked ? (
-                <LockedFeatureCard
-                  icon={<LogIn className="h-4 w-4" />}
-                  title="Check In"
-                  reason="Complete your profile to enable Check In."
-                  hero={focus === "check_in"}
-                />
-              ) : (
-                <CheckInPanel
-                  openScheduled={openScheduled}
-                  nextShift={nextDisplay}
-                  now={now}
-                  onCheckIn={checkIn}
-                  checkingIn={checkingIn}
-                  compact={focus === "time_to_leave"}
-                />
-              )}
-
-              {nextShiftClasses.length > 0 && (
-                <ClassScheduleCard classes={nextShiftClasses} now={now} title="Next shift" />
-              )}
-
-
+              <div className="max-w-sm">
+                {checkInLocked ? (
+                  <LockedFeatureCard
+                    icon={<LogIn className="h-4 w-4" />}
+                    title="Check In"
+                    reason="Complete your profile to enable Check In."
+                  />
+                ) : (
+                  <CheckInPanel
+                    openScheduled={openScheduled}
+                    nextShift={nextDisplay}
+                    now={now}
+                    onCheckIn={checkIn}
+                    checkingIn={checkingIn}
+                  />
+                )}
+              </div>
             </>
           )}
         </div>
@@ -615,7 +590,6 @@ function CheckInPanel({
   now,
   onCheckIn,
   checkingIn,
-  compact = false,
 }: {
   openScheduled: ScheduledShift | null;
   /** Next continuous shift (midnight-merged), used for the countdown. */
@@ -623,8 +597,6 @@ function CheckInPanel({
   now: Date;
   onCheckIn: () => void;
   checkingIn: boolean;
-  /** Rendered as a secondary card while "Time to leave" owns the hero slot. */
-  compact?: boolean;
 }) {
   const canCheckIn = !!openScheduled;
   const next = openScheduled ? null : nextShift;
@@ -636,63 +608,23 @@ function CheckInPanel({
   const openStart = openScheduled ? instanceTimes(openScheduled, now).startAt : null;
   const lateMin = openStart ? minutesLate(openStart, now) : 0;
   const classCount = scheduledClassCount(openScheduled?.label);
-
-  // Anchor the "total" duration to the first render where this target became
-  // active, so the hourglass level maps to the real countdown.
-  const anchorRef = useRef<{ targetMs: number; anchoredAt: number; totalMs: number } | null>(null);
-  if (opensAt) {
-    const targetMs = opensAt.getTime();
-    if (!anchorRef.current || anchorRef.current.targetMs !== targetMs) {
-      anchorRef.current = {
-        targetMs,
-        anchoredAt: now.getTime(),
-        totalMs: Math.max(1, targetMs - now.getTime()),
-      };
-    }
-  } else if (!openScheduled) {
-    anchorRef.current = null;
-  }
-
-  const total = anchorRef.current?.totalMs ?? 1;
-  const percent = openScheduled ? 0 : Math.max(0, Math.min(1, msUntilOpen / total));
-  const state = openScheduled ? "ready" : hourglassStateFor(msUntilOpen);
-  const showCountdownCard = !!next || !!openScheduled;
   const nextRange = next ? formatShiftRange(next, now) : null;
-
-  const countdownColor =
-    state === "urgent"
-      ? "text-alert"
-      : state === "fast" || state === "warm"
-        ? "text-warn"
-        : state === "ready"
-          ? "text-done"
-          : "text-foreground";
+  const hasShift = !!next || !!openScheduled;
 
   return (
-    <Card className={compact ? "rise-in overflow-hidden" : "rise-in hero-aurora overflow-hidden"}>
-      <CardContent
-        className={
-          compact
-            ? "flex flex-col items-center gap-5 px-5 py-8 text-center"
-            : "flex flex-col items-center gap-8 px-5 py-14 text-center"
-        }
-      >
-        {showCountdownCard ? (
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex items-center gap-2.5">
-              <Hourglass percent={percent} state={state} className="h-8 w-8" />
-              <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                {state === "ready" ? "Ready for check-in" : "Check-in opens in"}
-              </span>
-            </div>
-            {state !== "ready" && (
-              <div
-                className={`${compact ? "text-3xl" : "text-5xl"} font-semibold tabular-nums tracking-tight transition-colors ${countdownColor}`}
-              >
+    <Card className="rise-in overflow-hidden">
+      <CardContent className="flex flex-col items-center gap-5 px-5 py-6 text-center">
+        {hasShift ? (
+          <div className="flex flex-col items-center gap-1.5">
+            <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              {canCheckIn ? "Ready for check-in" : "Check-in opens in"}
+            </span>
+            {!canCheckIn && (
+              <div className="text-2xl font-semibold tabular-nums tracking-tight">
                 {formatCountdown(msUntilOpen)}
               </div>
             )}
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {openScheduled ? (
                 <>
                   {fmtTime(openScheduled.start_time)} – {fmtTime(openScheduled.end_time)}
@@ -706,26 +638,24 @@ function CheckInPanel({
             </p>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-3">
-            <Clock className="h-6 w-6 text-muted-foreground" />
-            <h2 className="text-lg font-medium tracking-tight">No scheduled shifts</h2>
+          <div className="flex flex-col items-center gap-2">
+            <Clock className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-sm font-medium tracking-tight">No scheduled shifts</h2>
           </div>
         )}
 
         <HoldButton
           label="Hold to Check In"
-          successLabel="Checked in"
           disabled={!canCheckIn}
           busy={checkingIn}
           onComplete={onCheckIn}
-          size={compact ? 150 : 240}
+          size={100}
         />
 
-
         {canCheckIn && lateMin > 0 ? (
-          <div className="flex max-w-sm items-start gap-2.5 rounded-xl bg-warn-soft px-4 py-3 text-left">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
-            <p className="text-xs text-muted-foreground">
+          <div className="flex items-start gap-2 rounded-xl bg-warn-soft px-3 py-2 text-left">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warn" />
+            <p className="text-[11px] text-muted-foreground">
               Your shift started{" "}
               {lateMin >= 60 ? `${Math.floor(lateMin / 60)}h ${lateMin % 60}m` : `${lateMin}m`} ago.
               The actual time is recorded for attendance.
@@ -796,10 +726,34 @@ function ActiveShiftPanel({
   const earlyMin = times ? Math.max(0, Math.round((times.endAt.getTime() - now.getTime()) / 60000)) : 0;
   const early = earlyMin > 0;
 
+  // Shift progress: from check-in (or scheduled start) to the scheduled end.
+  const shiftStart = times?.startAt ?? checkInAt;
+  const shiftEnd = times?.endAt ?? null;
+  const shiftPct = shiftEnd
+    ? Math.max(
+        0,
+        Math.min(
+          100,
+          ((now.getTime() - shiftStart.getTime()) /
+            Math.max(1, shiftEnd.getTime() - shiftStart.getTime())) *
+            100,
+        ),
+      )
+    : 0;
+  const remainingMin = shiftEnd
+    ? Math.max(0, Math.round((shiftEnd.getTime() - now.getTime()) / 60000))
+    : null;
+  const remainingLabel =
+    remainingMin == null
+      ? null
+      : remainingMin >= 60
+        ? `${Math.floor(remainingMin / 60)}h ${remainingMin % 60}m left`
+        : `${remainingMin}m left`;
+
   return (
     <div className="space-y-6">
       <Card className="rise-in hero-aurora overflow-hidden">
-        <CardContent className="flex flex-col items-center gap-3 px-5 py-14 text-center">
+        <CardContent className="flex flex-col items-center gap-3 px-5 py-12 text-center">
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
             <span className="status-dot bg-live" />
             Checked in
@@ -810,6 +764,20 @@ function ActiveShiftPanel({
             {times ? ` · Ends ${fmtTime(scheduledShift!.end_time)}` : ""}
             {lateMin > 0 ? ` · ${lateMin}m late` : ""}
           </div>
+          {shiftEnd && (
+            <div className="mt-3 w-full max-w-md">
+              <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Shift progress</span>
+                <span className="tabular-nums">{remainingLabel}</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-live transition-[width] duration-700 ease-out"
+                  style={{ width: `${shiftPct}%` }}
+                />
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -894,14 +862,14 @@ function ActiveShiftPanel({
       )}
 
       <Card>
-        <CardContent className="flex flex-col items-center gap-4 px-5 py-10">
+        <CardContent className="flex flex-col items-center gap-4 px-5 py-6">
           <HoldButton
             label="Hold to Check Out"
             successLabel="Checked out"
             tone="danger"
             busy={checkingOut}
             onComplete={onCheckOut}
-            size={200}
+            size={100}
           />
           {pendingClasses > 0 && (
             <p className="max-w-sm text-center text-xs text-alert">

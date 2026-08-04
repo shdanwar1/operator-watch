@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Radio } from "lucide-react";
+import { Check, Fingerprint } from "lucide-react";
 
-const HOLD_MS = 2000;
+const HOLD_MS = 3000;
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -17,6 +17,10 @@ function usePrefersReducedMotion() {
 
 export type HoldButtonTone = "primary" | "danger";
 
+/**
+ * Calm, Touch-ID style hold-to-confirm control.
+ * Progress is communicated only by the closing ring — never by numbers.
+ */
 export function HoldButton({
   label,
   successLabel,
@@ -24,10 +28,11 @@ export function HoldButton({
   disabled,
   busy,
   onComplete,
-  size = 240,
+  size = 100,
   hint = "Hold for 3 seconds",
 }: {
   label: string;
+  /** Kept for API compatibility; no success text is rendered anymore. */
   successLabel?: string;
   tone?: HoldButtonTone;
   disabled?: boolean;
@@ -71,7 +76,7 @@ export function HoldButton({
             setDone(true);
             if (typeof navigator !== "undefined" && "vibrate" in navigator) {
               try {
-                navigator.vibrate?.(18);
+                navigator.vibrate?.(14);
               } catch {
                 /* ignore */
               }
@@ -118,22 +123,21 @@ export function HoldButton({
     startLoop();
   }, [startLoop]);
 
-  const r = size / 2 - 10;
+  const stroke = 3;
+  const r = size / 2 - stroke * 2;
   const c = 2 * Math.PI * r;
-  const pct = Math.round(progress * 100);
 
   const ringColor = tone === "danger" ? "oklch(0.64 0.20 25)" : "oklch(0.62 0.16 255)";
   const successRing = "oklch(0.72 0.17 155)";
 
-  const scale = done ? 1.015 : holding ? (reduced ? 1 : 1.03) : 1;
+  const scale = done ? 1.08 : holding ? (reduced ? 1 : 1.06) : 1;
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-3">
       <button
         type="button"
         aria-label={label}
         aria-disabled={disabled || busy}
-        role="button"
         disabled={disabled || busy}
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -152,7 +156,7 @@ export function HoldButton({
           if (e.key === " " || e.key === "Enter") end();
         }}
         onBlur={end}
-        className="relative select-none rounded-full outline-none transition-[transform,box-shadow] duration-500 ease-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+        className="relative select-none rounded-full outline-none transition-transform duration-300 ease-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-45"
         style={{
           width: size,
           height: size,
@@ -160,23 +164,10 @@ export function HoldButton({
           touchAction: "none",
         }}
       >
-        {/* ambient glow */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-full transition-opacity duration-700"
-          style={{
-            boxShadow: done
-              ? `0 0 60px 6px ${successRing.replace(")", " / 0.35)")}`
-              : `0 0 44px 2px ${ringColor.replace(")", " / 0.22)")}`,
-            opacity: holding && !reduced ? 1 : 0.75,
-            animation:
-              holding && !reduced ? "hold-breathe 2.4s ease-in-out infinite" : undefined,
-          }}
-        />
         {/* face */}
         <span
           aria-hidden
-          className="absolute inset-0 rounded-full border border-border/70 bg-gradient-to-b from-background/90 to-muted/70 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.35)] backdrop-blur-sm"
+          className="absolute inset-0 rounded-full border border-border/70 bg-gradient-to-b from-background to-muted/60 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.45)]"
         />
         <svg
           className="absolute inset-0 -rotate-90"
@@ -191,7 +182,7 @@ export function HoldButton({
             r={r}
             fill="none"
             stroke="currentColor"
-            strokeWidth={4}
+            strokeWidth={stroke}
             className="text-border/60"
           />
           <circle
@@ -200,44 +191,33 @@ export function HoldButton({
             r={r}
             fill="none"
             stroke={done ? successRing : ringColor}
-            strokeWidth={5}
+            strokeWidth={stroke}
             strokeLinecap="round"
             strokeDasharray={c}
             strokeDashoffset={c * (1 - (done ? 1 : progress))}
-            style={{ transition: "stroke 400ms ease" }}
+            style={{ transition: "stroke 300ms ease" }}
           />
         </svg>
 
-        <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-6 text-center">
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 px-3 text-center">
           {done ? (
-            <>
-              <Check
-                className="h-9 w-9 text-emerald-500"
-                style={{ animation: reduced ? undefined : "hold-pop 420ms ease-out" }}
-              />
-              <span className="text-base font-medium tracking-tight">
-                {successLabel ?? "Done"}
-              </span>
-            </>
-          ) : holding || progress > 0 ? (
-            <>
-              <span className="text-xs text-muted-foreground">Keep holding…</span>
-              <span className="font-mono text-4xl font-semibold tabular-nums tracking-tight">
-                {pct}
-                <span className="ml-0.5 text-lg font-normal text-muted-foreground">%</span>
-              </span>
-            </>
+            <Check
+              className="h-7 w-7 text-done"
+              style={{ animation: reduced ? undefined : "hold-pop 420ms ease-out" }}
+            />
           ) : (
             <>
-              <Radio className="mb-1 h-5 w-5 text-muted-foreground" />
-              <span className="text-lg font-medium leading-tight tracking-tight">{label}</span>
+              <Fingerprint className="h-4 w-4 text-muted-foreground" />
+              <span className="text-[11px] font-medium leading-tight tracking-tight">{label}</span>
             </>
           )}
         </span>
       </button>
-      <p className="text-xs text-muted-foreground" aria-live="polite">
-        {busy ? "Working…" : done ? "" : hint}
-      </p>
+      {!done && (
+        <p className="text-[11px] text-muted-foreground" aria-live="polite">
+          {busy ? "Working…" : hint}
+        </p>
+      )}
     </div>
   );
 }
