@@ -533,7 +533,7 @@ function Index() {
 
         <aside className="xl:sticky xl:top-24 xl:self-start">
           {!loading && (
-            <UpcomingShifts scheduled={scheduled} now={now} calendarClasses={calendarClasses} />
+            <UpcomingShifts shifts={upcomingDisplay} now={now} calendarClasses={calendarClasses} />
           )}
         </aside>
       </div>
