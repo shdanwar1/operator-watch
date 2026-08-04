@@ -178,7 +178,7 @@ export function scheduledWindow(
     const end = new Date(day);
     end.setHours(eh, em, 0, 0);
     if (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1);
-    const openAt = new Date(start.getTime() - 45 * 60 * 1000);
+    const openAt = new Date(start.getTime() - 60 * 60 * 1000);
     // Late check-in is always allowed: the window stays open for a few hours
     // after the scheduled end so nobody is ever blocked from starting a shift.
     const closeAt = new Date(end.getTime() + LATE_GRACE_MS);
