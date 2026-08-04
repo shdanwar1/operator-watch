@@ -944,8 +944,8 @@ function TimeToLeaveCard({
       }
     };
     load();
-    // Refresh every 3 minutes so the departure recalculates with fresh transit data.
-    const t = setInterval(load, 3 * 60_000);
+    // Refresh every minute: countdown, departure, travel time and options stay live.
+    const t = setInterval(load, 60_000);
     return () => {
       alive = false;
       clearInterval(t);
