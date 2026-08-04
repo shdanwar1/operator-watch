@@ -24,7 +24,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
 import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf } from "@/components/ClassScheduleCard";
 import { listMyCalendarClasses, setMyClassStatus, type CalendarClassRow } from "@/lib/gcal.functions";
@@ -504,29 +503,23 @@ function Index() {
                 ))}
 
               {/* Check In is always present — only its state changes. */}
-              {checkInLocked ? (
-                <LockedFeatureCard
-                  icon={<LogIn className="h-4 w-4" />}
-                  title="Check In"
-                  reason="Complete your profile to enable Check In."
-                  hero={focus === "check_in"}
-                />
-              ) : (
-                <CheckInPanel
-                  openScheduled={openScheduled}
-                  nextShift={nextDisplay}
-                  now={now}
-                  onCheckIn={checkIn}
-                  checkingIn={checkingIn}
-                  compact={focus === "time_to_leave"}
-                />
-              )}
-
-              {nextShiftClasses.length > 0 && (
-                <ClassScheduleCard classes={nextShiftClasses} now={now} title="Next shift" />
-              )}
-
-
+              <div className="max-w-sm">
+                {checkInLocked ? (
+                  <LockedFeatureCard
+                    icon={<LogIn className="h-4 w-4" />}
+                    title="Check In"
+                    reason="Complete your profile to enable Check In."
+                  />
+                ) : (
+                  <CheckInPanel
+                    openScheduled={openScheduled}
+                    nextShift={nextDisplay}
+                    now={now}
+                    onCheckIn={checkIn}
+                    checkingIn={checkingIn}
+                  />
+                )}
+              </div>
             </>
           )}
         </div>
