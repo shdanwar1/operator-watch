@@ -26,8 +26,8 @@ import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle
 import { supabase } from "@/integrations/supabase/client";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
-import { ClassScheduleCard } from "@/components/ClassScheduleCard";
-import { listMyCalendarClasses, type CalendarClassRow } from "@/lib/gcal.functions";
+import { ClassScheduleCard, classStatusOf } from "@/components/ClassScheduleCard";
+import { listMyCalendarClasses, setMyClassStatus, type CalendarClassRow } from "@/lib/gcal.functions";
 import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
@@ -222,6 +222,7 @@ function Index() {
   const recordUsage = useServerFn(recordDirectoryUsage);
   const createShiftFn = useServerFn(createShift);
   const updateShiftServer = useServerFn(updateShiftFn);
+  const setClassStatusFn = useServerFn(setMyClassStatus);
 
   const [showActivation, setShowActivation] = useState(false);
   const [active, setActive] = useState<Shift | null>(null);
