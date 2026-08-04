@@ -22,7 +22,8 @@ import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.function
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock } from "lucide-react";
+import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase } from "lucide-react";
+import { RouteMapPreview } from "@/components/RouteMapPreview";
 import { supabase } from "@/integrations/supabase/client";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf } from "@/components/ClassScheduleCard";
