@@ -31,6 +31,14 @@ import { listMyCalendarClasses, setMyClassStatus, type CalendarClassRow } from "
 import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
+import {
+  buildDisplayShifts,
+  classesForShift,
+  classStartAt,
+  formatShiftRange,
+  type DisplayShift,
+} from "@/lib/display-shifts";
+
 
 
 
@@ -170,7 +178,7 @@ export function scheduledWindow(
     const end = new Date(day);
     end.setHours(eh, em, 0, 0);
     if (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1);
-    const openAt = new Date(start.getTime() - 45 * 60 * 1000);
+    const openAt = new Date(start.getTime() - 60 * 60 * 1000);
     // Late check-in is always allowed: the window stays open for a few hours
     // after the scheduled end so nobody is ever blocked from starting a shift.
     const closeAt = new Date(end.getTime() + LATE_GRACE_MS);
@@ -295,12 +303,17 @@ function Index() {
       .filter((s) => scheduledWindow(s, scheduled, now).canStart)
       .sort((a, b) => a.start_time.localeCompare(b.start_time))[0] ?? null;
 
+  // Continuous "display shifts": raw rows split at midnight are merged back
+  // into the single operator shift they represent.
+  const displayShifts = buildDisplayShifts(scheduled, now);
+  const upcomingDisplay = displayShifts.filter((s) => s.endAt.getTime() > now.getTime());
+  const nextDisplay = upcomingDisplay[0] ?? null;
+
   // Focus mode:
-  //  - More than 45 min before the next shift → "Time to leave" is the hero
-  //  - 45 min or less before the next shift (or during the shift) → check-in is the hero
-  const nextInstance = nextShiftInstance(scheduled, now);
-  const minutesToNext = nextInstance
-    ? Math.round((nextInstance.startAt.getTime() - now.getTime()) / 60000)
+  //  - More than 60 min before the next shift → "Time to leave" is the hero
+  //  - 60 min or less before the next shift (or during the shift) → check-in is the hero
+  const minutesToNext = nextDisplay
+    ? Math.round((nextDisplay.startAt.getTime() - now.getTime()) / 60000)
     : Infinity;
   const focus: "check_in" | "time_to_leave" =
     !active && minutesToNext > 60 ? "time_to_leave" : "check_in";
@@ -316,47 +329,40 @@ function Index() {
   //
   // Shift-centric, never day-centric: a shift that crosses midnight keeps every
   // one of its classes (including the ones dated "tomorrow") in one list.
-  const classAt = (c: CalendarClassRow) => {
-    const [y, mo, d] = c.specific_date.split("-").map(Number);
-    const [h, mi] = c.start_time.split(":").map((n) => parseInt(n, 10));
-    return new Date(y, mo - 1, d, h, mi, 0, 0).getTime();
-  };
-  const activeWindow = (() => {
+  const classAt = (c: CalendarClassRow) => classStartAt(c);
+  const activeDisplayShift = (() => {
     if (!active) return null;
-    const from = new Date(active.check_in_at).getTime() - 60 * 60 * 1000;
-    const end = activeScheduled ? instanceTimes(activeScheduled, new Date(active.check_in_at)).endAt : null;
-    const to = Math.max(end ? end.getTime() : 0, now.getTime()) + 60 * 60 * 1000;
-    return { from, to };
+    const t = new Date(active.check_in_at).getTime();
+    return (
+      displayShifts.find(
+        (s) => t >= s.startAt.getTime() - 90 * 60_000 && t <= s.endAt.getTime() + 60 * 60_000,
+      ) ?? nextDisplay
+    );
   })();
   const activeShiftClasses = (() => {
     if (!active) return [] as CalendarClassRow[];
-    const byShift = activeScheduled
-      ? calendarClasses.filter((c) => c.scheduled_shift_id === activeScheduled.id)
-      : [];
-    const rows = byShift.length
-      ? byShift
-      : activeWindow
-        ? calendarClasses.filter(
-            (c) => classAt(c) >= activeWindow.from && classAt(c) <= activeWindow.to,
-          )
-        : [];
-    return [...rows].sort((a, b) => classAt(a) - classAt(b));
+    if (activeDisplayShift) return classesForShift(calendarClasses, activeDisplayShift);
+    const from = new Date(active.check_in_at).getTime() - 60 * 60 * 1000;
+    const to = now.getTime() + 6 * 60 * 60 * 1000;
+    return calendarClasses
+      .filter((c) => classAt(c) >= from && classAt(c) <= to)
+      .sort((a, b) => classAt(a) - classAt(b));
   })();
 
 
   // Before check-in, preview the next continuous shift's classes.
   const nextShiftClasses = (() => {
     if (active) return [];
-    const target = openScheduled ?? nextInstance?.shift ?? null;
-    if (target) {
-      const byShift = calendarClasses.filter((c) => c.scheduled_shift_id === target.id);
-      if (byShift.length) return byShift.sort((a, b) => classAt(a) - classAt(b));
+    if (nextDisplay) {
+      const rows = classesForShift(calendarClasses, nextDisplay);
+      if (rows.length) return rows;
     }
     const soon = now.getTime() + 14 * 60 * 60 * 1000;
     return calendarClasses
       .filter((c) => classAt(c) >= now.getTime() - 60 * 60 * 1000 && classAt(c) <= soon)
       .sort((a, b) => classAt(a) - classAt(b));
   })();
+
 
 
 
@@ -485,8 +491,8 @@ function Index() {
             />
           ) : (
             <>
-              {focus === "time_to_leave" ? (
-                checkInLocked ? (
+              {focus === "time_to_leave" &&
+                (checkInLocked ? (
                   <LockedFeatureCard
                     icon={<Train className="h-4 w-4" />}
                     title="Time to Leave"
@@ -495,21 +501,24 @@ function Index() {
                   />
                 ) : (
                   <TimeToLeaveCard scheduled={scheduled} now={now} variant="hero" />
-                )
-              ) : checkInLocked ? (
+                ))}
+
+              {/* Check In is always present — only its state changes. */}
+              {checkInLocked ? (
                 <LockedFeatureCard
                   icon={<LogIn className="h-4 w-4" />}
                   title="Check In"
                   reason="Complete your profile to enable Check In."
-                  hero
+                  hero={focus === "check_in"}
                 />
               ) : (
                 <CheckInPanel
                   openScheduled={openScheduled}
-                  scheduled={scheduled}
+                  nextShift={nextDisplay}
                   now={now}
                   onCheckIn={checkIn}
                   checkingIn={checkingIn}
+                  compact={focus === "time_to_leave"}
                 />
               )}
 
@@ -517,13 +526,14 @@ function Index() {
                 <ClassScheduleCard classes={nextShiftClasses} now={now} title="Next shift" />
               )}
 
+
             </>
           )}
         </div>
 
         <aside className="xl:sticky xl:top-24 xl:self-start">
           {!loading && (
-            <UpcomingShifts scheduled={scheduled} now={now} calendarClasses={calendarClasses} />
+            <UpcomingShifts shifts={upcomingDisplay} now={now} calendarClasses={calendarClasses} />
           )}
         </aside>
       </div>
@@ -534,16 +544,17 @@ function Index() {
 
 
 function UpcomingShifts({
-  scheduled,
+  shifts,
   now,
   calendarClasses = [],
 }: {
-  scheduled: ScheduledShift[];
+  /** Continuous (midnight-merged) shifts, already filtered to the future. */
+  shifts: DisplayShift[];
   now: Date;
   /** Used to show how many classes a continuous shift contains. */
   calendarClasses?: CalendarClassRow[];
 }) {
-  const instances = upcomingInstances(scheduled, now, 6);
+  const instances = shifts.slice(0, 6);
   return (
     <Card className="rise-in">
       <CardContent className="p-5">
@@ -552,35 +563,28 @@ function UpcomingShifts({
           <p className="mt-4 text-sm text-muted-foreground">No upcoming shifts scheduled.</p>
         ) : (
           <ul className="mt-4 divide-y divide-border">
-            {instances.map(({ shift, startAt }, i) => {
-              const isToday = startAt.toDateString() === now.toDateString();
-              const tomorrow = new Date(now);
-              tomorrow.setDate(tomorrow.getDate() + 1);
-              const isTomorrow = startAt.toDateString() === tomorrow.toDateString();
-              const dayLabel = isToday
-                ? "Today"
-                : isTomorrow
-                  ? "Tomorrow"
-                  : startAt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-              const overnight = shift.end_time <= shift.start_time;
-              const classCount = calendarClasses.filter((c) => c.scheduled_shift_id === shift.id).length;
+            {instances.map((shift, i) => {
+              const { dayLabel, range } = formatShiftRange(shift, now);
+              const classCount = classesForShift(calendarClasses, shift).length;
+              const live =
+                now.getTime() >= shift.startAt.getTime() && now.getTime() < shift.endAt.getTime();
               return (
-                <li key={`${shift.id}-${i}`} className="flex items-baseline justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                <li
+                  key={`${shift.id}-${i}`}
+                  className="flex items-baseline justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                >
                   <div className="min-w-0">
-                    <div className="text-[13px] font-medium">{dayLabel}</div>
-                    <div className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-                      {fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}
-                      {overnight && <span className="ml-1 not-italic">(+1 day)</span>}
+                    <div className="text-[13px] font-medium">
+                      {dayLabel}
+                      {live && <span className="ml-2 text-[11px] text-live">In progress</span>}
                     </div>
+                    <div className="mt-0.5 text-xs tabular-nums text-muted-foreground">{range}</div>
                     {classCount > 0 && (
                       <div className="mt-0.5 text-[11px] text-muted-foreground">
                         {classCount} {classCount === 1 ? "class" : "classes"}
                       </div>
                     )}
                   </div>
-                  {shift.label && (
-                    <span className="shrink-0 text-xs text-muted-foreground">{shift.label}</span>
-                  )}
                 </li>
               );
             })}
@@ -592,53 +596,8 @@ function UpcomingShifts({
 }
 
 
-function upcomingInstances(
-  scheduled: ScheduledShift[],
-  now: Date,
-  limit: number,
-): { shift: ScheduledShift; startAt: Date; endAt: Date }[] {
-  const overrides = overrideDates(scheduled);
-  const out: { shift: ScheduledShift; startAt: Date; endAt: Date }[] = [];
-  for (let offset = 0; offset < 21 && out.length < limit * 3; offset++) {
-    const day = new Date(now);
-    day.setDate(day.getDate() + offset);
-    for (const s of scheduled) {
-      if (!shiftAppliesOn(s, day, overrides)) continue;
-      const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
-      const [eh, em] = s.end_time.split(":").map((n) => parseInt(n, 10));
-      const startAt = new Date(day);
-      startAt.setHours(sh, sm, 0, 0);
-      const endAt = new Date(day);
-      endAt.setHours(eh, em, 0, 0);
-      if (endAt.getTime() <= now.getTime()) continue;
-      out.push({ shift: s, startAt, endAt });
-    }
-  }
-  return out.sort((a, b) => a.startAt.getTime() - b.startAt.getTime()).slice(0, limit);
-}
 
-function nextShiftInstance(
-  scheduled: ScheduledShift[],
-  now: Date,
-): { shift: ScheduledShift; startAt: Date } | null {
-  const overrides = overrideDates(scheduled);
-  let best: { shift: ScheduledShift; startAt: Date } | null = null;
-  for (const s of scheduled) {
-    const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
-    for (let offset = 0; offset < 21; offset++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() + offset);
-      if (!shiftAppliesOn(s, d, overrides)) continue;
-      d.setHours(sh, sm, 0, 0);
-      if (d.getTime() <= now.getTime()) continue;
-      if (!best || d.getTime() < best.startAt.getTime()) {
-        best = { shift: s, startAt: d };
-      }
-      break;
-    }
-  }
-  return best;
-}
+
 
 function formatCountdown(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -652,20 +611,25 @@ function formatCountdown(ms: number) {
 
 function CheckInPanel({
   openScheduled,
-  scheduled,
+  nextShift,
   now,
   onCheckIn,
   checkingIn,
+  compact = false,
 }: {
   openScheduled: ScheduledShift | null;
-  scheduled: ScheduledShift[];
+  /** Next continuous shift (midnight-merged), used for the countdown. */
+  nextShift: DisplayShift | null;
   now: Date;
   onCheckIn: () => void;
   checkingIn: boolean;
+  /** Rendered as a secondary card while "Time to leave" owns the hero slot. */
+  compact?: boolean;
 }) {
   const canCheckIn = !!openScheduled;
-  const next = openScheduled ? null : nextShiftInstance(scheduled, now);
-  const opensAt = next ? new Date(next.startAt.getTime() - 45 * 60 * 1000) : null;
+  const next = openScheduled ? null : nextShift;
+  // Check-in opens 60 minutes before the shift starts.
+  const opensAt = next ? new Date(next.startAt.getTime() - 60 * 60 * 1000) : null;
   const msUntilOpen = opensAt ? Math.max(0, opensAt.getTime() - now.getTime()) : 0;
 
   // How late we are relative to the scheduled start (informational only).
@@ -693,6 +657,7 @@ function CheckInPanel({
   const percent = openScheduled ? 0 : Math.max(0, Math.min(1, msUntilOpen / total));
   const state = openScheduled ? "ready" : hourglassStateFor(msUntilOpen);
   const showCountdownCard = !!next || !!openScheduled;
+  const nextRange = next ? formatShiftRange(next, now) : null;
 
   const countdownColor =
     state === "urgent"
@@ -704,8 +669,14 @@ function CheckInPanel({
           : "text-foreground";
 
   return (
-    <Card className="rise-in hero-aurora overflow-hidden">
-      <CardContent className="flex flex-col items-center gap-8 px-5 py-14 text-center">
+    <Card className={compact ? "rise-in overflow-hidden" : "rise-in hero-aurora overflow-hidden"}>
+      <CardContent
+        className={
+          compact
+            ? "flex flex-col items-center gap-5 px-5 py-8 text-center"
+            : "flex flex-col items-center gap-8 px-5 py-14 text-center"
+        }
+      >
         {showCountdownCard ? (
           <div className="flex flex-col items-center gap-4">
             <div className="flex items-center gap-2.5">
@@ -716,7 +687,7 @@ function CheckInPanel({
             </div>
             {state !== "ready" && (
               <div
-                className={`text-5xl font-semibold tabular-nums tracking-tight transition-colors ${countdownColor}`}
+                className={`${compact ? "text-3xl" : "text-5xl"} font-semibold tabular-nums tracking-tight transition-colors ${countdownColor}`}
               >
                 {formatCountdown(msUntilOpen)}
               </div>
@@ -729,8 +700,7 @@ function CheckInPanel({
                 </>
               ) : (
                 <>
-                  {DAY_NAMES[next!.shift.day_of_week]} · {fmtTime(next!.shift.start_time)} –{" "}
-                  {fmtTime(next!.shift.end_time)}
+                  {nextRange!.dayLabel} · {nextRange!.range}
                 </>
               )}
             </p>
@@ -748,8 +718,9 @@ function CheckInPanel({
           disabled={!canCheckIn}
           busy={checkingIn}
           onComplete={onCheckIn}
-          size={240}
+          size={compact ? 150 : 240}
         />
+
 
         {canCheckIn && lateMin > 0 ? (
           <div className="flex max-w-sm items-start gap-2.5 rounded-xl bg-warn-soft px-4 py-3 text-left">
@@ -970,8 +941,14 @@ function TimeToLeaveCard({
 }) {
 
   const fetchPlan = useServerFn(getTimeToLeave);
-  const next = useMemo(() => nextShiftInstance(scheduled, now), [scheduled, now]);
+  const next = useMemo(() => {
+    const upcoming = buildDisplayShifts(scheduled, now).filter(
+      (s) => s.endAt.getTime() > now.getTime(),
+    );
+    return upcoming[0] ?? null;
+  }, [scheduled, now]);
   const shiftIso = next?.startAt.toISOString() ?? null;
+
 
   const [plan, setPlan] = useState<TimeToLeaveResult | null>(null);
   const [loading, setLoading] = useState(false);
