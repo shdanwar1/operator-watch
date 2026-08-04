@@ -31,6 +31,14 @@ import { listMyCalendarClasses, setMyClassStatus, type CalendarClassRow } from "
 import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
+import {
+  buildDisplayShifts,
+  classesForShift,
+  classStartAt,
+  formatShiftRange,
+  type DisplayShift,
+} from "@/lib/display-shifts";
+
 
 
 
