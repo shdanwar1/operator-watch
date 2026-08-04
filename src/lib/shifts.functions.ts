@@ -139,17 +139,12 @@ export const createShift = createServerFn({ method: "POST" })
 export const createPastShift = createServerFn({ method: "POST" })
   .inputValidator(
     (data: {
-      operator_name: string;
       check_in_at: string;
       check_out_at: string;
       classes?: ShiftClass[];
       notes?: string | null;
     }) => {
-      if (!data || typeof data.operator_name !== "string") {
-        throw new Error("operator_name is required");
-      }
-      const name = data.operator_name.trim();
-      if (!name || name.length > 100) throw new Error("Invalid operator_name");
+      if (!data) throw new Error("Invalid payload");
       const ci = new Date(data.check_in_at);
       const co = new Date(data.check_out_at);
       if (isNaN(ci.getTime())) throw new Error("Invalid check_in_at");
@@ -166,7 +161,6 @@ export const createPastShift = createServerFn({ method: "POST" })
           ? null
           : String(data.notes).slice(0, 5000);
       return {
-        operator_name: name,
         check_in_at: ci.toISOString(),
         check_out_at: co.toISOString(),
         classes,
@@ -175,17 +169,16 @@ export const createPastShift = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data }) => {
-    const { username, isAdmin } = await requireGate();
-    // Non-admins may only create past shifts under their own operator name.
-    const operator_name =
-      isAdmin
-        ? data.operator_name
-        : username && data.operator_name.toLowerCase() === username.toLowerCase()
-          ? username
-          : (() => {
-              throw new Response("Forbidden", { status: 403 });
-            })();
+    const { username } = await requireGate();
+    // Ownership is derived from the session only — never from the request.
+    if (!username) throw new Response("Forbidden", { status: 403 });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: op } = await supabaseAdmin
+      .from("operators")
+      .select("username")
+      .ilike("username", username)
+      .maybeSingle();
+    const operator_name = (op as { username: string } | null)?.username ?? username;
     const { data: row, error } = await supabaseAdmin
       .from("shifts")
       .insert({
