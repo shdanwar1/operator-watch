@@ -4,7 +4,7 @@ import { useStudioDisplay } from "@/hooks/useStudioDisplay";
 import {
   computeStage,
   formatMMSS,
-  resolveStartAt,
+  resolveClassStart,
   QA_MS,
   CLASS_INFO_CUTOFF_MS,
   type StageInfo,
@@ -99,12 +99,13 @@ function DisplayScreen() {
         durationMin: override.durationMin,
         className: override.className,
         teacherName: override.teacherName,
+        timerMode: "next" as const,
       }
     : shared;
 
   const now = new Date();
   const stage = computeStage(state, now);
-  const startAt = resolveStartAt(state.startTime, now);
+  const startAt = resolveClassStart(state, now);
   const untilStart = startAt.getTime() - now.getTime();
 
   const hasClassInfo = !!(state.className?.trim() || state.teacherName?.trim());

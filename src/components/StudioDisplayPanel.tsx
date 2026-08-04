@@ -40,6 +40,38 @@ export function StudioDisplayPanel() {
           <h3 className="text-sm font-medium">Studio Display</h3>
         </div>
 
+        <div className="space-y-1.5">
+          <Label className="text-xs">Timer mode</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { value: "next", label: "Next Scheduled Class" },
+              { value: "running", label: "Join Running Class" },
+            ] as const).map((opt) => {
+              const active = (state.timerMode ?? "next") === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => update({ timerMode: opt.value })}
+                  aria-pressed={active}
+                  className={`rounded-md border px-3 py-2 text-xs font-medium transition-colors ${
+                    active
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {(state.timerMode ?? "next") === "next"
+              ? "Resolves to the next occurrence of that time (handles midnight classes)."
+              : "Treats the time as today — use to join a class already in progress."}
+          </p>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="sd-start" className="text-xs">Class starts at</Label>
@@ -61,6 +93,7 @@ export function StudioDisplayPanel() {
             />
           </div>
         </div>
+
 
         <div className="rounded-lg border bg-muted/30 px-4 py-4 text-center">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
