@@ -929,8 +929,14 @@ function TimeToLeaveCard({
 }) {
 
   const fetchPlan = useServerFn(getTimeToLeave);
-  const next = useMemo(() => nextShiftInstance(scheduled, now), [scheduled, now]);
+  const next = useMemo(() => {
+    const upcoming = buildDisplayShifts(scheduled, now).filter(
+      (s) => s.endAt.getTime() > now.getTime(),
+    );
+    return upcoming[0] ?? null;
+  }, [scheduled, now]);
   const shiftIso = next?.startAt.toISOString() ?? null;
+
 
   const [plan, setPlan] = useState<TimeToLeaveResult | null>(null);
   const [loading, setLoading] = useState(false);
