@@ -279,7 +279,6 @@ function AddPastDialog({
   open: boolean;
   onClose: () => void;
   onSave: (p: {
-    operator_name: string;
     check_in_at: string;
     check_out_at: string;
     classes: ShiftClass[];
@@ -288,7 +287,6 @@ function AddPastDialog({
   teachers: DirectoryItem[];
   classDir: DirectoryItem[];
 }) {
-  const [operatorName, setOperatorName] = useState("");
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [classes, setClasses] = useState<ShiftClass[]>([{ class: "", teacher: "" }]);
@@ -296,7 +294,6 @@ function AddPastDialog({
 
   useEffect(() => {
     if (open) {
-      setOperatorName("");
       setCheckIn("");
       setCheckOut("");
       setClasses([{ class: "", teacher: "" }]);
@@ -315,8 +312,6 @@ function AddPastDialog({
   }
 
   function submit() {
-    const name = operatorName.trim();
-    if (!name) return toast.error("Enter an operator name");
     const ci = fromLocalInput(checkIn);
     const co = fromLocalInput(checkOut);
     if (!ci) return toast.error("Enter check-in time");
@@ -328,7 +323,6 @@ function AddPastDialog({
       .map((c) => ({ class: c.class.trim(), teacher: c.teacher.trim() }))
       .filter((c) => c.class || c.teacher);
     onSave({
-      operator_name: name,
       check_in_at: ci,
       check_out_at: co,
       classes: cleanedClasses,
@@ -345,10 +339,7 @@ function AddPastDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Operator</Label>
-            <Input value={operatorName} onChange={(e) => setOperatorName(e.target.value)} />
-          </div>
+
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
