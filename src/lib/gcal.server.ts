@@ -21,7 +21,7 @@ import {
   type ClassEvent,
   type ParsedEvent,
 } from "./gcal-core";
-import { matchEvent, type MatchLog } from "./gcal-match";
+import { aliasKeyFor, matchEvent, type AliasEntry, type MatchLog } from "./gcal-match";
 
 export type GcalSyncResult = {
   ok: boolean;
