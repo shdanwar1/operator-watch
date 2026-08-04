@@ -165,6 +165,21 @@ export type Database = {
         }
         Relationships: []
       }
+      pin_rotation_tmp: {
+        Row: {
+          pin: string
+          username: string
+        }
+        Insert: {
+          pin: string
+          username: string
+        }
+        Update: {
+          pin?: string
+          username?: string
+        }
+        Relationships: []
+      }
       scheduled_shifts: {
         Row: {
           assigned_operator: string | null
