@@ -144,8 +144,16 @@ function CalendarPage() {
   const [calDialogOpen, setCalDialogOpen] = useState(false);
   const [calDraft, setCalDraft] = useState("");
   const [savingUrl, setSavingUrl] = useState(false);
+  const [syncNextMonth, setSyncNextMonth] = useState(false);
   const [matchLogs, setMatchLogs] = useState<MatchLog[]>([]);
   const [debug, setDebug] = useState(false);
+
+  // Sync scope preference is a per-device setting; current month is always on.
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setSyncNextMonth(window.localStorage.getItem("gcal:syncNextMonth") === "1");
+    }
+  }, []);
 
   // Match trace is a debug-only surface: opt in with ?debug=1.
   useEffect(() => {
@@ -192,7 +200,7 @@ function CalendarPage() {
       if (!hasGoogleCalendar) return;
       setSyncing(true);
       try {
-        const res = await syncFn();
+        const res = await syncFn({ data: { includeNextMonth: syncNextMonth } });
         setLastSync(new Date());
         setMatchLogs(res.logs ?? []);
         if (!res.ok) {
@@ -214,7 +222,7 @@ function CalendarPage() {
         setSyncing(false);
       }
     },
-    [hasGoogleCalendar, syncFn, load],
+    [hasGoogleCalendar, syncFn, load, syncNextMonth],
   );
 
   async function handleSaveCalendarUrl() {
@@ -544,6 +552,38 @@ function CalendarPage() {
               autoFocus
             />
             {icsUrl && <p className="break-all text-xs text-muted-foreground">Current: {icsUrl}</p>}
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border/60 p-4">
+            <div>
+              <p className="text-sm font-medium">Calendar sync scope</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Current month is always synchronized. Enable next month once the new schedule has
+                been published.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="scope-current" checked disabled />
+              <Label htmlFor="scope-current" className="text-sm font-normal opacity-70">
+                Sync current month
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="scope-next"
+                checked={syncNextMonth}
+                onCheckedChange={(v) => {
+                  const on = v === true;
+                  setSyncNextMonth(on);
+                  if (typeof window !== "undefined") {
+                    window.localStorage.setItem("gcal:syncNextMonth", on ? "1" : "0");
+                  }
+                }}
+              />
+              <Label htmlFor="scope-next" className="text-sm font-normal">
+                Sync next month
+              </Label>
+            </div>
           </div>
           <DialogFooter className="flex-row justify-between">
             <Button
