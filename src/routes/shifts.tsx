@@ -461,13 +461,12 @@ function EditDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Label>Operator</Label>
-            <Input
-              value={draft.operator_name}
-              onChange={(e) => patch({ operator_name: e.target.value })}
-            />
+            <p className="text-sm text-muted-foreground">{draft.operator_name}</p>
           </div>
+
+
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
