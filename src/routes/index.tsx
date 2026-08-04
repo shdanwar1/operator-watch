@@ -611,20 +611,25 @@ function formatCountdown(ms: number) {
 
 function CheckInPanel({
   openScheduled,
-  scheduled,
+  nextShift,
   now,
   onCheckIn,
   checkingIn,
+  compact = false,
 }: {
   openScheduled: ScheduledShift | null;
-  scheduled: ScheduledShift[];
+  /** Next continuous shift (midnight-merged), used for the countdown. */
+  nextShift: DisplayShift | null;
   now: Date;
   onCheckIn: () => void;
   checkingIn: boolean;
+  /** Rendered as a secondary card while "Time to leave" owns the hero slot. */
+  compact?: boolean;
 }) {
   const canCheckIn = !!openScheduled;
-  const next = openScheduled ? null : nextShiftInstance(scheduled, now);
-  const opensAt = next ? new Date(next.startAt.getTime() - 45 * 60 * 1000) : null;
+  const next = openScheduled ? null : nextShift;
+  // Check-in opens 60 minutes before the shift starts.
+  const opensAt = next ? new Date(next.startAt.getTime() - 60 * 60 * 1000) : null;
   const msUntilOpen = opensAt ? Math.max(0, opensAt.getTime() - now.getTime()) : 0;
 
   // How late we are relative to the scheduled start (informational only).
@@ -652,6 +657,7 @@ function CheckInPanel({
   const percent = openScheduled ? 0 : Math.max(0, Math.min(1, msUntilOpen / total));
   const state = openScheduled ? "ready" : hourglassStateFor(msUntilOpen);
   const showCountdownCard = !!next || !!openScheduled;
+  const nextRange = next ? formatShiftRange(next, now) : null;
 
   const countdownColor =
     state === "urgent"
@@ -663,8 +669,14 @@ function CheckInPanel({
           : "text-foreground";
 
   return (
-    <Card className="rise-in hero-aurora overflow-hidden">
-      <CardContent className="flex flex-col items-center gap-8 px-5 py-14 text-center">
+    <Card className={compact ? "rise-in overflow-hidden" : "rise-in hero-aurora overflow-hidden"}>
+      <CardContent
+        className={
+          compact
+            ? "flex flex-col items-center gap-5 px-5 py-8 text-center"
+            : "flex flex-col items-center gap-8 px-5 py-14 text-center"
+        }
+      >
         {showCountdownCard ? (
           <div className="flex flex-col items-center gap-4">
             <div className="flex items-center gap-2.5">
@@ -675,7 +687,7 @@ function CheckInPanel({
             </div>
             {state !== "ready" && (
               <div
-                className={`text-5xl font-semibold tabular-nums tracking-tight transition-colors ${countdownColor}`}
+                className={`${compact ? "text-3xl" : "text-5xl"} font-semibold tabular-nums tracking-tight transition-colors ${countdownColor}`}
               >
                 {formatCountdown(msUntilOpen)}
               </div>
@@ -688,8 +700,7 @@ function CheckInPanel({
                 </>
               ) : (
                 <>
-                  {DAY_NAMES[next!.shift.day_of_week]} · {fmtTime(next!.shift.start_time)} –{" "}
-                  {fmtTime(next!.shift.end_time)}
+                  {nextRange!.dayLabel} · {nextRange!.range}
                 </>
               )}
             </p>
@@ -707,8 +718,9 @@ function CheckInPanel({
           disabled={!canCheckIn}
           busy={checkingIn}
           onComplete={onCheckIn}
-          size={240}
+          size={compact ? 150 : 240}
         />
+
 
         {canCheckIn && lateMin > 0 ? (
           <div className="flex max-w-sm items-start gap-2.5 rounded-xl bg-warn-soft px-4 py-3 text-left">
