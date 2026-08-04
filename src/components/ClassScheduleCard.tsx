@@ -107,6 +107,7 @@ export function ClassScheduleCard({
   const openDisplay = (c: CalendarClassRow) => {
     window.open(
       buildClassDisplayUrl({
+        id: c.id,
         className: c.class_name,
         teacherName: c.teacher_name,
         startTime: c.start_time,
