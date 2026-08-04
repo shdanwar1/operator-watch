@@ -56,7 +56,11 @@ export type TimeToLeaveResult =
   | {
       ok: true;
       home_label: string;
+      home_lat: number;
+      home_lng: number;
       office_label: string;
+      office_lat: number;
+      office_lng: number;
       shift_start_iso: string;
       target_arrival_iso: string;
       departure_iso: string;
@@ -244,7 +248,11 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
     return {
       ok: true,
       home_label: op.home_label ?? "Home",
+      home_lat: Number(op.home_lat),
+      home_lng: Number(op.home_lng),
       office_label: OFFICE.label,
+      office_lat: OFFICE.lat,
+      office_lng: OFFICE.lng,
       shift_start_iso: shiftStart.toISOString(),
       target_arrival_iso: targetArrival.toISOString(),
       departure_iso: pick.dep,

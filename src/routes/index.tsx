@@ -22,7 +22,8 @@ import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.function
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock } from "lucide-react";
+import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase } from "lucide-react";
+import { RouteMapPreview } from "@/components/RouteMapPreview";
 import { supabase } from "@/integrations/supabase/client";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf } from "@/components/ClassScheduleCard";
@@ -944,8 +945,8 @@ function TimeToLeaveCard({
       }
     };
     load();
-    // Refresh every 3 minutes so the departure recalculates with fresh transit data.
-    const t = setInterval(load, 3 * 60_000);
+    // Refresh every minute: countdown, departure, travel time and options stay live.
+    const t = setInterval(load, 60_000);
     return () => {
       alive = false;
       clearInterval(t);
@@ -959,156 +960,219 @@ function TimeToLeaveCard({
   const hero = variant === "hero";
 
   return (
-    <Card className={hero ? "border-primary/40" : undefined}>
-      <CardContent className={hero ? "p-6 sm:p-8" : "p-5"}>
-        <div className="mb-3 flex items-center gap-2">
-          <Train className={hero ? "h-5 w-5 text-primary" : "h-4 w-4 text-muted-foreground"} />
-          <h2
-            className={
-              hero
-                ? "text-sm font-semibold uppercase tracking-wider text-primary"
-                : "text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-            }
-          >
-            Time to leave
-          </h2>
+    <Card className={hero ? "overflow-hidden border-primary/40" : "overflow-hidden"}>
+      <CardContent className="p-0">
+        <div className="px-5 pt-5 sm:px-6 sm:pt-6">
+          <div className="flex items-center gap-2">
+            <Train className={hero ? "h-4 w-4 text-primary" : "h-4 w-4 text-muted-foreground"} />
+            <h2
+              className={
+                hero
+                  ? "text-xs font-semibold uppercase tracking-[0.14em] text-primary"
+                  : "text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+              }
+            >
+              Time to leave
+            </h2>
+          </div>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Next shift{" "}
+            <span className="font-medium text-foreground">
+              {shiftStart.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
+            </span>{" "}
+            · <span className="font-medium text-foreground">{fmtHM(shiftStart)}</span>
+          </p>
         </div>
 
-        <p className={hero ? "text-sm text-muted-foreground" : "text-xs text-muted-foreground"}>
-          Next shift{" "}
-          <span className="font-medium text-foreground">
-            {shiftStart.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
-          </span>{" "}
-          at <span className="font-medium text-foreground">{fmtHM(shiftStart)}</span>
-        </p>
-
         {loading && !plan ? (
-          <p className="mt-3 text-sm text-muted-foreground">Planning your trip…</p>
+          <p className="px-5 py-6 text-sm text-muted-foreground sm:px-6">Planning your trip…</p>
         ) : plan && plan.ok ? (
-          <TimeToLeaveDetails plan={plan} now={now} hero={hero} />
+          <TimeToLeaveDetails plan={plan} now={now} />
         ) : plan && plan.reason === "no_home" ? (
-          <div className="mt-3 space-y-2">
+          <div className="space-y-3 px-5 py-6 sm:px-6">
             <p className="text-sm text-muted-foreground">
-              Add your home address to see when you should leave.
+              Add your home address in Profile to enable navigation.
             </p>
             <Button size="sm" variant="outline" asChild>
               <Link to="/profile">
-                <Home className="mr-1.5 h-3.5 w-3.5" /> Set home in profile
+                <Home className="mr-1.5 h-3.5 w-3.5" /> Open Profile
               </Link>
             </Button>
           </div>
         ) : plan && plan.reason === "no_route" ? (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Could not find a public transport route right now.
-          </p>
+          <div className="px-5 py-6 sm:px-6">
+            <p className="text-sm font-medium">Route unavailable.</p>
+            <p className="text-sm text-muted-foreground">Try again later.</p>
+          </div>
         ) : errored ? (
-          <p className="mt-3 text-sm text-destructive">
+          <p className="px-5 py-6 text-sm text-destructive sm:px-6">
             Could not reach the transit service. Retrying automatically.
           </p>
         ) : (
-          <p className="mt-3 text-sm text-muted-foreground">Preparing…</p>
+          <p className="px-5 py-6 text-sm text-muted-foreground sm:px-6">Preparing…</p>
         )}
       </CardContent>
     </Card>
   );
 }
 
-
+function mapsNavUrl(plan: Extract<TimeToLeaveResult, { ok: true }>) {
+  const params = new URLSearchParams({
+    api: "1",
+    origin: `${plan.home_lat},${plan.home_lng}`,
+    destination: `${plan.office_lat},${plan.office_lng}`,
+    travelmode: "transit",
+  });
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
 
 function TimeToLeaveDetails({
   plan,
   now,
-  hero = false,
 }: {
   plan: Extract<TimeToLeaveResult, { ok: true }>;
   now: Date;
-  hero?: boolean;
 }) {
   const departure = new Date(plan.departure_iso);
   const arrival = new Date(plan.arrival_iso);
   const minutesUntilLeave = Math.round((departure.getTime() - now.getTime()) / 60_000);
 
-  const leaveLabel =
+  const countdown =
     minutesUntilLeave <= 0
-      ? "Leave now"
+      ? "Now"
       : minutesUntilLeave < 60
-        ? `Leave in ${minutesUntilLeave}m`
-        : `Leave in ${Math.floor(minutesUntilLeave / 60)}h ${minutesUntilLeave % 60}m`;
+        ? `${minutesUntilLeave}m`
+        : `${Math.floor(minutesUntilLeave / 60)}h ${minutesUntilLeave % 60}m`;
 
   const urgent = minutesUntilLeave <= 10;
 
   return (
-    <div className={hero ? "mt-5 space-y-5" : "mt-3 space-y-3"}>
-      <div
-        className={`rounded-lg border ${hero ? "p-5 sm:p-6" : "p-3"} ${
-          urgent ? "border-destructive/40 bg-destructive/5" : "border-border bg-muted/40"
-        }`}
-      >
-        <div
-          className={`font-medium uppercase tracking-wider ${
-            hero ? "text-sm" : "text-xs"
-          } ${urgent ? "text-destructive" : "text-muted-foreground"}`}
-        >
-          {leaveLabel}
+    <div className="mt-4 space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[45fr_55fr]">
+        {/* Left: timing + action */}
+        <div className="rounded-2xl border border-border bg-muted/30 p-5">
+          <div
+            className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${
+              urgent ? "text-destructive" : "text-muted-foreground"
+            }`}
+          >
+            Leave in
+          </div>
+          <div
+            className={`mt-1 text-5xl font-semibold tabular-nums tracking-tight sm:text-6xl ${
+              urgent ? "text-destructive" : ""
+            }`}
+          >
+            {countdown}
+          </div>
+          <div className="mt-1 text-2xl font-medium tabular-nums text-muted-foreground">
+            {fmtHM(departure)}
+          </div>
+
+          <div className="mt-4 border-t border-border pt-4 text-sm">
+            <div className="text-muted-foreground">
+              Arrive by <span className="font-medium text-foreground">{fmtHM(arrival)}</span>
+            </div>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {plan.travel_minutes} min journey · {ARRIVAL_BUFFER_MIN} min arrival buffer
+            </div>
+          </div>
+
+          <Button className="mt-4 w-full" asChild>
+            <a href={mapsNavUrl(plan)} target="_blank" rel="noopener noreferrer">
+              <Navigation className="mr-2 h-4 w-4" /> Start Navigation
+            </a>
+          </Button>
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            Uses current conditions · updates automatically every minute
+          </p>
         </div>
-        <div
-          className={`mt-1 font-semibold tabular-nums ${
-            hero ? "text-5xl sm:text-6xl" : "text-2xl"
-          }`}
-        >
-          {fmtHM(departure)}
-        </div>
-        <div className={hero ? "mt-2 text-sm text-muted-foreground" : "mt-1 text-xs text-muted-foreground"}>
-          Arrive {fmtHM(arrival)} · {plan.travel_minutes}m by public transport
-          {plan.transfers > 0 ? ` · ${plan.transfers} transfer${plan.transfers === 1 ? "" : "s"}` : ""}
-        </div>
-        <div className={hero ? "mt-1 text-xs text-muted-foreground" : "mt-1 text-[11px] text-muted-foreground"}>
-          Plan arrives {ARRIVAL_BUFFER_MIN} min before shift starts.
+
+        {/* Right: route preview */}
+        <div className="relative min-h-[260px] overflow-hidden rounded-2xl border border-border">
+          <RouteMapPreview
+            home={{ lat: plan.home_lat, lng: plan.home_lng }}
+            office={{ lat: plan.office_lat, lng: plan.office_lng }}
+            className="absolute inset-0"
+          />
+          <div className="absolute right-3 top-3 rounded-xl border border-border bg-background/90 px-3 py-2 shadow-sm backdrop-blur">
+            <div className="flex items-center gap-2">
+              <Train className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold tabular-nums">{plan.travel_minutes} min</span>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {plan.transfers > 0
+                ? `${plan.transfers} transfer${plan.transfers === 1 ? "" : "s"}`
+                : "No transfer"}
+            </div>
+          </div>
+          <div className="absolute inset-x-3 bottom-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl border border-border bg-background/90 p-3 shadow-sm backdrop-blur">
+            <div className="flex min-w-0 items-center gap-2">
+              <Home className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Home</div>
+                <div className="truncate text-sm">{plan.home_label}</div>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <div className="flex min-w-0 items-center gap-2">
+              <Briefcase className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Work</div>
+                <div className="truncate text-sm">{plan.office_label}</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-
       {plan.direct_options.length > 0 ? (
         <div className="space-y-2">
-          <div className={hero ? "text-xs font-semibold uppercase tracking-wider text-muted-foreground" : "text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"}>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Direct options
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {plan.direct_options.map((o) => (
-              <div key={o.line + o.departure_iso} className="rounded-md border border-border bg-background/60 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">
-                    {o.line}
+              <div
+                key={o.line + o.departure_iso}
+                className="rounded-2xl border border-border bg-background/60 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Train className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
+                      {o.line}
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">
+                    {o.duration_minutes} min
                   </span>
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {fmtHM(new Date(o.departure_iso))} → {fmtHM(new Date(o.arrival_iso))}
-                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Leaves</div>
+                    <div className="tabular-nums">{fmtHM(new Date(o.departure_iso))}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Arrives</div>
+                    <div className="tabular-nums">{fmtHM(new Date(o.arrival_iso))}</div>
+                  </div>
+                </div>
+                <div className="mt-2 truncate text-xs text-muted-foreground">
+                  From {o.from_stop}
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  From <span className="text-foreground">{o.from_stop}</span>
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  {o.duration_minutes} min ride · ~{o.walk_minutes} min walk to office
+                  {o.walk_minutes} min walk · No transfer
                 </div>
               </div>
             ))}
           </div>
         </div>
       ) : null}
-
-      <div className="space-y-1 text-xs text-muted-foreground">
-        <div className="flex items-start gap-1.5">
-          <Home className="mt-0.5 h-3 w-3 shrink-0" />
-          <span className="truncate">{plan.home_label}</span>
-        </div>
-        <div className="flex items-start gap-1.5">
-          <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
-          <span className="truncate">{plan.office_label}</span>
-        </div>
-      </div>
     </div>
   );
 }
+
 
 
 function ProfileIncompleteBanner({ missing }: { missing: string[] }) {
