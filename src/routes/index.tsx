@@ -481,6 +481,7 @@ function Index() {
               teachers={teachers}
               classes={classes}
               importedClasses={activeShiftClasses}
+              onSetClassStatus={setClassStatus}
             />
           ) : (
             <>
@@ -759,6 +760,7 @@ function ActiveShiftPanel({
   teachers,
   classes,
   importedClasses,
+  onSetClassStatus,
 }: {
   shift: Shift;
   scheduledShift: ScheduledShift | null;
@@ -771,6 +773,7 @@ function ActiveShiftPanel({
   teachers: DirectoryItem[];
   classes: DirectoryItem[];
   importedClasses: CalendarClassRow[];
+  onSetClassStatus: (id: string, status: "scheduled" | "completed" | "cancelled") => void;
 }) {
   const d = formatDuration(shift.check_in_at, null);
   const checkInAt = new Date(shift.check_in_at);
@@ -795,6 +798,11 @@ function ActiveShiftPanel({
   const target = Math.max(expected ?? 0, shift.classes.length);
   const progressPct = target > 0 ? Math.min(100, (filled / target) * 100) : 0;
 
+  const pendingClasses = importedClasses.filter((c) => {
+    const st = classStatusOf(c, now);
+    return st === "upcoming" || st === "live";
+  }).length;
+
   const earlyMin = times ? Math.max(0, Math.round((times.endAt.getTime() - now.getTime()) / 60000)) : 0;
   const early = earlyMin > 0;
 
@@ -816,7 +824,12 @@ function ActiveShiftPanel({
       </Card>
 
       {hasImported ? (
-        <ClassScheduleCard classes={importedClasses} now={now} title="Today's overview" />
+        <ClassScheduleCard
+          classes={importedClasses}
+          now={now}
+          title="Shift Overview"
+          onSetStatus={onSetClassStatus}
+        />
       ) : (
         <Card>
           <CardContent className="space-y-5 p-5">
@@ -900,6 +913,12 @@ function ActiveShiftPanel({
             onComplete={onCheckOut}
             size={200}
           />
+          {pendingClasses > 0 && (
+            <p className="max-w-sm text-center text-xs text-alert">
+              Some scheduled classes haven't been processed yet. Mark them as Completed or Cancelled
+              before checking out.
+            </p>
+          )}
           {early ? (
             <p className="max-w-sm text-center text-xs text-muted-foreground">
               Scheduled until {fmtTime(scheduledShift!.end_time)} — checking out now records an early
