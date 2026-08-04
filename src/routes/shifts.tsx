@@ -128,7 +128,6 @@ function ShiftsPage() {
         data: {
           id: next.id,
           patch: {
-            operator_name: next.operator_name,
             check_in_at: next.check_in_at,
             check_out_at: next.check_out_at,
             classes: next.classes,
@@ -156,7 +155,6 @@ function ShiftsPage() {
   }
 
   async function addPast(payload: {
-    operator_name: string;
     check_in_at: string;
     check_out_at: string;
     classes: ShiftClass[];
