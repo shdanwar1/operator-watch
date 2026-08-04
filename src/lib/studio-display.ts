@@ -36,6 +36,8 @@ export const DEFAULT_STUDIO_DISPLAY_STATE: StudioDisplayState = {
 
 /** Builds the popup URL that pre-loads a class into the Studio Display. */
 export function buildClassDisplayUrl(input: {
+  /** calendar_classes row id — lets a live sync refresh this popup. */
+  id?: string;
   className: string;
   teacherName: string;
   startTime: string; // "HH:MM" or "HH:MM:SS"
@@ -47,6 +49,7 @@ export function buildClassDisplayUrl(input: {
     s: input.startTime.slice(0, 5),
     d: String(Math.max(MIN_DURATION_MIN, Math.round(input.durationMin))),
   });
+  if (input.id) params.set("id", input.id);
   return `/display?${params.toString()}`;
 }
 

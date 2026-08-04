@@ -26,7 +26,9 @@ import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle
 import { RouteMapPreview } from "@/components/RouteMapPreview";
 import { supabase } from "@/integrations/supabase/client";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
-import { ClassScheduleCard, classStatusOf } from "@/components/ClassScheduleCard";
+import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
+import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
+import { publishSync } from "@/lib/sync-bus";
 import {
   listMyCalendarClasses,
   setMyClassStatus,
@@ -260,6 +262,18 @@ function Index() {
     load();
   }, []);
 
+  // Google Calendar stays in sync from the dashboard too, so the operator
+  // never has to open the calendar page (or refresh) to see new classes.
+  const { syncing } = useCalendarSync({
+    enabled: !!profileStatus && !needsCal,
+    onSynced: () => load(),
+  });
+
+  // A sync that finished in another view (or another tab) refreshes us too.
+  useSyncListener(() => {
+    load();
+  });
+
   // Live sync: refetch whenever admin (or anyone) changes shifts/scheduled shifts.
   useEffect(() => {
     const ch = supabase
@@ -295,6 +309,23 @@ function Index() {
     }
   }
 
+
+  // Open Studio Display popups are refreshed with the latest class data
+  // (name, teacher, start, duration) whenever the schedule changes.
+  useEffect(() => {
+    if (!calendarClasses.length) return;
+    publishSync({
+      type: "class-display",
+      classes: calendarClasses.map((c) => ({
+        id: c.id,
+        className: c.class_name,
+        teacherName: c.teacher_name,
+        startTime: c.start_time.slice(0, 5),
+        durationMin: durationOf(c) || 60,
+        status: c.status,
+      })),
+    });
+  }, [calendarClasses]);
 
   async function handleSignOut() {
     await signOut();
@@ -456,6 +487,12 @@ function Index() {
   return (
     <AppShell username={username} onAir={!!active} onSignOut={handleSignOut}>
       <Toaster richColors position="top-center" />
+      {syncing && (
+        <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full border border-border/60 bg-card/90 px-3 py-1.5 text-xs text-muted-foreground shadow-sm backdrop-blur">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+          Syncing calendar…
+        </div>
+      )}
       {showActivation && (
         <StudioActivation
           onDone={() => {
