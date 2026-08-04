@@ -834,7 +834,7 @@ function ActiveShiftPanel({
         <Card>
           <CardContent className="space-y-5 p-5">
             <SectionTitle
-              title="Today's overview"
+              title="Shift Overview"
               meta={
                 target > 0
                   ? `${target} ${target === 1 ? "class" : "classes"} scheduled`
