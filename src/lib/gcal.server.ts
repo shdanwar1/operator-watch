@@ -289,7 +289,21 @@ async function syncBusy(displayName: string, events: ParsedEvent[]): Promise<Gca
 
 /* ───────────────────────── Detailed mode ───────────────────────── */
 
+/**
+ * Best-effort class/teacher split for events the directory could not resolve.
+ * Never drops the event — a missing title just becomes a generic class.
+ */
+function fallbackTitle(summary: string): { className: string; teacherName: string } {
+  const raw = (summary ?? "").trim();
+  if (!raw) return { className: "Class", teacherName: "—" };
+  const parts = raw.split(/\s+(?:-|–|—|\||with|w\/|by)\s+/i);
+  const className = (parts[0] ?? raw).trim() || "Class";
+  const teacherName = parts.length > 1 ? parts.slice(1).join(" ").trim() || "—" : "—";
+  return { className: className.slice(0, 120), teacherName: teacherName.slice(0, 120) };
+}
+
 async function syncDetailed(displayName: string, events: ParsedEvent[]): Promise<GcalSyncResult> {
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const now = new Date();
   const window = detailedWindow(now);
