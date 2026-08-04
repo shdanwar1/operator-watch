@@ -327,16 +327,21 @@ function Index() {
     const to = Math.max(end ? end.getTime() : 0, now.getTime()) + 60 * 60 * 1000;
     return { from, to };
   })();
-  const activeShiftClasses = (
-    activeScheduled
+  const activeShiftClasses = (() => {
+    if (!active) return [] as CalendarClassRow[];
+    const byShift = activeScheduled
       ? calendarClasses.filter((c) => c.scheduled_shift_id === activeScheduled.id)
-      : []
-  ).length
-    ? calendarClasses.filter((c) => c.scheduled_shift_id === activeScheduled!.id)
-    : activeWindow
-      ? calendarClasses.filter((c) => classAt(c) >= activeWindow.from && classAt(c) <= activeWindow.to)
       : [];
-  activeShiftClasses.sort((a, b) => classAt(a) - classAt(b));
+    const rows = byShift.length
+      ? byShift
+      : activeWindow
+        ? calendarClasses.filter(
+            (c) => classAt(c) >= activeWindow.from && classAt(c) <= activeWindow.to,
+          )
+        : [];
+    return [...rows].sort((a, b) => classAt(a) - classAt(b));
+  })();
+
 
   // Before check-in, preview the next continuous shift's classes.
   const nextShiftClasses = (() => {
