@@ -726,10 +726,34 @@ function ActiveShiftPanel({
   const earlyMin = times ? Math.max(0, Math.round((times.endAt.getTime() - now.getTime()) / 60000)) : 0;
   const early = earlyMin > 0;
 
+  // Shift progress: from check-in (or scheduled start) to the scheduled end.
+  const shiftStart = times?.startAt ?? checkInAt;
+  const shiftEnd = times?.endAt ?? null;
+  const shiftPct = shiftEnd
+    ? Math.max(
+        0,
+        Math.min(
+          100,
+          ((now.getTime() - shiftStart.getTime()) /
+            Math.max(1, shiftEnd.getTime() - shiftStart.getTime())) *
+            100,
+        ),
+      )
+    : 0;
+  const remainingMin = shiftEnd
+    ? Math.max(0, Math.round((shiftEnd.getTime() - now.getTime()) / 60000))
+    : null;
+  const remainingLabel =
+    remainingMin == null
+      ? null
+      : remainingMin >= 60
+        ? `${Math.floor(remainingMin / 60)}h ${remainingMin % 60}m left`
+        : `${remainingMin}m left`;
+
   return (
     <div className="space-y-6">
       <Card className="rise-in hero-aurora overflow-hidden">
-        <CardContent className="flex flex-col items-center gap-3 px-5 py-14 text-center">
+        <CardContent className="flex flex-col items-center gap-3 px-5 py-12 text-center">
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
             <span className="status-dot bg-live" />
             Checked in
@@ -740,6 +764,20 @@ function ActiveShiftPanel({
             {times ? ` · Ends ${fmtTime(scheduledShift!.end_time)}` : ""}
             {lateMin > 0 ? ` · ${lateMin}m late` : ""}
           </div>
+          {shiftEnd && (
+            <div className="mt-3 w-full max-w-md">
+              <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Shift progress</span>
+                <span className="tabular-nums">{remainingLabel}</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-live transition-[width] duration-700 ease-out"
+                  style={{ width: `${shiftPct}%` }}
+                />
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
