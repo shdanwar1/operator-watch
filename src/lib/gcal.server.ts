@@ -9,13 +9,12 @@
  *                     stored individually and grouped into shifts.
  */
 import {
-  busyWindow,
-  detailedWindow,
   detectCalendarMode,
   groupClassesIntoShifts,
   minToTime,
   parseIcs,
   safeRemoteUrl,
+  syncWindow,
   toMin,
   dateKey,
   type CalendarMode,
@@ -70,7 +69,11 @@ function fail(mode: CalendarMode, error: string): GcalSyncResult {
   return { ok: false, mode, fetched: 0, ignored: 0, shifts: 0, removed: 0, error };
 }
 
-export async function runCalendarSync(username: string): Promise<GcalSyncResult> {
+export async function runCalendarSync(
+  username: string,
+  opts: { includeNextMonth?: boolean } = {},
+): Promise<GcalSyncResult> {
+  const includeNextMonth = opts.includeNextMonth === true;
   const { displayName, icsUrl } = await loadOperatorCalendar(username);
   if (!icsUrl) {
     return fail(
@@ -124,17 +127,23 @@ export async function runCalendarSync(username: string): Promise<GcalSyncResult>
   }
 
   const nowDate = new Date();
+  const window = syncWindow(nowDate, includeNextMonth);
+  const [fy, fm, fd] = window.from.split("-").map(Number);
+  const [ty, tm, td] = window.to.split("-").map(Number);
   const events = parseIcs(icsText, {
-    from: new Date(nowDate.getFullYear(), nowDate.getMonth(), 1),
-    to: new Date(nowDate.getFullYear(), nowDate.getMonth() + 2, 0, 23, 59, 59),
+    from: new Date(fy, fm - 1, fd),
+    to: new Date(ty, tm - 1, td, 23, 59, 59),
   });
   const mode = detectCalendarMode(events);
   return mode === "detailed"
-    ? syncDetailed(displayName, events)
-    : syncBusy(displayName, events);
+    ? syncDetailed(displayName, events, window)
+    : syncBusy(displayName, events, window);
 }
 
 /* ───────────────────────── shared shift writing ───────────────────────── */
+
+/** Sync scope: shifts starting in [from, scopeEnd]; `to` covers overnight spill. */
+type SyncWindow = { from: string; scopeEnd: string; to: string };
 
 type ShiftPlan = {
   uid: string;
@@ -250,9 +259,11 @@ function shiftUid(opKey: string, date: string, startMin: number) {
 
 /* ───────────────────────── Busy mode ───────────────────────── */
 
-async function syncBusy(displayName: string, events: ParsedEvent[]): Promise<GcalSyncResult> {
-  const now = new Date();
-  const window = busyWindow(now);
+async function syncBusy(
+  displayName: string,
+  events: ParsedEvent[],
+  window: SyncWindow,
+): Promise<GcalSyncResult> {
   const opKey = displayName.toLowerCase();
 
   const blocks: ClassEvent[] = events
@@ -265,7 +276,11 @@ async function syncBusy(displayName: string, events: ParsedEvent[]): Promise<Gca
       endMin: toMin(e.end_time),
     }));
 
-  const grouped = groupClassesIntoShifts(blocks);
+  // The scope boundary is the *shift start*, so a shift beginning on the last
+  // day of the scope is kept whole even when it runs into the next month.
+  const grouped = groupClassesIntoShifts(blocks).filter(
+    (g) => g.date >= window.from && g.date <= window.scopeEnd,
+  );
   const plans: ShiftPlan[] = grouped.map((g) => ({
     uid: shiftUid(opKey, g.date, g.startMin),
     date: g.date,
@@ -280,7 +295,7 @@ async function syncBusy(displayName: string, events: ParsedEvent[]): Promise<Gca
   return {
     ok: true,
     mode: "busy",
-    fetched: blocks.length,
+    fetched: grouped.reduce((n, g) => n + g.classCount, 0),
     ignored: 0,
     shifts: plans.length,
     removed,
@@ -302,11 +317,13 @@ function fallbackTitle(summary: string): { className: string; teacherName: strin
   return { className: className.slice(0, 120), teacherName: teacherName.slice(0, 120) };
 }
 
-async function syncDetailed(displayName: string, events: ParsedEvent[]): Promise<GcalSyncResult> {
-
+async function syncDetailed(
+  displayName: string,
+  events: ParsedEvent[],
+  window: SyncWindow,
+): Promise<GcalSyncResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const now = new Date();
-  const window = detailedWindow(now);
   const opKey = displayName.toLowerCase();
 
   const [{ data: classRows }, { data: teacherRows }] = await Promise.all([
@@ -372,7 +389,9 @@ async function syncDetailed(displayName: string, events: ParsedEvent[]): Promise
     startMin: toMin(i.event.start_time),
     endMin: toMin(i.event.end_time),
   }));
-  const grouped = groupClassesIntoShifts(classEvents);
+  const grouped = groupClassesIntoShifts(classEvents).filter(
+    (g) => g.date >= window.from && g.date <= window.scopeEnd,
+  );
   const plans: ShiftPlan[] = grouped.map((g) => ({
     uid: shiftUid(opKey, g.date, g.startMin),
     date: g.date,
@@ -388,6 +407,8 @@ async function syncDetailed(displayName: string, events: ParsedEvent[]): Promise
     window,
     plans,
   );
+
+  const inScopeKeys = new Set(grouped.flatMap((g) => g.classKeys));
 
   const shiftIdByClassKey = new Map<string, string>();
   for (const plan of plans) {
@@ -407,7 +428,9 @@ async function syncDetailed(displayName: string, events: ParsedEvent[]): Promise
   const keptStatus = new Map<string, string>(
     (existingClassRows ?? []).map((r) => [r.uid as string, r.status as string]),
   );
-  const rows = imported.map((i) => {
+  const rows = imported
+    .filter((i) => inScopeKeys.has(i.event.uid))
+    .map((i) => {
     const startMin = toMin(i.event.start_time);
     const endMin = toMin(i.event.end_time);
     return {
