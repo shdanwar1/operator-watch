@@ -75,6 +75,25 @@ export function resolveStartAt(startTime: string, ref: Date = new Date()): Date 
   return d;
 }
 
+/**
+ * Resolves the class start datetime.
+ * - "next" (default): today's occurrence, rolled forward one day once that
+ *   occurrence's class has fully elapsed. Fixes midnight/overnight classes.
+ * - "running": always today's occurrence, so an operator can join a class
+ *   that already started.
+ */
+export function resolveClassStart(
+  state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode">,
+  ref: Date = new Date(),
+): Date {
+  const candidate = resolveStartAt(state.startTime, ref);
+  if (state.timerMode === "running") return candidate;
+  const end = candidate.getTime() + Math.max(0, state.durationMin) * 60_000;
+  if (end <= ref.getTime()) candidate.setDate(candidate.getDate() + 1);
+  return candidate;
+}
+
+
 export type StagePhase =
   | "idle"          // no class scheduled recently / far in future
   | "before"        // >10s before start, showing icebreakers
