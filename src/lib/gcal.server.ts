@@ -431,28 +431,21 @@ async function syncDetailed(
   );
   const rows = imported
     .filter((i) => inScopeKeys.has(i.event.uid))
-    .map((i) => {
-    const startMin = toMin(i.event.start_time);
-    const endMin = toMin(i.event.end_time);
-    return {
+    .map((i) => ({
       operator: displayName,
       uid: i.event.uid,
       class_id: i.classId,
       teacher_id: i.teacherId,
       class_name: i.className,
       teacher_name: i.teacherName,
+      raw_title: (i.event.summary ?? "").slice(0, 500),
       specific_date: i.event.specific_date,
       start_time: i.event.start_time,
       end_time: i.event.end_time,
-      duration_min: Math.max(0, endMin - startMin),
       status: keptStatus.get(i.event.uid) ?? i.event.status,
-
-      meet_link: i.event.meetLink,
-      description: i.event.description ? i.event.description.slice(0, 5000) : null,
-      source: "google_calendar",
       scheduled_shift_id: shiftIdByClassKey.get(i.event.uid) ?? null,
-    };
-  });
+    }));
+
 
   if (rows.length) {
     for (let i = 0; i < rows.length; i += 200) {
