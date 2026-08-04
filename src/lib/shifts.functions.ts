@@ -179,7 +179,6 @@ export const createPastShift = createServerFn({ method: "POST" })
       .ilike("username", username)
       .maybeSingle();
     const operator_name = (op as { username: string } | null)?.username ?? username;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("shifts")
       .insert({
