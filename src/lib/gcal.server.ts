@@ -532,3 +532,68 @@ export async function setClassStatus(
   if (error) throw new Error(error.message);
   return data as CalendarClassRow;
 }
+
+/**
+ * Operator correction of a class/teacher mapping.
+ *
+ * The correction is applied to the row AND remembered as an alias keyed on the
+ * raw Google Calendar title, so every future sync resolves it automatically.
+ */
+export async function correctClassMapping(
+  displayName: string,
+  id: string,
+  classId: string,
+  teacherId: string | null,
+): Promise<CalendarClassRow> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: row, error: readErr } = await supabaseAdmin
+    .from("calendar_classes")
+    .select("id, operator, raw_title, class_name")
+    .eq("id", id)
+    .maybeSingle();
+  if (readErr) throw new Error(readErr.message);
+  if (!row) throw new Response("Not found", { status: 404 });
+  if ((row.operator as string).toLowerCase() !== displayName.toLowerCase()) {
+    throw new Response("Forbidden", { status: 403 });
+  }
+
+  const [{ data: cls }, teacherRes] = await Promise.all([
+    supabaseAdmin.from("classes").select("id,name").eq("id", classId).maybeSingle(),
+    teacherId
+      ? supabaseAdmin.from("teachers").select("id,name").eq("id", teacherId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  if (!cls) throw new Error("Unknown class");
+  const tea = (teacherRes as { data: { id: string; name: string } | null }).data;
+
+  const { data, error } = await supabaseAdmin
+    .from("calendar_classes")
+    .update({
+      class_id: cls.id,
+      teacher_id: tea?.id ?? null,
+      class_name: cls.name,
+      teacher_name: tea?.name ?? "—",
+    })
+    .eq("id", id)
+    .select(
+      "id, uid, class_id, teacher_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id",
+    )
+    .single();
+  if (error) throw new Error(error.message);
+
+  const rawTitle = (row.raw_title as string | null) ?? (row.class_name as string);
+  const aliasKey = aliasKeyFor(rawTitle);
+  if (aliasKey) {
+    await supabaseAdmin.from("class_aliases").upsert(
+      {
+        alias_key: aliasKey,
+        raw_title: rawTitle.slice(0, 500),
+        class_id: cls.id,
+        teacher_id: tea?.id ?? null,
+      },
+      { onConflict: "alias_key" },
+    );
+  }
+
+  return data as CalendarClassRow;
+}
