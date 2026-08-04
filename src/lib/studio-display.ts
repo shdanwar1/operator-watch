@@ -88,7 +88,8 @@ export function resolveClassStart(
 ): Date {
   const candidate = resolveStartAt(state.startTime, ref);
   if (state.timerMode === "running") return candidate;
-  const end = candidate.getTime() + Math.max(0, state.durationMin) * 60_000;
+  // Keep the class (and its Q&A window) on screen; only then look ahead.
+  const end = candidate.getTime() + Math.max(0, state.durationMin) * 60_000 + QA_MS;
   if (end <= ref.getTime()) candidate.setDate(candidate.getDate() + 1);
   return candidate;
 }
@@ -136,7 +137,7 @@ const STARTCLASS_MS = 30_000; // next 30s "START THE CLASS"
 export const QA_MS = 5 * 60_000; // 5 min Q&A after class ends
 
 export function computeStage(state: StudioDisplayState, now: Date = new Date()): StageInfo {
-  const start = resolveStartAt(state.startTime, now);
+  const start = resolveClassStart(state, now);
   const end = new Date(start.getTime() + state.durationMin * 60_000);
   const nowMs = now.getTime();
   const untilStart = start.getTime() - nowMs;
