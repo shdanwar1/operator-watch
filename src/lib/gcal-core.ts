@@ -586,16 +586,21 @@ export function dateKey(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** Busy mode keeps the historical 4-week window. */
-export function busyWindow(now: Date) {
-  const from = dateKey(now);
-  const to = dateKey(new Date(now.getTime() + 28 * 24 * 3600 * 1000));
-  return { from, to };
-}
-
-/** Detailed mode reads the current calendar month plus the next one. */
-export function detailedWindow(now: Date) {
+/**
+ * Sync scope: the current calendar month, optionally plus the next one.
+ *
+ * `from`/`scopeEnd` bound the *shift start* timestamps that are imported.
+ * `parseTo` extends two days past the scope so overnight shifts crossing the
+ * month boundary can be read in full and never truncated.
+ */
+export function syncWindow(now: Date, includeNextMonth = false) {
   const from = dateKey(new Date(now.getFullYear(), now.getMonth(), 1));
-  const to = dateKey(new Date(now.getFullYear(), now.getMonth() + 2, 0));
-  return { from, to };
+  const scopeEndDate = new Date(
+    now.getFullYear(),
+    now.getMonth() + (includeNextMonth ? 2 : 1),
+    0,
+  );
+  const parseToDate = new Date(scopeEndDate);
+  parseToDate.setDate(parseToDate.getDate() + 2);
+  return { from, scopeEnd: dateKey(scopeEndDate), to: dateKey(parseToDate) };
 }
