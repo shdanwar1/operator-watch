@@ -7,7 +7,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ExternalLink, CalendarDays, MoreHorizontal, Check, X } from "lucide-react";
+import { ExternalLink, CalendarDays, MoreHorizontal, Check, X, Wand2 } from "lucide-react";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { DirectoryCombobox } from "@/components/DirectoryCombobox";
+import type { DirectoryItem } from "@/lib/directories.functions";
 import { buildClassDisplayUrl } from "@/lib/studio-display";
 import { cn } from "@/lib/utils";
 import type { CalendarClassRow } from "@/lib/gcal.functions";
@@ -19,6 +30,15 @@ function fmt(t: string) {
   const period = h >= 12 ? "PM" : "AM";
   const h12 = ((h + 11) % 12) + 1;
   return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+/** Duration is derived from the stored start/end times, never duplicated. */
+export function durationOf(c: { start_time: string; end_time: string }): number {
+  const [sh, sm] = c.start_time.split(":").map(Number);
+  const [eh, em] = c.end_time.split(":").map(Number);
+  let mins = eh * 60 + em - (sh * 60 + sm);
+  if (mins <= 0) mins += 24 * 60;
+  return mins;
 }
 
 function atDate(date: string, time: string) {
@@ -57,13 +77,24 @@ export function ClassScheduleCard({
   now,
   title = "Shift Overview",
   onSetStatus,
+  onCorrect,
+  classOptions = [],
+  teacherOptions = [],
 }: {
   classes: CalendarClassRow[];
   now: Date;
   title?: string;
   /** When provided, each row exposes Mark as Completed / Cancel Class. */
   onSetStatus?: (id: string, status: "scheduled" | "completed" | "cancelled") => void;
+  /** When provided, each row exposes "Fix class match" (saved as an alias). */
+  onCorrect?: (id: string, classId: string, teacherId: string | null) => void;
+  classOptions?: DirectoryItem[];
+  teacherOptions?: DirectoryItem[];
 }) {
+  const [fixing, setFixing] = useState<CalendarClassRow | null>(null);
+  const [fixClass, setFixClass] = useState("");
+  const [fixTeacher, setFixTeacher] = useState("");
+
   if (classes.length === 0) return null;
 
   const states = classes.map((c) => classStatusOf(c, now));
@@ -79,7 +110,7 @@ export function ClassScheduleCard({
         className: c.class_name,
         teacherName: c.teacher_name,
         startTime: c.start_time,
-        durationMin: c.duration_min || 60,
+        durationMin: durationOf(c) || 60,
       }),
       `studio-display-${c.id}`,
       "popup,width=1280,height=800",
@@ -156,7 +187,7 @@ export function ClassScheduleCard({
                   <div className="truncate text-xs text-muted-foreground">{c.teacher_name}</div>
                 </div>
                 <div className="hidden text-xs text-muted-foreground sm:block">
-                  {c.duration_min} min
+                  {durationOf(c)} min
                 </div>
                 <Badge
                   variant={st === "live" ? "default" : "outline"}
@@ -173,7 +204,7 @@ export function ClassScheduleCard({
                   {isCancelled ? "Cancelled" : "Open Studio Display"}
                   {!isCancelled && <ExternalLink className="ml-1.5 h-3.5 w-3.5" />}
                 </Button>
-                {onSetStatus && (
+                {(onSetStatus || onCorrect) && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Class actions">
@@ -181,7 +212,18 @@ export function ClassScheduleCard({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      {isCancelled ? (
+                      {onCorrect && (
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setFixing(c);
+                            setFixClass(c.class_id ? c.class_name : "");
+                            setFixTeacher(c.teacher_id ? c.teacher_name : "");
+                          }}
+                        >
+                          <Wand2 className="mr-2 h-4 w-4" /> Fix class match
+                        </DropdownMenuItem>
+                      )}
+                      {!onSetStatus ? null : isCancelled ? (
                         <DropdownMenuItem onClick={() => onSetStatus(c.id, "scheduled")}>
                           Restore class
                         </DropdownMenuItem>
@@ -210,6 +252,61 @@ export function ClassScheduleCard({
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border border-muted-foreground/40" /> Upcoming</span>
         </div>
       </CardContent>
+
+      <Dialog open={!!fixing} onOpenChange={(o) => !o && setFixing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Fix class match</DialogTitle>
+            <DialogDescription>
+              {fixing?.raw_title
+                ? `Calendar title: "${fixing.raw_title}"`
+                : "Pick the correct class and teacher."}{" "}
+              This correction is remembered for future calendar syncs.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">Class</p>
+              <DirectoryCombobox
+                value={fixClass}
+                onChange={setFixClass}
+                options={classOptions}
+                placeholder="Select class"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">Teacher (optional)</p>
+              <DirectoryCombobox
+                value={fixTeacher}
+                onChange={setFixTeacher}
+                options={teacherOptions}
+                placeholder="Select teacher"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFixing(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!fixClass}
+              onClick={() => {
+                const cls = classOptions.find(
+                  (o) => o.name.toLowerCase() === fixClass.trim().toLowerCase(),
+                );
+                if (!cls || !fixing || !onCorrect) return;
+                const tea = teacherOptions.find(
+                  (o) => o.name.toLowerCase() === fixTeacher.trim().toLowerCase(),
+                );
+                onCorrect(fixing.id, cls.id, tea?.id ?? null);
+                setFixing(null);
+              }}
+            >
+              Save match
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
