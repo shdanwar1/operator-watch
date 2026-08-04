@@ -544,16 +544,17 @@ function Index() {
 
 
 function UpcomingShifts({
-  scheduled,
+  shifts,
   now,
   calendarClasses = [],
 }: {
-  scheduled: ScheduledShift[];
+  /** Continuous (midnight-merged) shifts, already filtered to the future. */
+  shifts: DisplayShift[];
   now: Date;
   /** Used to show how many classes a continuous shift contains. */
   calendarClasses?: CalendarClassRow[];
 }) {
-  const instances = upcomingInstances(scheduled, now, 6);
+  const instances = shifts.slice(0, 6);
   return (
     <Card className="rise-in">
       <CardContent className="p-5">
@@ -562,35 +563,28 @@ function UpcomingShifts({
           <p className="mt-4 text-sm text-muted-foreground">No upcoming shifts scheduled.</p>
         ) : (
           <ul className="mt-4 divide-y divide-border">
-            {instances.map(({ shift, startAt }, i) => {
-              const isToday = startAt.toDateString() === now.toDateString();
-              const tomorrow = new Date(now);
-              tomorrow.setDate(tomorrow.getDate() + 1);
-              const isTomorrow = startAt.toDateString() === tomorrow.toDateString();
-              const dayLabel = isToday
-                ? "Today"
-                : isTomorrow
-                  ? "Tomorrow"
-                  : startAt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-              const overnight = shift.end_time <= shift.start_time;
-              const classCount = calendarClasses.filter((c) => c.scheduled_shift_id === shift.id).length;
+            {instances.map((shift, i) => {
+              const { dayLabel, range } = formatShiftRange(shift, now);
+              const classCount = classesForShift(calendarClasses, shift).length;
+              const live =
+                now.getTime() >= shift.startAt.getTime() && now.getTime() < shift.endAt.getTime();
               return (
-                <li key={`${shift.id}-${i}`} className="flex items-baseline justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                <li
+                  key={`${shift.id}-${i}`}
+                  className="flex items-baseline justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                >
                   <div className="min-w-0">
-                    <div className="text-[13px] font-medium">{dayLabel}</div>
-                    <div className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-                      {fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}
-                      {overnight && <span className="ml-1 not-italic">(+1 day)</span>}
+                    <div className="text-[13px] font-medium">
+                      {dayLabel}
+                      {live && <span className="ml-2 text-[11px] text-live">In progress</span>}
                     </div>
+                    <div className="mt-0.5 text-xs tabular-nums text-muted-foreground">{range}</div>
                     {classCount > 0 && (
                       <div className="mt-0.5 text-[11px] text-muted-foreground">
                         {classCount} {classCount === 1 ? "class" : "classes"}
                       </div>
                     )}
                   </div>
-                  {shift.label && (
-                    <span className="shrink-0 text-xs text-muted-foreground">{shift.label}</span>
-                  )}
                 </li>
               );
             })}
@@ -601,31 +595,6 @@ function UpcomingShifts({
   );
 }
 
-
-function upcomingInstances(
-  scheduled: ScheduledShift[],
-  now: Date,
-  limit: number,
-): { shift: ScheduledShift; startAt: Date; endAt: Date }[] {
-  const overrides = overrideDates(scheduled);
-  const out: { shift: ScheduledShift; startAt: Date; endAt: Date }[] = [];
-  for (let offset = 0; offset < 21 && out.length < limit * 3; offset++) {
-    const day = new Date(now);
-    day.setDate(day.getDate() + offset);
-    for (const s of scheduled) {
-      if (!shiftAppliesOn(s, day, overrides)) continue;
-      const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
-      const [eh, em] = s.end_time.split(":").map((n) => parseInt(n, 10));
-      const startAt = new Date(day);
-      startAt.setHours(sh, sm, 0, 0);
-      const endAt = new Date(day);
-      endAt.setHours(eh, em, 0, 0);
-      if (endAt.getTime() <= now.getTime()) continue;
-      out.push({ shift: s, startAt, endAt });
-    }
-  }
-  return out.sort((a, b) => a.startAt.getTime() - b.startAt.getTime()).slice(0, limit);
-}
 
 function nextShiftInstance(
   scheduled: ScheduledShift[],
