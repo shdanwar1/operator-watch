@@ -498,7 +498,9 @@ function CalendarPage() {
                               >
                                 <div className="truncate font-medium tabular-nums">
                                   {fmtTime(inst.shift.start_time)} – {fmtTime(inst.shift.end_time)}
+                                  {inst.shift.end_time <= inst.shift.start_time ? " (+1)" : ""}
                                 </div>
+
                                 <div className="truncate text-muted-foreground">
                                   {n ? `${n} ${n === 1 ? "class" : "classes"}` : (inst.shift.label ?? "Shift")}
                                 </div>

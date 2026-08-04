@@ -1,8 +1,15 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, CalendarDays } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ExternalLink, CalendarDays, MoreHorizontal, Check, X } from "lucide-react";
 import { buildClassDisplayUrl } from "@/lib/studio-display";
+import { cn } from "@/lib/utils";
 import type { CalendarClassRow } from "@/lib/gcal.functions";
 
 function fmt(t: string) {
@@ -20,30 +27,51 @@ function atDate(date: string, time: string) {
   return new Date(y, mo - 1, d, h, mi, 0, 0);
 }
 
-type Status = "completed" | "live" | "upcoming";
+export type ClassStatus = "completed" | "live" | "upcoming" | "cancelled";
 
-function statusOf(c: CalendarClassRow, now: Date): Status {
+/**
+ * Effective lifecycle state of a class row: the operator's explicit state wins,
+ * otherwise the state is derived from the clock.
+ */
+export function classStatusOf(c: CalendarClassRow, now: Date): ClassStatus {
+  if (c.status === "cancelled") return "cancelled";
+  if (c.status === "completed") return "completed";
   const start = atDate(c.specific_date, c.start_time).getTime();
-  const end = atDate(c.specific_date, c.end_time).getTime();
+  let end = atDate(c.specific_date, c.end_time).getTime();
+  if (end <= start) end += 24 * 3600 * 1000;
   const t = now.getTime();
   if (t >= end) return "completed";
   if (t >= start) return "live";
   return "upcoming";
 }
 
+const STATUS_LABEL: Record<ClassStatus, string> = {
+  completed: "Completed",
+  live: "In Progress",
+  upcoming: "Upcoming",
+  cancelled: "Cancelled",
+};
+
 export function ClassScheduleCard({
   classes,
   now,
-  title = "Today's classes",
+  title = "Shift Overview",
+  onSetStatus,
 }: {
   classes: CalendarClassRow[];
   now: Date;
   title?: string;
+  /** When provided, each row exposes Mark as Completed / Cancel Class. */
+  onSetStatus?: (id: string, status: "scheduled" | "completed" | "cancelled") => void;
 }) {
   if (classes.length === 0) return null;
 
-  const done = classes.filter((c) => statusOf(c, now) === "completed").length;
-  const pct = Math.round((done / classes.length) * 100);
+  const states = classes.map((c) => classStatusOf(c, now));
+  const completed = states.filter((s) => s === "completed").length;
+  const cancelled = states.filter((s) => s === "cancelled").length;
+  const upcoming = states.filter((s) => s === "upcoming").length;
+  const processed = completed + cancelled;
+  const pct = Math.round((processed / classes.length) * 100);
 
   const openDisplay = (c: CalendarClassRow) => {
     window.open(
@@ -72,27 +100,32 @@ export function ClassScheduleCard({
         <div>
           <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
             <span>
-              {done} / {classes.length} completed
+              {completed} completed · {cancelled} cancelled · {upcoming} upcoming
             </span>
-            <span className="tabular-nums">{pct}%</span>
+            <span className="tabular-nums">
+              {pct}% ({processed} / {classes.length} processed)
+            </span>
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+              className="h-full rounded-full bg-done transition-all duration-500"
               style={{ width: `${pct}%` }}
             />
           </div>
         </div>
 
         <div className="space-y-2">
-          {classes.map((c) => {
-            const st = statusOf(c, now);
+          {classes.map((c, i) => {
+            const st = states[i];
+            const isCancelled = st === "cancelled";
             return (
               <div
                 key={c.id}
-                className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 transition-colors ${
-                  st === "live" ? "border-primary/60 bg-primary/5" : "border-border/60"
-                }`}
+                className={cn(
+                  "flex flex-wrap items-center gap-3 rounded-xl border p-3 transition-colors",
+                  st === "live" ? "border-live/60 bg-live/5" : "border-border/60",
+                  isCancelled && "opacity-50",
+                )}
               >
                 <div className="w-[92px] shrink-0 text-xs tabular-nums">
                   <div className="font-medium">{fmt(c.start_time)}</div>
@@ -100,16 +133,26 @@ export function ClassScheduleCard({
                 </div>
                 <span
                   aria-hidden
-                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                  className={cn(
+                    "h-2.5 w-2.5 shrink-0 rounded-full",
                     st === "completed"
-                      ? "bg-emerald-500"
+                      ? "bg-done"
                       : st === "live"
-                        ? "bg-primary animate-pulse"
-                        : "border border-muted-foreground/40"
-                  }`}
+                        ? "bg-live animate-pulse"
+                        : st === "cancelled"
+                          ? "bg-alert"
+                          : "border border-muted-foreground/40",
+                  )}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{c.class_name}</div>
+                  <div
+                    className={cn(
+                      "truncate text-sm font-medium",
+                      isCancelled && "line-through",
+                    )}
+                  >
+                    {c.class_name}
+                  </div>
                   <div className="truncate text-xs text-muted-foreground">{c.teacher_name}</div>
                 </div>
                 <div className="hidden text-xs text-muted-foreground sm:block">
@@ -117,17 +160,54 @@ export function ClassScheduleCard({
                 </div>
                 <Badge
                   variant={st === "live" ? "default" : "outline"}
-                  className="text-[10px] capitalize"
+                  className={cn("text-[10px]", isCancelled && "text-alert")}
                 >
-                  {st === "live" ? "In progress" : st}
+                  {STATUS_LABEL[st]}
                 </Badge>
-                <Button size="sm" variant={st === "live" ? "default" : "outline"} onClick={() => openDisplay(c)}>
-                  Open Studio Display
-                  <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                <Button
+                  size="sm"
+                  variant={st === "live" ? "default" : "outline"}
+                  disabled={isCancelled}
+                  onClick={() => openDisplay(c)}
+                >
+                  {isCancelled ? "Cancelled" : "Open Studio Display"}
+                  {!isCancelled && <ExternalLink className="ml-1.5 h-3.5 w-3.5" />}
                 </Button>
+                {onSetStatus && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Class actions">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {isCancelled ? (
+                        <DropdownMenuItem onClick={() => onSetStatus(c.id, "scheduled")}>
+                          Restore class
+                        </DropdownMenuItem>
+                      ) : (
+                        <>
+                          <DropdownMenuItem onClick={() => onSetStatus(c.id, "completed")}>
+                            <Check className="mr-2 h-4 w-4 text-done" /> Mark as Completed
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onSetStatus(c.id, "cancelled")}>
+                            <X className="mr-2 h-4 w-4 text-alert" /> Cancel Class
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             );
           })}
+        </div>
+
+        <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-done" /> Completed</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-live" /> In Progress</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-alert" /> Cancelled</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border border-muted-foreground/40" /> Upcoming</span>
         </div>
       </CardContent>
     </Card>

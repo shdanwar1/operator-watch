@@ -377,6 +377,15 @@ async function syncDetailed(displayName: string, events: ParsedEvent[]): Promise
 
   // Persist the imported classes (Google UID is the permanent sync key).
   const todayStr = dateKey(now);
+  // Operator-set lifecycle states (completed / cancelled) must survive a resync.
+  const { data: existingClassRows } = await supabaseAdmin
+    .from("calendar_classes")
+    .select("uid, status")
+    .ilike("operator", displayName)
+    .in("status", ["completed", "cancelled"]);
+  const keptStatus = new Map<string, string>(
+    (existingClassRows ?? []).map((r) => [r.uid as string, r.status as string]),
+  );
   const rows = imported.map((i) => {
     const startMin = toMin(i.event.start_time);
     const endMin = toMin(i.event.end_time);
@@ -391,7 +400,8 @@ async function syncDetailed(displayName: string, events: ParsedEvent[]): Promise
       start_time: i.event.start_time,
       end_time: i.event.end_time,
       duration_min: Math.max(0, endMin - startMin),
-      status: i.event.status,
+      status: keptStatus.get(i.event.uid) ?? i.event.status,
+
       meet_link: i.event.meetLink,
       description: i.event.description ? i.event.description.slice(0, 5000) : null,
       source: "google_calendar",
@@ -454,4 +464,33 @@ export async function listClassesForOperator(
     .order("start_time");
   if (error) throw new Error(error.message);
   return (data ?? []) as CalendarClassRow[];
+}
+
+/** Operator-driven class lifecycle state (dashboard cancel / complete). */
+export async function setClassStatus(
+  displayName: string,
+  id: string,
+  status: "scheduled" | "completed" | "cancelled",
+): Promise<CalendarClassRow> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: row, error: readErr } = await supabaseAdmin
+    .from("calendar_classes")
+    .select("id, operator")
+    .eq("id", id)
+    .maybeSingle();
+  if (readErr) throw new Error(readErr.message);
+  if (!row) throw new Response("Not found", { status: 404 });
+  if ((row.operator as string).toLowerCase() !== displayName.toLowerCase()) {
+    throw new Response("Forbidden", { status: 403 });
+  }
+  const { data, error } = await supabaseAdmin
+    .from("calendar_classes")
+    .update({ status })
+    .eq("id", id)
+    .select(
+      "id, uid, class_name, teacher_name, specific_date, start_time, end_time, duration_min, status, meet_link, description, scheduled_shift_id",
+    )
+    .single();
+  if (error) throw new Error(error.message);
+  return data as CalendarClassRow;
 }

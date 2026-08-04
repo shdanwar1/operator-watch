@@ -500,7 +500,28 @@ export function minToTime(total: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
 }
 
-/** Group consecutive/close classes into operator shifts. */
+/** Absolute minutes since epoch-day for a `YYYY-MM-DD` + minute-of-day pair. */
+function absMin(date: string, min: number): number {
+  const [y, m, d] = date.split("-").map(Number);
+  return Math.round(Date.UTC(y, m - 1, d) / 60000) + min;
+}
+
+/** Inverse of {@link absMin}: back to a calendar date + minute-of-day. */
+function fromAbs(total: number): { date: string; min: number } {
+  const dayIdx = Math.floor(total / 1440);
+  const min = total - dayIdx * 1440;
+  const d = new Date(dayIdx * 1440 * 60000);
+  return { date: dateKey(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())), min };
+}
+
+/**
+ * Group classes into continuous operator shifts.
+ *
+ * Grouping is purely chronological: calendar-day boundaries are ignored, so a
+ * class at 23:30 and the next at 00:15 belong to the same overnight shift.
+ * A shift's `date` is the calendar date it *starts* on; `endMin` may wrap past
+ * midnight, in which case `endMin < startMin` after conversion to a time.
+ */
 export function groupClassesIntoShifts(
   classes: ClassEvent[],
   config: {
@@ -509,50 +530,51 @@ export function groupClassesIntoShifts(
     maxGapMin: number;
   } = SHIFT_CONFIG,
 ): GroupedShift[] {
-  const byDate = new Map<string, ClassEvent[]>();
-  for (const c of classes) {
-    if (!byDate.has(c.date)) byDate.set(c.date, []);
-    byDate.get(c.date)!.push(c);
-  }
+  if (classes.length === 0) return [];
+
+  const sorted = [...classes]
+    .map((c) => ({
+      key: c.key,
+      start: absMin(c.date, c.startMin),
+      end: absMin(c.date, c.endMin < c.startMin ? c.endMin + 1440 : c.endMin),
+    }))
+    .sort((a, b) => a.start - b.start || a.end - b.end);
 
   const shifts: GroupedShift[] = [];
-  for (const [date, dayClasses] of byDate) {
-    const sorted = [...dayClasses].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
-    let groupStart = sorted[0].startMin;
-    let groupEnd = sorted[0].endMin;
-    let keys = [sorted[0].key];
-
-    for (let i = 1; i < sorted.length; i++) {
-      const cls = sorted[i];
-      const gap = cls.startMin - groupEnd;
-      if (gap < config.maxGapMin) {
-        groupEnd = Math.max(groupEnd, cls.endMin);
-        keys.push(cls.key);
-      } else {
-        shifts.push({
-          date,
-          startMin: groupStart - config.preClassBufferMin,
-          endMin: groupEnd + config.postClassBufferMin,
-          classCount: keys.length,
-          classKeys: keys,
-        });
-        groupStart = cls.startMin;
-        groupEnd = cls.endMin;
-        keys = [cls.key];
-      }
-    }
+  const flush = (start: number, end: number, keys: string[]) => {
+    const s = fromAbs(start - config.preClassBufferMin);
+    const e = fromAbs(end + config.postClassBufferMin);
     shifts.push({
-      date,
-      startMin: groupStart - config.preClassBufferMin,
-      endMin: groupEnd + config.postClassBufferMin,
+      date: s.date,
+      startMin: s.min,
+      endMin: e.min,
       classCount: keys.length,
       classKeys: keys,
     });
+  };
+
+  let groupStart = sorted[0].start;
+  let groupEnd = sorted[0].end;
+  let keys = [sorted[0].key];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const cls = sorted[i];
+    if (cls.start - groupEnd < config.maxGapMin) {
+      groupEnd = Math.max(groupEnd, cls.end);
+      keys.push(cls.key);
+    } else {
+      flush(groupStart, groupEnd, keys);
+      groupStart = cls.start;
+      groupEnd = cls.end;
+      keys = [cls.key];
+    }
   }
+  flush(groupStart, groupEnd, keys);
 
   shifts.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin));
   return shifts;
 }
+
 
 /* ───────────────────────── Date windows ───────────────────────── */
 

@@ -26,8 +26,8 @@ import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle
 import { supabase } from "@/integrations/supabase/client";
 import { Hourglass, hourglassStateFor } from "@/components/Hourglass";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
-import { ClassScheduleCard } from "@/components/ClassScheduleCard";
-import { listMyCalendarClasses, type CalendarClassRow } from "@/lib/gcal.functions";
+import { ClassScheduleCard, classStatusOf } from "@/components/ClassScheduleCard";
+import { listMyCalendarClasses, setMyClassStatus, type CalendarClassRow } from "@/lib/gcal.functions";
 import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
@@ -222,6 +222,7 @@ function Index() {
   const recordUsage = useServerFn(recordDirectoryUsage);
   const createShiftFn = useServerFn(createShift);
   const updateShiftServer = useServerFn(updateShiftFn);
+  const setClassStatusFn = useServerFn(setMyClassStatus);
 
   const [showActivation, setShowActivation] = useState(false);
   const [active, setActive] = useState<Shift | null>(null);
@@ -312,18 +313,51 @@ function Index() {
 
   // Classes imported from Google Calendar (Detailed Mode). Empty in Busy Mode,
   // where the dashboard keeps showing shift times only.
-  const todayKey = (() => {
-    const p = (n: number) => String(n).padStart(2, "0");
-    return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+  //
+  // Shift-centric, never day-centric: a shift that crosses midnight keeps every
+  // one of its classes (including the ones dated "tomorrow") in one list.
+  const classAt = (c: CalendarClassRow) => {
+    const [y, mo, d] = c.specific_date.split("-").map(Number);
+    const [h, mi] = c.start_time.split(":").map((n) => parseInt(n, 10));
+    return new Date(y, mo - 1, d, h, mi, 0, 0).getTime();
+  };
+  const activeWindow = (() => {
+    if (!active) return null;
+    const from = new Date(active.check_in_at).getTime() - 60 * 60 * 1000;
+    const end = activeScheduled ? instanceTimes(activeScheduled, new Date(active.check_in_at)).endAt : null;
+    const to = Math.max(end ? end.getTime() : 0, now.getTime()) + 60 * 60 * 1000;
+    return { from, to };
   })();
-  const activeShiftClasses = activeScheduled
-    ? calendarClasses.filter(
-        (c) =>
-          c.scheduled_shift_id === activeScheduled.id ||
-          c.specific_date === activeScheduled.specific_date,
-      )
-    : calendarClasses.filter((c) => c.specific_date === todayKey);
-  const todayClasses = calendarClasses.filter((c) => c.specific_date === todayKey);
+  const activeShiftClasses = (() => {
+    if (!active) return [] as CalendarClassRow[];
+    const byShift = activeScheduled
+      ? calendarClasses.filter((c) => c.scheduled_shift_id === activeScheduled.id)
+      : [];
+    const rows = byShift.length
+      ? byShift
+      : activeWindow
+        ? calendarClasses.filter(
+            (c) => classAt(c) >= activeWindow.from && classAt(c) <= activeWindow.to,
+          )
+        : [];
+    return [...rows].sort((a, b) => classAt(a) - classAt(b));
+  })();
+
+
+  // Before check-in, preview the next continuous shift's classes.
+  const nextShiftClasses = (() => {
+    if (active) return [];
+    const target = openScheduled ?? nextInstance?.shift ?? null;
+    if (target) {
+      const byShift = calendarClasses.filter((c) => c.scheduled_shift_id === target.id);
+      if (byShift.length) return byShift.sort((a, b) => classAt(a) - classAt(b));
+    }
+    const soon = now.getTime() + 14 * 60 * 60 * 1000;
+    return calendarClasses
+      .filter((c) => classAt(c) >= now.getTime() - 60 * 60 * 1000 && classAt(c) <= soon)
+      .sort((a, b) => classAt(a) - classAt(b));
+  })();
+
 
 
 
@@ -370,13 +404,31 @@ function Index() {
     updateActive({ classes: active.classes.filter((_, i) => i !== idx) });
   }
 
+  /** Operator marks a class of the current shift completed / cancelled. */
+  async function setClassStatus(id: string, status: "scheduled" | "completed" | "cancelled") {
+    setCalendarClasses((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
+    try {
+      await setClassStatusFn({ data: { id, status } });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update the class");
+      load();
+    }
+  }
+
   async function checkOut() {
     if (!active) return;
     setCheckingOut(true);
     try {
+      // Only classes that were actually taught go into permanent shift history.
+      const completed = activeShiftClasses
+        .filter((c) => classStatusOf(c, new Date()) === "completed")
+        .map((c) => ({ class: c.class_name, teacher: c.teacher_name }));
+      const patch: Partial<Shift> = { check_out_at: new Date().toISOString() };
+      if (completed.length) patch.classes = completed;
       await updateShiftServer({
-        data: { id: active.id, patch: { check_out_at: new Date().toISOString() } },
+        data: { id: active.id, patch },
       });
+
       // Best-effort: record used teachers/classes in the directories.
       try {
         await recordUsage({
@@ -429,6 +481,7 @@ function Index() {
               teachers={teachers}
               classes={classes}
               importedClasses={activeShiftClasses}
+              onSetClassStatus={setClassStatus}
             />
           ) : (
             <>
@@ -460,15 +513,18 @@ function Index() {
                 />
               )}
 
-              {todayClasses.length > 0 && (
-                <ClassScheduleCard classes={todayClasses} now={now} title="Today's overview" />
+              {nextShiftClasses.length > 0 && (
+                <ClassScheduleCard classes={nextShiftClasses} now={now} title="Next shift" />
               )}
+
             </>
           )}
         </div>
 
         <aside className="xl:sticky xl:top-24 xl:self-start">
-          {!loading && <UpcomingShifts scheduled={scheduled} now={now} />}
+          {!loading && (
+            <UpcomingShifts scheduled={scheduled} now={now} calendarClasses={calendarClasses} />
+          )}
         </aside>
       </div>
     </AppShell>
@@ -477,7 +533,16 @@ function Index() {
 
 
 
-function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: Date }) {
+function UpcomingShifts({
+  scheduled,
+  now,
+  calendarClasses = [],
+}: {
+  scheduled: ScheduledShift[];
+  now: Date;
+  /** Used to show how many classes a continuous shift contains. */
+  calendarClasses?: CalendarClassRow[];
+}) {
   const instances = upcomingInstances(scheduled, now, 6);
   return (
     <Card className="rise-in">
@@ -497,13 +562,21 @@ function UpcomingShifts({ scheduled, now }: { scheduled: ScheduledShift[]; now: 
                 : isTomorrow
                   ? "Tomorrow"
                   : startAt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+              const overnight = shift.end_time <= shift.start_time;
+              const classCount = calendarClasses.filter((c) => c.scheduled_shift_id === shift.id).length;
               return (
                 <li key={`${shift.id}-${i}`} className="flex items-baseline justify-between gap-3 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0">
                     <div className="text-[13px] font-medium">{dayLabel}</div>
                     <div className="mt-0.5 text-xs tabular-nums text-muted-foreground">
                       {fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}
+                      {overnight && <span className="ml-1 not-italic">(+1 day)</span>}
                     </div>
+                    {classCount > 0 && (
+                      <div className="mt-0.5 text-[11px] text-muted-foreground">
+                        {classCount} {classCount === 1 ? "class" : "classes"}
+                      </div>
+                    )}
                   </div>
                   {shift.label && (
                     <span className="shrink-0 text-xs text-muted-foreground">{shift.label}</span>
@@ -706,6 +779,7 @@ function ActiveShiftPanel({
   teachers,
   classes,
   importedClasses,
+  onSetClassStatus,
 }: {
   shift: Shift;
   scheduledShift: ScheduledShift | null;
@@ -718,6 +792,7 @@ function ActiveShiftPanel({
   teachers: DirectoryItem[];
   classes: DirectoryItem[];
   importedClasses: CalendarClassRow[];
+  onSetClassStatus: (id: string, status: "scheduled" | "completed" | "cancelled") => void;
 }) {
   const d = formatDuration(shift.check_in_at, null);
   const checkInAt = new Date(shift.check_in_at);
@@ -742,6 +817,11 @@ function ActiveShiftPanel({
   const target = Math.max(expected ?? 0, shift.classes.length);
   const progressPct = target > 0 ? Math.min(100, (filled / target) * 100) : 0;
 
+  const pendingClasses = importedClasses.filter((c) => {
+    const st = classStatusOf(c, now);
+    return st === "upcoming" || st === "live";
+  }).length;
+
   const earlyMin = times ? Math.max(0, Math.round((times.endAt.getTime() - now.getTime()) / 60000)) : 0;
   const early = earlyMin > 0;
 
@@ -763,12 +843,17 @@ function ActiveShiftPanel({
       </Card>
 
       {hasImported ? (
-        <ClassScheduleCard classes={importedClasses} now={now} title="Today's overview" />
+        <ClassScheduleCard
+          classes={importedClasses}
+          now={now}
+          title="Shift Overview"
+          onSetStatus={onSetClassStatus}
+        />
       ) : (
         <Card>
           <CardContent className="space-y-5 p-5">
             <SectionTitle
-              title="Today's overview"
+              title="Shift Overview"
               meta={
                 target > 0
                   ? `${target} ${target === 1 ? "class" : "classes"} scheduled`
@@ -847,6 +932,12 @@ function ActiveShiftPanel({
             onComplete={onCheckOut}
             size={200}
           />
+          {pendingClasses > 0 && (
+            <p className="max-w-sm text-center text-xs text-alert">
+              Some scheduled classes haven't been processed yet. Mark them as Completed or Cancelled
+              before checking out.
+            </p>
+          )}
           {early ? (
             <p className="max-w-sm text-center text-xs text-muted-foreground">
               Scheduled until {fmtTime(scheduledShift!.end_time)} — checking out now records an early

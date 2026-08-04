@@ -78,3 +78,19 @@ export const listMyCalendarClasses = createServerFn({ method: "GET" }).handler(
     return listClassesForOperator(displayName, from, to);
   },
 );
+
+/** Marks a class in the current shift as completed or cancelled. */
+export const setMyClassStatus = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string; status: "scheduled" | "completed" | "cancelled" }) => {
+    if (!data || typeof data.id !== "string") throw new Error("Invalid input");
+    if (!["scheduled", "completed", "cancelled"].includes(data.status)) {
+      throw new Error("Invalid status");
+    }
+    return { id: data.id, status: data.status };
+  })
+  .handler(async ({ data }): Promise<CalendarClassRow> => {
+    const { username } = await requireOperator();
+    const { loadOperatorCalendar, setClassStatus } = await import("./gcal.server");
+    const { displayName } = await loadOperatorCalendar(username);
+    return setClassStatus(displayName, data.id, data.status);
+  });
