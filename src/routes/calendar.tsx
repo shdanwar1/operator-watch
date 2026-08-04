@@ -11,8 +11,8 @@ import {
   type ScheduledShiftRow,
   type ShiftRow,
 } from "@/lib/shifts.functions";
-import { syncGoogleCalendar, getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
-import type { MatchLog } from "@/lib/gcal-match";
+import { getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
+import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -130,7 +130,6 @@ function CalendarPage() {
   const createSched = useServerFn(createScheduledShift);
   const updateSched = useServerFn(updateScheduledShift);
   const deleteSched = useServerFn(deleteScheduledShift);
-  const syncFn = useServerFn(syncGoogleCalendar);
   const getUrlFn = useServerFn(getMyCalendarUrl);
   const setUrlFn = useServerFn(setMyCalendarUrl);
 
@@ -139,14 +138,11 @@ function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [monthOffset, setMonthOffset] = useState(0);
   const [editor, setEditor] = useState<EditorState | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<Date | null>(null);
   const [icsUrl, setIcsUrl] = useState<string | null>(null);
   const [calDialogOpen, setCalDialogOpen] = useState(false);
   const [calDraft, setCalDraft] = useState("");
   const [savingUrl, setSavingUrl] = useState(false);
   const [syncNextMonth, setSyncNextMonth] = useState(false);
-  const [matchLogs, setMatchLogs] = useState<MatchLog[]>([]);
   const [debug, setDebug] = useState(false);
 
   // Sync scope preference is a per-device setting; current month is always on.
@@ -196,35 +192,17 @@ function CalendarPage() {
     };
   }, [getUrlFn]);
 
-  const runSync = useCallback(
-    async (opts?: { silent?: boolean }) => {
-      if (!hasGoogleCalendar) return;
-      setSyncing(true);
-      try {
-        const res = await syncFn({ data: { includeNextMonth: syncNextMonth } });
-        setLastSync(new Date());
-        setMatchLogs(res.logs ?? []);
-        if (!res.ok) {
-          if (!opts?.silent) toast.error(res.error ?? "Sync failed");
-        } else if (!opts?.silent) {
-          const parts: string[] = [];
-          if (res.shifts) parts.push(`${res.shifts} shift${res.shifts === 1 ? "" : "s"}`);
-          if (res.removed) parts.push(`${res.removed} removed`);
-          toast.success(
-            parts.length
-              ? `Calendar synced — ${parts.join(", ")} from ${res.fetched} classes`
-              : `Calendar synced — no shifts (${res.fetched} classes)`,
-          );
-        }
-        await load();
-      } catch (e) {
-        if (!opts?.silent) toast.error(e instanceof Error ? e.message : "Sync failed");
-      } finally {
-        setSyncing(false);
-      }
-    },
-    [hasGoogleCalendar, syncFn, load, syncNextMonth],
-  );
+  const { syncing, lastSync, logs: matchLogs, runSync } = useCalendarSync({
+    enabled: hasGoogleCalendar,
+    onSynced: load,
+    announce: true,
+    includeNextMonth: syncNextMonth,
+  });
+
+  // Another view finished a sync — pull the newly generated shifts in.
+  useSyncListener(() => {
+    load();
+  });
 
   async function handleSaveCalendarUrl() {
     setSavingUrl(true);
@@ -240,14 +218,6 @@ function CalendarPage() {
       setSavingUrl(false);
     }
   }
-
-  // Auto-sync on mount and every 5 minutes for operators with a linked calendar.
-  useEffect(() => {
-    if (!hasGoogleCalendar) return;
-    runSync({ silent: true });
-    const t = setInterval(() => runSync({ silent: true }), 5 * 60 * 1000);
-    return () => clearInterval(t);
-  }, [hasGoogleCalendar, runSync]);
 
   const now = new Date();
   const today = new Date(now);
