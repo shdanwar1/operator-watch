@@ -491,8 +491,8 @@ function Index() {
             />
           ) : (
             <>
-              {focus === "time_to_leave" ? (
-                checkInLocked ? (
+              {focus === "time_to_leave" &&
+                (checkInLocked ? (
                   <LockedFeatureCard
                     icon={<Train className="h-4 w-4" />}
                     title="Time to Leave"
@@ -501,27 +501,31 @@ function Index() {
                   />
                 ) : (
                   <TimeToLeaveCard scheduled={scheduled} now={now} variant="hero" />
-                )
-              ) : checkInLocked ? (
+                ))}
+
+              {/* Check In is always present — only its state changes. */}
+              {checkInLocked ? (
                 <LockedFeatureCard
                   icon={<LogIn className="h-4 w-4" />}
                   title="Check In"
                   reason="Complete your profile to enable Check In."
-                  hero
+                  hero={focus === "check_in"}
                 />
               ) : (
                 <CheckInPanel
                   openScheduled={openScheduled}
-                  scheduled={scheduled}
+                  nextShift={nextDisplay}
                   now={now}
                   onCheckIn={checkIn}
                   checkingIn={checkingIn}
+                  compact={focus === "time_to_leave"}
                 />
               )}
 
               {nextShiftClasses.length > 0 && (
                 <ClassScheduleCard classes={nextShiftClasses} now={now} title="Next shift" />
               )}
+
 
             </>
           )}
