@@ -142,6 +142,9 @@ export async function runCalendarSync(
 
 /* ───────────────────────── shared shift writing ───────────────────────── */
 
+/** Sync scope: shifts starting in [from, scopeEnd]; `to` covers overnight spill. */
+type SyncWindow = { from: string; scopeEnd: string; to: string };
+
 type ShiftPlan = {
   uid: string;
   date: string;
@@ -273,7 +276,11 @@ async function syncBusy(
       endMin: toMin(e.end_time),
     }));
 
-  const grouped = groupClassesIntoShifts(blocks);
+  // The scope boundary is the *shift start*, so a shift beginning on the last
+  // day of the scope is kept whole even when it runs into the next month.
+  const grouped = groupClassesIntoShifts(blocks).filter(
+    (g) => g.date >= window.from && g.date <= window.scopeEnd,
+  );
   const plans: ShiftPlan[] = grouped.map((g) => ({
     uid: shiftUid(opKey, g.date, g.startMin),
     date: g.date,
@@ -288,7 +295,7 @@ async function syncBusy(
   return {
     ok: true,
     mode: "busy",
-    fetched: blocks.length,
+    fetched: grouped.reduce((n, g) => n + g.classCount, 0),
     ignored: 0,
     shifts: plans.length,
     removed,
@@ -382,7 +389,9 @@ async function syncDetailed(
     startMin: toMin(i.event.start_time),
     endMin: toMin(i.event.end_time),
   }));
-  const grouped = groupClassesIntoShifts(classEvents);
+  const grouped = groupClassesIntoShifts(classEvents).filter(
+    (g) => g.date >= window.from && g.date <= window.scopeEnd,
+  );
   const plans: ShiftPlan[] = grouped.map((g) => ({
     uid: shiftUid(opKey, g.date, g.startMin),
     date: g.date,
@@ -398,6 +407,8 @@ async function syncDetailed(
     window,
     plans,
   );
+
+  const inScopeKeys = new Set(grouped.flatMap((g) => g.classKeys));
 
   const shiftIdByClassKey = new Map<string, string>();
   for (const plan of plans) {
@@ -417,7 +428,9 @@ async function syncDetailed(
   const keptStatus = new Map<string, string>(
     (existingClassRows ?? []).map((r) => [r.uid as string, r.status as string]),
   );
-  const rows = imported.map((i) => {
+  const rows = imported
+    .filter((i) => inScopeKeys.has(i.event.uid))
+    .map((i) => {
     const startMin = toMin(i.event.start_time);
     const endMin = toMin(i.event.end_time);
     return {
