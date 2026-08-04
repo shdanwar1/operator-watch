@@ -1,15 +1,21 @@
 // Studio Display shared state — synced across control panel & display window
 // via BroadcastChannel + localStorage. No backend required.
 
+/** How the entered clock time is resolved to a real datetime. */
+export type TimerMode = "next" | "running";
+
 export type StudioDisplayState = {
   startTime: string; // "HH:MM" 24h
   durationMin: number;
   notes: string;
+  /** "next" = next occurrence of that clock time, "running" = today's occurrence. */
+  timerMode?: TimerMode;
   /** Optional class context (Detailed calendar mode). */
   className?: string;
   teacherName?: string;
   updatedAt: number;
 };
+
 
 export const STUDIO_DISPLAY_KEY = "studio_display_state_v1";
 export const STUDIO_DISPLAY_CHANNEL = "studio-display";
