@@ -144,7 +144,7 @@ export function RouteMapPreview({
           boxZoom: false,
           keyboard: false,
           touchZoom: false,
-2,
+
         } as L.MapOptions);
         const dark =
           typeof document !== "undefined" &&
