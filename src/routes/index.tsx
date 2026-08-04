@@ -312,18 +312,46 @@ function Index() {
 
   // Classes imported from Google Calendar (Detailed Mode). Empty in Busy Mode,
   // where the dashboard keeps showing shift times only.
-  const todayKey = (() => {
-    const p = (n: number) => String(n).padStart(2, "0");
-    return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+  //
+  // Shift-centric, never day-centric: a shift that crosses midnight keeps every
+  // one of its classes (including the ones dated "tomorrow") in one list.
+  const classAt = (c: CalendarClassRow) => {
+    const [y, mo, d] = c.specific_date.split("-").map(Number);
+    const [h, mi] = c.start_time.split(":").map((n) => parseInt(n, 10));
+    return new Date(y, mo - 1, d, h, mi, 0, 0).getTime();
+  };
+  const activeWindow = (() => {
+    if (!active) return null;
+    const from = new Date(active.check_in_at).getTime() - 60 * 60 * 1000;
+    const end = activeScheduled ? instanceTimes(activeScheduled, new Date(active.check_in_at)).endAt : null;
+    const to = Math.max(end ? end.getTime() : 0, now.getTime()) + 60 * 60 * 1000;
+    return { from, to };
   })();
-  const activeShiftClasses = activeScheduled
-    ? calendarClasses.filter(
-        (c) =>
-          c.scheduled_shift_id === activeScheduled.id ||
-          c.specific_date === activeScheduled.specific_date,
-      )
-    : calendarClasses.filter((c) => c.specific_date === todayKey);
-  const todayClasses = calendarClasses.filter((c) => c.specific_date === todayKey);
+  const activeShiftClasses = (
+    activeScheduled
+      ? calendarClasses.filter((c) => c.scheduled_shift_id === activeScheduled.id)
+      : []
+  ).length
+    ? calendarClasses.filter((c) => c.scheduled_shift_id === activeScheduled!.id)
+    : activeWindow
+      ? calendarClasses.filter((c) => classAt(c) >= activeWindow.from && classAt(c) <= activeWindow.to)
+      : [];
+  activeShiftClasses.sort((a, b) => classAt(a) - classAt(b));
+
+  // Before check-in, preview the next continuous shift's classes.
+  const nextShiftClasses = (() => {
+    if (active) return [];
+    const target = openScheduled ?? nextInstance?.shift ?? null;
+    if (target) {
+      const byShift = calendarClasses.filter((c) => c.scheduled_shift_id === target.id);
+      if (byShift.length) return byShift.sort((a, b) => classAt(a) - classAt(b));
+    }
+    const soon = now.getTime() + 14 * 60 * 60 * 1000;
+    return calendarClasses
+      .filter((c) => classAt(c) >= now.getTime() - 60 * 60 * 1000 && classAt(c) <= soon)
+      .sort((a, b) => classAt(a) - classAt(b));
+  })();
+
 
 
 
