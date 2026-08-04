@@ -56,7 +56,11 @@ export type TimeToLeaveResult =
   | {
       ok: true;
       home_label: string;
+      home_lat: number;
+      home_lng: number;
       office_label: string;
+      office_lat: number;
+      office_lng: number;
       shift_start_iso: string;
       target_arrival_iso: string;
       departure_iso: string;
