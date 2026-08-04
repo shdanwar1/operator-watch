@@ -326,12 +326,19 @@ async function syncDetailed(
   const now = new Date();
   const opKey = displayName.toLowerCase();
 
-  const [{ data: classRows }, { data: teacherRows }] = await Promise.all([
+  const [{ data: classRows }, { data: teacherRows }, { data: aliasRows }] = await Promise.all([
     supabaseAdmin.from("classes").select("id,name").limit(2000),
     supabaseAdmin.from("teachers").select("id,name").limit(2000),
+    supabaseAdmin.from("class_aliases").select("alias_key,class_id,teacher_id").limit(5000),
   ]);
   const classDir = (classRows ?? []) as { id: string; name: string }[];
   const teacherDir = (teacherRows ?? []) as { id: string; name: string }[];
+  const aliases: AliasEntry[] = (aliasRows ?? []).map((a) => ({
+    aliasKey: a.alias_key as string,
+    classId: (a.class_id ?? null) as string | null,
+    teacherId: (a.teacher_id ?? null) as string | null,
+  }));
+
 
   const inWindow = events.filter(
     (e) => e.specific_date >= window.from && e.specific_date <= window.to,
