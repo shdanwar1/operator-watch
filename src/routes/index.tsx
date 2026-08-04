@@ -862,14 +862,14 @@ function ActiveShiftPanel({
       )}
 
       <Card>
-        <CardContent className="flex flex-col items-center gap-4 px-5 py-10">
+        <CardContent className="flex flex-col items-center gap-4 px-5 py-6">
           <HoldButton
             label="Hold to Check Out"
             successLabel="Checked out"
             tone="danger"
             busy={checkingOut}
             onComplete={onCheckOut}
-            size={200}
+            size={100}
           />
           {pendingClasses > 0 && (
             <p className="max-w-sm text-center text-xs text-alert">
