@@ -19,14 +19,11 @@ export type Database = {
           class_id: string | null
           class_name: string
           created_at: string
-          description: string | null
-          duration_min: number
           end_time: string
           id: string
-          meet_link: string | null
           operator: string
+          raw_title: string | null
           scheduled_shift_id: string | null
-          source: string
           specific_date: string
           start_time: string
           status: string
@@ -39,14 +36,11 @@ export type Database = {
           class_id?: string | null
           class_name: string
           created_at?: string
-          description?: string | null
-          duration_min?: number
           end_time: string
           id?: string
-          meet_link?: string | null
           operator: string
+          raw_title?: string | null
           scheduled_shift_id?: string | null
-          source?: string
           specific_date: string
           start_time: string
           status?: string
@@ -59,14 +53,11 @@ export type Database = {
           class_id?: string | null
           class_name?: string
           created_at?: string
-          description?: string | null
-          duration_min?: number
           end_time?: string
           id?: string
-          meet_link?: string | null
           operator?: string
+          raw_title?: string | null
           scheduled_shift_id?: string | null
-          source?: string
           specific_date?: string
           start_time?: string
           status?: string
@@ -92,6 +83,51 @@ export type Database = {
           },
           {
             foreignKeyName: "calendar_classes_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_aliases: {
+        Row: {
+          alias_key: string
+          class_id: string | null
+          created_at: string
+          id: string
+          raw_title: string
+          teacher_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          alias_key: string
+          class_id?: string | null
+          created_at?: string
+          id?: string
+          raw_title: string
+          teacher_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alias_key?: string
+          class_id?: string | null
+          created_at?: string
+          id?: string
+          raw_title?: string
+          teacher_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_aliases_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_aliases_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
             referencedRelation: "teachers"
