@@ -161,7 +161,6 @@ export const createPastShift = createServerFn({ method: "POST" })
           ? null
           : String(data.notes).slice(0, 5000);
       return {
-        operator_name: name,
         check_in_at: ci.toISOString(),
         check_out_at: co.toISOString(),
         classes,
@@ -170,16 +169,16 @@ export const createPastShift = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data }) => {
-    const { username, isAdmin } = await requireGate();
-    // Non-admins may only create past shifts under their own operator name.
-    const operator_name =
-      isAdmin
-        ? data.operator_name
-        : username && data.operator_name.toLowerCase() === username.toLowerCase()
-          ? username
-          : (() => {
-              throw new Response("Forbidden", { status: 403 });
-            })();
+    const { username } = await requireGate();
+    // Ownership is derived from the session only — never from the request.
+    if (!username) throw new Response("Forbidden", { status: 403 });
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: op } = await supabaseAdmin
+      .from("operators")
+      .select("username")
+      .ilike("username", username)
+      .maybeSingle();
+    const operator_name = (op as { username: string } | null)?.username ?? username;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("shifts")
