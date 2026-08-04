@@ -330,19 +330,26 @@ async function syncDetailed(displayName: string, events: ParsedEvent[]): Promise
     }
     const { result, log } = matchEvent(e.summary, classDir, teacherDir);
     logs.push(log);
-    if (!result) {
-      ignored++; // personal event or below the confidence threshold
+    if (result) {
+      // The database is the source of truth: calendar text is discarded here.
+      imported.push({
+        event: e,
+        className: result.className,
+        teacherName: result.teacherName,
+        classId: result.classId,
+        teacherId: result.teacherId,
+      });
       continue;
     }
-    // The database is the source of truth: calendar text is discarded here.
-    imported.push({
-      event: e,
-      className: result.className,
-      teacherName: result.teacherName,
-      classId: result.classId,
-      teacherId: result.teacherId,
-    });
+    // Directory matching failed. The event is still a real calendar block, so
+    // it MUST be imported — otherwise the same calendar produces fewer shifts
+    // in "see all event details" mode than in free/busy mode. Only the
+    // metadata degrades: raw calendar text instead of canonical directory
+    // values, and no class/teacher ids.
+    const { className, teacherName } = fallbackTitle(e.summary);
+    imported.push({ event: e, className, teacherName, classId: null, teacherId: null });
   }
+
 
   // Build shifts from the validated classes only.
   const classEvents: ClassEvent[] = imported.map((i) => ({
