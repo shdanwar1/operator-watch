@@ -201,7 +201,14 @@ export function detectTeacher(title: string, teachers: DirectoryEntry[]): Teache
 export function stripTeacher(title: string, hit: TeacherHit): string {
   if (!hit) return normalizeText(title);
   const base = normalizeText(title);
-  const targets = [hit.entry.name, hit.matchedText].map((t) => normalizeText(t)).filter(Boolean);
+  // Remove the full name, the matched text, and each individual name token so
+  // partial mentions ("… with Anna-Lisa") never pollute the class title.
+  const nameTokens = matchKey(hit.entry.name)
+    .split(" ")
+    .filter((t) => t.length >= 3);
+  const targets = [hit.entry.name, hit.matchedText, ...nameTokens]
+    .map((t) => normalizeText(t))
+    .filter(Boolean);
   let out = base;
   for (const t of targets) {
     const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
