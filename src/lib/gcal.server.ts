@@ -359,27 +359,21 @@ async function syncDetailed(
       });
       continue;
     }
-    const { result, log } = matchEvent(e.summary, classDir, teacherDir);
+    const { result, log } = matchEvent(e.summary, classDir, teacherDir, aliases);
     logs.push(log);
-    if (result) {
-      // The database is the source of truth: calendar text is discarded here.
-      imported.push({
-        event: e,
-        className: result.className,
-        teacherName: result.teacherName,
-        classId: result.classId,
-        teacherId: result.teacherId,
-      });
-      continue;
-    }
-    // Directory matching failed. The event is still a real calendar block, so
-    // it MUST be imported — otherwise the same calendar produces fewer shifts
-    // in "see all event details" mode than in free/busy mode. Only the
-    // metadata degrades: raw calendar text instead of canonical directory
-    // values, and no class/teacher ids.
-    const { className, teacherName } = fallbackTitle(e.summary);
-    imported.push({ event: e, className, teacherName, classId: null, teacherId: null });
+    // Nothing is ever dropped: an event without a confident directory match is
+    // still a real calendar block, so it imports with its raw title and no ids.
+    // Only the metadata degrades — shift boundaries stay identical.
+    const fb = fallbackTitle(e.summary);
+    imported.push({
+      event: e,
+      className: result.className ?? fb.className,
+      teacherName: result.teacherName ?? fb.teacherName,
+      classId: result.classId,
+      teacherId: result.teacherId,
+    });
   }
+
 
 
   // Build shifts from the validated classes only.
