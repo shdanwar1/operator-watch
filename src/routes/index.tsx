@@ -403,13 +403,31 @@ function Index() {
     updateActive({ classes: active.classes.filter((_, i) => i !== idx) });
   }
 
+  /** Operator marks a class of the current shift completed / cancelled. */
+  async function setClassStatus(id: string, status: "scheduled" | "completed" | "cancelled") {
+    setCalendarClasses((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
+    try {
+      await setClassStatusFn({ data: { id, status } });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update the class");
+      load();
+    }
+  }
+
   async function checkOut() {
     if (!active) return;
     setCheckingOut(true);
     try {
+      // Only classes that were actually taught go into permanent shift history.
+      const completed = activeShiftClasses
+        .filter((c) => classStatusOf(c, new Date()) === "completed")
+        .map((c) => ({ class: c.class_name, teacher: c.teacher_name }));
+      const patch: Partial<Shift> = { check_out_at: new Date().toISOString() };
+      if (completed.length) patch.classes = completed;
       await updateShiftServer({
-        data: { id: active.id, patch: { check_out_at: new Date().toISOString() } },
+        data: { id: active.id, patch },
       });
+
       // Best-effort: record used teachers/classes in the directories.
       try {
         await recordUsage({
