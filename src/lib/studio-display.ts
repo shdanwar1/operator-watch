@@ -28,6 +28,7 @@ export const DEFAULT_STUDIO_DISPLAY_STATE: StudioDisplayState = {
   startTime: "14:00",
   durationMin: 60,
   notes: "",
+  timerMode: "next",
   className: "",
   teacherName: "",
   updatedAt: 0,
