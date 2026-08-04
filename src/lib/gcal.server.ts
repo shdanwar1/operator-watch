@@ -43,10 +43,10 @@ export type CalendarClassRow = {
   specific_date: string;
   start_time: string;
   end_time: string;
-  duration_min: number;
   status: string;
-  meet_link: string | null;
-  description: string | null;
+  class_id: string | null;
+  teacher_id: string | null;
+  raw_title: string | null;
   scheduled_shift_id: string | null;
 };
 
@@ -493,7 +493,7 @@ export async function listClassesForOperator(
   const { data, error } = await supabaseAdmin
     .from("calendar_classes")
     .select(
-      "id, uid, class_name, teacher_name, specific_date, start_time, end_time, duration_min, status, meet_link, description, scheduled_shift_id",
+      "id, uid, class_id, teacher_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id",
     )
     .ilike("operator", displayName)
     .gte("specific_date", fromDate)
@@ -526,7 +526,7 @@ export async function setClassStatus(
     .update({ status })
     .eq("id", id)
     .select(
-      "id, uid, class_name, teacher_name, specific_date, start_time, end_time, duration_min, status, meet_link, description, scheduled_shift_id",
+      "id, uid, class_id, teacher_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id",
     )
     .single();
   if (error) throw new Error(error.message);
