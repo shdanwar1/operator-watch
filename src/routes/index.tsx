@@ -493,9 +493,10 @@ function Index() {
                 />
               )}
 
-              {todayClasses.length > 0 && (
-                <ClassScheduleCard classes={todayClasses} now={now} title="Today's overview" />
+              {nextShiftClasses.length > 0 && (
+                <ClassScheduleCard classes={nextShiftClasses} now={now} title="Next shift" />
               )}
+
             </>
           )}
         </div>
