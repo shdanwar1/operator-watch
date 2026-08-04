@@ -11,6 +11,7 @@ import {
 } from "@/lib/studio-display";
 
 import { pickPromptSet, type Prompt } from "@/lib/icebreakers";
+import { subscribeSync } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/display")({
   component: DisplayScreen,
@@ -78,9 +79,11 @@ function DisplayScreen() {
     startTime: string;
     durationMin: number;
   } | null>(null);
+  const [classId, setClassId] = useState<string | null>(null);
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const s = p.get("s");
+    setClassId(p.get("id"));
     if (!s) return;
     setOverride({
       className: p.get("c") ?? "",
@@ -89,6 +92,23 @@ function DisplayScreen() {
       durationMin: Math.max(1, parseInt(p.get("d") ?? "60", 10) || 60),
     });
   }, []);
+
+  // A Google Calendar sync can move or rename this class; the display picks
+  // the new values up live instead of showing stale information.
+  useEffect(() => {
+    if (!classId) return;
+    return subscribeSync((msg) => {
+      if (msg.type !== "class-display") return;
+      const fresh = msg.classes.find((c) => c.id === classId);
+      if (!fresh) return;
+      setOverride({
+        className: fresh.className,
+        teacherName: fresh.teacherName,
+        startTime: fresh.startTime,
+        durationMin: Math.max(1, fresh.durationMin),
+      });
+    });
+  }, [classId]);
 
   if (!ready) return null;
 
