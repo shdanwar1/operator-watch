@@ -596,28 +596,8 @@ function UpcomingShifts({
 }
 
 
-function nextShiftInstance(
-  scheduled: ScheduledShift[],
-  now: Date,
-): { shift: ScheduledShift; startAt: Date } | null {
-  const overrides = overrideDates(scheduled);
-  let best: { shift: ScheduledShift; startAt: Date } | null = null;
-  for (const s of scheduled) {
-    const [sh, sm] = s.start_time.split(":").map((n) => parseInt(n, 10));
-    for (let offset = 0; offset < 21; offset++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() + offset);
-      if (!shiftAppliesOn(s, d, overrides)) continue;
-      d.setHours(sh, sm, 0, 0);
-      if (d.getTime() <= now.getTime()) continue;
-      if (!best || d.getTime() < best.startAt.getTime()) {
-        best = { shift: s, startAt: d };
-      }
-      break;
-    }
-  }
-  return best;
-}
+
+
 
 function formatCountdown(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000));
