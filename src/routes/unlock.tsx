@@ -252,11 +252,11 @@ function SiteStage(props: {
         </div>
         <div className="mb-1 flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
           <Radio className="h-3.5 w-3.5" />
-          Studio Operator Shift Tracker
+          DANCE MASTERCLASS
         </div>
         <h1 className="text-2xl font-semibold tracking-tight">Unlock Studio</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter the site password to continue.
+          {" "}
         </p>
       </div>
 
@@ -301,7 +301,7 @@ function SiteStage(props: {
 
       <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
         <ShieldCheck className="h-3.5 w-3.5" />
-        This protects access to the entire studio system.
+        {" "}
       </div>
     </Card>
   );
