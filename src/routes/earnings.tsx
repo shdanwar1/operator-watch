@@ -406,15 +406,21 @@ function AttendanceTableRow({ row }: { row: AttendanceRow }) {
       <td className={`px-5 py-3 text-right tabular-nums ${diffColor}`}>
         {row.diffMin != null ? formatDiff(row.diffMin) : "—"}
       </td>
-      <td className="px-5 py-3 text-center">
-        <Badge
-          variant="secondary"
-          className="border-0 text-white"
-          style={{ backgroundColor: CATEGORY_COLOR[row.primary] }}
-        >
-          {CATEGORY_LABEL[row.primary]}
-        </Badge>
+      <td className="px-5 py-3">
+        <div className="flex flex-wrap items-center justify-center gap-1">
+          {(row.categories.length ? row.categories : [row.primary]).map((c) => (
+            <Badge
+              key={c}
+              variant="secondary"
+              className="border-0 text-white"
+              style={{ backgroundColor: CATEGORY_COLOR[c] }}
+            >
+              {CATEGORY_LABEL[c]}
+            </Badge>
+          ))}
+        </div>
       </td>
+
     </tr>
   );
 }
