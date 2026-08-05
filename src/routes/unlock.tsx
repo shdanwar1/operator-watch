@@ -299,10 +299,6 @@ function SiteStage(props: {
         </Button>
       </form>
 
-      <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-        <ShieldCheck className="h-3.5 w-3.5" />
-        {" "}
-      </div>
     </Card>
   );
 }
