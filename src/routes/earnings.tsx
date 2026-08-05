@@ -164,7 +164,7 @@ function EarningsPage() {
         fmtTime(r.checkOut),
         formatHM(r.workedMin),
         r.diffMin != null ? formatDiff(r.diffMin) : "-",
-        CATEGORY_LABEL[r.primary],
+        r.categories.map((c) => CATEGORY_LABEL[c]).join(" • "),
       ]),
       styles: { font: "helvetica", fontSize: 10, cellPadding: 6, lineColor: [230, 230, 230], lineWidth: 0.5 },
       headStyles: { fillColor: [245, 245, 247], textColor: 30, fontStyle: "bold" },
