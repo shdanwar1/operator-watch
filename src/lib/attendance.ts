@@ -23,6 +23,8 @@ export type AttendanceRow = {
   nightMin: number;
   weekendMin: number;
   primary: HourCategory;
+  /** Every category with worked minutes, ordered Day → Night → Weekend. Display only. */
+  categories: HourCategory[];
   // Scheduled shift (if linked)
   scheduledStart: Date | null;
   scheduledEnd: Date | null;
@@ -121,6 +123,9 @@ export function buildAttendanceRows(
         nightMin: night,
         weekendMin: weekend,
         primary,
+        categories: (["day", "night", "weekend"] as HourCategory[]).filter(
+          (c) => (c === "day" ? day : c === "night" ? night : weekend) > 0,
+        ),
         scheduledStart: sched?.start ?? null,
         scheduledEnd: sched?.end ?? null,
         scheduledMin,
