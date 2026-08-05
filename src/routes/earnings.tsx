@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { getGateStatus } from "@/lib/gate.functions";
 import {
@@ -231,7 +231,27 @@ function EarningsPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Attendance" subtitle={summary.monthLabel} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PageHeader title="Attendance" subtitle={summary.monthLabel} />
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="icon" onClick={() => shiftMonth(-1)} aria-label="Previous month">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="min-w-[9rem] text-center text-sm font-medium tabular-nums">
+            {summary.monthLabel}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => shiftMonth(1)}
+            disabled={isCurrentMonth}
+            aria-label="Next month"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
 
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
