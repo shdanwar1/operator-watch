@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { getGateStatus } from "@/lib/gate.functions";
 import {
@@ -97,8 +97,18 @@ function EarningsPage() {
     };
   }, []);
 
-  const now = new Date();
-  const monthStart = useMemo(() => new Date(now.getFullYear(), now.getMonth(), 1), []);
+  const [monthStart, setMonthStart] = useState(() => {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), 1);
+  });
+  const isCurrentMonth = useMemo(() => {
+    const n = new Date();
+    return (
+      monthStart.getFullYear() === n.getFullYear() && monthStart.getMonth() === n.getMonth()
+    );
+  }, [monthStart]);
+  const shiftMonth = (delta: number) =>
+    setMonthStart((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
   const summary = useMemo(
     () => summarizeMonth(shifts, scheduled, monthStart),
     [shifts, scheduled, monthStart],
@@ -108,6 +118,7 @@ function EarningsPage() {
     summary.scheduledMin > 0
       ? Math.min(100, (summary.workedMin / summary.scheduledMin) * 100)
       : 0;
+
 
   function exportPdf() {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -153,7 +164,7 @@ function EarningsPage() {
         fmtTime(r.checkOut),
         formatHM(r.workedMin),
         r.diffMin != null ? formatDiff(r.diffMin) : "-",
-        CATEGORY_LABEL[r.primary],
+        r.categories.map((c) => CATEGORY_LABEL[c]).join(" • "),
       ]),
       styles: { font: "helvetica", fontSize: 10, cellPadding: 6, lineColor: [230, 230, 230], lineWidth: 0.5 },
       headStyles: { fillColor: [245, 245, 247], textColor: 30, fontStyle: "bold" },
@@ -220,7 +231,27 @@ function EarningsPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Attendance" subtitle={summary.monthLabel} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PageHeader title="Attendance" subtitle={summary.monthLabel} />
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="icon" onClick={() => shiftMonth(-1)} aria-label="Previous month">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="min-w-[9rem] text-center text-sm font-medium tabular-nums">
+            {summary.monthLabel}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => shiftMonth(1)}
+            disabled={isCurrentMonth}
+            aria-label="Next month"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
 
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
@@ -375,15 +406,21 @@ function AttendanceTableRow({ row }: { row: AttendanceRow }) {
       <td className={`px-5 py-3 text-right tabular-nums ${diffColor}`}>
         {row.diffMin != null ? formatDiff(row.diffMin) : "—"}
       </td>
-      <td className="px-5 py-3 text-center">
-        <Badge
-          variant="secondary"
-          className="border-0 text-white"
-          style={{ backgroundColor: CATEGORY_COLOR[row.primary] }}
-        >
-          {CATEGORY_LABEL[row.primary]}
-        </Badge>
+      <td className="px-5 py-3">
+        <div className="flex flex-wrap items-center justify-center gap-1">
+          {(row.categories.length ? row.categories : [row.primary]).map((c) => (
+            <Badge
+              key={c}
+              variant="secondary"
+              className="border-0 text-white"
+              style={{ backgroundColor: CATEGORY_COLOR[c] }}
+            >
+              {CATEGORY_LABEL[c]}
+            </Badge>
+          ))}
+        </div>
       </td>
+
     </tr>
   );
 }
