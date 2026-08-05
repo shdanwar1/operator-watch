@@ -97,8 +97,18 @@ function EarningsPage() {
     };
   }, []);
 
-  const now = new Date();
-  const monthStart = useMemo(() => new Date(now.getFullYear(), now.getMonth(), 1), []);
+  const [monthStart, setMonthStart] = useState(() => {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), 1);
+  });
+  const isCurrentMonth = useMemo(() => {
+    const n = new Date();
+    return (
+      monthStart.getFullYear() === n.getFullYear() && monthStart.getMonth() === n.getMonth()
+    );
+  }, [monthStart]);
+  const shiftMonth = (delta: number) =>
+    setMonthStart((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
   const summary = useMemo(
     () => summarizeMonth(shifts, scheduled, monthStart),
     [shifts, scheduled, monthStart],
@@ -108,6 +118,7 @@ function EarningsPage() {
     summary.scheduledMin > 0
       ? Math.min(100, (summary.workedMin / summary.scheduledMin) * 100)
       : 0;
+
 
   function exportPdf() {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
