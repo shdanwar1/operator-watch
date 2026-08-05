@@ -22,9 +22,9 @@ REVOKE ALL ON FUNCTION public.verify_operator_pin(text, text) FROM PUBLIC, anon,
 GRANT EXECUTE ON FUNCTION public.verify_operator_pin(text, text) TO service_role;
 
 -- Set PINs for existing accounts
-UPDATE public.operators SET pin_hash = extensions.crypt('2026', extensions.gen_salt('bf'))
+UPDATE public.operators SET pin_hash = extensions.crypt(to_char(floor(random()*10000)::int, 'FM0000'), extensions.gen_salt('bf'))
   WHERE lower(username) = 'admin';
-UPDATE public.operators SET pin_hash = extensions.crypt('2217', extensions.gen_salt('bf'))
+UPDATE public.operators SET pin_hash = extensions.crypt(to_char(floor(random()*10000)::int, 'FM0000'), extensions.gen_salt('bf'))
   WHERE lower(username) = 'shad';
 
 -- Create Alex and Max as empty operators. password_hash/magic_word_hash are NOT NULL,
@@ -33,7 +33,7 @@ INSERT INTO public.operators (username, password_hash, magic_word_hash, pin_hash
 SELECT 'Alex',
        extensions.crypt(encode(extensions.gen_random_bytes(24), 'hex'), extensions.gen_salt('bf')),
        extensions.crypt(encode(extensions.gen_random_bytes(24), 'hex'), extensions.gen_salt('bf')),
-       extensions.crypt('1125', extensions.gen_salt('bf')),
+       extensions.crypt(to_char(floor(random()*10000)::int, 'FM0000'), extensions.gen_salt('bf')),
        false
 WHERE NOT EXISTS (SELECT 1 FROM public.operators WHERE lower(username) = 'alex');
 
@@ -41,7 +41,7 @@ INSERT INTO public.operators (username, password_hash, magic_word_hash, pin_hash
 SELECT 'Max',
        extensions.crypt(encode(extensions.gen_random_bytes(24), 'hex'), extensions.gen_salt('bf')),
        extensions.crypt(encode(extensions.gen_random_bytes(24), 'hex'), extensions.gen_salt('bf')),
-       extensions.crypt('1412', extensions.gen_salt('bf')),
+       extensions.crypt(to_char(floor(random()*10000)::int, 'FM0000'), extensions.gen_salt('bf')),
        false
 WHERE NOT EXISTS (SELECT 1 FROM public.operators WHERE lower(username) = 'max');
 
