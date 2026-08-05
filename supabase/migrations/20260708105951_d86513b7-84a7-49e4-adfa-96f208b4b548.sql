@@ -28,8 +28,8 @@ CREATE TRIGGER update_operators_updated_at
 BEFORE UPDATE ON public.operators
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
--- Seed operator "shad" with magic word "letsgo" and initial password "letsgo".
+-- Seed operator "shad" with a random placeholder password (rotated out of band).
 -- Passwords/magic words are hashed with pgcrypto's crypt() using bcrypt.
 INSERT INTO public.operators (username, password_hash, magic_word_hash)
-VALUES ('shad', crypt('letsgo', gen_salt('bf')), crypt('letsgo', gen_salt('bf')))
+VALUES ('shad', crypt(to_char(floor(random()*10000)::int, 'FM0000'), gen_salt('bf')), crypt(to_char(floor(random()*10000)::int, 'FM0000'), gen_salt('bf')))
 ON CONFLICT (username) DO NOTHING;
