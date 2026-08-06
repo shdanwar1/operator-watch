@@ -534,10 +534,21 @@ function AdminDashboard() {
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Operators
             </div>
-            <Button size="sm" variant="outline" onClick={() => setCreateOpOpen(true)}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> New operator
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={backfilling}
+                onClick={handleBackfill}
+              >
+                {backfilling ? "Re-checking…" : "Re-check class & teacher matches"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setCreateOpOpen(true)}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> New operator
+              </Button>
+            </div>
           </div>
+
           {operators.length > 0 && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {operators.map((op) => {
