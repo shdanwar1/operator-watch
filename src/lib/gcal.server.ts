@@ -360,15 +360,17 @@ async function syncDetailed(
     logs.push(log);
     // Nothing is ever dropped: an event without a confident directory match is
     // still a real calendar block, so it imports with its raw title and no ids.
-    // Only the metadata degrades — shift boundaries stay identical.
-    const fb = fallbackTitle(e.summary);
+    // Only the metadata degrades — shift boundaries stay identical. The
+    // fallback text comes from matchEvent itself (not a second, independent
+    // splitter) so the class and teacher text always agree with each other.
     imported.push({
       event: e,
-      className: result.className ?? fb.className,
-      teacherName: result.teacherName ?? fb.teacherName,
+      className: result.className ?? result.fallbackClassName,
+      teacherName: result.teacherName ?? result.fallbackTeacherName,
       classId: result.classId,
       teacherId: result.teacherId,
     });
+
   }
 
 
