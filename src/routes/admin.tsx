@@ -178,6 +178,24 @@ function AdminDashboard() {
   const updateOpFn = useServerFn(adminUpdateOperator);
   const createOpFn = useServerFn(adminCreateOperator);
   const setActiveFn = useServerFn(adminSetOperatorActive);
+  const backfillFn = useServerFn(backfillClassMatches);
+
+  const [backfilling, setBackfilling] = useState(false);
+
+  async function handleBackfill() {
+    setBackfilling(true);
+    try {
+      const res = await backfillFn();
+      toast.success(
+        `Scanned ${res.scanned} class${res.scanned === 1 ? "" : "es"} · ${res.updated} updated · ${res.unchanged} unchanged`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to re-check matches");
+    } finally {
+      setBackfilling(false);
+    }
+  }
+
 
   const [editingOp, setEditingOp] = useState<OperatorBasic | null>(null);
   const [createOpOpen, setCreateOpOpen] = useState(false);
