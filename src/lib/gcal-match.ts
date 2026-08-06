@@ -1,17 +1,26 @@
 /**
- * Semantic matching engine for Google Calendar event titles.
+ * Human-style matching engine for Google Calendar event titles.
  *
  * The `classes` and `teachers` tables are the single source of truth. A raw
- * calendar title is resolved through an ordered pipeline:
+ * calendar title is resolved the way a person scanning the schedule would:
  *
- *   1. Learned alias (operator corrections)
- *   2. Teacher detection
- *   3. Teacher removal + normalisation
- *   4. Class matching (exact → starts-with → contains → tokens → fuzzy)
- *   5. Teacher-assisted tie-breaking
+ *   1. Learned alias (operator corrections) — always wins.
+ *   2. Find the class. Class names are a small, known list, so they're the
+ *      reliable anchor: try an exact hit, then "the calendar title is a
+ *      shorthand for a longer class name" (or vice versa), then "the class
+ *      name shows up somewhere in the title", then (last resort) a fuzzy
+ *      guess.
+ *   3. Strip the matched class text out of the title. Whatever's left is
+ *      almost always just the teacher.
+ *   4. Find the teacher in what's left, matching name *tokens* against each
+ *      other (first name / last name separately) rather than scoring the
+ *      whole string as one blob — a single misspelled letter in a surname
+ *      ("Arbaleaz" vs "Arbelaez") shouldn't be able to sink an otherwise
+ *      obvious match, the way one blended similarity score can.
  *
- * Nothing is ever dropped: an unmatched event still imports with its raw
- * calendar title so shift generation stays identical in every sharing mode.
+ * Nothing is ever dropped: an unmatched event still imports with a clean,
+ * human-readable title (never a mash of leftover class-subtitle words) so
+ * shift generation stays correct even when the directory lookup misses.
  */
 
 export const CLASS_THRESHOLD = 72;
@@ -27,6 +36,10 @@ export type MatchResult = {
   teacherId: string | null;
   confidence: number;
   reason: string;
+  /** Best-effort human-readable text to show when className is null. */
+  fallbackClassName: string;
+  /** Best-effort human-readable text to show when teacherName is null. */
+  fallbackTeacherName: string;
 };
 
 export type MatchLog = {
@@ -118,7 +131,8 @@ function tokenOverlap(a: string, b: string): number {
   return (2 * hit) / (A.size + B.size);
 }
 
-/** Blended similarity in 0..100 (tolerates minor spelling mistakes). */
+/** Blended similarity in 0..100 (tolerates minor spelling mistakes). Used for
+ *  class-name matching, where whole-phrase comparison works well. */
 export function similarity(a: string, b: string): number {
   const ka = matchKey(a);
   const kb = matchKey(b);
@@ -131,6 +145,72 @@ export function similarity(a: string, b: string): number {
     dice(tightKey(a), tightKey(b)),
   );
   return Math.round(score * 1000) / 10;
+}
+
+/** Levenshtein edit distance. */
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(
+        prev[j]! + 1,
+        cur[j - 1]! + 1,
+        prev[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+    prev = cur;
+  }
+  return prev[b.length]!;
+}
+
+/** Single-word similarity (0..100) — how a person reads two words as "the
+ *  same word, just spelled slightly differently". Blends character-overlap
+ *  with edit distance so letter transpositions (a common typo shape) don't
+ *  tank the score the way pure bigram overlap can. */
+function tokenSim(a: string, b: string): number {
+  if (a === b) return 100;
+  if (a.length < 2 || b.length < 2) return 0;
+  const editSim = (1 - levenshtein(a, b) / Math.max(a.length, b.length)) * 100;
+  return Math.max(dice(a, b) * 100, editSim);
+}
+
+/**
+ * Compares a set of candidate words against a name's words, pairing each
+ * name-word with its best available match (first name against first name,
+ * surname against surname — regardless of order) instead of blending
+ * everything into one string score. This is what makes "Isabel Arbaleaz"
+ * still resolve to "Isabel Arbelaez": the first name matches perfectly and
+ * anchors the pair, so one shaky surname doesn't sink the whole thing — but
+ * "Elena Pris" vs "Elena Lucas" still correctly fails, because the surnames
+ * genuinely don't resemble each other once compared on their own.
+ */
+function phraseTokenScore(candidateTokens: string[], nameTokens: string[]): number {
+  if (!candidateTokens.length || !nameTokens.length) return 0;
+  const pool = [...candidateTokens];
+  let total = 0;
+  for (const want of nameTokens) {
+    let bestScore = 0;
+    let bestIdx = -1;
+    pool.forEach((have, idx) => {
+      const s = tokenSim(want, have);
+      if (s > bestScore) {
+        bestScore = s;
+        bestIdx = idx;
+      }
+    });
+    if (bestIdx >= 0) pool.splice(bestIdx, 1);
+    total += bestScore;
+  }
+  const avg = total / nameTokens.length;
+  // Extra unrelated words around the name weaken the signal a little; an
+  // isolated match ("Isabel Arbaleaz" alone) is stronger than the same name
+  // buried in a longer unrelated phrase.
+  const coverage = nameTokens.length / Math.max(nameTokens.length, candidateTokens.length);
+  return avg * (0.6 + 0.4 * coverage);
 }
 
 /* ───────────────────────── Teacher detection ───────────────────────── */
@@ -163,32 +243,50 @@ export type TeacherHit = { entry: DirectoryEntry; score: number; matchedText: st
 export function detectTeacher(title: string, teachers: DirectoryEntry[]): TeacherHit {
   const key = matchKey(title);
   const segs = segments(title);
+  const titleTokens = tokens(title);
   let best: TeacherHit = null;
 
   for (const t of teachers) {
+    const nameTokens = tokens(t.name);
+    if (!nameTokens.length) continue;
     const tk = matchKey(t.name);
-    if (!tk) continue;
     let score = 0;
     let matchedText = t.name;
 
     if (containsKey(key, tk)) {
       score = 100;
-    } else {
-      // Fuzzy against each segment — tolerates typos and partial names.
+    } else if (nameTokens.length >= 2) {
+      // Multi-word name: compare token-by-token (first name / surname) so a
+      // typo in one word doesn't wreck the whole comparison. Try each
+      // separator-delimited segment first (the usual home of the name)...
       for (const seg of segs) {
-        const s = similarity(seg, t.name);
+        const segTokens = tokens(seg);
+        if (!segTokens.length) continue;
+        const s = phraseTokenScore(segTokens, nameTokens);
         if (s > score) {
           score = s;
           matchedText = seg;
         }
       }
+      // ...and also slide a same-length window across the raw title, in case
+      // the name isn't cleanly isolated by a separator.
+      for (let start = 0; start + nameTokens.length <= titleTokens.length; start++) {
+        const windowTokens = titleTokens.slice(start, start + nameTokens.length);
+        const s = phraseTokenScore(windowTokens, nameTokens);
+        if (s > score) {
+          score = s;
+          matchedText = windowTokens.join(" ");
+        }
+      }
       // Last-name-only mentions ("… - Arbelaez").
-      const last = tk.split(" ").slice(-1)[0] ?? "";
+      const last = nameTokens[nameTokens.length - 1]!;
       if (last.length >= 4 && containsKey(key, last) && score < 92) {
         score = 92;
         matchedText = last;
       }
     }
+    // Single-word names ("Shannon", "Soraya") only ever match the exact
+    // containsKey check above — too ambiguous to fuzz.
 
     if (score >= TEACHER_THRESHOLD && (!best || score > best.score)) {
       best = { entry: t, score, matchedText };
@@ -197,21 +295,14 @@ export function detectTeacher(title: string, teachers: DirectoryEntry[]): Teache
   return best;
 }
 
-/** Removes the detected teacher (and dangling separators) from the title. */
-export function stripTeacher(title: string, hit: TeacherHit): string {
-  if (!hit) return normalizeText(title);
+/** Removes matched text (and dangling separators) from a normalised title. */
+function stripPhrase(title: string, phrases: string[]): string {
   const base = normalizeText(title);
-  // Remove the full name, the matched text, and each individual name token so
-  // partial mentions ("… with Anna-Lisa") never pollute the class title.
-  const nameTokens = matchKey(hit.entry.name)
-    .split(" ")
-    .filter((t) => t.length >= 3);
-  const targets = [hit.entry.name, hit.matchedText, ...nameTokens]
-    .map((t) => normalizeText(t))
-    .filter(Boolean);
   let out = base;
-  for (const t of targets) {
-    const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (const raw of phrases) {
+    const p = normalizeText(raw);
+    if (!p) continue;
+    const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     out = out.replace(new RegExp(`\\b${escaped}\\b`, "g"), " ");
   }
   return out
@@ -220,6 +311,15 @@ export function stripTeacher(title: string, hit: TeacherHit): string {
     .replace(/^[\s\-|•:/~,]+/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** Removes the detected teacher (and dangling separators) from the title. */
+export function stripTeacher(title: string, hit: TeacherHit): string {
+  if (!hit) return normalizeText(title);
+  const nameTokens = matchKey(hit.entry.name)
+    .split(" ")
+    .filter((t) => t.length >= 3);
+  return stripPhrase(title, [hit.entry.name, hit.matchedText, ...nameTokens]);
 }
 
 /* ───────────────────────── Class matching ───────────────────────── */
@@ -249,6 +349,12 @@ export function matchClass(workingTitle: string, classes: DirectoryEntry[]): Cla
       const coverage = ck.length / key.length;
       score = 90 + Math.round(coverage * 80) / 10; // 90..98
       reason = "Starts with class name";
+    } else if (ck.startsWith(`${key} `)) {
+      // The calendar title is a shorthand for the full class name, e.g.
+      // "Full Body Strength" for "Full Body Strength Training".
+      const coverage = key.length / ck.length;
+      score = 88 + Math.round(coverage * 60) / 10; // 88..94
+      reason = "Shorthand for class name";
     } else if (containsKey(key, ck)) {
       const coverage = ck.length / key.length;
       score = 85 + Math.round(coverage * 80) / 10; // 85..93
@@ -268,6 +374,35 @@ export function matchClass(workingTitle: string, classes: DirectoryEntry[]): Cla
     if (!best || score > best.score) best = { entry: c, score, reason };
   }
   return best;
+}
+
+/* ───────────────────────── Fallback text (no directory match) ───────────────────────── */
+
+const RAW_SPLIT = /\s+(?:-|–|—|\||with|w\/|by)\s+/i;
+
+/** Naive split used only when nothing confident was found at all. */
+function naiveSplit(raw: string): { className: string; teacherName: string } {
+  const t = (raw ?? "").trim();
+  if (!t) return { className: "Class", teacherName: "—" };
+  const parts = t.split(RAW_SPLIT);
+  const className = (parts[0] ?? t).trim() || "Class";
+  const teacherName = parts.length > 1 ? parts.slice(1).join(" ").trim() || "—" : "—";
+  return { className: className.slice(0, 120), teacherName: teacherName.slice(0, 120) };
+}
+
+/** Removes a known phrase from the ORIGINAL-case title for display — matching
+ *  itself always happens on normalised text; this is purely cosmetic so the
+ *  leftover teacher text keeps its real capitalisation. */
+function removePhraseForDisplay(raw: string, phrase: string): string {
+  if (!phrase) return raw.trim();
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return raw
+    .replace(new RegExp(`\\b${escaped}\\b`, "gi"), " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\s*(?:[-–—|•:/~,]|\bwith\b|\bw\/\b|\bby\b)\s*$/gi, " ")
+    .replace(/^\s*(?:[-–—|•:/~,]|\bwith\b|\bw\/\b|\bby\b)\s*/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /* ───────────────────────── Pipeline ───────────────────────── */
@@ -291,6 +426,8 @@ export function matchEvent(
     teacherId: null,
     confidence: 0,
     reason: "Empty event title",
+    fallbackClassName: "Class",
+    fallbackTeacherName: "—",
   };
   if (!title) {
     return {
@@ -316,6 +453,8 @@ export function matchEvent(
         teacherId: tea?.id ?? null,
         confidence: 100,
         reason: "Learned alias",
+        fallbackClassName: cls.name,
+        fallbackTeacherName: tea?.name ?? "—",
       };
       return {
         result,
@@ -331,33 +470,71 @@ export function matchEvent(
     }
   }
 
-  /* 2/3 — teacher detection + removal. */
-  const teacherHit = detectTeacher(title, teachers);
-  const working = stripTeacher(title, teacherHit);
+  /* 2 — find the class first: it's the small, known list, so it's the
+   * reliable anchor. Try it two ways and keep whichever scores higher:
+   *   a) against the full raw title — the tiered scoring (starts-with /
+   *      shorthand-of / contains) already tolerates trailing teacher text
+   *      for the common, cleanly-formatted case;
+   *   b) against the title with a confidently-recognised teacher name
+   *      stripped out first — needed for the lowest, fuzzy-overlap tier,
+   *      where unrelated teacher-name tokens ("Annalisa", "Piccolo") would
+   *      otherwise dilute the score against a longer class name like "Full
+   *      Body Strength Training".
+   */
+  const preTeacherHit = detectTeacher(title, teachers);
+  const clsHitRaw = matchClass(title, classes);
+  const clsHitStripped = preTeacherHit
+    ? matchClass(stripTeacher(title, preTeacherHit), classes)
+    : null;
+  const clsHit =
+    clsHitStripped && (!clsHitRaw || clsHitStripped.score > clsHitRaw.score)
+      ? clsHitStripped
+      : clsHitRaw;
+  const classAccepted = !!clsHit && clsHit.score >= CLASS_THRESHOLD;
 
-  /* 4 — class matching on the cleaned title. */
-  let clsHit = matchClass(working, classes);
-  // 5 — teacher-assisted: if the cleaned title lost too much, retry on the raw
-  // title. Teacher context only ever raises confidence, never overrides.
-  const rawHit = matchClass(title, classes);
-  if (rawHit && (!clsHit || rawHit.score > clsHit.score + 6)) clsHit = rawHit;
-  if (clsHit && teacherHit && clsHit.score >= CLASS_THRESHOLD) {
-    clsHit = { ...clsHit, score: Math.min(100, clsHit.score + 2) };
-  }
+  /* 3 — strip the matched class text out; whatever remains is almost always
+   * just the teacher. Only strip when the class match is reasonably
+   * confident, so a bad guess can't eat real teacher text. */
+  const remainder = classAccepted ? stripPhrase(title, [clsHit!.entry.name]) : title;
 
-  const accepted = !!clsHit && clsHit.score >= CLASS_THRESHOLD;
+  /* 4 — find the teacher in the remainder (falling back to the full title,
+   * in case stripping over-consumed something). */
+  const teacherHit = detectTeacher(remainder, teachers) ?? detectTeacher(title, teachers);
+
+  /* 5 — teacher-assisted tie-breaking: a confirmed teacher name is evidence
+   * this is a well-formed title, so it only ever raises class confidence. */
+  const finalClsScore =
+    classAccepted && teacherHit ? Math.min(100, clsHit!.score + 2) : (clsHit?.score ?? 0);
+
+  const accepted = classAccepted;
   const reasonParts = [
     accepted ? clsHit!.reason : `Class below ${CLASS_THRESHOLD}% threshold`,
     teacherHit ? "Teacher detected" : "No teacher matched",
   ];
+
+  // Fallback display text for whichever side didn't resolve to a directory id.
+  let fallbackClassName: string;
+  let fallbackTeacherName: string;
+  if (accepted) {
+    fallbackClassName = clsHit!.entry.name;
+    fallbackTeacherName = teacherHit
+      ? teacherHit.entry.name
+      : removePhraseForDisplay(title, clsHit!.entry.name) || "—";
+  } else {
+    const guess = naiveSplit(title);
+    fallbackClassName = guess.className;
+    fallbackTeacherName = teacherHit ? teacherHit.entry.name : guess.teacherName;
+  }
 
   const result: MatchResult = {
     className: accepted ? clsHit!.entry.name : null,
     teacherName: teacherHit?.entry.name ?? null,
     classId: accepted ? clsHit!.entry.id : null,
     teacherId: teacherHit?.entry.id ?? null,
-    confidence: accepted ? clsHit!.score : (clsHit?.score ?? 0),
+    confidence: accepted ? finalClsScore : (clsHit?.score ?? 0),
     reason: reasonParts.join(" + "),
+    fallbackClassName,
+    fallbackTeacherName,
   };
 
   return {
