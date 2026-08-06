@@ -18,6 +18,8 @@ import {
   type ScheduledShiftRow,
   type ShiftRow,
 } from "@/lib/shifts.functions";
+import { backfillClassMatches } from "@/lib/gcal.functions";
+
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -178,6 +180,24 @@ function AdminDashboard() {
   const updateOpFn = useServerFn(adminUpdateOperator);
   const createOpFn = useServerFn(adminCreateOperator);
   const setActiveFn = useServerFn(adminSetOperatorActive);
+  const backfillFn = useServerFn(backfillClassMatches);
+
+  const [backfilling, setBackfilling] = useState(false);
+
+  async function handleBackfill() {
+    setBackfilling(true);
+    try {
+      const res = await backfillFn();
+      toast.success(
+        `Scanned ${res.scanned} class${res.scanned === 1 ? "" : "es"} · ${res.updated} updated · ${res.unchanged} unchanged`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to re-check matches");
+    } finally {
+      setBackfilling(false);
+    }
+  }
+
 
   const [editingOp, setEditingOp] = useState<OperatorBasic | null>(null);
   const [createOpOpen, setCreateOpOpen] = useState(false);
@@ -534,10 +554,21 @@ function AdminDashboard() {
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Operators
             </div>
-            <Button size="sm" variant="outline" onClick={() => setCreateOpOpen(true)}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> New operator
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={backfilling}
+                onClick={handleBackfill}
+              >
+                {backfilling ? "Re-checking…" : "Re-check class & teacher matches"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setCreateOpOpen(true)}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> New operator
+              </Button>
+            </div>
           </div>
+
           {operators.length > 0 && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {operators.map((op) => {

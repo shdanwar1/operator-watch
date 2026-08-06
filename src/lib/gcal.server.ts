@@ -304,18 +304,8 @@ async function syncBusy(
 
 /* ───────────────────────── Detailed mode ───────────────────────── */
 
-/**
- * Best-effort class/teacher split for events the directory could not resolve.
- * Never drops the event — a missing title just becomes a generic class.
- */
-function fallbackTitle(summary: string): { className: string; teacherName: string } {
-  const raw = (summary ?? "").trim();
-  if (!raw) return { className: "Class", teacherName: "—" };
-  const parts = raw.split(/\s+(?:-|–|—|\||with|w\/|by)\s+/i);
-  const className = (parts[0] ?? raw).trim() || "Class";
-  const teacherName = parts.length > 1 ? parts.slice(1).join(" ").trim() || "—" : "—";
-  return { className: className.slice(0, 120), teacherName: teacherName.slice(0, 120) };
-}
+
+
 
 async function syncDetailed(
   displayName: string,
@@ -370,15 +360,17 @@ async function syncDetailed(
     logs.push(log);
     // Nothing is ever dropped: an event without a confident directory match is
     // still a real calendar block, so it imports with its raw title and no ids.
-    // Only the metadata degrades — shift boundaries stay identical.
-    const fb = fallbackTitle(e.summary);
+    // Only the metadata degrades — shift boundaries stay identical. The
+    // fallback text comes from matchEvent itself (not a second, independent
+    // splitter) so the class and teacher text always agree with each other.
     imported.push({
       event: e,
-      className: result.className ?? fb.className,
-      teacherName: result.teacherName ?? fb.teacherName,
+      className: result.className ?? result.fallbackClassName,
+      teacherName: result.teacherName ?? result.fallbackTeacherName,
       classId: result.classId,
       teacherId: result.teacherId,
     });
+
   }
 
 
