@@ -594,6 +594,55 @@ function AdminDashboard() {
             </div>
           </div>
 
+          {(dupes.classes.length > 0 || dupes.teachers.length > 0) && (
+            <Card>
+              <CardContent className="space-y-3 p-4">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Possible duplicates — review manually
+                  </span>
+                </div>
+                {(
+                  [
+                    ["Classes", dupes.classes],
+                    ["Teachers", dupes.teachers],
+                  ] as [string, DuplicatePair[]][]
+                )
+                  .filter(([, list]) => list.length > 0)
+                  .map(([label, list]) => (
+                    <div key={label} className="space-y-1.5">
+                      <div className="text-[11px] font-medium uppercase text-muted-foreground">
+                        {label}
+                      </div>
+                      {list.map((p) => (
+                        <div
+                          key={`${p.a.id}-${p.b.id}`}
+                          className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                        >
+                          <span className="font-medium">{p.a.name}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            ({p.a.usage_count})
+                          </span>
+                          <span className="text-muted-foreground">vs</span>
+                          <span className="font-medium">{p.b.name}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            ({p.b.usage_count})
+                          </span>
+                          <Badge variant="outline" className="ml-auto h-5 text-[10px]">
+                            {Math.round(p.score)}% similar
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                <p className="text-[11px] text-muted-foreground">
+                  Display only — nothing is merged or deleted automatically.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {operators.length > 0 && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {operators.map((op) => {
