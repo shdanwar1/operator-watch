@@ -24,7 +24,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
 import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase } from "lucide-react";
 import { RouteMapPreview } from "@/components/RouteMapPreview";
-import { supabase } from "@/integrations/supabase/client";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";

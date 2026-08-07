@@ -54,7 +54,6 @@ import {
   Save,
 } from "lucide-react";
 import { USERNAME_RE, PIN_RE } from "@/lib/validation";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async () => {
