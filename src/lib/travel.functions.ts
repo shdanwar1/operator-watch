@@ -262,3 +262,84 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       direct_options: directOptions,
     };
   });
+
+// ---------- Route geometry (server-side; keeps routing API key off the client) ----------
+
+const COORD = (n: unknown) => {
+  const v = Number(n);
+  if (!Number.isFinite(v)) throw new Error("Invalid coordinate");
+  return v;
+};
+
+async function orsGeometry(
+  home: { lat: number; lng: number },
+  office: { lat: number; lng: number },
+): Promise<[number, number][] | null> {
+  const key = process.env["ORS_API_KEY"];
+  if (!key) return null;
+  const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car/geojson", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: key },
+    body: JSON.stringify({
+      coordinates: [
+        [home.lng, home.lat],
+        [office.lng, office.lat],
+      ],
+    }),
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as {
+    features?: { geometry?: { coordinates?: [number, number][] } }[];
+  };
+  const line = json.features?.[0]?.geometry?.coordinates;
+  if (!line?.length) return null;
+  return line.map(([lng, lat]) => [lat, lng] as [number, number]);
+}
+
+async function osrmGeometry(
+  home: { lat: number; lng: number },
+  office: { lat: number; lng: number },
+): Promise<[number, number][] | null> {
+  const url = `https://router.project-osrm.org/route/v1/driving/${home.lng},${home.lat};${office.lng},${office.lat}?overview=full&geometries=geojson`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const json = (await res.json()) as {
+    routes?: { geometry?: { coordinates?: [number, number][] } }[];
+  };
+  const line = json.routes?.[0]?.geometry?.coordinates;
+  if (!line?.length) return null;
+  return line.map(([lng, lat]) => [lat, lng] as [number, number]);
+}
+
+export const getRouteGeometry = createServerFn({ method: "POST" })
+  .inputValidator(
+    (data: { from_lat: number; from_lng: number; to_lat: number; to_lng: number }) => ({
+      from_lat: COORD(data?.from_lat),
+      from_lng: COORD(data?.from_lng),
+      to_lat: COORD(data?.to_lat),
+      to_lng: COORD(data?.to_lng),
+    }),
+  )
+  .handler(async ({ data }): Promise<{ coords: [number, number][] | null }> => {
+    const session = await useSession<GateSession>(getGateConfig());
+    if (!session.data.siteUnlocked || !session.data.username) {
+      return { coords: null };
+    }
+    const from = { lat: data.from_lat, lng: data.from_lng };
+    const to = { lat: data.to_lat, lng: data.to_lng };
+    let coords: [number, number][] | null = null;
+    try {
+      coords = await orsGeometry(from, to);
+    } catch {
+      coords = null;
+    }
+    if (!coords) {
+      try {
+        coords = await osrmGeometry(from, to);
+      } catch {
+        coords = null;
+      }
+    }
+    return { coords };
+  });
+
