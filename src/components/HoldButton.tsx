@@ -64,6 +64,20 @@ export function HoldButton({
 
   useEffect(() => () => stopLoop(), []);
 
+  useEffect(() => {
+    if (resetSignal === undefined) return;
+    stopLoop();
+    holdingRef.current = false;
+    doneRef.current = false;
+    progressRef.current = 0;
+    lastRef.current = 0;
+    setHolding(false);
+    setDone(false);
+    setProgress(0);
+  }, [resetSignal]);
+
+
+
   const tick = useCallback(
     (t: number) => {
       const dt = lastRef.current ? t - lastRef.current : 16;
