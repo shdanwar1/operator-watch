@@ -712,7 +712,7 @@ function CheckInPanel({
         )}
 
         <HoldButton
-          label="Hold to Check In"
+          label="Hold to check in"
           disabled={!canCheckIn}
           busy={checkingIn}
           onComplete={onCheckIn}
