@@ -970,6 +970,17 @@ function ActiveShiftPanel({
                 ))}
               </div>
             )}
+
+            <div className="flex items-center justify-end border-t border-border pt-4">
+              <HoldButton
+                label="Hold to check out"
+                tone="danger"
+                busy={checkingOut}
+                onComplete={handleHoldComplete}
+                size={84}
+                resetSignal={resetSignal}
+              />
+            </div>
           </CardContent>
         </Card>
       )}
