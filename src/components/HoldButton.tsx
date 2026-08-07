@@ -31,6 +31,7 @@ export function HoldButton({
   onComplete,
   size = 100,
   hint,
+  resetSignal,
 }: {
   label: string;
   /** Kept for API compatibility; no success text is rendered anymore. */
