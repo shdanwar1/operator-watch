@@ -170,10 +170,7 @@ export function ClassScheduleCard({
 
                 <div
                   className={cn(
-                    "my-1 flex flex-1 flex-wrap items-center gap-3 rounded-xl border p-3 transition-colors",
-                    st === "completed" && "border-done/60 bg-done/[0.06]",
-                    st === "live" && "border-live/60 bg-live/[0.06]",
-                    st === "upcoming" && "border-transparent bg-transparent",
+                    "my-1 flex flex-1 flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors",
                     isCancelled && "opacity-50",
                   )}
                 >
