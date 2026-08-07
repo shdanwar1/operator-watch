@@ -80,6 +80,7 @@ export function ClassScheduleCard({
   onCorrect,
   classOptions = [],
   teacherOptions = [],
+  footer,
 }: {
   classes: CalendarClassRow[];
   now: Date;
@@ -90,6 +91,8 @@ export function ClassScheduleCard({
   onCorrect?: (id: string, classId: string, teacherId: string | null) => void;
   classOptions?: DirectoryItem[];
   teacherOptions?: DirectoryItem[];
+  /** Optional action area rendered at the bottom of the card, e.g. a check-out control. */
+  footer?: React.ReactNode;
 }) {
   const [fixing, setFixing] = useState<CalendarClassRow | null>(null);
   const [fixClass, setFixClass] = useState("");
@@ -256,6 +259,9 @@ export function ClassScheduleCard({
           })}
         </div>
 
+        {footer ? (
+          <div className="border-t border-border pt-4">{footer}</div>
+        ) : null}
       </CardContent>
 
       <Dialog open={!!fixing} onOpenChange={(o) => !o && setFixing(null)}>

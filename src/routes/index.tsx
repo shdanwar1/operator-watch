@@ -888,6 +888,18 @@ function ActiveShiftPanel({
           onCorrect={onCorrectClassMatch}
           classOptions={classes}
           teacherOptions={teachers}
+          footer={
+            <div className="flex items-center justify-end">
+              <HoldButton
+                label="Hold to check out"
+                tone="danger"
+                busy={checkingOut}
+                onComplete={handleHoldComplete}
+                size={84}
+                resetSignal={resetSignal}
+              />
+            </div>
+          }
         />
       ) : (
         <Card>
@@ -958,24 +970,20 @@ function ActiveShiftPanel({
                 ))}
               </div>
             )}
+
+            <div className="flex items-center justify-end border-t border-border pt-4">
+              <HoldButton
+                label="Hold to check out"
+                tone="danger"
+                busy={checkingOut}
+                onComplete={handleHoldComplete}
+                size={84}
+                resetSignal={resetSignal}
+              />
+            </div>
           </CardContent>
         </Card>
       )}
-
-      <div className="flex justify-center">
-        <Card className="w-[168px]">
-          <CardContent className="flex aspect-square items-center justify-center p-0">
-            <HoldButton
-              label="Hold to check out"
-              tone="danger"
-              busy={checkingOut}
-              onComplete={handleHoldComplete}
-              size={100}
-              resetSignal={resetSignal}
-            />
-          </CardContent>
-        </Card>
-      </div>
 
       <AlertDialog open={confirm === "incomplete"} onOpenChange={(o) => !o && closeConfirm()}>
         <AlertDialogContent>
