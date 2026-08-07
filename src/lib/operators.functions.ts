@@ -6,6 +6,8 @@ import {
   validateMapsUrl,
   sameUsername,
 } from "./validation";
+import { followRedirectsSafely } from "./safe-fetch.server";
+
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
