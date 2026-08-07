@@ -31,6 +31,7 @@ export function HoldButton({
   onComplete,
   size = 100,
   hint,
+  resetSignal,
 }: {
   label: string;
   /** Kept for API compatibility; no success text is rendered anymore. */
@@ -42,6 +43,8 @@ export function HoldButton({
   size?: number;
   /** Optional helper text. Omit unless it changes the user's decision. */
   hint?: string;
+  /** Change this value to reset the button back to its idle state. */
+  resetSignal?: number;
 }) {
 
   const reduced = usePrefersReducedMotion();
@@ -60,6 +63,20 @@ export function HoldButton({
   };
 
   useEffect(() => () => stopLoop(), []);
+
+  useEffect(() => {
+    if (resetSignal === undefined) return;
+    stopLoop();
+    holdingRef.current = false;
+    doneRef.current = false;
+    progressRef.current = 0;
+    lastRef.current = 0;
+    setHolding(false);
+    setDone(false);
+    setProgress(0);
+  }, [resetSignal]);
+
+
 
   const tick = useCallback(
     (t: number) => {
