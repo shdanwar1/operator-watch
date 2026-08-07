@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
 import { validateCalendarUrl, validateMapsUrl } from "./validation";
+import { followRedirectsSafely } from "./safe-fetch.server";
+
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
@@ -87,13 +89,9 @@ async function resolveGoogleMapsUrl(
   const shortHosts = ["maps.app.goo.gl", "goo.gl", "g.co", "maps.google.com"];
   let finalUrl = u.toString();
   if (shortHosts.includes(u.hostname)) {
-    try {
-      const res = await fetch(u.toString(), { redirect: "follow" });
-      finalUrl = res.url || finalUrl;
-    } catch {
-      /* keep raw */
-    }
+    finalUrl = await followRedirectsSafely(u.toString());
   }
+
   const parse = (s: string): { lat: number; lng: number } | null => {
     const bang = s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
     if (bang) return { lat: parseFloat(bang[1]), lng: parseFloat(bang[2]) };
