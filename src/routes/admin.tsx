@@ -54,7 +54,6 @@ import {
   Save,
 } from "lucide-react";
 import { USERNAME_RE, PIN_RE } from "@/lib/validation";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async () => {
@@ -239,14 +238,15 @@ function AdminDashboard() {
   }, [refresh]);
 
   // Live sync with operator check-ins/outs and any external edits.
+  // Shift tables are not exposed to client realtime (they carry per-operator
+  // data and are locked down by RLS), so refresh on a timer and on focus.
   useEffect(() => {
-    const ch = supabase
-      .channel("admin-shift-sync")
-      .on("postgres_changes", { event: "*", schema: "public", table: "shifts" }, () => refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_shifts" }, () => refresh())
-      .subscribe();
+    const t = setInterval(() => refresh(), 30_000);
+    const onFocus = () => refresh();
+    window.addEventListener("focus", onFocus);
     return () => {
-      supabase.removeChannel(ch);
+      clearInterval(t);
+      window.removeEventListener("focus", onFocus);
     };
   }, [refresh]);
 
