@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { getRouteGeometry } from "@/lib/travel.functions";
 
 type Pt = { lat: number; lng: number };
-
-const ORS_KEY = import.meta.env["VITE_ORS_API_KEY"] as string | undefined;
 
 /** 60s cache of resolved route geometries, keyed by coordinate pair. */
 const routeCache = new Map<string, { at: number; coords: [number, number][] | null }>();
@@ -14,63 +13,30 @@ function key(home: Pt, office: Pt) {
   return `${home.lat.toFixed(5)},${home.lng.toFixed(5)}|${office.lat.toFixed(5)},${office.lng.toFixed(5)}`;
 }
 
-async function fetchOrs(home: Pt, office: Pt, signal: AbortSignal) {
-  if (!ORS_KEY) return null;
-  const res = await fetch(
-    "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
-    {
-      method: "POST",
-      signal,
-      headers: { "Content-Type": "application/json", Authorization: ORS_KEY },
-      body: JSON.stringify({
-        coordinates: [
-          [home.lng, home.lat],
-          [office.lng, office.lat],
-        ],
-      }),
-    },
-  );
-  if (!res.ok) return null;
-  const json = (await res.json()) as {
-    features?: { geometry?: { coordinates?: [number, number][] } }[];
-  };
-  const line = json.features?.[0]?.geometry?.coordinates;
-  if (!line?.length) return null;
-  return line.map(([lng, lat]) => [lat, lng] as [number, number]);
-}
-
-async function fetchOsrm(home: Pt, office: Pt, signal: AbortSignal) {
-  const url = `https://router.project-osrm.org/route/v1/driving/${home.lng},${home.lat};${office.lng},${office.lat}?overview=full&geometries=geojson`;
-  const res = await fetch(url, { signal });
-  if (!res.ok) return null;
-  const json = (await res.json()) as {
-    routes?: { geometry?: { coordinates?: [number, number][] } }[];
-  };
-  const line = json.routes?.[0]?.geometry?.coordinates;
-  if (!line?.length) return null;
-  return line.map(([lng, lat]) => [lat, lng] as [number, number]);
-}
-
 async function resolveRoute(home: Pt, office: Pt, signal: AbortSignal) {
   const k = key(home, office);
   const hit = routeCache.get(k);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.coords;
   let coords: [number, number][] | null = null;
   try {
-    coords = await fetchOrs(home, office, signal);
+    // Routing runs server-side so the routing provider key never reaches the browser.
+    const res = await getRouteGeometry({
+      data: {
+        from_lat: home.lat,
+        from_lng: home.lng,
+        to_lat: office.lat,
+        to_lng: office.lng,
+      },
+      signal,
+    });
+    coords = res?.coords ?? null;
   } catch {
     coords = null;
-  }
-  if (!coords) {
-    try {
-      coords = await fetchOsrm(home, office, signal);
-    } catch {
-      coords = null;
-    }
   }
   routeCache.set(k, { at: Date.now(), coords });
   return coords;
 }
+
 
 function pinIcon(leaflet: typeof L, kind: "home" | "office") {
   const glyph =
