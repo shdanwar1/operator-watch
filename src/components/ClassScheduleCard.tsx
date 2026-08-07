@@ -171,7 +171,9 @@ export function ClassScheduleCard({
                 <div
                   className={cn(
                     "my-1 flex flex-1 flex-wrap items-center gap-3 rounded-xl border p-3 transition-colors",
-                    st === "live" ? "border-live/60 bg-live/5" : "border-transparent",
+                    st === "completed" && "border-done/60 bg-done/[0.06]",
+                    st === "live" && "border-live/60 bg-live/[0.06]",
+                    st === "upcoming" && "border-transparent bg-transparent",
                     isCancelled && "opacity-50",
                   )}
                 >
@@ -194,8 +196,14 @@ export function ClassScheduleCard({
                     {durationOf(c)} min
                   </div>
                   <Badge
-                    variant={st === "live" ? "default" : "outline"}
-                    className={cn("text-[10px]", isCancelled && "text-alert")}
+                    variant="outline"
+                    className={cn(
+                      "text-[10px]",
+                      st === "completed" && "border-done/70 bg-done/10 text-done hover:bg-done/15",
+                      st === "live" && "border-live/70 bg-live text-background hover:bg-live",
+                      st === "upcoming" && "border-border bg-background text-foreground",
+                      st === "cancelled" && "border-alert/50 bg-alert/10 text-alert",
+                    )}
                   >
                     {STATUS_LABEL[st]}
                   </Badge>
