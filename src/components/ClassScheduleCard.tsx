@@ -98,11 +98,7 @@ export function ClassScheduleCard({
   if (classes.length === 0) return null;
 
   const states = classes.map((c) => classStatusOf(c, now));
-  const completed = states.filter((s) => s === "completed").length;
-  const cancelled = states.filter((s) => s === "cancelled").length;
-  const upcoming = states.filter((s) => s === "upcoming").length;
-  const processed = completed + cancelled;
-  const pct = Math.round((processed / classes.length) * 100);
+
 
   const openDisplay = (c: CalendarClassRow) => {
     window.open(
