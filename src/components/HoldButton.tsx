@@ -19,7 +19,8 @@ export type HoldButtonTone = "primary" | "danger";
 
 /**
  * Calm, Touch-ID style hold-to-confirm control.
- * Progress is communicated only by the closing ring — never by numbers.
+ * The icon and closing ring carry the whole message — no labels, no counters.
+ * `label` is used for accessibility only. `hint` renders only when explicitly passed.
  */
 export function HoldButton({
   label,
@@ -29,7 +30,7 @@ export function HoldButton({
   busy,
   onComplete,
   size = 100,
-  hint = "Hold for 3 seconds",
+  hint,
 }: {
   label: string;
   /** Kept for API compatibility; no success text is rendered anymore. */
@@ -39,8 +40,10 @@ export function HoldButton({
   busy?: boolean;
   onComplete: () => void;
   size?: number;
+  /** Optional helper text. Omit unless it changes the user's decision. */
   hint?: string;
 }) {
+
   const reduced = usePrefersReducedMotion();
   const [progress, setProgress] = useState(0); // 0..1
   const [holding, setHolding] = useState(false);
