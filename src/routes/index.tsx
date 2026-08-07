@@ -935,29 +935,67 @@ function ActiveShiftPanel({
         </Card>
       )}
 
-      <Card>
-        <CardContent className="flex flex-col items-center gap-4 px-5 py-6">
-          <HoldButton
-            label="Hold to check out"
-            tone="danger"
-            busy={checkingOut}
-            onComplete={onCheckOut}
-            size={100}
-          />
-          {pendingClasses > 0 ? (
-            <p className="max-w-sm text-center text-xs text-alert">
-              Mark remaining classes Completed or Cancelled before checking out.
-            </p>
-          ) : early ? (
-            <p className="max-w-sm text-center text-xs text-muted-foreground">
-              Early finish of{" "}
-              {earlyMin >= 60 ? `${Math.floor(earlyMin / 60)}h ${earlyMin % 60}m` : `${earlyMin}m`} —
-              scheduled until {fmtTime(scheduledShift!.end_time)}.
-            </p>
-          ) : null}
-        </CardContent>
+      <div className="flex justify-center">
+        <Card className="w-[168px]">
+          <CardContent className="flex aspect-square items-center justify-center p-0">
+            <HoldButton
+              label="Hold to check out"
+              tone="danger"
+              busy={checkingOut}
+              onComplete={handleHoldComplete}
+              size={100}
+              resetSignal={resetSignal}
+            />
+          </CardContent>
+        </Card>
+      </div>
 
-      </Card>
+      <AlertDialog open={confirm === "incomplete"} onOpenChange={(o) => !o && closeConfirm()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Incomplete Shift</AlertDialogTitle>
+            <AlertDialogDescription>
+              Some scheduled classes have not been marked as Completed or Cancelled. What would you
+              like to do?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeConfirm}>Continue Working</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirm(null);
+                onCheckOut();
+              }}
+            >
+              Check Out Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirm === "early"} onOpenChange={(o) => !o && closeConfirm()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Early Check-Out</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are checking out before your scheduled shift has ended. Are you sure you want to
+              check out early?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeConfirm}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirm(null);
+                onCheckOut();
+              }}
+            >
+              Check Out Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
