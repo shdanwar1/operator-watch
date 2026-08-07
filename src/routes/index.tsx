@@ -803,8 +803,25 @@ function ActiveShiftPanel({
   }).length;
 
   const earlyMin = times ? Math.max(0, Math.round((times.endAt.getTime() - now.getTime()) / 60000)) : 0;
-  // Only worth mentioning when the early finish is material (more than 15 minutes).
+  // Only material when the finish is more than 15 minutes early.
   const early = earlyMin > 15;
+
+  // Confirmation flow: nothing is shown until the 3s hold actually completes.
+  const [confirm, setConfirm] = useState<"incomplete" | "early" | null>(null);
+  const [resetSignal, setResetSignal] = useState(0);
+  const closeConfirm = () => {
+    setConfirm(null);
+    setResetSignal((n) => n + 1);
+  };
+  const handleHoldComplete = () => {
+    if (!early) {
+      onCheckOut();
+      return;
+    }
+    setConfirm(pendingClasses > 0 ? "incomplete" : "early");
+  };
+
+
 
 
   // Shift progress: from check-in (or scheduled start) to the scheduled end.
