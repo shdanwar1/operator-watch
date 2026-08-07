@@ -43,6 +43,8 @@ export function HoldButton({
   size?: number;
   /** Optional helper text. Omit unless it changes the user's decision. */
   hint?: string;
+  /** Change this value to reset the button back to its idle state. */
+  resetSignal?: number;
 }) {
 
   const reduced = usePrefersReducedMotion();
