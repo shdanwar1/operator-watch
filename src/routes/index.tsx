@@ -21,6 +21,16 @@ import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast, Toaster } from "sonner";
 import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase } from "lucide-react";
 import { RouteMapPreview } from "@/components/RouteMapPreview";
