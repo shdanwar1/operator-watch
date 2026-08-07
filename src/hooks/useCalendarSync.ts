@@ -116,7 +116,7 @@ export function useCalendarSync(options: {
       stop();
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [enabled, runSync]);
+  }, [enabled, autoEnabled, runSync]);
 
   return { syncing, lastSync, logs, setLogs, runSync };
 }
