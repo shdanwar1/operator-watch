@@ -27,6 +27,8 @@ import { RouteMapPreview } from "@/components/RouteMapPreview";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
+import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
+
 import { publishSync } from "@/lib/sync-bus";
 import {
   listMyCalendarClasses,
@@ -269,24 +271,32 @@ function Index() {
   });
 
   // A sync that finished in another view (or another tab) refreshes us too.
+  // Debounced: a single sync can land a burst of updates, so this collapses
+  // them into one refresh.
+  const debouncedLoad = useDebouncedCallback(() => load(), 700);
   useSyncListener((message) => {
-    if (message.type === "data-synced") load();
+    if (message.type === "data-synced") debouncedLoad();
   });
 
   // Shift tables are not exposed to client realtime (per-operator data locked
   // down by RLS); refresh on a timer and when the tab regains focus instead.
   useEffect(() => {
-    const t = setInterval(() => load(), 30_000);
-    const onFocus = () => load();
+    const t = setInterval(() => debouncedLoad(), 30_000);
+    const onFocus = () => debouncedLoad();
     window.addEventListener("focus", onFocus);
     return () => {
       clearInterval(t);
       window.removeEventListener("focus", onFocus);
     };
-  }, []);
+  }, [debouncedLoad]);
 
+  // Only the very first load shows the full-page "Loading…" state. Every
+  // later refresh (auto-sync, cross-tab broadcast, timed/focus refresh)
+  // updates the already-visible content in place instead of blanking the
+  // page — that repeated blanking, not the sync itself, was the "freeze".
+  const hasLoadedOnce = useRef(false);
   async function load() {
-    setLoading(true);
+    if (!hasLoadedOnce.current) setLoading(true);
     try {
       const [rows, sched, tRows, cRows, calRows] = await Promise.all([
         fetchShifts(),
@@ -305,8 +315,10 @@ function Index() {
       toast.error(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setLoading(false);
+      hasLoadedOnce.current = true;
     }
   }
+
 
 
   // Open Studio Display popups are refreshed with the latest class data

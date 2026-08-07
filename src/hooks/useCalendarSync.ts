@@ -4,15 +4,24 @@ import { toast } from "sonner";
 import { syncGoogleCalendar } from "@/lib/gcal.functions";
 import type { MatchLog } from "@/lib/gcal-match";
 import { publishSync, subscribeSync, type SyncMessage } from "@/lib/sync-bus";
+import { coordinatedSync } from "@/lib/gcal-sync-coordinator";
 
-const AUTO_SYNC_MS = 5 * 60 * 1000;
+// Background cadence. Kept deliberately loose: the single-flight/cooldown
+// coordinator, the cross-tab broadcast, and realtime DB listeners already
+// cover the gaps in between, so this interval only needs to catch changes
+// made directly in Google Calendar since the last sync.
+const AUTO_SYNC_MS = 10 * 60 * 1000;
 
 /**
  * Shared Google Calendar synchronization.
  *
  * Manual, automatic and first-import syncs all run through here, so every
  * trigger produces the same pipeline: import → refresh the caller's data →
- * broadcast so every other open view refreshes too.
+ * broadcast so every other open view refreshes too. Automatic triggers
+ * (mount, interval, tab refocus) go through the shared coordinator, which
+ * skips the network entirely if a sync completed very recently — no matter
+ * how many components ask. Manual triggers (buttons, saving a calendar link)
+ * always go through immediately.
  */
 export function useCalendarSync(options: {
   /** Only sync when the operator actually has a linked calendar. */
@@ -37,12 +46,20 @@ export function useCalendarSync(options: {
   nextMonthRef.current = includeNextMonth;
 
   const runSync = useCallback(
-    async (opts?: { silent?: boolean }) => {
+    async (opts?: { silent?: boolean; force?: boolean }) => {
       if (!enabled) return;
       const silent = opts?.silent ?? !announce;
+      // Any explicit call (button click, saving a new link) is real user
+      // intent and should never be silently dropped by the cooldown — only
+      // the mount/interval/refocus triggers pass force:false.
+      const force = opts?.force ?? true;
       setSyncing(true);
       try {
-        const res = await syncFn({ data: { includeNextMonth: nextMonthRef.current } });
+        const { result: res, skipped } = await coordinatedSync(syncFn, {
+          includeNextMonth: nextMonthRef.current,
+          force,
+        });
+        if (skipped || !res) return undefined;
         setLastSync(new Date());
         setLogs(res.logs ?? []);
         if (!res.ok) {
@@ -64,12 +81,38 @@ export function useCalendarSync(options: {
     [enabled, announce, syncFn],
   );
 
-  // Automatic sync: on mount and every 5 minutes, identical to a manual run.
+  // Automatic sync: on mount, then on a background cadence — paused while
+  // the tab is hidden (no point polling a calendar nobody is looking at),
+  // with an immediate catch-up check when it becomes visible again.
   useEffect(() => {
     if (!enabled) return;
-    runSync({ silent: true });
-    const t = setInterval(() => runSync({ silent: true }), AUTO_SYNC_MS);
-    return () => clearInterval(t);
+    const auto = () => runSync({ silent: true, force: false });
+    auto();
+
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (interval) return;
+      interval = setInterval(auto, AUTO_SYNC_MS);
+    };
+    const stop = () => {
+      if (interval) clearInterval(interval);
+      interval = null;
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        auto();
+        start();
+      } else {
+        stop();
+      }
+    };
+
+    if (typeof document !== "undefined" && document.visibilityState === "visible") start();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [enabled, runSync]);
 
   return { syncing, lastSync, logs, setLogs, runSync };
