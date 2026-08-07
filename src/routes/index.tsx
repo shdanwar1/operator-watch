@@ -793,7 +793,9 @@ function ActiveShiftPanel({
   }).length;
 
   const earlyMin = times ? Math.max(0, Math.round((times.endAt.getTime() - now.getTime()) / 60000)) : 0;
-  const early = earlyMin > 0;
+  // Only worth mentioning when the early finish is material (more than 15 minutes).
+  const early = earlyMin > 15;
+
 
   // Shift progress: from check-in (or scheduled start) to the scheduled end.
   const shiftStart = times?.startAt ?? checkInAt;
