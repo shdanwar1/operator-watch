@@ -32,8 +32,10 @@ export function useCalendarSync(options: {
   announce?: boolean;
   /** Include next month in the sync window. */
   includeNextMonth?: boolean;
+  /** Background (mount/interval/refocus) syncing. Manual syncs always work. */
+  auto?: boolean;
 }) {
-  const { enabled, announce = false, includeNextMonth = false } = options;
+  const { enabled, announce = false, includeNextMonth = false, auto: autoEnabled = true } = options;
   const syncFn = useServerFn(syncGoogleCalendar);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
