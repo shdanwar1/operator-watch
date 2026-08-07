@@ -186,6 +186,25 @@ function AdminDashboard() {
 
   const [backfilling, setBackfilling] = useState(false);
 
+  const fetchDuplicates = useServerFn(findPossibleDuplicates);
+  const [dupes, setDupes] = useState<{ classes: DuplicatePair[]; teachers: DuplicatePair[] }>({
+    classes: [],
+    teachers: [],
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDuplicates()
+      .then((res) => {
+        if (!cancelled) setDupes(res as { classes: DuplicatePair[]; teachers: DuplicatePair[] });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchDuplicates]);
+
+
   async function handleBackfill() {
     setBackfilling(true);
     try {
