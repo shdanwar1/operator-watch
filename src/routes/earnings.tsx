@@ -1,6 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
+
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { getGateStatus } from "@/lib/gate.functions";
