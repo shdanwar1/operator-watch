@@ -209,6 +209,7 @@ function CalendarPage() {
     onSynced: load,
     announce: true,
     includeNextMonth: syncNextMonth,
+    auto: autoSync,
   });
 
   // Another view finished a sync — pull the newly generated shifts in.
