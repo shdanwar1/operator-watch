@@ -152,14 +152,17 @@ function CalendarPage() {
   const [calDraft, setCalDraft] = useState("");
   const [savingUrl, setSavingUrl] = useState(false);
   const [syncNextMonth, setSyncNextMonth] = useState(false);
+  const [autoSync, setAutoSync] = useState(true);
   const [debug, setDebug] = useState(false);
 
-  // Sync scope preference is a per-device setting; current month is always on.
+  // Sync preferences are per-device; current month is always on.
   useEffect(() => {
     if (typeof window !== "undefined") {
       setSyncNextMonth(window.localStorage.getItem("gcal:syncNextMonth") === "1");
+      setAutoSync(window.localStorage.getItem("gcal:autoSync") !== "0");
     }
   }, []);
+
 
   // Match trace is a debug-only surface: opt in with ?debug=1.
   useEffect(() => {
