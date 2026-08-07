@@ -21,6 +21,7 @@ import {
   type ShiftRow,
 } from "@/lib/shifts.functions";
 import { backfillClassMatches } from "@/lib/gcal.functions";
+import { findPossibleDuplicates, type DuplicatePair } from "@/lib/directories.functions";
 
 
 import { Button } from "@/components/ui/button";
