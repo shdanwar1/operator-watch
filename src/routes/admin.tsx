@@ -240,15 +240,18 @@ function AdminDashboard() {
   // Live sync with operator check-ins/outs and any external edits.
   // Shift tables are not exposed to client realtime (they carry per-operator
   // data and are locked down by RLS), so refresh on a timer and on focus.
+  // Debounced so a burst of triggers collapses into one refresh.
+  const debouncedRefresh = useDebouncedCallback(() => refresh(), 700);
   useEffect(() => {
-    const t = setInterval(() => refresh(), 30_000);
-    const onFocus = () => refresh();
+    const t = setInterval(() => debouncedRefresh(), 30_000);
+    const onFocus = () => debouncedRefresh();
     window.addEventListener("focus", onFocus);
     return () => {
       clearInterval(t);
       window.removeEventListener("focus", onFocus);
     };
-  }, [refresh]);
+  }, [debouncedRefresh]);
+
 
 
 
