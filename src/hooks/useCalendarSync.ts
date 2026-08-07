@@ -87,9 +87,10 @@ export function useCalendarSync(options: {
   // the tab is hidden (no point polling a calendar nobody is looking at),
   // with an immediate catch-up check when it becomes visible again.
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !autoEnabled) return;
     const auto = () => runSync({ silent: true, force: false });
     auto();
+
 
     let interval: ReturnType<typeof setInterval> | null = null;
     const start = () => {
