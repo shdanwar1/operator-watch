@@ -204,15 +204,16 @@ export function ClassScheduleCard({
                   >
                     {STATUS_LABEL[st]}
                   </Badge>
-                  <Button
-                    size="sm"
-                    variant={st === "live" ? "default" : "outline"}
-                    disabled={isCancelled}
-                    onClick={() => openDisplay(c)}
-                  >
-                    {isCancelled ? "Cancelled" : "Studio Display"}
-                    {!isCancelled && <ExternalLink className="ml-1.5 h-3.5 w-3.5" />}
-                  </Button>
+                  {(st === "upcoming" || st === "live") && (
+                    <Button
+                      size="sm"
+                      variant={st === "live" ? "default" : "outline"}
+                      onClick={() => openDisplay(c)}
+                    >
+                      Studio Display
+                      <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   {(onSetStatus || onCorrect) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
