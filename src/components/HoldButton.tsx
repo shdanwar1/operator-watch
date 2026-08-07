@@ -202,25 +202,27 @@ export function HoldButton({
           />
         </svg>
 
-        <span className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 px-3 text-center">
+        <span className="absolute inset-0 flex items-center justify-center">
           {done ? (
             <Check
               className="h-7 w-7 text-done"
               style={{ animation: reduced ? undefined : "hold-pop 420ms ease-out" }}
             />
           ) : (
-            <>
-              <Fingerprint className="h-4 w-4 text-muted-foreground" />
-              <span className="text-[11px] font-medium leading-tight tracking-tight">{label}</span>
-            </>
+            <Fingerprint
+              className={`h-7 w-7 transition-colors duration-300 ${
+                holding ? "text-foreground" : "text-muted-foreground"
+              }`}
+            />
           )}
         </span>
       </button>
-      {!done && (
+      {!done && (busy || hint) ? (
         <p className="text-[11px] text-muted-foreground" aria-live="polite">
           {busy ? "Working…" : hint}
         </p>
-      )}
+      ) : null}
+
     </div>
   );
 }
