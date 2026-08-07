@@ -92,3 +92,32 @@ export const recordDirectoryUsage = createServerFn({ method: "POST" })
     await Promise.all([bump("teachers", data.teachers), bump("classes", data.classes)]);
     return { ok: true as const };
   });
+
+export type DuplicatePair = { a: DirectoryItem; b: DirectoryItem; score: number };
+
+/**
+ * Read-only hygiene report: names in `classes`/`teachers` that closely
+ * resemble another entry in the same table but aren't identical. It never
+ * merges or deletes anything — deciding whether two entries are the same
+ * class/person needs a human who knows the studio.
+ */
+export const findPossibleDuplicates = createServerFn({ method: "GET" }).handler(async () => {
+  await requireGate();
+  const [classes, teachers] = await Promise.all([listAll("classes"), listAll("teachers")]);
+  const { similarity } = await import("./gcal-match");
+
+  function pairs(rows: DirectoryItem[]): DuplicatePair[] {
+    const out: DuplicatePair[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      for (let j = i + 1; j < rows.length; j++) {
+        const a = rows[i]!;
+        const b = rows[j]!;
+        const score = similarity(a.name, b.name);
+        if (score >= 60 && score < 99) out.push({ a, b, score });
+      }
+    }
+    return out.sort((x, y) => y.score - x.score);
+  }
+
+  return { classes: pairs(classes), teachers: pairs(teachers) };
+});
