@@ -67,14 +67,19 @@ function EarningsPage() {
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Only the very first load shows the full-page "Loading…" state. Every
+  // later refresh updates the already-visible content in place instead of
+  // blanking the page on every event.
+  const hasLoadedOnce = useRef(false);
   async function load() {
-    setLoading(true);
+    if (!hasLoadedOnce.current) setLoading(true);
     try {
       const [s, sc] = await Promise.all([fetchShifts(), fetchScheduled()]);
       setShifts(s);
       setScheduled(sc);
     } finally {
       setLoading(false);
+      hasLoadedOnce.current = true;
     }
   }
 
@@ -84,15 +89,18 @@ function EarningsPage() {
 
   // Shift tables are not exposed to client realtime (per-operator data locked
   // down by RLS); refresh on a timer and when the tab regains focus instead.
+  // Debounced so a burst of triggers collapses into one refresh.
+  const debouncedLoad = useDebouncedCallback(() => load(), 700);
   useEffect(() => {
-    const t = setInterval(() => load(), 30_000);
-    const onFocus = () => load();
+    const t = setInterval(() => debouncedLoad(), 30_000);
+    const onFocus = () => debouncedLoad();
     window.addEventListener("focus", onFocus);
     return () => {
       clearInterval(t);
       window.removeEventListener("focus", onFocus);
     };
-  }, []);
+  }, [debouncedLoad]);
+
 
   const [monthStart, setMonthStart] = useState(() => {
     const n = new Date();
