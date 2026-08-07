@@ -17,8 +17,9 @@ import { AppShell, PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +28,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, Trash2, Save, RefreshCw, Settings2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  Save,
+  RefreshCw,
+  Settings2,
+  HelpCircle,
+} from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 export const Route = createFileRoute("/calendar")({
@@ -143,14 +152,17 @@ function CalendarPage() {
   const [calDraft, setCalDraft] = useState("");
   const [savingUrl, setSavingUrl] = useState(false);
   const [syncNextMonth, setSyncNextMonth] = useState(false);
+  const [autoSync, setAutoSync] = useState(true);
   const [debug, setDebug] = useState(false);
 
-  // Sync scope preference is a per-device setting; current month is always on.
+  // Sync preferences are per-device; current month is always on.
   useEffect(() => {
     if (typeof window !== "undefined") {
       setSyncNextMonth(window.localStorage.getItem("gcal:syncNextMonth") === "1");
+      setAutoSync(window.localStorage.getItem("gcal:autoSync") !== "0");
     }
   }, []);
+
 
   // Match trace is a debug-only surface: opt in with ?debug=1.
   useEffect(() => {
@@ -197,6 +209,7 @@ function CalendarPage() {
     onSynced: load,
     announce: true,
     includeNextMonth: syncNextMonth,
+    auto: autoSync,
   });
 
   // Another view finished a sync — pull the newly generated shifts in.
@@ -505,57 +518,114 @@ function CalendarPage() {
       />
 
       <Dialog open={calDialogOpen} onOpenChange={setCalDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Google Calendar link</DialogTitle>
-            <DialogDescription>
-              Paste the public iCal URL from Google Calendar → Settings → Integrate calendar → “Public
-              address in iCal format” (ends in <code>.ics</code>). Shifts refresh here every 5 minutes.
-            </DialogDescription>
+            <div className="flex items-center gap-2">
+              <DialogTitle>Google Calendar</DialogTitle>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="How to get your calendar link"
+                    className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <HelpCircle className="h-3.5 w-3.5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-80 text-sm">
+                  <p className="font-medium">How to get your Google Calendar public iCal link</p>
+                  <ol className="mt-2 list-decimal space-y-1 pl-4 text-muted-foreground">
+                    <li>Open Google Calendar</li>
+                    <li>Settings</li>
+                    <li>Select your calendar</li>
+                    <li>Integrate Calendar</li>
+                    <li>Copy the “Public address in iCal format” (.ics) link</li>
+                  </ol>
+                </PopoverContent>
+              </Popover>
+            </div>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="ics-url">Calendar link</Label>
-            <Input
-              id="ics-url"
-              value={calDraft}
-              onChange={(e) => setCalDraft(e.target.value)}
-              placeholder="https://calendar.google.com/calendar/ical/…/public/basic.ics"
-              autoFocus
-            />
-            {icsUrl && <p className="break-all text-xs text-muted-foreground">Current: {icsUrl}</p>}
+
+          <div className="space-y-6 py-1">
+            <section className="space-y-2">
+              <Label htmlFor="ics-url" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Calendar URL
+              </Label>
+              <Input
+                id="ics-url"
+                value={calDraft}
+                onChange={(e) => setCalDraft(e.target.value)}
+                placeholder="https://calendar.google.com/…/basic.ics"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                {hasGoogleCalendar ? (
+                  <>
+                    🟢 Connected
+                    {lastSync
+                      ? ` • Last synced: ${lastSync.toLocaleTimeString([], {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}`
+                      : ""}
+                  </>
+                ) : (
+                  <>🔴 Not connected</>
+                )}
+              </p>
+            </section>
+
+            <section className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Synchronization
+              </p>
+              <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3">
+                <Label htmlFor="auto-sync" className="text-sm font-normal">
+                  Automatic Sync
+                </Label>
+                <Switch
+                  id="auto-sync"
+                  checked={autoSync}
+                  onCheckedChange={(on) => {
+                    setAutoSync(on);
+                    if (typeof window !== "undefined") {
+                      window.localStorage.setItem("gcal:autoSync", on ? "1" : "0");
+                    }
+                  }}
+                />
+              </div>
+            </section>
+
+            <section className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Sync Scope
+              </p>
+              <div className="divide-y divide-border/60 rounded-xl border border-border/60">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <Label htmlFor="scope-current" className="text-sm font-normal">
+                    Current Month
+                  </Label>
+                  <Switch id="scope-current" checked disabled />
+                </div>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <Label htmlFor="scope-next" className="text-sm font-normal">
+                    Next Month
+                  </Label>
+                  <Switch
+                    id="scope-next"
+                    checked={syncNextMonth}
+                    onCheckedChange={(on) => {
+                      setSyncNextMonth(on);
+                      if (typeof window !== "undefined") {
+                        window.localStorage.setItem("gcal:syncNextMonth", on ? "1" : "0");
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </section>
           </div>
 
-          <div className="space-y-3 rounded-lg border border-border/60 p-4">
-            <div>
-              <p className="text-sm font-medium">Calendar sync scope</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Current month is always synchronized. Enable next month once the new schedule has
-                been published.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox id="scope-current" checked disabled />
-              <Label htmlFor="scope-current" className="text-sm font-normal opacity-70">
-                Sync current month
-              </Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="scope-next"
-                checked={syncNextMonth}
-                onCheckedChange={(v) => {
-                  const on = v === true;
-                  setSyncNextMonth(on);
-                  if (typeof window !== "undefined") {
-                    window.localStorage.setItem("gcal:syncNextMonth", on ? "1" : "0");
-                  }
-                }}
-              />
-              <Label htmlFor="scope-next" className="text-sm font-normal">
-                Sync next month
-              </Label>
-            </div>
-          </div>
           <DialogFooter className="flex-row justify-between">
             <Button
               variant="ghost"
@@ -570,12 +640,13 @@ function CalendarPage() {
                 Cancel
               </Button>
               <Button onClick={handleSaveCalendarUrl} disabled={savingUrl}>
-                <Save className="mr-1 h-4 w-4" /> {savingUrl ? "Saving…" : "Save & sync"}
+                <Save className="mr-1 h-4 w-4" /> {savingUrl ? "Saving…" : "Save & Sync"}
               </Button>
             </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </AppShell>
   );
 }

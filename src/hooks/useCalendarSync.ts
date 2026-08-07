@@ -32,8 +32,10 @@ export function useCalendarSync(options: {
   announce?: boolean;
   /** Include next month in the sync window. */
   includeNextMonth?: boolean;
+  /** Background (mount/interval/refocus) syncing. Manual syncs always work. */
+  auto?: boolean;
 }) {
-  const { enabled, announce = false, includeNextMonth = false } = options;
+  const { enabled, announce = false, includeNextMonth = false, auto: autoEnabled = true } = options;
   const syncFn = useServerFn(syncGoogleCalendar);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
@@ -85,9 +87,10 @@ export function useCalendarSync(options: {
   // the tab is hidden (no point polling a calendar nobody is looking at),
   // with an immediate catch-up check when it becomes visible again.
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !autoEnabled) return;
     const auto = () => runSync({ silent: true, force: false });
     auto();
+
 
     let interval: ReturnType<typeof setInterval> | null = null;
     const start = () => {
@@ -113,7 +116,7 @@ export function useCalendarSync(options: {
       stop();
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [enabled, runSync]);
+  }, [enabled, autoEnabled, runSync]);
 
   return { syncing, lastSync, logs, setLogs, runSync };
 }
