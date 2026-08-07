@@ -129,129 +129,131 @@ export function ClassScheduleCard({
           </Badge>
         </div>
 
-        <div>
-          <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>
-              {completed} completed · {cancelled} cancelled · {upcoming} upcoming
-            </span>
-            <span className="tabular-nums">
-              {pct}% ({processed} / {classes.length} processed)
-            </span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-done transition-all duration-500"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
+        <div className="relative">
           {classes.map((c, i) => {
             const st = states[i];
             const isCancelled = st === "cancelled";
+            const done = st === "completed";
+            const prevDone = i > 0 && states[i - 1] === "completed";
             return (
-              <div
-                key={c.id}
-                className={cn(
-                  "flex flex-wrap items-center gap-3 rounded-xl border p-3 transition-colors",
-                  st === "live" ? "border-live/60 bg-live/5" : "border-border/60",
-                  isCancelled && "opacity-50",
-                )}
-              >
-                <div className="w-[92px] shrink-0 text-xs tabular-nums">
-                  <div className="font-medium">{fmt(c.start_time)}</div>
-                  <div className="text-muted-foreground">– {fmt(c.end_time)}</div>
-                </div>
-                <span
-                  aria-hidden
-                  className={cn(
-                    "h-2.5 w-2.5 shrink-0 rounded-full",
-                    st === "completed"
-                      ? "bg-done"
-                      : st === "live"
-                        ? "bg-live animate-pulse"
-                        : st === "cancelled"
-                          ? "bg-alert"
-                          : "border border-muted-foreground/40",
+              <div key={c.id} className="flex gap-3">
+                <div className="relative flex w-6 shrink-0 items-center justify-center">
+                  {i > 0 && (
+                    <span
+                      className={cn(
+                        "absolute left-1/2 top-0 h-1/2 w-px -translate-x-1/2",
+                        prevDone && done ? "bg-done" : "bg-border",
+                      )}
+                    />
                   )}
-                />
-                <div className="min-w-0 flex-1">
-                  <div
+                  {i < classes.length - 1 && (
+                    <span
+                      className={cn(
+                        "absolute bottom-0 left-1/2 h-1/2 w-px -translate-x-1/2",
+                        done && states[i + 1] === "completed" ? "bg-done" : "bg-border",
+                      )}
+                    />
+                  )}
+                  <span
+                    aria-hidden
                     className={cn(
-                      "truncate text-sm font-medium",
-                      isCancelled && "line-through",
+                      "relative z-10 flex h-5 w-5 items-center justify-center rounded-full",
+                      done
+                        ? "bg-done text-background"
+                        : st === "live"
+                          ? "bg-live ring-4 ring-live/20"
+                          : st === "cancelled"
+                            ? "bg-alert text-background"
+                            : "border-2 border-muted-foreground/40 bg-background",
                     )}
                   >
-                    {c.class_name}
+                    {done && <Check className="h-3 w-3" strokeWidth={3} />}
+                    {isCancelled && <X className="h-3 w-3" strokeWidth={3} />}
+                  </span>
+                </div>
+
+                <div
+                  className={cn(
+                    "my-1 flex flex-1 flex-wrap items-center gap-3 rounded-xl border p-3 transition-colors",
+                    st === "live" ? "border-live/60 bg-live/5" : "border-transparent",
+                    isCancelled && "opacity-50",
+                  )}
+                >
+                  <div className="w-[92px] shrink-0 text-xs tabular-nums">
+                    <div className="font-medium">{fmt(c.start_time)}</div>
+                    <div className="text-muted-foreground">– {fmt(c.end_time)}</div>
                   </div>
-                  <div className="truncate text-xs text-muted-foreground">{c.teacher_name}</div>
-                </div>
-                <div className="hidden text-xs text-muted-foreground sm:block">
-                  {durationOf(c)} min
-                </div>
-                <Badge
-                  variant={st === "live" ? "default" : "outline"}
-                  className={cn("text-[10px]", isCancelled && "text-alert")}
-                >
-                  {STATUS_LABEL[st]}
-                </Badge>
-                <Button
-                  size="sm"
-                  variant={st === "live" ? "default" : "outline"}
-                  disabled={isCancelled}
-                  onClick={() => openDisplay(c)}
-                >
-                  {isCancelled ? "Cancelled" : "Open Studio Display"}
-                  {!isCancelled && <ExternalLink className="ml-1.5 h-3.5 w-3.5" />}
-                </Button>
-                {(onSetStatus || onCorrect) && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Class actions">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {onCorrect && (
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setFixing(c);
-                            setFixClass(c.class_id ? c.class_name : "");
-                            setFixTeacher(c.teacher_id ? c.teacher_name : "");
-                          }}
-                        >
-                          <Wand2 className="mr-2 h-4 w-4" /> Fix class match
-                        </DropdownMenuItem>
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className={cn(
+                        "truncate text-sm font-medium",
+                        isCancelled && "line-through",
                       )}
-                      {!onSetStatus ? null : isCancelled ? (
-                        <DropdownMenuItem onClick={() => onSetStatus(c.id, "scheduled")}>
-                          Restore class
-                        </DropdownMenuItem>
-                      ) : (
-                        <>
-                          <DropdownMenuItem onClick={() => onSetStatus(c.id, "completed")}>
-                            <Check className="mr-2 h-4 w-4 text-done" /> Mark as Completed
+                    >
+                      {c.class_name}
+                    </div>
+                    <div className="truncate text-xs text-muted-foreground">{c.teacher_name}</div>
+                  </div>
+                  <div className="hidden text-xs text-muted-foreground sm:block">
+                    {durationOf(c)} min
+                  </div>
+                  <Badge
+                    variant={st === "live" ? "default" : "outline"}
+                    className={cn("text-[10px]", isCancelled && "text-alert")}
+                  >
+                    {STATUS_LABEL[st]}
+                  </Badge>
+                  <Button
+                    size="sm"
+                    variant={st === "live" ? "default" : "outline"}
+                    disabled={isCancelled}
+                    onClick={() => openDisplay(c)}
+                  >
+                    {isCancelled ? "Cancelled" : "Studio Display"}
+                    {!isCancelled && <ExternalLink className="ml-1.5 h-3.5 w-3.5" />}
+                  </Button>
+                  {(onSetStatus || onCorrect) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Class actions">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {onCorrect && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setFixing(c);
+                              setFixClass(c.class_id ? c.class_name : "");
+                              setFixTeacher(c.teacher_id ? c.teacher_name : "");
+                            }}
+                          >
+                            <Wand2 className="mr-2 h-4 w-4" /> Fix class match
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onSetStatus(c.id, "cancelled")}>
-                            <X className="mr-2 h-4 w-4 text-alert" /> Cancel Class
+                        )}
+                        {!onSetStatus ? null : isCancelled ? (
+                          <DropdownMenuItem onClick={() => onSetStatus(c.id, "scheduled")}>
+                            Restore class
                           </DropdownMenuItem>
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                        ) : (
+                          <>
+                            <DropdownMenuItem onClick={() => onSetStatus(c.id, "completed")}>
+                              <Check className="mr-2 h-4 w-4 text-done" /> Mark as Completed
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onSetStatus(c.id, "cancelled")}>
+                              <X className="mr-2 h-4 w-4 text-alert" /> Cancel Class
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
 
-        <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-done" /> Completed</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-live" /> In Progress</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-alert" /> Cancelled</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border border-muted-foreground/40" /> Upcoming</span>
-        </div>
       </CardContent>
 
       <Dialog open={!!fixing} onOpenChange={(o) => !o && setFixing(null)}>
