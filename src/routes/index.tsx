@@ -27,6 +27,8 @@ import { RouteMapPreview } from "@/components/RouteMapPreview";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
+import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
+
 import { publishSync } from "@/lib/sync-bus";
 import {
   listMyCalendarClasses,
