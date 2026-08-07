@@ -712,7 +712,7 @@ function CheckInPanel({
         )}
 
         <HoldButton
-          label="Hold to Check In"
+          label="Hold to check in"
           disabled={!canCheckIn}
           busy={checkingIn}
           onComplete={onCheckIn}
@@ -793,7 +793,9 @@ function ActiveShiftPanel({
   }).length;
 
   const earlyMin = times ? Math.max(0, Math.round((times.endAt.getTime() - now.getTime()) / 60000)) : 0;
-  const early = earlyMin > 0;
+  // Only worth mentioning when the early finish is material (more than 15 minutes).
+  const early = earlyMin > 15;
+
 
   // Shift progress: from check-in (or scheduled start) to the scheduled end.
   const shiftStart = times?.startAt ?? checkInAt;
@@ -936,27 +938,25 @@ function ActiveShiftPanel({
       <Card>
         <CardContent className="flex flex-col items-center gap-4 px-5 py-6">
           <HoldButton
-            label="Hold to Check Out"
-            successLabel="Checked out"
+            label="Hold to check out"
             tone="danger"
             busy={checkingOut}
             onComplete={onCheckOut}
             size={100}
           />
-          {pendingClasses > 0 && (
+          {pendingClasses > 0 ? (
             <p className="max-w-sm text-center text-xs text-alert">
-              Some scheduled classes haven't been processed yet. Mark them as Completed or Cancelled
-              before checking out.
+              Mark remaining classes Completed or Cancelled before checking out.
             </p>
-          )}
-          {early ? (
+          ) : early ? (
             <p className="max-w-sm text-center text-xs text-muted-foreground">
-              Scheduled until {fmtTime(scheduledShift!.end_time)} — checking out now records an early
-              finish of{" "}
-              {earlyMin >= 60 ? `${Math.floor(earlyMin / 60)}h ${earlyMin % 60}m` : `${earlyMin}m`}.
+              Early finish of{" "}
+              {earlyMin >= 60 ? `${Math.floor(earlyMin / 60)}h ${earlyMin % 60}m` : `${earlyMin}m`} —
+              scheduled until {fmtTime(scheduledShift!.end_time)}.
             </p>
           ) : null}
         </CardContent>
+
       </Card>
     </div>
   );
