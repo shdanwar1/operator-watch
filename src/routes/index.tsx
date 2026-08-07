@@ -274,15 +274,15 @@ function Index() {
     if (message.type === "data-synced") load();
   });
 
-  // Live sync: refetch whenever admin (or anyone) changes shifts/scheduled shifts.
+  // Shift tables are not exposed to client realtime (per-operator data locked
+  // down by RLS); refresh on a timer and when the tab regains focus instead.
   useEffect(() => {
-    const ch = supabase
-      .channel("operator-shift-sync")
-      .on("postgres_changes", { event: "*", schema: "public", table: "shifts" }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_shifts" }, () => load())
-      .subscribe();
+    const t = setInterval(() => load(), 30_000);
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
     return () => {
-      supabase.removeChannel(ch);
+      clearInterval(t);
+      window.removeEventListener("focus", onFocus);
     };
   }, []);
 
