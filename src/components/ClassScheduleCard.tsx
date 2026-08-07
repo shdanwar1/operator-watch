@@ -259,6 +259,9 @@ export function ClassScheduleCard({
           })}
         </div>
 
+        {footer ? (
+          <div className="border-t border-border pt-4">{footer}</div>
+        ) : null}
       </CardContent>
 
       <Dialog open={!!fixing} onOpenChange={(o) => !o && setFixing(null)}>
