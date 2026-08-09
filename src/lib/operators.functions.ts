@@ -371,3 +371,69 @@ export const adminCreateOperator = createServerFn({ method: "POST" })
     }
     return { ok: true as const, id: id as string, username: data.username };
   });
+
+/** Admin: permanently delete an operator. Historical shift rows are kept
+ *  (they reference the operator by name, not by id) so payroll stays intact. */
+export const adminDeleteOperator = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string }) => {
+    if (!data?.id) throw new Error("id required");
+    return { id: String(data.id) };
+  })
+  .handler(async ({ data }) => {
+    await requireAdminSession();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error: e0 } = await supabaseAdmin
+      .from("operators")
+      .select("username, is_admin")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (e0) throw new Error(e0.message);
+    if (!row) throw new Error("Operator not found");
+    if ((row as { is_admin: boolean }).is_admin) {
+      throw new Error("Administrators cannot be deleted here.");
+    }
+    const username = (row as { username: string }).username;
+
+    // Release any future assignments so the schedule doesn't point at a ghost.
+    const todayIso = new Date().toISOString().slice(0, 10);
+    await supabaseAdmin
+      .from("scheduled_shifts")
+      .update({ assigned_operator: null, status: "unassigned" })
+      .eq("assigned_operator", username)
+      .gte("specific_date", todayIso);
+
+    const { error } = await supabaseAdmin.from("operators").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+/** Admin: set (reset) an operator's PIN. */
+export const adminResetOperatorPin = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string; pin: string }) => ({
+    id: String(data?.id ?? ""),
+    pin: validatePin(data?.pin),
+  }))
+  .handler(async ({ data }) => {
+    await requireAdminSession();
+    if (!data.id) throw new Error("id required");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.rpc("set_operator_pin", {
+      p_id: data.id,
+      p_pin: data.pin,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+/** The signed-in admin changes their own PIN. Takes effect on the next sign-in. */
+export const adminChangeOwnPin = createServerFn({ method: "POST" })
+  .inputValidator((data: { pin: string }) => ({ pin: validatePin(data?.pin) }))
+  .handler(async ({ data }) => {
+    const { username } = await requireAdminSession();
+    if (!username) throw new Response("Unauthorized", { status: 401 });
+    const id = await findOperatorIdByUsername(username);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.rpc("set_operator_pin", { p_id: id, p_pin: data.pin });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });

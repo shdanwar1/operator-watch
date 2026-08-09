@@ -121,3 +121,63 @@ export const findPossibleDuplicates = createServerFn({ method: "GET" }).handler(
 
   return { classes: pairs(classes), teachers: pairs(teachers) };
 });
+
+// ---------- admin management (App Settings → Classes & Teachers) ----------
+
+async function requireAdminGate() {
+  const session = await useSession<GateSession>(getSessionConfig());
+  if (!session.data.siteUnlocked) throw new Response("Unauthorized", { status: 401 });
+  if (!session.data.isAdmin) throw new Response("Admin access required", { status: 403 });
+}
+
+function parseTable(v: unknown): "teachers" | "classes" {
+  return v === "teachers" ? "teachers" : "classes";
+}
+
+export const adminCreateDirectoryItem = createServerFn({ method: "POST" })
+  .inputValidator((data: { table: string; name: string }) => ({
+    table: parseTable(data?.table),
+    name: String(data?.name ?? "").trim().slice(0, 200),
+  }))
+  .handler(async ({ data }) => {
+    await requireAdminGate();
+    if (!data.name) throw new Error("Name is required");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from(data.table)
+      .insert({ name: data.name } as never);
+    if (error) throw new Error(/duplicate/i.test(error.message) ? "That name already exists." : error.message);
+    return { ok: true as const };
+  });
+
+export const adminRenameDirectoryItem = createServerFn({ method: "POST" })
+  .inputValidator((data: { table: string; id: string; name: string }) => ({
+    table: parseTable(data?.table),
+    id: String(data?.id ?? ""),
+    name: String(data?.name ?? "").trim().slice(0, 200),
+  }))
+  .handler(async ({ data }) => {
+    await requireAdminGate();
+    if (!data.id || !data.name) throw new Error("Name is required");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from(data.table)
+      .update({ name: data.name } as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const adminDeleteDirectoryItem = createServerFn({ method: "POST" })
+  .inputValidator((data: { table: string; id: string }) => ({
+    table: parseTable(data?.table),
+    id: String(data?.id ?? ""),
+  }))
+  .handler(async ({ data }) => {
+    await requireAdminGate();
+    if (!data.id) throw new Error("id required");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from(data.table).delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
