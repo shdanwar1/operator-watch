@@ -291,6 +291,12 @@ function MaintenanceSection() {
     queryKey: ["admin", "duplicates"],
     queryFn: () => dupFn(),
   });
+  const dupPairs: DuplicatePair[] = [
+    ...(dups && !Array.isArray(dups) ? dups.classes : []),
+    ...(dups && !Array.isArray(dups) ? dups.teachers : []),
+  ];
+
+
 
   return (
     <Card>
