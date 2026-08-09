@@ -219,6 +219,27 @@ export type Database = {
         }
         Relationships: []
       }
+      pin_handoff: {
+        Row: {
+          created_at: string
+          id: string
+          pin: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pin: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pin?: string
+          username?: string
+        }
+        Relationships: []
+      }
       scheduled_shifts: {
         Row: {
           assigned_operator: string | null
