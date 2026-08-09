@@ -21,6 +21,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminShiftsRouteImport } from './routes/admin.shifts'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminOperatorsRouteImport } from './routes/admin.operators'
 import { Route as AdminCalendarRouteImport } from './routes/admin.calendar'
 
@@ -84,6 +85,11 @@ const AdminShiftsRoute = AdminShiftsRouteImport.update({
   path: '/shifts',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminOperatorsRoute = AdminOperatorsRouteImport.update({
   id: '/operators',
   path: '/operators',
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
   '/admin/operators': typeof AdminOperatorsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/shifts': typeof AdminShiftsRoute
   '/admin/': typeof AdminIndexRoute
 }
@@ -123,6 +130,7 @@ export interface FileRoutesByTo {
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
   '/admin/operators': typeof AdminOperatorsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/shifts': typeof AdminShiftsRoute
   '/admin': typeof AdminIndexRoute
 }
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
   '/admin/operators': typeof AdminOperatorsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/shifts': typeof AdminShiftsRoute
   '/admin/': typeof AdminIndexRoute
 }
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/unlock'
     | '/admin/calendar'
     | '/admin/operators'
+    | '/admin/settings'
     | '/admin/shifts'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
@@ -173,6 +183,7 @@ export interface FileRouteTypes {
     | '/unlock'
     | '/admin/calendar'
     | '/admin/operators'
+    | '/admin/settings'
     | '/admin/shifts'
     | '/admin'
   id:
@@ -189,6 +200,7 @@ export interface FileRouteTypes {
     | '/unlock'
     | '/admin/calendar'
     | '/admin/operators'
+    | '/admin/settings'
     | '/admin/shifts'
     | '/admin/'
   fileRoutesById: FileRoutesById
@@ -292,6 +304,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminShiftsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/operators': {
       id: '/admin/operators'
       path: '/operators'
@@ -312,6 +331,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminCalendarRoute: typeof AdminCalendarRoute
   AdminOperatorsRoute: typeof AdminOperatorsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
   AdminShiftsRoute: typeof AdminShiftsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -319,6 +339,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCalendarRoute: AdminCalendarRoute,
   AdminOperatorsRoute: AdminOperatorsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
   AdminShiftsRoute: AdminShiftsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
