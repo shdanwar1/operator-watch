@@ -322,16 +322,17 @@ function MaintenanceSection() {
             {busy ? "Re-checking…" : "Re-check class & teacher matches"}
           </Button>
         </div>
-        {(dups ?? []).length > 0 && (
+        {dupPairs.length > 0 && (
           <div className="space-y-1 rounded-lg border border-border p-3 text-xs">
             <div className="font-medium">Possible duplicates</div>
-            {(dups ?? []).slice(0, 20).map((p, i) => (
+            {dupPairs.slice(0, 20).map((p, i) => (
               <div key={i} className="text-muted-foreground">
                 {p.a.name} ↔ {p.b.name}
               </div>
             ))}
           </div>
         )}
+
       </CardContent>
     </Card>
   );
