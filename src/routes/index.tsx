@@ -19,6 +19,7 @@ import {
 import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/lib/travel.functions";
 import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.functions";
+import { getAppSettings } from "@/lib/settings.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -1024,14 +1025,7 @@ function ActiveShiftPanel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={closeConfirm}>Continue Working</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setConfirm(null);
-                onCheckOut();
-              }}
-            >
-              Check Out Anyway
-            </AlertDialogAction>
+            <AlertDialogAction onClick={proceedCheckOut}>Check Out Anyway</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1047,13 +1041,28 @@ function ActiveShiftPanel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={closeConfirm}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={proceedCheckOut}>Check Out Anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirm === "camera"} onOpenChange={(o) => !o && closeConfirm()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Before you go</AlertDialogTitle>
+            <AlertDialogDescription>
+              {checkoutPrompt?.message ?? "Did you turn the security camera back ON?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeConfirm}>Not yet</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 setConfirm(null);
                 onCheckOut();
               }}
             >
-              Check Out Anyway
+              Yes, camera is ON
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
