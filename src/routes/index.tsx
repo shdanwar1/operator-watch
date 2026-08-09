@@ -19,6 +19,7 @@ import {
 import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/lib/travel.functions";
 import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.functions";
+import { getAppSettings } from "@/lib/settings.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -807,19 +808,47 @@ function ActiveShiftPanel({
   const early = earlyMin > 15;
 
   // Confirmation flow: nothing is shown until the 3s hold actually completes.
-  const [confirm, setConfirm] = useState<"incomplete" | "early" | null>(null);
+  const [confirm, setConfirm] = useState<"incomplete" | "early" | "camera" | null>(null);
   const [resetSignal, setResetSignal] = useState(0);
+
+  // Admin-managed, system-wide check-out reminder.
+  const loadSettings = useServerFn(getAppSettings);
+  const [checkoutPrompt, setCheckoutPrompt] = useState<{ message: string; enabled: boolean } | null>(
+    null,
+  );
+  useEffect(() => {
+    let alive = true;
+    loadSettings()
+      .then((s) => {
+        if (alive) setCheckoutPrompt(s.checkout);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [loadSettings]);
+
   const closeConfirm = () => {
     setConfirm(null);
     setResetSignal((n) => n + 1);
   };
+  /** Last gate before the shift actually closes. */
+  const proceedCheckOut = () => {
+    if (checkoutPrompt?.enabled) {
+      setConfirm("camera");
+      return;
+    }
+    setConfirm(null);
+    onCheckOut();
+  };
   const handleHoldComplete = () => {
     if (!early) {
-      onCheckOut();
+      proceedCheckOut();
       return;
     }
     setConfirm(pendingClasses > 0 ? "incomplete" : "early");
   };
+
 
 
 
@@ -996,14 +1025,7 @@ function ActiveShiftPanel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={closeConfirm}>Continue Working</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setConfirm(null);
-                onCheckOut();
-              }}
-            >
-              Check Out Anyway
-            </AlertDialogAction>
+            <AlertDialogAction onClick={proceedCheckOut}>Check Out Anyway</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1019,13 +1041,28 @@ function ActiveShiftPanel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={closeConfirm}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={proceedCheckOut}>Check Out Anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirm === "camera"} onOpenChange={(o) => !o && closeConfirm()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Before you go</AlertDialogTitle>
+            <AlertDialogDescription>
+              {checkoutPrompt?.message ?? "Did you turn the security camera back ON?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeConfirm}>Not yet</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 setConfirm(null);
                 onCheckOut();
               }}
             >
-              Check Out Anyway
+              Yes, camera is ON
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

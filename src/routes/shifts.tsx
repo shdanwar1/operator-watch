@@ -36,9 +36,11 @@ import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 
 export const Route = createFileRoute("/shifts")({
   beforeLoad: async () => {
-    const { unlocked } = await getGateStatus();
-    if (!unlocked) throw redirect({ to: "/unlock" });
+    const status = await getGateStatus();
+    if (!status.unlocked) throw redirect({ to: "/unlock" });
+    if (status.isAdmin) throw redirect({ to: "/admin" });
   },
+
   component: ShiftsPage,
 });
 
@@ -461,10 +463,7 @@ function EditDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-1">
-            <Label>Operator</Label>
-            <p className="text-sm text-muted-foreground">{draft.operator_name}</p>
-          </div>
+
 
 
 

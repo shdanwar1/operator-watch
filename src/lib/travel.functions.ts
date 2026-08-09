@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
+import { readAppSettings } from "./settings.functions";
 
 // Office (fixed for every operator).
 export const OFFICE = {
@@ -101,6 +102,9 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Studio location is an admin-managed, system-wide setting.
+    const settings = await readAppSettings();
+    const office = { label: settings.studio.label, lat: settings.studio.lat, lng: settings.studio.lng };
     const { data: op, error } = await supabaseAdmin
       .from("operators")
       .select("home_label, home_lat, home_lng")
@@ -118,9 +122,9 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
     url.searchParams.set("from.latitude", String(op.home_lat));
     url.searchParams.set("from.longitude", String(op.home_lng));
     url.searchParams.set("from.address", op.home_label ?? "Home");
-    url.searchParams.set("to.latitude", String(OFFICE.lat));
-    url.searchParams.set("to.longitude", String(OFFICE.lng));
-    url.searchParams.set("to.address", OFFICE.label);
+    url.searchParams.set("to.latitude", String(office.lat));
+    url.searchParams.set("to.longitude", String(office.lng));
+    url.searchParams.set("to.address", office.label);
     url.searchParams.set("arrival", targetArrival.toISOString());
     url.searchParams.set("results", "3");
     url.searchParams.set("stopovers", "false");
@@ -185,9 +189,9 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       directUrl.searchParams.set("from.latitude", String(op.home_lat));
       directUrl.searchParams.set("from.longitude", String(op.home_lng));
       directUrl.searchParams.set("from.address", op.home_label ?? "Home");
-      directUrl.searchParams.set("to.latitude", String(OFFICE.lat));
-      directUrl.searchParams.set("to.longitude", String(OFFICE.lng));
-      directUrl.searchParams.set("to.address", OFFICE.label);
+      directUrl.searchParams.set("to.latitude", String(office.lat));
+      directUrl.searchParams.set("to.longitude", String(office.lng));
+      directUrl.searchParams.set("to.address", office.label);
       // Anchor at the shift start (not the 15-min buffer) so per-mode walk
       // times can be applied precisely below.
       directUrl.searchParams.set("arrival", shiftStart.toISOString());
@@ -250,9 +254,9 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       home_label: op.home_label ?? "Home",
       home_lat: Number(op.home_lat),
       home_lng: Number(op.home_lng),
-      office_label: OFFICE.label,
-      office_lat: OFFICE.lat,
-      office_lng: OFFICE.lng,
+      office_label: office.label,
+      office_lat: office.lat,
+      office_lng: office.lng,
       shift_start_iso: shiftStart.toISOString(),
       target_arrival_iso: targetArrival.toISOString(),
       departure_iso: pick.dep,
