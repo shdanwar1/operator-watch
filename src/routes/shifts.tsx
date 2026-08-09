@@ -463,10 +463,7 @@ function EditDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-1">
-            <Label>Operator</Label>
-            <p className="text-sm text-muted-foreground">{draft.operator_name}</p>
-          </div>
+
 
 
 
