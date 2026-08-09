@@ -23,6 +23,7 @@ import {
   listClasses,
   listTeachers,
   type DirectoryItem,
+  type DuplicatePair,
 } from "@/lib/directories.functions";
 import { backfillClassMatches } from "@/lib/gcal.functions";
 
