@@ -21,6 +21,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminShiftsRouteImport } from './routes/admin.shifts'
+import { Route as AdminOperatorsRouteImport } from './routes/admin.operators'
 import { Route as AdminCalendarRouteImport } from './routes/admin.calendar'
 
 const UnlockRoute = UnlockRouteImport.update({
@@ -83,6 +84,11 @@ const AdminShiftsRoute = AdminShiftsRouteImport.update({
   path: '/shifts',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminOperatorsRoute = AdminOperatorsRouteImport.update({
+  id: '/operators',
+  path: '/operators',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCalendarRoute = AdminCalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/studio-display': typeof StudioDisplayRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
+  '/admin/operators': typeof AdminOperatorsRoute
   '/admin/shifts': typeof AdminShiftsRoute
   '/admin/': typeof AdminIndexRoute
 }
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/studio-display': typeof StudioDisplayRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
+  '/admin/operators': typeof AdminOperatorsRoute
   '/admin/shifts': typeof AdminShiftsRoute
   '/admin': typeof AdminIndexRoute
 }
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/studio-display': typeof StudioDisplayRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
+  '/admin/operators': typeof AdminOperatorsRoute
   '/admin/shifts': typeof AdminShiftsRoute
   '/admin/': typeof AdminIndexRoute
 }
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/studio-display'
     | '/unlock'
     | '/admin/calendar'
+    | '/admin/operators'
     | '/admin/shifts'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/studio-display'
     | '/unlock'
     | '/admin/calendar'
+    | '/admin/operators'
     | '/admin/shifts'
     | '/admin'
   id:
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/studio-display'
     | '/unlock'
     | '/admin/calendar'
+    | '/admin/operators'
     | '/admin/shifts'
     | '/admin/'
   fileRoutesById: FileRoutesById
@@ -280,6 +292,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminShiftsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/operators': {
+      id: '/admin/operators'
+      path: '/operators'
+      fullPath: '/admin/operators'
+      preLoaderRoute: typeof AdminOperatorsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/calendar': {
       id: '/admin/calendar'
       path: '/calendar'
@@ -292,12 +311,14 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminCalendarRoute: typeof AdminCalendarRoute
+  AdminOperatorsRoute: typeof AdminOperatorsRoute
   AdminShiftsRoute: typeof AdminShiftsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCalendarRoute: AdminCalendarRoute,
+  AdminOperatorsRoute: AdminOperatorsRoute,
   AdminShiftsRoute: AdminShiftsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
