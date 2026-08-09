@@ -807,19 +807,47 @@ function ActiveShiftPanel({
   const early = earlyMin > 15;
 
   // Confirmation flow: nothing is shown until the 3s hold actually completes.
-  const [confirm, setConfirm] = useState<"incomplete" | "early" | null>(null);
+  const [confirm, setConfirm] = useState<"incomplete" | "early" | "camera" | null>(null);
   const [resetSignal, setResetSignal] = useState(0);
+
+  // Admin-managed, system-wide check-out reminder.
+  const loadSettings = useServerFn(getAppSettings);
+  const [checkoutPrompt, setCheckoutPrompt] = useState<{ message: string; enabled: boolean } | null>(
+    null,
+  );
+  useEffect(() => {
+    let alive = true;
+    loadSettings()
+      .then((s) => {
+        if (alive) setCheckoutPrompt(s.checkout);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [loadSettings]);
+
   const closeConfirm = () => {
     setConfirm(null);
     setResetSignal((n) => n + 1);
   };
+  /** Last gate before the shift actually closes. */
+  const proceedCheckOut = () => {
+    if (checkoutPrompt?.enabled) {
+      setConfirm("camera");
+      return;
+    }
+    setConfirm(null);
+    onCheckOut();
+  };
   const handleHoldComplete = () => {
     if (!early) {
-      onCheckOut();
+      proceedCheckOut();
       return;
     }
     setConfirm(pendingClasses > 0 ? "incomplete" : "early");
   };
+
 
 
 
