@@ -572,9 +572,12 @@ function Index() {
         />
       )}
 
+      <PageHeader eyebrow="Operator dashboard" title={`${greeting(now)}, ${username}.`} />
+
       {!profileComplete && !active && (
         <ProfileIncompleteBanner missing={profileStatus?.missing ?? []} />
       )}
+
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
