@@ -602,6 +602,7 @@ function Index() {
           ) : (
             <>
               {focus === "time_to_leave" &&
+                prefs.showTimeToLeave &&
                 (checkInLocked ? (
                   <LockedFeatureCard
                     icon={<Train className="h-4 w-4" />}
@@ -610,7 +611,12 @@ function Index() {
                     hero
                   />
                 ) : (
-                  <TimeToLeaveCard scheduled={scheduled} now={now} variant="hero" />
+                  <TimeToLeaveCard
+                    scheduled={scheduled}
+                    now={now}
+                    variant="hero"
+                    onDeparture={setDepartureIso}
+                  />
                 ))}
 
               {/* Check In is always present — only its state changes. */}
