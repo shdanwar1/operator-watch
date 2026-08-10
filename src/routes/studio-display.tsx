@@ -32,8 +32,9 @@ function StudioDisplaySettingsPage() {
   return (
     <AppShell>
       <PageHeader
+        eyebrow="Teacher-facing screen"
         title="Studio Display"
-        subtitle="Custom timer and notes for the teacher-facing screen. Class displays open from the dashboard."
+        subtitle="Custom timer and notes. Class displays open from the dashboard."
       />
       <div className="max-w-xl">
         <StudioDisplayPanel />

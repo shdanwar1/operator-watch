@@ -17,6 +17,8 @@ import {
   type DirectoryItem,
 } from "@/lib/directories.functions";
 import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/lib/travel.functions";
+import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
+import { useReminders, type Reminder } from "@/hooks/useReminders";
 import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.functions";
 import { getAppSettings } from "@/lib/settings.functions";
@@ -47,7 +49,7 @@ import {
   correctMyClassMatch,
   type CalendarClassRow,
 } from "@/lib/gcal.functions";
-import { AppShell, SectionTitle } from "@/components/AppShell";
+import { AppShell, PageHeader, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
 import {
@@ -265,6 +267,25 @@ function Index() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [, setTick] = useState(0);
 
+  // Personal preferences (calendar sync, notifications, dashboard cards).
+  const loadPrefs = useServerFn(getMyPrefs);
+  const [prefs, setPrefs] = useState<OperatorPrefs>(DEFAULT_PREFS);
+  const [departureIso, setDepartureIso] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadPrefs()
+      .then((p) => {
+        if (!cancelled) setPrefs(p);
+      })
+      .catch(() => {
+        /* defaults are fine */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadPrefs]);
+
+
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(t);
@@ -279,6 +300,8 @@ function Index() {
   const { syncing } = useCalendarSync({
     enabled: !!profileStatus && !needsCal,
     onSynced: () => load(),
+    auto: prefs.autoSync,
+    includeNextMonth: prefs.syncNextMonth,
   });
 
   // A sync that finished in another view (or another tab) refreshes us too.
@@ -376,6 +399,31 @@ function Index() {
     : Infinity;
   const focus: "check_in" | "time_to_leave" =
     !active && minutesToNext > 60 ? "time_to_leave" : "check_in";
+
+  // Reminders — only for the next shift, and only while it is still ahead.
+  const reminders: Reminder[] = [];
+  if (nextDisplay && !active) {
+    const startAt = nextDisplay.startAt;
+    const stamp = startAt.toISOString();
+    if (prefs.notifyShiftStart) {
+      reminders.push({
+        key: `shift-start:${stamp}`,
+        at: new Date(startAt.getTime() - 15 * 60_000),
+        title: "Shift starts in 15 minutes",
+        body: `${fmtHM(startAt)} — get ready to check in.`,
+      });
+    }
+    if (prefs.notifyTimeToLeave && departureIso) {
+      reminders.push({
+        key: `leave:${stamp}`,
+        at: new Date(departureIso),
+        title: "Time to leave",
+        body: `Leave now to arrive before your ${fmtHM(startAt)} shift.`,
+      });
+    }
+  }
+  useReminders(reminders, prefs.notifyShiftStart || prefs.notifyTimeToLeave);
+
 
   // The scheduled shift the active attendance record belongs to.
   const activeScheduled =
@@ -524,9 +572,12 @@ function Index() {
         />
       )}
 
+      <PageHeader eyebrow="Operator dashboard" title={`${greeting(now)}, ${username}.`} />
+
       {!profileComplete && !active && (
         <ProfileIncompleteBanner missing={profileStatus?.missing ?? []} />
       )}
+
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
@@ -551,6 +602,7 @@ function Index() {
           ) : (
             <>
               {focus === "time_to_leave" &&
+                prefs.showTimeToLeave &&
                 (checkInLocked ? (
                   <LockedFeatureCard
                     icon={<Train className="h-4 w-4" />}
@@ -559,7 +611,12 @@ function Index() {
                     hero
                   />
                 ) : (
-                  <TimeToLeaveCard scheduled={scheduled} now={now} variant="hero" />
+                  <TimeToLeaveCard
+                    scheduled={scheduled}
+                    now={now}
+                    variant="hero"
+                    onDeparture={setDepartureIso}
+                  />
                 ))}
 
               {/* Check In is always present — only its state changes. */}
@@ -1076,6 +1133,14 @@ function ActiveShiftPanel({
 
 
 
+/** Time-of-day greeting shown on the dashboard header. */
+function greeting(d: Date) {
+  const h = d.getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
 function fmtHM(d: Date) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
@@ -1084,11 +1149,15 @@ function TimeToLeaveCard({
   scheduled,
   now,
   variant = "default",
+  onDeparture,
 }: {
   scheduled: ScheduledShift[];
   now: Date;
   variant?: "default" | "hero";
+  /** Reports the planned departure time so the dashboard can remind about it. */
+  onDeparture?: (iso: string | null) => void;
 }) {
+
 
   const fetchPlan = useServerFn(getTimeToLeave);
   const next = useMemo(() => {
@@ -1133,6 +1202,14 @@ function TimeToLeaveCard({
       clearInterval(t);
     };
   }, [shiftIso, fetchPlan]);
+
+  const departureIso = plan && plan.ok ? plan.departure_iso : null;
+  const reportDeparture = onDeparture;
+  useEffect(() => {
+    reportDeparture?.(departureIso);
+  }, [departureIso, reportDeparture]);
+
+
 
   if (!next) return null;
 

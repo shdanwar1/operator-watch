@@ -12,6 +12,12 @@ import {
   type ShiftRow,
 } from "@/lib/shifts.functions";
 import { getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
+import {
+  getMyPrefs,
+  setMyPrefs,
+  DEFAULT_PREFS,
+  type OperatorPrefs,
+} from "@/lib/prefs.functions";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -155,13 +161,40 @@ function CalendarPage() {
   const [autoSync, setAutoSync] = useState(true);
   const [debug, setDebug] = useState(false);
 
-  // Sync preferences are per-device; current month is always on.
+  // Sync preferences live on the operator account so they follow the person.
+  const loadPrefs = useServerFn(getMyPrefs);
+  const savePrefs = useServerFn(setMyPrefs);
+  const [prefs, setPrefs] = useState<OperatorPrefs>(DEFAULT_PREFS);
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setSyncNextMonth(window.localStorage.getItem("gcal:syncNextMonth") === "1");
-      setAutoSync(window.localStorage.getItem("gcal:autoSync") !== "0");
-    }
-  }, []);
+    let cancelled = false;
+    loadPrefs()
+      .then((p) => {
+        if (cancelled) return;
+        setPrefs(p);
+        setSyncNextMonth(p.syncNextMonth);
+        setAutoSync(p.autoSync);
+      })
+      .catch(() => {
+        /* fall back to defaults */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadPrefs]);
+
+  const persistPrefs = useCallback(
+    (patch: Partial<OperatorPrefs>) => {
+      setPrefs((prev) => {
+        const next = { ...prev, ...patch };
+        void savePrefs({ data: next }).catch(() => {
+          toast.error("Could not save that preference");
+        });
+        return next;
+      });
+    },
+    [savePrefs],
+  );
+
 
 
   // Match trace is a debug-only surface: opt in with ?debug=1.
@@ -325,8 +358,8 @@ function CalendarPage() {
       <Toaster richColors position="top-center" />
 
       <PageHeader
+        eyebrow="Schedule"
         title="Calendar"
-        subtitle="Your monthly schedule"
         action={
           <div className="flex items-center gap-1.5">
             {lastSync && hasGoogleCalendar ? (
@@ -588,9 +621,7 @@ function CalendarPage() {
                   checked={autoSync}
                   onCheckedChange={(on) => {
                     setAutoSync(on);
-                    if (typeof window !== "undefined") {
-                      window.localStorage.setItem("gcal:autoSync", on ? "1" : "0");
-                    }
+                    persistPrefs({ autoSync: on });
                   }}
                 />
               </div>
@@ -616,9 +647,7 @@ function CalendarPage() {
                     checked={syncNextMonth}
                     onCheckedChange={(on) => {
                       setSyncNextMonth(on);
-                      if (typeof window !== "undefined") {
-                        window.localStorage.setItem("gcal:syncNextMonth", on ? "1" : "0");
-                      }
+                      persistPrefs({ syncNextMonth: on });
                     }}
                   />
                 </div>

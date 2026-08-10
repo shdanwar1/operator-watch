@@ -188,6 +188,7 @@ export type Database = {
           is_active: boolean
           is_admin: boolean
           pin_hash: string | null
+          prefs: Json
           updated_at: string
           username: string
         }
@@ -201,6 +202,7 @@ export type Database = {
           is_active?: boolean
           is_admin?: boolean
           pin_hash?: string | null
+          prefs?: Json
           updated_at?: string
           username: string
         }
@@ -214,6 +216,7 @@ export type Database = {
           is_active?: boolean
           is_admin?: boolean
           pin_hash?: string | null
+          prefs?: Json
           updated_at?: string
           username?: string
         }
