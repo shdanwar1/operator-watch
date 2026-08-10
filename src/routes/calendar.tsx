@@ -381,11 +381,36 @@ function CalendarPage() {
         title="Calendar"
         action={
           <div className="flex items-center gap-1.5">
-            {lastSync && hasGoogleCalendar ? (
-              <span className="mr-1 hidden text-xs text-muted-foreground sm:inline">
-                Synced {lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            ) : null}
+            <span
+              className="mr-1 hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex"
+              title={
+                health?.ok
+                  ? "Google Calendar link is working"
+                  : (health?.error ?? "Google Calendar not connected")
+              }
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "inline-block size-2 rounded-full",
+                  health === null
+                    ? "bg-muted-foreground/40"
+                    : health.ok
+                      ? "bg-emerald-500"
+                      : "bg-red-500",
+                )}
+              />
+              {health?.ok
+                ? lastSync
+                  ? `Synced ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                  : "Connected"
+                : health === null
+                  ? "Checking…"
+                  : health.connected
+                    ? "Link error"
+                    : "Not connected"}
+            </span>
+
             <Button
               variant="outline"
               size="sm"
