@@ -300,6 +300,8 @@ function Index() {
   const { syncing } = useCalendarSync({
     enabled: !!profileStatus && !needsCal,
     onSynced: () => load(),
+    auto: prefs.autoSync,
+    includeNextMonth: prefs.syncNextMonth,
   });
 
   // A sync that finished in another view (or another tab) refreshes us too.
