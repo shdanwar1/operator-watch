@@ -155,13 +155,40 @@ function CalendarPage() {
   const [autoSync, setAutoSync] = useState(true);
   const [debug, setDebug] = useState(false);
 
-  // Sync preferences are per-device; current month is always on.
+  // Sync preferences live on the operator account so they follow the person.
+  const loadPrefs = useServerFn(getMyPrefs);
+  const savePrefs = useServerFn(setMyPrefs);
+  const [prefs, setPrefs] = useState<OperatorPrefs>(DEFAULT_PREFS);
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setSyncNextMonth(window.localStorage.getItem("gcal:syncNextMonth") === "1");
-      setAutoSync(window.localStorage.getItem("gcal:autoSync") !== "0");
-    }
-  }, []);
+    let cancelled = false;
+    loadPrefs()
+      .then((p) => {
+        if (cancelled) return;
+        setPrefs(p);
+        setSyncNextMonth(p.syncNextMonth);
+        setAutoSync(p.autoSync);
+      })
+      .catch(() => {
+        /* fall back to defaults */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadPrefs]);
+
+  const persistPrefs = useCallback(
+    (patch: Partial<OperatorPrefs>) => {
+      setPrefs((prev) => {
+        const next = { ...prev, ...patch };
+        void savePrefs({ data: next }).catch(() => {
+          toast.error("Could not save that preference");
+        });
+        return next;
+      });
+    },
+    [savePrefs],
+  );
+
 
 
   // Match trace is a debug-only surface: opt in with ?debug=1.
