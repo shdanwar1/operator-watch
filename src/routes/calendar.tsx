@@ -647,9 +647,7 @@ function CalendarPage() {
                     checked={syncNextMonth}
                     onCheckedChange={(on) => {
                       setSyncNextMonth(on);
-                      if (typeof window !== "undefined") {
-                        window.localStorage.setItem("gcal:syncNextMonth", on ? "1" : "0");
-                      }
+                      persistPrefs({ syncNextMonth: on });
                     }}
                   />
                 </div>
