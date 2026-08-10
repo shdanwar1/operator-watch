@@ -1127,6 +1127,14 @@ function ActiveShiftPanel({
 
 
 
+/** Time-of-day greeting shown on the dashboard header. */
+function greeting(d: Date) {
+  const h = d.getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
 function fmtHM(d: Date) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
