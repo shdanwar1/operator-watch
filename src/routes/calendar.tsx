@@ -24,6 +24,7 @@ import {
 } from "@/lib/prefs.functions";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
