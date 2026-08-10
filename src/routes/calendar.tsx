@@ -12,6 +12,12 @@ import {
   type ShiftRow,
 } from "@/lib/shifts.functions";
 import { getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
+import {
+  getMyPrefs,
+  setMyPrefs,
+  DEFAULT_PREFS,
+  type OperatorPrefs,
+} from "@/lib/prefs.functions";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
