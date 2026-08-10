@@ -11,7 +11,11 @@ import {
   type ScheduledShiftRow,
   type ShiftRow,
 } from "@/lib/shifts.functions";
-import { getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
+import {
+  getMyCalendarUrl,
+  setMyCalendarUrl,
+  checkMyCalendarHealth,
+} from "@/lib/gcal.functions";
 import {
   getMyPrefs,
   setMyPrefs,
