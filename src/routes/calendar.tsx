@@ -621,9 +621,7 @@ function CalendarPage() {
                   checked={autoSync}
                   onCheckedChange={(on) => {
                     setAutoSync(on);
-                    if (typeof window !== "undefined") {
-                      window.localStorage.setItem("gcal:autoSync", on ? "1" : "0");
-                    }
+                    persistPrefs({ autoSync: on });
                   }}
                 />
               </div>
