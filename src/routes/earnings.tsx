@@ -237,7 +237,7 @@ function EarningsPage() {
   return (
     <AppShell>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <PageHeader title="Attendance" subtitle={summary.monthLabel} />
+        <PageHeader eyebrow="Attendance" title={summary.monthLabel} />
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" onClick={() => shiftMonth(-1)} aria-label="Previous month">
             <ChevronLeft className="h-4 w-4" />

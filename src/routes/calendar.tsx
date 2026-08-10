@@ -358,8 +358,8 @@ function CalendarPage() {
       <Toaster richColors position="top-center" />
 
       <PageHeader
+        eyebrow="Schedule"
         title="Calendar"
-        subtitle="Your monthly schedule"
         action={
           <div className="flex items-center gap-1.5">
             {lastSync && hasGoogleCalendar ? (

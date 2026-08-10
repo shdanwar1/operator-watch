@@ -177,8 +177,8 @@ function ShiftsPage() {
     <AppShell>
       <Toaster richColors position="top-center" />
       <PageHeader
+        eyebrow="Work history"
         title="Shifts"
-        subtitle="Review and edit any shift."
         action={
           <Button size="sm" onClick={() => setAddingPast(true)}>
             <Plus className="mr-1 h-3.5 w-3.5" /> Add past shift
