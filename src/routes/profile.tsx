@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { getGateStatus } from "@/lib/gate.functions";
 import {
   updateMyProfile,
@@ -9,14 +9,14 @@ import {
   type OperatorProfile,
 } from "@/lib/operators.functions";
 import { getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
+import { getMyPrefs, setMyPrefs, type OperatorPrefs } from "@/lib/prefs.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { toast, Toaster } from "sonner";
-import { Save, Home, MapPin, KeyRound, User, CalendarDays } from "lucide-react";
-import { AppShell } from "@/components/AppShell";
+import { AppShell, PageHeader } from "@/components/AppShell";
 import { USERNAME_RE, PIN_RE } from "@/lib/validation";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/profile")({
   beforeLoad: async () => {
@@ -24,253 +24,321 @@ export const Route = createFileRoute("/profile")({
     if (!status.unlocked) throw redirect({ to: "/unlock" });
     if (status.isAdmin) throw redirect({ to: "/admin" });
   },
-  loader: async (): Promise<{ profile: OperatorProfile; icsUrl: string | null }> => {
-    const [profile, calRes] = await Promise.all([
+  loader: async (): Promise<{
+    profile: OperatorProfile;
+    icsUrl: string | null;
+    prefs: OperatorPrefs;
+  }> => {
+    const [profile, calRes, prefs] = await Promise.all([
       getMyOperatorProfile(),
       getMyCalendarUrl().catch(() => ({ icsUrl: null as string | null })),
+      getMyPrefs(),
     ]);
-    return { profile, icsUrl: calRes.icsUrl };
+    return { profile, icsUrl: calRes.icsUrl, prefs };
   },
   head: () => ({
     meta: [
-      { title: "Operator profile — Studio Operator" },
+      { title: "Profile — DMC Studio Operator" },
       {
         name: "description",
-        content: "Edit your username, PIN, home address, and Google Calendar URL.",
+        content:
+          "Manage your operator account, Google Calendar sync, notifications and dashboard preferences.",
       },
+      { property: "og:title", content: "Profile — DMC Studio Operator" },
+      {
+        property: "og:description",
+        content: "Operator account, calendar sync and notification settings.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: ProfilePage,
 });
 
+function Panel({
+  title,
+  aside,
+  children,
+}: {
+  title: string;
+  aside?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+        <h2 className="text-[14px] font-semibold tracking-tight">{title}</h2>
+        {aside}
+      </header>
+      <div className="px-5 py-4">{children}</div>
+    </section>
+  );
+}
+
+function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      <label className="block text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  hint,
+  checked,
+  onChange,
+  last,
+}: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  last?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-4 py-3",
+        !last && "border-b border-border",
+      )}
+    >
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium">{label}</p>
+        {hint && <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>}
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
+
 function ProfilePage() {
   const router = useRouter();
-  const { profile: initialProfile, icsUrl: initialIcs } = Route.useLoaderData();
-  const saveProfile = useServerFn(updateMyProfile);
-  const saveHome = useServerFn(setMyHomeAddress);
-  const saveCal = useServerFn(setMyCalendarUrl);
+  const {
+    profile: initialProfile,
+    icsUrl: initialIcs,
+    prefs: initialPrefs,
+  } = Route.useLoaderData();
+
+  const saveProfileFn = useServerFn(updateMyProfile);
+  const saveHomeFn = useServerFn(setMyHomeAddress);
+  const saveCalFn = useServerFn(setMyCalendarUrl);
+  const savePrefsFn = useServerFn(setMyPrefs);
   const reloadProfile = useServerFn(getMyOperatorProfile);
 
   const [profile, setProfile] = useState<OperatorProfile>(initialProfile);
   const [icsUrl, setIcsUrl] = useState<string | null>(initialIcs);
+  const [prefs, setPrefs] = useState<OperatorPrefs>(initialPrefs);
 
   const [username, setUsername] = useState(profile.username);
   const [pin, setPin] = useState("");
   const [mapsUrl, setMapsUrl] = useState("");
   const [calDraft, setCalDraft] = useState(icsUrl ?? "");
+  const [saving, setSaving] = useState(false);
 
-  const [savingCore, setSavingCore] = useState(false);
-  const [savingHome, setSavingHome] = useState(false);
-  const [savingCal, setSavingCal] = useState(false);
+  const setPref = (patch: Partial<OperatorPrefs>) => setPrefs((p) => ({ ...p, ...patch }));
 
-  function usernameChanged() {
-    const t = username.trim();
-    return t && t !== profile.username;
-  }
-
-  async function saveCore() {
-    // Client-side validation with friendly messages.
-    if (usernameChanged() && !USERNAME_RE.test(username.trim())) {
+  async function saveAll() {
+    const nameChanged = username.trim() !== "" && username.trim() !== profile.username;
+    if (nameChanged && !USERNAME_RE.test(username.trim())) {
       return toast.error("Username must be 2–32 letters, numbers, . _ or -");
     }
     if (pin && !PIN_RE.test(pin)) {
       return toast.error("PIN must contain exactly 4 digits");
     }
-    if (!usernameChanged() && !pin) {
-      return toast.error("Nothing to save");
-    }
 
-    setSavingCore(true);
+    setSaving(true);
     try {
-      const res = await saveProfile({
-        data: {
-          username: usernameChanged() ? username.trim() : undefined,
-          pin: pin || undefined,
-        },
-      });
-      toast.success("Profile updated");
-      setPin("");
-      const fresh = await reloadProfile();
-      setProfile(fresh);
-      setUsername(fresh.username);
-      // If the username changed, refresh the router so the header greeting updates.
-      if (res.username !== initialProfile.username) {
+      if (nameChanged || pin) {
+        await saveProfileFn({
+          data: { username: nameChanged ? username.trim() : undefined, pin: pin || undefined },
+        });
+        setPin("");
+      }
+
+      if (mapsUrl.trim()) {
+        const res = await saveHomeFn({ data: { maps_url: mapsUrl.trim() } });
+        setProfile((p) => ({ ...p, home_label: res.label, home_lat: res.lat, home_lng: res.lng }));
+        setMapsUrl("");
+      }
+
+      if (calDraft.trim() !== (icsUrl ?? "")) {
+        const res = await saveCalFn({ data: { url: calDraft } });
+        setIcsUrl(res.icsUrl);
+        setCalDraft(res.icsUrl ?? "");
+      }
+
+      await savePrefsFn({ data: prefs });
+
+      if (prefs.notifyTimeToLeave || prefs.notifyShiftStart) {
+        void requestNotificationPermission();
+      }
+
+      if (nameChanged) {
+        const fresh = await reloadProfile();
+        setProfile(fresh);
+        setUsername(fresh.username);
         await router.invalidate();
       }
+
+      toast.success("Changes saved");
     } catch (e) {
       toast.error(friendlyError(e));
     } finally {
-      setSavingCore(false);
+      setSaving(false);
     }
   }
 
-  async function saveHomeAddress() {
-    if (!mapsUrl.trim()) return toast.error("Paste a Google Maps link");
-    setSavingHome(true);
-    try {
-      const res = await saveHome({ data: { maps_url: mapsUrl.trim() } });
-      toast.success(`Home saved: ${res.label}`);
-      setProfile({ ...profile, home_label: res.label, home_lat: res.lat, home_lng: res.lng });
-      setMapsUrl("");
-    } catch (e) {
-      toast.error(friendlyError(e));
-    } finally {
-      setSavingHome(false);
-    }
-  }
-
-  async function saveCalendar() {
-    setSavingCal(true);
-    try {
-      const res = await saveCal({ data: { url: calDraft } });
-      setIcsUrl(res.icsUrl);
-      setProfile({ ...profile, calendar_ics_url: res.icsUrl });
-      toast.success(res.icsUrl ? "Calendar link updated" : "Calendar link removed");
-    } catch (e) {
-      toast.error(friendlyError(e));
-    } finally {
-      setSavingCal(false);
-    }
-  }
+  const connected = Boolean(icsUrl);
 
   return (
     <AppShell>
       <Toaster richColors position="top-center" />
-      <div className="mx-auto max-w-lg">
+      <PageHeader
+        eyebrow="Account"
+        title="Profile"
+        action={
+          <Button size="sm" className="h-9 px-4" onClick={saveAll} disabled={saving}>
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        }
+      />
 
-        <Card>
-          <CardContent className="space-y-6 p-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <User className="h-5 w-5" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold tracking-tight">
-                  Editing {profile.username}
-                </h1>
-                <p className="text-xs text-muted-foreground">
-                  Changes save immediately across the app.
-                </p>
-              </div>
-            </div>
-
-            {/* Username + PIN (grouped save) */}
-            <section className="space-y-4">
-              <div className="space-y-2">
-                <Label>Username</Label>
-                <Input
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Capitalization is preserved (e.g. <span className="font-medium">Shad</span>).
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5">
-                  <KeyRound className="h-3.5 w-3.5" /> PIN
-                </Label>
-                <Input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  placeholder="Leave blank to keep current"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value.replace(/\D+/g, ""))}
-                  autoComplete="new-password"
-                />
-                <p className="text-[11px] text-muted-foreground">Exactly 4 digits.</p>
-              </div>
-
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={saveCore}
-                disabled={savingCore}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {savingCore ? "Saving…" : "Save changes"}
-              </Button>
-            </section>
-
-            {/* Home address */}
-            <section className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-4">
-              <div className="flex items-center gap-2">
-                <Home className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-medium">Home address</Label>
-              </div>
-              {profile.home_label ? (
-                <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                  <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
-                  <span>{profile.home_label}</span>
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Not set yet. Used to estimate your time to leave for the studio.
-                </p>
-              )}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel title="Operator">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Username">
               <Input
-                placeholder="https://maps.app.goo.gl/..."
+                className="h-10"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </Field>
+            <Field label="PIN">
+              <Input
+                className="h-10"
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="••••"
+                autoComplete="new-password"
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D+/g, ""))}
+              />
+            </Field>
+          </div>
+          <div className="mt-4">
+            <Field label="Home address">
+              <Input
+                className="h-10"
+                placeholder="Paste a Google Maps link…"
+                autoCapitalize="none"
+                autoCorrect="off"
                 value={mapsUrl}
                 onChange={(e) => setMapsUrl(e.target.value)}
+              />
+            </Field>
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              {profile.home_label
+                ? `Current: ${profile.home_label}`
+                : "Not set — used to estimate your time to leave."}
+            </p>
+          </div>
+        </Panel>
+
+        <Panel
+          title="Google Calendar"
+          aside={
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                connected ? "bg-done-soft text-done" : "bg-muted text-muted-foreground",
+              )}
+            >
+              {connected ? "Connected" : "Not connected"}
+            </span>
+          }
+        >
+          <ToggleRow
+            label="Automatic sync"
+            hint="Keep classes up to date in the background."
+            checked={prefs.autoSync}
+            onChange={(v) => setPref({ autoSync: v })}
+          />
+          <ToggleRow
+            label="Next month"
+            hint="Extend the sync window beyond the current month."
+            checked={prefs.syncNextMonth}
+            onChange={(v) => setPref({ syncNextMonth: v })}
+            last
+          />
+          <div className="mt-3">
+            <Field label="Public iCal URL">
+              <Input
+                className="h-10"
+                placeholder="https://calendar.google.com/calendar/ical/…/basic.ics"
                 autoCapitalize="none"
                 autoCorrect="off"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Open your home in Google Maps → Share → Copy link, then paste it here.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={saveHomeAddress}
-                disabled={savingHome}
-              >
-                <MapPin className="mr-2 h-4 w-4" />
-                {savingHome
-                  ? "Saving…"
-                  : profile.home_label
-                    ? "Update home address"
-                    : "Save home address"}
-              </Button>
-            </section>
-
-            {/* Google Calendar */}
-            <section className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-4">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-medium">Google Calendar URL</Label>
-              </div>
-              <Input
-                placeholder="https://calendar.google.com/calendar/..."
+                spellCheck={false}
                 value={calDraft}
                 onChange={(e) => setCalDraft(e.target.value)}
-                autoCapitalize="none"
-                autoCorrect="off"
               />
-              <p className="text-[11px] text-muted-foreground">
-                Used to sync your classes into shifts and calculate travel time.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={saveCalendar}
-                disabled={savingCal}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {savingCal ? "Saving…" : icsUrl ? "Update calendar link" : "Save calendar link"}
-              </Button>
-            </section>
-          </CardContent>
-        </Card>
+            </Field>
+          </div>
+        </Panel>
+
+        <Panel title="Notifications">
+          <ToggleRow
+            label="Time to leave"
+            hint="Remind me when I need to head to the studio."
+            checked={prefs.notifyTimeToLeave}
+            onChange={(v) => setPref({ notifyTimeToLeave: v })}
+          />
+          <ToggleRow
+            label="Shift start"
+            hint="Remind me shortly before my shift begins."
+            checked={prefs.notifyShiftStart}
+            onChange={(v) => setPref({ notifyShiftStart: v })}
+            last
+          />
+        </Panel>
+
+        <Panel title="Dashboard settings">
+          <ToggleRow
+            label="Time to leave card"
+            hint="Show travel time and departure countdown on the dashboard."
+            checked={prefs.showTimeToLeave}
+            onChange={(v) => setPref({ showTimeToLeave: v })}
+            last
+          />
+        </Panel>
       </div>
     </AppShell>
   );
+}
+
+async function requestNotificationPermission() {
+  try {
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission === "default") await Notification.requestPermission();
+  } catch {
+    /* ignore */
+  }
 }
 
 function friendlyError(e: unknown): string {
