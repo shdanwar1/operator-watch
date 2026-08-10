@@ -1138,6 +1138,14 @@ function TimeToLeaveCard({
     };
   }, [shiftIso, fetchPlan]);
 
+  const departureIso = plan && plan.ok ? plan.departure_iso : null;
+  const reportDeparture = onDeparture;
+  useEffect(() => {
+    reportDeparture?.(departureIso);
+  }, [departureIso, reportDeparture]);
+
+
+
   if (!next) return null;
 
   const shiftStart = next.startAt;
