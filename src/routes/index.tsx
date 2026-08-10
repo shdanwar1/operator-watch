@@ -400,6 +400,31 @@ function Index() {
   const focus: "check_in" | "time_to_leave" =
     !active && minutesToNext > 60 ? "time_to_leave" : "check_in";
 
+  // Reminders — only for the next shift, and only while it is still ahead.
+  const reminders: Reminder[] = [];
+  if (nextDisplay && !active) {
+    const startAt = nextDisplay.startAt;
+    const stamp = startAt.toISOString();
+    if (prefs.notifyShiftStart) {
+      reminders.push({
+        key: `shift-start:${stamp}`,
+        at: new Date(startAt.getTime() - 15 * 60_000),
+        title: "Shift starts in 15 minutes",
+        body: `${fmtHM(startAt)} — get ready to check in.`,
+      });
+    }
+    if (prefs.notifyTimeToLeave && departureIso) {
+      reminders.push({
+        key: `leave:${stamp}`,
+        at: new Date(departureIso),
+        title: "Time to leave",
+        body: `Leave now to arrive before your ${fmtHM(startAt)} shift.`,
+      });
+    }
+  }
+  useReminders(reminders, prefs.notifyShiftStart || prefs.notifyTimeToLeave);
+
+
   // The scheduled shift the active attendance record belongs to.
   const activeScheduled =
     (active?.scheduled_shift_id
