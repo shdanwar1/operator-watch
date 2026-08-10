@@ -241,6 +241,21 @@ function CalendarPage() {
     };
   }, [getUrlFn]);
 
+  // Link health drives the status dot, independently of automatic sync.
+  const healthFn = useServerFn(checkMyCalendarHealth);
+  const [health, setHealth] = useState<{ connected: boolean; ok: boolean; error?: string } | null>(
+    null,
+  );
+  const refreshHealth = useCallback(() => {
+    healthFn()
+      .then((h) => setHealth(h))
+      .catch(() => setHealth({ connected: false, ok: false }));
+  }, [healthFn]);
+  useEffect(() => {
+    refreshHealth();
+  }, [refreshHealth, icsUrl]);
+
+
   const { syncing, lastSync, logs: matchLogs, runSync } = useCalendarSync({
     enabled: hasGoogleCalendar,
     onSynced: load,
