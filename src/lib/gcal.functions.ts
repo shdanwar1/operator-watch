@@ -218,3 +218,12 @@ export const backfillClassMatches = createServerFn({ method: "POST" }).handler(
     return { scanned, updated, unchanged: scanned - updated };
   },
 );
+
+/** Green/red status for the operator's calendar link (independent of sync). */
+export const checkMyCalendarHealth = createServerFn({ method: "GET" }).handler(
+  async (): Promise<import("./gcal.server").CalendarHealth> => {
+    const { username } = await requireOperator();
+    const { checkOperatorCalendar } = await import("./gcal.server");
+    return checkOperatorCalendar(username);
+  },
+);

@@ -589,3 +589,45 @@ export async function correctClassMapping(
 
   return data as CalendarClassRow;
 }
+
+export type CalendarHealth = { connected: boolean; ok: boolean; error?: string };
+
+/**
+ * Lightweight liveness check for an operator's calendar link. Used by the UI to
+ * show a green/red indicator independently of whether automatic sync is on.
+ */
+export async function checkOperatorCalendar(username: string): Promise<CalendarHealth> {
+  const { icsUrl } = await loadOperatorCalendar(username);
+  if (!icsUrl) return { connected: false, ok: false, error: "No calendar link set" };
+  const safeUrl = safeRemoteUrl(icsUrl);
+  if (!safeUrl) return { connected: true, ok: false, error: "Link is not an allowed public https address" };
+  try {
+    let target = safeUrl;
+    let res: Response | null = null;
+    for (let hop = 0; hop < 5; hop++) {
+      res = await fetch(target, {
+        headers: { Accept: "text/calendar, text/plain;q=0.9, */*;q=0.8" },
+        redirect: "manual",
+      });
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get("location");
+        if (!loc) break;
+        const next = safeRemoteUrl(new URL(loc, target).toString());
+        if (!next) return { connected: true, ok: false, error: "Link redirects to a blocked address" };
+        target = next;
+        continue;
+      }
+      break;
+    }
+    if (!res || !res.ok) {
+      return { connected: true, ok: false, error: `Calendar link returned HTTP ${res ? res.status : "error"}` };
+    }
+    const text = await res.text();
+    if (!/BEGIN:VCALENDAR/i.test(text)) {
+      return { connected: true, ok: false, error: "Link did not return calendar data" };
+    }
+    return { connected: true, ok: true };
+  } catch (e) {
+    return { connected: true, ok: false, error: e instanceof Error ? e.message : "Unreachable" };
+  }
+}
