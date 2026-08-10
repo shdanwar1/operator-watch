@@ -1084,11 +1084,15 @@ function TimeToLeaveCard({
   scheduled,
   now,
   variant = "default",
+  onDeparture,
 }: {
   scheduled: ScheduledShift[];
   now: Date;
   variant?: "default" | "hero";
+  /** Reports the planned departure time so the dashboard can remind about it. */
+  onDeparture?: (iso: string | null) => void;
 }) {
+
 
   const fetchPlan = useServerFn(getTimeToLeave);
   const next = useMemo(() => {
