@@ -265,6 +265,25 @@ function Index() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [, setTick] = useState(0);
 
+  // Personal preferences (calendar sync, notifications, dashboard cards).
+  const loadPrefs = useServerFn(getMyPrefs);
+  const [prefs, setPrefs] = useState<OperatorPrefs>(DEFAULT_PREFS);
+  const [departureIso, setDepartureIso] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadPrefs()
+      .then((p) => {
+        if (!cancelled) setPrefs(p);
+      })
+      .catch(() => {
+        /* defaults are fine */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadPrefs]);
+
+
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(t);
