@@ -637,7 +637,7 @@ function CalendarPage() {
                 autoFocus
               />
               <p className="text-xs text-muted-foreground">
-                {hasGoogleCalendar ? (
+                {health?.ok ? (
                   <>
                     🟢 Connected
                     {lastSync
@@ -647,9 +647,14 @@ function CalendarPage() {
                         })}`
                       : ""}
                   </>
+                ) : health === null ? (
+                  <>⚪ Checking…</>
+                ) : health.connected ? (
+                  <>🔴 Link error{health.error ? ` • ${health.error}` : ""}</>
                 ) : (
                   <>🔴 Not connected</>
                 )}
+
               </p>
             </section>
 
