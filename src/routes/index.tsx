@@ -49,7 +49,7 @@ import {
   correctMyClassMatch,
   type CalendarClassRow,
 } from "@/lib/gcal.functions";
-import { AppShell, SectionTitle } from "@/components/AppShell";
+import { AppShell, PageHeader, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
 import {
