@@ -221,10 +221,13 @@ export function SectionTitle({
 
 /** Page-level heading used at the top of each screen's content column. */
 export function PageHeader({
+  eyebrow,
   title,
   subtitle,
   action,
 }: {
+  /** Small uppercase kicker above the title. */
+  eyebrow?: string;
   title: string;
   subtitle?: ReactNode;
   action?: ReactNode;
@@ -232,8 +235,13 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-[22px] font-semibold tracking-tight">{title}</h1>
-        {subtitle && <p className="mt-0.5 text-[13px] text-muted-foreground">{subtitle}</p>}
+        {eyebrow && (
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            {eyebrow}
+          </p>
+        )}
+        <h1 className="text-[26px] font-semibold leading-none tracking-tight">{title}</h1>
+        {subtitle && <p className="mt-1.5 text-[13px] text-muted-foreground">{subtitle}</p>}
       </div>
       {action}
     </div>
