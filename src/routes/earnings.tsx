@@ -263,18 +263,18 @@ function EarningsPage() {
         ) : (
           <div className="space-y-6">
             {/* Overview */}
-            <Card className="border-border/60 shadow-sm">
-              <CardContent className="p-6 sm:p-8">
-                <div className="grid gap-6 sm:grid-cols-2">
+            <Card className="border-border/60 shadow-sm max-lg:glass max-lg:rounded-[22px]">
+              <CardContent className="p-6 sm:p-8 max-lg:p-4">
+                <div className="grid gap-6 sm:grid-cols-2 max-lg:grid-cols-2 max-lg:gap-2">
                   <StatBlock label="Worked hours" value={formatHM(summary.workedMin)} />
                   <StatBlock label="Scheduled hours" value={formatHM(summary.scheduledMin)} />
                 </div>
-                <div className="mt-6">
+                <div className="mt-6 max-lg:mt-4">
                   <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
                     <span>Progress against schedule</span>
                     <span className="tabular-nums">{Math.round(progressPct)}%</span>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted max-lg:h-1">
                     <div
                       className="h-full rounded-full bg-primary transition-all duration-700"
                       style={{ width: `${progressPct}%` }}
@@ -282,13 +282,14 @@ function EarningsPage() {
                   </div>
                 </div>
 
-                <div className="mt-6 grid grid-cols-3 gap-3">
+                <div className="mt-6 grid grid-cols-3 gap-3 max-lg:mt-4 max-lg:gap-2">
                   <CategoryTile category="day" mins={summary.dayMin} />
                   <CategoryTile category="night" mins={summary.nightMin} />
                   <CategoryTile category="weekend" mins={summary.weekendMin} />
                 </div>
               </CardContent>
             </Card>
+
 
             {/* Attendance history */}
             <Card className="border-border/60 shadow-sm">
