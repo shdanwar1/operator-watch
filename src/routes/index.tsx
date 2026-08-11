@@ -1318,7 +1318,7 @@ function TimeToLeaveDetails({
     <div className="mt-4 space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[45fr_55fr]">
         {/* Left: timing + action */}
-        <div className="rounded-2xl border border-border bg-muted/30 p-5">
+        <div className="rounded-2xl border border-border bg-muted/30 p-5 max-lg:glass-tile max-lg:rounded-[18px]">
           <div
             className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${
               urgent ? "text-destructive" : "text-muted-foreground"
