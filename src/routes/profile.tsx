@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
-import { getGateStatus } from "@/lib/gate.functions";
+import { getGateStatus, signOutUser } from "@/lib/gate.functions";
 import {
   updateMyProfile,
   setMyHomeAddress,
