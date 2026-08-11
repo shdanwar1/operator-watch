@@ -24,7 +24,20 @@ const NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: bo
   { label: "Profile", to: "/profile", icon: User },
 ];
 
+/**
+ * Mobile tab bar: Dashboard sits in the middle. Same routes as the sidebar,
+ * minus Studio Display (reachable from the mobile top bar).
+ */
+const MOBILE_NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: boolean }[] = [
+  { label: "Calendar", to: "/calendar", icon: CalendarDays },
+  { label: "Shifts", to: "/shifts", icon: ListChecks },
+  { label: "Dashboard", to: "/", icon: LayoutDashboard, exact: true },
+  { label: "Attendance", to: "/earnings", icon: ClipboardList },
+  { label: "Profile", to: "/profile", icon: User },
+];
+
 const COLLAPSE_KEY = "so.sidebar.collapsed";
+
 
 export const STUDIO_NAME = "DMC Studio";
 
