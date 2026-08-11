@@ -124,7 +124,13 @@
   --sidebar-accent-foreground: oklch(0.185 0.006 264);
   --sidebar-border: oklch(0.905 0.003 264);
   --sidebar-ring: oklch(0.7 0.01 264);
+  /* Glass surfaces (used by the mobile layout only). */
+  --glass: oklch(1 0 0 / 0.72);
+  --glass-border: oklch(0.185 0.006 264 / 0.09);
+  --glass-highlight: oklch(1 0 0 / 0.55);
+  --glass-shadow: 0 14px 34px -18px oklch(0.185 0.006 264 / 0.35);
 }
+
 
 /* Charcoal. Almost monochrome. Colour is reserved for status. */
 .dark {
