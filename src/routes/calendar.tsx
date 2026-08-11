@@ -529,7 +529,7 @@ function CalendarPage() {
                       >
                         <div className="mb-1 flex items-center justify-between">
                           <span
-                            className={`text-xs tabular-nums ${
+                            className={`text-xs tabular-nums max-lg:text-[10px] ${
                               isToday
                                 ? "flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background font-medium"
                                 : isPastDay
