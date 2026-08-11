@@ -383,10 +383,11 @@ function EarningsPage() {
 function StatBlock({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-1 text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl">
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground max-lg:text-[9px]">{label}</div>
+      <div className="mt-1 text-3xl font-semibold tabular-nums tracking-tight max-lg:text-[26px] max-lg:tracking-[-0.03em] sm:text-4xl">
         {value}
       </div>
+
     </div>
   );
 }
