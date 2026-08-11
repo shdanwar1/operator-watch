@@ -66,7 +66,7 @@ function Panel({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+    <section className="rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.03)] max-lg:glass max-lg:rounded-[18px]">
       <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
         <h2 className="text-[14px] font-semibold tracking-tight">{title}</h2>
         {aside}
