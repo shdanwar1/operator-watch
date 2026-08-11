@@ -748,8 +748,9 @@ function CheckInPanel({
   const hasShift = !!next || !!openScheduled;
 
   return (
-    <Card className="rise-in overflow-hidden">
-      <CardContent className="flex flex-col items-center gap-5 px-5 py-6 text-center">
+    <Card className="rise-in overflow-hidden max-lg:glass max-lg:rounded-[22px]">
+      <CardContent className="flex flex-col items-center gap-5 px-5 py-6 text-center max-lg:py-7">
+
         {hasShift ? (
           <div className="flex flex-col items-center gap-1.5">
             <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
