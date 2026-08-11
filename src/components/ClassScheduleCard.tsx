@@ -118,7 +118,7 @@ export function ClassScheduleCard({
   };
 
   return (
-    <Card>
+    <Card className="max-lg:glass max-lg:rounded-[22px]">
       <CardContent className="space-y-4 p-4 sm:p-5">
         <div className="flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-muted-foreground" />
