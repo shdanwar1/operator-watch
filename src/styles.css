@@ -176,7 +176,13 @@
   --sidebar-accent-foreground: oklch(0.97 0.002 264);
   --sidebar-border: oklch(1 0 0 / 7%);
   --sidebar-ring: oklch(0.55 0.01 264);
+  /* Glass surfaces (used by the mobile layout only). */
+  --glass: oklch(0.24 0.004 264 / 0.66);
+  --glass-border: oklch(1 0 0 / 0.11);
+  --glass-highlight: oklch(1 0 0 / 0.04);
+  --glass-shadow: 0 16px 42px -20px oklch(0 0 0 / 0.65);
 }
+
 
 
 @theme {
