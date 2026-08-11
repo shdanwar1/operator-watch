@@ -332,3 +332,32 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse { animation: none; }
 }
+
+/* ---------------------------------------------------------------------------
+ * Glass surfaces — the iOS-style translucent treatment used by the mobile
+ * layout. Values come from the --glass* tokens so both themes stay correct.
+ * Always applied behind a responsive prefix (e.g. max-lg:glass).
+ * ------------------------------------------------------------------------- */
+@utility glass {
+  background-color: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(22px) saturate(150%);
+}
+
+/* Translucent chrome (top bar / bottom tab bar). */
+@utility glass-bar {
+  background-color: color-mix(in oklab, var(--background) 80%, transparent);
+  backdrop-filter: blur(24px) saturate(160%);
+}
+
+/* Soft translucent tile used for metric blocks on mobile. */
+@utility glass-tile {
+  background-color: color-mix(in oklab, var(--foreground) 4%, transparent);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
