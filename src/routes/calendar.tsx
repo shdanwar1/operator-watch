@@ -496,18 +496,19 @@ function CalendarPage() {
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
-        <Card className="rise-in overflow-hidden">
+        <Card className="rise-in overflow-hidden max-lg:glass max-lg:rounded-[22px]">
           <CardContent className="p-0">
             <div className="grid grid-cols-7 border-b border-border/60">
               {DAY_LABELS.map((d) => (
                 <div
                   key={d}
-                  className="px-3 py-2 text-center text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground"
+                  className="px-3 py-2 text-center text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground max-lg:px-0 max-lg:text-[9px] max-lg:tracking-[0.1em]"
                 >
                   {d}
                 </div>
               ))}
             </div>
+
             <div className="divide-y divide-border/60">
               {weeks.map((week, wi) => (
                 <div key={wi} className="grid grid-cols-7">
