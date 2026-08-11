@@ -73,7 +73,12 @@
   /* Surfaces — layered elevation inside a near-monochrome shell. */
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
+
+  /* Glass — translucent mobile surfaces (iOS-style). */
+  --color-glass: var(--glass);
+  --color-glass-border: var(--glass-border);
 }
+
 
 :root {
   --radius: 0.75rem;
