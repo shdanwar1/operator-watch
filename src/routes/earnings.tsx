@@ -399,15 +399,16 @@ function CategoryTile({
   mins: number;
 }) {
   return (
-    <div className="rounded-lg border border-border/60 p-3">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-lg border border-border/60 p-3 max-lg:glass-tile max-lg:rounded-[14px] max-lg:p-2.5">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground max-lg:gap-1.5 max-lg:text-[8.5px]">
         <span
-          className="inline-block h-2.5 w-2.5 rounded-sm"
+          className="inline-block h-2.5 w-2.5 rounded-sm max-lg:h-2 max-lg:w-2"
           style={{ backgroundColor: CATEGORY_COLOR[category] }}
         />
         {CATEGORY_LABEL[category]}
       </div>
-      <div className="mt-1 text-lg font-semibold tabular-nums">{formatHM(mins)}</div>
+      <div className="mt-1 text-lg font-semibold tabular-nums max-lg:text-[15px]">{formatHM(mins)}</div>
+
     </div>
   );
 }
