@@ -757,9 +757,10 @@ function CheckInPanel({
               {canCheckIn ? "Ready for check-in" : "Check-in opens in"}
             </span>
             {!canCheckIn && (
-              <div className="text-2xl font-semibold tabular-nums tracking-tight">
+              <div className="text-2xl font-semibold tabular-nums tracking-tight max-lg:text-[40px] max-lg:leading-none max-lg:tracking-[-0.05em]">
                 {formatCountdown(msUntilOpen)}
               </div>
+
             )}
             <p className="text-xs text-muted-foreground">
               {openScheduled ? (
