@@ -585,7 +585,7 @@ function CalendarPage() {
                                 </div>
 
                                 {/* Mobile: single-line 24-hour range only */}
-                                <div className="whitespace-nowrap text-center text-[8px] font-medium tabular-nums leading-none lg:hidden">
+                                <div className="whitespace-nowrap text-center text-[7px] font-medium tabular-nums tracking-tight leading-none lg:hidden">
                                   {formatTime24(inst.shift.start_time)}-{formatTime24(inst.shift.end_time)}
                                 </div>
                               </button>
