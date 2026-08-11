@@ -106,6 +106,11 @@ function fmtTime(t: string) {
   return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
 }
 
+function formatTime24(t: string) {
+  const [h, m] = t.split(":");
+  return `${h.padStart(2, "0")}:${m.padStart(2, "0")}`;
+}
+
 /** Number of classes encoded in the shift label, when present. */
 function classCount(label: string | null | undefined): number | null {
   if (!label) return null;
@@ -565,18 +570,24 @@ function CalendarPage() {
                                 key={`${inst.shift.id}-${i}`}
                                 type="button"
                                 onClick={() => setEditor({ mode: "edit", date: day, instance: inst })}
-                                className={`press w-full rounded-lg border px-2 py-1 text-left text-[11px] leading-tight transition max-lg:rounded-[8px] max-lg:px-1 max-lg:py-[5px] max-lg:text-[9px] ${tone}`}
+                                className={`press w-full rounded-lg border px-2 py-1 text-left text-[11px] leading-tight transition max-lg:rounded-[6px] max-lg:px-[2px] max-lg:py-[3px] ${tone}`}
                                 title={inst.shift.label ?? ""}
                               >
-                                <div className="truncate font-medium tabular-nums">
-                                  {fmtTime(inst.shift.start_time)} – {fmtTime(inst.shift.end_time)}
-                                  {inst.shift.end_time <= inst.shift.start_time ? " (+1)" : ""}
+                                {/* Desktop: 12-hour range + class count/label */}
+                                <div className="hidden lg:block">
+                                  <div className="truncate font-medium tabular-nums">
+                                    {fmtTime(inst.shift.start_time)} – {fmtTime(inst.shift.end_time)}
+                                    {inst.shift.end_time <= inst.shift.start_time ? " (+1)" : ""}
+                                  </div>
+                                  <div className="truncate text-muted-foreground">
+                                    {n ? `${n} ${n === 1 ? "class" : "classes"}` : (inst.shift.label ?? "Shift")}
+                                  </div>
                                 </div>
 
-                                <div className="truncate text-muted-foreground max-lg:text-[8px]">
-                                  {n ? `${n} ${n === 1 ? "class" : "classes"}` : (inst.shift.label ?? "Shift")}
+                                {/* Mobile: single-line 24-hour range only */}
+                                <div className="whitespace-nowrap text-center text-[7px] font-medium tabular-nums tracking-tight leading-none lg:hidden">
+                                  {formatTime24(inst.shift.start_time)}-{formatTime24(inst.shift.end_time)}
                                 </div>
-
                               </button>
                             );
                           })}
