@@ -1221,7 +1221,14 @@ function TimeToLeaveCard({
   const hero = variant === "hero";
 
   return (
-    <Card className={hero ? "overflow-hidden border-primary/40" : "overflow-hidden"}>
+    <Card
+      className={
+        hero
+          ? "overflow-hidden border-primary/40 max-lg:glass max-lg:rounded-[22px]"
+          : "overflow-hidden max-lg:glass max-lg:rounded-[22px]"
+      }
+    >
+
       <CardContent className="p-0">
         <div className="px-5 pt-5 sm:px-6 sm:pt-6">
           <div className="flex items-center gap-2">
