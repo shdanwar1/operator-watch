@@ -453,3 +453,42 @@ function AttendanceTableRow({ row }: { row: AttendanceRow }) {
     </tr>
   );
 }
+
+/** Mobile attendance row: date + times on the left, worked hours on the right. */
+function AttendanceMobileRow({ row }: { row: AttendanceRow }) {
+  const diffColor =
+    row.diffMin == null
+      ? "text-muted-foreground"
+      : row.diffMin > 0
+        ? "text-done"
+        : row.diffMin < 0
+          ? "text-alert"
+          : "text-muted-foreground";
+  return (
+    <li className="grid grid-cols-[62px_1fr_auto] items-center gap-2.5 border-t border-border px-4 py-3">
+      <div className="text-[10px] font-semibold tabular-nums">{fmtDate(row.date)}</div>
+      <div className="min-w-0">
+        <div className="text-[10px] tabular-nums text-muted-foreground">
+          {fmtTime(row.checkIn)} – {fmtTime(row.checkOut)}
+        </div>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {(row.categories.length ? row.categories : [row.primary]).map((c) => (
+            <span
+              key={c}
+              className="rounded-full px-1.5 py-0.5 text-[7px] font-medium uppercase tracking-wide text-white"
+              style={{ backgroundColor: CATEGORY_COLOR[c] }}
+            >
+              {CATEGORY_LABEL[c]}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="text-right">
+        <div className="text-[12px] font-semibold tabular-nums">{formatHM(row.workedMin)}</div>
+        <div className={`text-[9px] tabular-nums ${diffColor}`}>
+          {row.diffMin != null ? formatDiff(row.diffMin) : "—"}
+        </div>
+      </div>
+    </li>
+  );
+}
