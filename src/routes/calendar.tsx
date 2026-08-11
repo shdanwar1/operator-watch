@@ -522,9 +522,10 @@ function CalendarPage() {
                     return (
                       <div
                         key={key}
-                        className={`group relative min-h-[104px] border-border/60 p-1.5 sm:min-h-[124px] sm:border-r sm:last:border-r-0 ${
+                        className={`group relative min-h-[104px] border-border/60 p-1.5 max-lg:min-h-[74px] max-lg:border-b max-lg:border-r max-lg:p-1 max-lg:[&:nth-child(7n)]:border-r-0 sm:min-h-[124px] sm:border-r sm:last:border-r-0 ${
                           inMonth ? "" : "opacity-40"
                         }`}
+
                       >
                         <div className="mb-1 flex items-center justify-between">
                           <span
