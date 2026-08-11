@@ -565,7 +565,7 @@ function CalendarPage() {
                                 key={`${inst.shift.id}-${i}`}
                                 type="button"
                                 onClick={() => setEditor({ mode: "edit", date: day, instance: inst })}
-                                className={`press w-full rounded-lg border px-2 py-1 text-left text-[11px] leading-tight transition ${tone}`}
+                                className={`press w-full rounded-lg border px-2 py-1 text-left text-[11px] leading-tight transition max-lg:rounded-[8px] max-lg:px-1 max-lg:py-[5px] max-lg:text-[9px] ${tone}`}
                                 title={inst.shift.label ?? ""}
                               >
                                 <div className="truncate font-medium tabular-nums">
@@ -573,9 +573,10 @@ function CalendarPage() {
                                   {inst.shift.end_time <= inst.shift.start_time ? " (+1)" : ""}
                                 </div>
 
-                                <div className="truncate text-muted-foreground">
+                                <div className="truncate text-muted-foreground max-lg:text-[8px]">
                                   {n ? `${n} ${n === 1 ? "class" : "classes"}` : (inst.shift.label ?? "Shift")}
                                 </div>
+
                               </button>
                             );
                           })}
