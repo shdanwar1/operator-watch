@@ -126,6 +126,8 @@ function ToggleRow({
 
 function ProfilePage() {
   const router = useRouter();
+  const signOut = useServerFn(signOutUser);
+
   const {
     profile: initialProfile,
     icsUrl: initialIcs,
