@@ -666,8 +666,9 @@ function UpcomingShifts({
 }) {
   const instances = shifts.slice(0, 6);
   return (
-    <Card className="rise-in">
+    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
       <CardContent className="p-5">
+
         <SectionTitle title="Upcoming shifts" />
         {instances.length === 0 ? (
           <p className="mt-4 text-sm text-muted-foreground">No upcoming shifts scheduled.</p>
