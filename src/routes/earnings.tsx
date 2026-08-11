@@ -292,9 +292,9 @@ function EarningsPage() {
 
 
             {/* Attendance history */}
-            <Card className="border-border/60 shadow-sm">
+            <Card className="border-border/60 shadow-sm max-lg:glass max-lg:rounded-[22px]">
               <CardContent className="p-0">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b p-6 max-lg:p-4">
                   <div>
                     <h2 className="text-sm font-semibold">Attendance · {summary.monthLabel}</h2>
                     <p className="text-xs text-muted-foreground">
@@ -309,7 +309,30 @@ function EarningsPage() {
                     <Download className="mr-1.5 h-3.5 w-3.5" /> Export PDF
                   </Button>
                 </div>
-                <div className="overflow-x-auto">
+
+                {/* Mobile: one row per shift instead of a horizontally scrolling table. */}
+                <div className="md:hidden">
+                  {summary.rows.length === 0 ? (
+                    <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+                      No completed shifts yet this month.
+                    </p>
+                  ) : (
+                    <>
+                      <ul>
+                        {summary.rows.map((r) => (
+                          <AttendanceMobileRow key={r.id} row={r} />
+                        ))}
+                      </ul>
+                      <div className="flex items-center justify-between border-t border-border px-4 py-3 text-[12px] font-semibold">
+                        <span>Total</span>
+                        <span className="tabular-nums">{formatHM(summary.workedMin)}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="hidden overflow-x-auto md:block">
+
                   <table className="w-full text-sm">
                     <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
