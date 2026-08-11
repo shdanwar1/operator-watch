@@ -263,18 +263,18 @@ function EarningsPage() {
         ) : (
           <div className="space-y-6">
             {/* Overview */}
-            <Card className="border-border/60 shadow-sm">
-              <CardContent className="p-6 sm:p-8">
-                <div className="grid gap-6 sm:grid-cols-2">
+            <Card className="border-border/60 shadow-sm max-lg:glass max-lg:rounded-[22px]">
+              <CardContent className="p-6 sm:p-8 max-lg:p-4">
+                <div className="grid gap-6 sm:grid-cols-2 max-lg:grid-cols-2 max-lg:gap-2">
                   <StatBlock label="Worked hours" value={formatHM(summary.workedMin)} />
                   <StatBlock label="Scheduled hours" value={formatHM(summary.scheduledMin)} />
                 </div>
-                <div className="mt-6">
+                <div className="mt-6 max-lg:mt-4">
                   <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
                     <span>Progress against schedule</span>
                     <span className="tabular-nums">{Math.round(progressPct)}%</span>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted max-lg:h-1">
                     <div
                       className="h-full rounded-full bg-primary transition-all duration-700"
                       style={{ width: `${progressPct}%` }}
@@ -282,7 +282,7 @@ function EarningsPage() {
                   </div>
                 </div>
 
-                <div className="mt-6 grid grid-cols-3 gap-3">
+                <div className="mt-6 grid grid-cols-3 gap-3 max-lg:mt-4 max-lg:gap-2">
                   <CategoryTile category="day" mins={summary.dayMin} />
                   <CategoryTile category="night" mins={summary.nightMin} />
                   <CategoryTile category="weekend" mins={summary.weekendMin} />
@@ -290,10 +290,11 @@ function EarningsPage() {
               </CardContent>
             </Card>
 
+
             {/* Attendance history */}
-            <Card className="border-border/60 shadow-sm">
+            <Card className="border-border/60 shadow-sm max-lg:glass max-lg:rounded-[22px]">
               <CardContent className="p-0">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b p-6 max-lg:p-4">
                   <div>
                     <h2 className="text-sm font-semibold">Attendance · {summary.monthLabel}</h2>
                     <p className="text-xs text-muted-foreground">
@@ -308,7 +309,30 @@ function EarningsPage() {
                     <Download className="mr-1.5 h-3.5 w-3.5" /> Export PDF
                   </Button>
                 </div>
-                <div className="overflow-x-auto">
+
+                {/* Mobile: one row per shift instead of a horizontally scrolling table. */}
+                <div className="md:hidden">
+                  {summary.rows.length === 0 ? (
+                    <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+                      No completed shifts yet this month.
+                    </p>
+                  ) : (
+                    <>
+                      <ul>
+                        {summary.rows.map((r) => (
+                          <AttendanceMobileRow key={r.id} row={r} />
+                        ))}
+                      </ul>
+                      <div className="flex items-center justify-between border-t border-border px-4 py-3 text-[12px] font-semibold">
+                        <span>Total</span>
+                        <span className="tabular-nums">{formatHM(summary.workedMin)}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="hidden overflow-x-auto md:block">
+
                   <table className="w-full text-sm">
                     <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
@@ -359,10 +383,11 @@ function EarningsPage() {
 function StatBlock({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-1 text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl">
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground max-lg:text-[9px]">{label}</div>
+      <div className="mt-1 text-3xl font-semibold tabular-nums tracking-tight max-lg:text-[26px] max-lg:tracking-[-0.03em] sm:text-4xl">
         {value}
       </div>
+
     </div>
   );
 }
@@ -375,15 +400,16 @@ function CategoryTile({
   mins: number;
 }) {
   return (
-    <div className="rounded-lg border border-border/60 p-3">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-lg border border-border/60 p-3 max-lg:glass-tile max-lg:rounded-[14px] max-lg:p-2.5">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground max-lg:gap-1.5 max-lg:text-[8.5px]">
         <span
-          className="inline-block h-2.5 w-2.5 rounded-sm"
+          className="inline-block h-2.5 w-2.5 rounded-sm max-lg:h-2 max-lg:w-2"
           style={{ backgroundColor: CATEGORY_COLOR[category] }}
         />
         {CATEGORY_LABEL[category]}
       </div>
-      <div className="mt-1 text-lg font-semibold tabular-nums">{formatHM(mins)}</div>
+      <div className="mt-1 text-lg font-semibold tabular-nums max-lg:text-[15px]">{formatHM(mins)}</div>
+
     </div>
   );
 }
@@ -427,5 +453,44 @@ function AttendanceTableRow({ row }: { row: AttendanceRow }) {
       </td>
 
     </tr>
+  );
+}
+
+/** Mobile attendance row: date + times on the left, worked hours on the right. */
+function AttendanceMobileRow({ row }: { row: AttendanceRow }) {
+  const diffColor =
+    row.diffMin == null
+      ? "text-muted-foreground"
+      : row.diffMin > 0
+        ? "text-done"
+        : row.diffMin < 0
+          ? "text-alert"
+          : "text-muted-foreground";
+  return (
+    <li className="grid grid-cols-[62px_1fr_auto] items-center gap-2.5 border-t border-border px-4 py-3">
+      <div className="text-[10px] font-semibold tabular-nums">{fmtDate(row.date)}</div>
+      <div className="min-w-0">
+        <div className="text-[10px] tabular-nums text-muted-foreground">
+          {fmtTime(row.checkIn)} – {fmtTime(row.checkOut)}
+        </div>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {(row.categories.length ? row.categories : [row.primary]).map((c) => (
+            <span
+              key={c}
+              className="rounded-full px-1.5 py-0.5 text-[7px] font-medium uppercase tracking-wide text-white"
+              style={{ backgroundColor: CATEGORY_COLOR[c] }}
+            >
+              {CATEGORY_LABEL[c]}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="text-right">
+        <div className="text-[12px] font-semibold tabular-nums">{formatHM(row.workedMin)}</div>
+        <div className={`text-[9px] tabular-nums ${diffColor}`}>
+          {row.diffMin != null ? formatDiff(row.diffMin) : "—"}
+        </div>
+      </div>
+    </li>
   );
 }

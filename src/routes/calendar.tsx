@@ -496,18 +496,19 @@ function CalendarPage() {
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
-        <Card className="rise-in overflow-hidden">
+        <Card className="rise-in overflow-hidden max-lg:glass max-lg:rounded-[22px]">
           <CardContent className="p-0">
             <div className="grid grid-cols-7 border-b border-border/60">
               {DAY_LABELS.map((d) => (
                 <div
                   key={d}
-                  className="px-3 py-2 text-center text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground"
+                  className="px-3 py-2 text-center text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground max-lg:px-0 max-lg:text-[9px] max-lg:tracking-[0.1em]"
                 >
                   {d}
                 </div>
               ))}
             </div>
+
             <div className="divide-y divide-border/60">
               {weeks.map((week, wi) => (
                 <div key={wi} className="grid grid-cols-7">
@@ -521,15 +522,16 @@ function CalendarPage() {
                     return (
                       <div
                         key={key}
-                        className={`group relative min-h-[104px] border-border/60 p-1.5 sm:min-h-[124px] sm:border-r sm:last:border-r-0 ${
+                        className={`group relative min-h-[104px] border-border/60 p-1.5 max-lg:min-h-[74px] max-lg:border-b max-lg:border-r max-lg:p-1 max-lg:[&:nth-child(7n)]:border-r-0 sm:min-h-[124px] sm:border-r sm:last:border-r-0 ${
                           inMonth ? "" : "opacity-40"
                         }`}
+
                       >
                         <div className="mb-1 flex items-center justify-between">
                           <span
-                            className={`text-xs tabular-nums ${
+                            className={`text-xs tabular-nums max-lg:text-[10px] ${
                               isToday
-                                ? "flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background font-medium"
+                                ? "flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background font-medium max-lg:h-[22px] max-lg:w-[22px]"
                                 : isPastDay
                                   ? "text-muted-foreground"
                                   : "text-foreground"
@@ -563,7 +565,7 @@ function CalendarPage() {
                                 key={`${inst.shift.id}-${i}`}
                                 type="button"
                                 onClick={() => setEditor({ mode: "edit", date: day, instance: inst })}
-                                className={`press w-full rounded-lg border px-2 py-1 text-left text-[11px] leading-tight transition ${tone}`}
+                                className={`press w-full rounded-lg border px-2 py-1 text-left text-[11px] leading-tight transition max-lg:rounded-[8px] max-lg:px-1 max-lg:py-[5px] max-lg:text-[9px] ${tone}`}
                                 title={inst.shift.label ?? ""}
                               >
                                 <div className="truncate font-medium tabular-nums">
@@ -571,9 +573,10 @@ function CalendarPage() {
                                   {inst.shift.end_time <= inst.shift.start_time ? " (+1)" : ""}
                                 </div>
 
-                                <div className="truncate text-muted-foreground">
+                                <div className="truncate text-muted-foreground max-lg:text-[8px]">
                                   {n ? `${n} ${n === 1 ? "class" : "classes"}` : (inst.shift.label ?? "Shift")}
                                 </div>
+
                               </button>
                             );
                           })}

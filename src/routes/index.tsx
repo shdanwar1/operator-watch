@@ -666,8 +666,9 @@ function UpcomingShifts({
 }) {
   const instances = shifts.slice(0, 6);
   return (
-    <Card className="rise-in">
+    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
       <CardContent className="p-5">
+
         <SectionTitle title="Upcoming shifts" />
         {instances.length === 0 ? (
           <p className="mt-4 text-sm text-muted-foreground">No upcoming shifts scheduled.</p>
@@ -747,17 +748,19 @@ function CheckInPanel({
   const hasShift = !!next || !!openScheduled;
 
   return (
-    <Card className="rise-in overflow-hidden">
-      <CardContent className="flex flex-col items-center gap-5 px-5 py-6 text-center">
+    <Card className="rise-in overflow-hidden max-lg:glass max-lg:rounded-[22px]">
+      <CardContent className="flex flex-col items-center gap-5 px-5 py-6 text-center max-lg:py-7">
+
         {hasShift ? (
           <div className="flex flex-col items-center gap-1.5">
             <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               {canCheckIn ? "Ready for check-in" : "Check-in opens in"}
             </span>
             {!canCheckIn && (
-              <div className="text-2xl font-semibold tabular-nums tracking-tight">
+              <div className="text-2xl font-semibold tabular-nums tracking-tight max-lg:text-[40px] max-lg:leading-none max-lg:tracking-[-0.05em]">
                 {formatCountdown(msUntilOpen)}
               </div>
+
             )}
             <p className="text-xs text-muted-foreground">
               {openScheduled ? (
@@ -1218,7 +1221,14 @@ function TimeToLeaveCard({
   const hero = variant === "hero";
 
   return (
-    <Card className={hero ? "overflow-hidden border-primary/40" : "overflow-hidden"}>
+    <Card
+      className={
+        hero
+          ? "overflow-hidden border-primary/40 max-lg:glass max-lg:rounded-[22px]"
+          : "overflow-hidden max-lg:glass max-lg:rounded-[22px]"
+      }
+    >
+
       <CardContent className="p-0">
         <div className="px-5 pt-5 sm:px-6 sm:pt-6">
           <div className="flex items-center gap-2">
@@ -1308,7 +1318,7 @@ function TimeToLeaveDetails({
     <div className="mt-4 space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[45fr_55fr]">
         {/* Left: timing + action */}
-        <div className="rounded-2xl border border-border bg-muted/30 p-5">
+        <div className="rounded-2xl border border-border bg-muted/30 p-5 max-lg:glass-tile max-lg:rounded-[18px]">
           <div
             className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${
               urgent ? "text-destructive" : "text-muted-foreground"

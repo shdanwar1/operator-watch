@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
-import { getGateStatus } from "@/lib/gate.functions";
+import { getGateStatus, signOutUser } from "@/lib/gate.functions";
 import {
   updateMyProfile,
   setMyHomeAddress,
@@ -66,7 +66,7 @@ function Panel({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+    <section className="rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.03)] max-lg:glass max-lg:rounded-[18px]">
       <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
         <h2 className="text-[14px] font-semibold tracking-tight">{title}</h2>
         {aside}
@@ -126,6 +126,8 @@ function ToggleRow({
 
 function ProfilePage() {
   const router = useRouter();
+  const signOut = useServerFn(signOutUser);
+
   const {
     profile: initialProfile,
     icsUrl: initialIcs,
@@ -328,6 +330,19 @@ function ProfilePage() {
           />
         </Panel>
       </div>
+
+      {/* Mobile: logout lives here since the bottom tab bar has no room for it. */}
+      <button
+        type="button"
+        onClick={async () => {
+          await signOut();
+          await router.navigate({ to: "/unlock" });
+        }}
+        className="press mt-4 w-full rounded-[18px] border border-border py-3.5 text-[15px] font-medium text-destructive glass lg:hidden"
+      >
+        Log out
+      </button>
+
     </AppShell>
   );
 }
