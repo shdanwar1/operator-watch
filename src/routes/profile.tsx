@@ -328,6 +328,19 @@ function ProfilePage() {
           />
         </Panel>
       </div>
+
+      {/* Mobile: logout lives here since the bottom tab bar has no room for it. */}
+      <button
+        type="button"
+        onClick={async () => {
+          await signOut();
+          await router.navigate({ to: "/unlock" });
+        }}
+        className="press mt-4 w-full rounded-[18px] border border-border py-3.5 text-[15px] font-medium text-destructive glass lg:hidden"
+      >
+        Log out
+      </button>
+
     </AppShell>
   );
 }
