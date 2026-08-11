@@ -138,7 +138,7 @@ export function AppShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-background/85 px-6 backdrop-blur-sm lg:px-8">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-background/85 px-6 backdrop-blur-sm max-lg:glass-bar max-lg:h-14 max-lg:px-4 lg:px-8">
           <button
             type="button"
             onClick={toggleCollapsed}
@@ -147,56 +147,76 @@ export function AppShell({
           >
             <PanelLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm font-medium tracking-tight">{STUDIO_NAME}</span>
+          <span className="flex items-center gap-2 text-sm font-medium tracking-tight">
+            <span className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-muted/60 lg:hidden">
+              <Monitor className="h-3.5 w-3.5" />
+            </span>
+            {STUDIO_NAME}
+          </span>
 
-          <div className="ml-auto flex items-center gap-4">
+          <div className="ml-auto flex items-center gap-4 max-lg:gap-1.5">
             {onAir && (
               <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-done">
                 <span className="status-dot bg-done" />
                 On air
               </span>
             )}
-            <ThemeToggle className="h-8 w-8" />
+            {/* Studio Display has no tab on mobile; keep it reachable here. */}
+            <Link
+              to="/studio-display"
+              aria-label="Studio Display"
+              className="press flex h-9 w-9 items-center justify-center rounded-full border border-border bg-muted/50 text-muted-foreground lg:hidden"
+            >
+              <Monitor className="h-4 w-4" />
+            </Link>
+            <ThemeToggle className="h-8 w-8 max-lg:h-9 max-lg:w-9" />
           </div>
         </header>
 
-        {/* Mobile navigation: the sidebar is hidden below lg. */}
-        <nav className="flex gap-1 overflow-x-auto border-b border-border px-4 py-2 lg:hidden">
-          {NAV.map((item) => {
-            const active = item.exact
-              ? pathname === item.to
-              : pathname === item.to || pathname.startsWith(`${item.to}/`);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "shrink-0 rounded-lg px-3 py-1.5 text-xs transition-colors",
-                  active
-                    ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                    : "text-muted-foreground",
-                )}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="shrink-0 rounded-lg px-3 py-1.5 text-xs text-muted-foreground"
-          >
-            Logout
-          </button>
-        </nav>
-
         <main className="flex-1">
-          <div className="mx-auto w-full max-w-[1600px] px-6 py-8 lg:px-8">{children}</div>
+          <div className="mx-auto w-full max-w-[1600px] px-6 py-8 max-lg:px-4 max-lg:pb-28 max-lg:pt-5 lg:px-8">
+            {children}
+          </div>
         </main>
+
+        {/* Mobile tab bar — flush with the bottom edge, thin top border. */}
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border glass-bar pb-safe lg:hidden">
+          <div className="mx-auto grid max-w-[430px] grid-cols-5 px-1.5 pb-1.5 pt-1">
+            {MOBILE_NAV.map((item) => {
+              const active = item.exact
+                ? pathname === item.to
+                : pathname === item.to || pathname.startsWith(`${item.to}/`);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={cn(
+                    "press flex h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl transition-colors",
+                    active ? "text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex h-6 w-9 items-center justify-center rounded-[11px] transition-colors",
+                      active && "bg-sidebar-accent",
+                    )}
+                  >
+                    <item.icon
+                      className="h-[22px] w-[22px]"
+                      strokeWidth={active ? 2 : 1.7}
+                    />
+                  </span>
+                  <span className="text-[9.5px] font-medium leading-none">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
       </div>
     </div>
   );
 }
+
 
 /** Section heading used across every screen. */
 export function SectionTitle({
