@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
+import { IcsHelpButton } from "@/components/IcsHelpButton";
+
 import { Home, CalendarDays, Info, Save, ArrowRight, ShieldCheck, User } from "lucide-react";
 
 export const Route = createFileRoute("/complete-profile")({
