@@ -174,14 +174,6 @@ export function AppShell({
                 On air
               </span>
             )}
-            {/* Studio Display has no tab on mobile; keep it reachable here. */}
-            <Link
-              to="/studio-display"
-              aria-label="Studio Display"
-              className="press flex h-9 w-9 items-center justify-center rounded-full border border-border bg-muted/50 text-muted-foreground lg:hidden"
-            >
-              <Monitor className="h-4 w-4" />
-            </Link>
             <ThemeToggle className="h-8 w-8 max-lg:h-9 max-lg:w-9" />
           </div>
         </header>

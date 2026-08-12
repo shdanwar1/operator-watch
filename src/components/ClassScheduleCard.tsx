@@ -212,11 +212,13 @@ export function ClassScheduleCard({
                       size="sm"
                       variant={st === "live" ? "default" : "outline"}
                       onClick={() => openDisplay(c)}
+                      className="max-lg:hidden"
                     >
                       Studio Display
                       <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
                     </Button>
                   )}
+
                   {(onSetStatus || onCorrect) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
