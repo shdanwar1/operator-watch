@@ -175,6 +175,8 @@ function CalendarPage() {
   const loadPrefs = useServerFn(getMyPrefs);
   const savePrefs = useServerFn(setMyPrefs);
   const [prefs, setPrefs] = useState<OperatorPrefs>(DEFAULT_PREFS);
+  // Until the saved preference actually arrives, "unknown" must not act as "yes".
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
   useEffect(() => {
     let cancelled = false;
     loadPrefs()
@@ -183,14 +185,17 @@ function CalendarPage() {
         setPrefs(p);
         setSyncNextMonth(p.syncNextMonth);
         setAutoSync(p.autoSync);
+        setPrefsLoaded(true);
       })
       .catch(() => {
-        /* fall back to defaults */
+        /* fall back to defaults, but don't block auto-sync forever */
+        if (!cancelled) setPrefsLoaded(true);
       });
     return () => {
       cancelled = true;
     };
   }, [loadPrefs]);
+
 
   const persistPrefs = useCallback(
     (patch: Partial<OperatorPrefs>) => {

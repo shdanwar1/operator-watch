@@ -270,20 +270,27 @@ function Index() {
   // Personal preferences (calendar sync, notifications, dashboard cards).
   const loadPrefs = useServerFn(getMyPrefs);
   const [prefs, setPrefs] = useState<OperatorPrefs>(DEFAULT_PREFS);
+  // Until the saved preference actually arrives, "unknown" must not act as "yes".
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [departureIso, setDepartureIso] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     loadPrefs()
       .then((p) => {
-        if (!cancelled) setPrefs(p);
+        if (!cancelled) {
+          setPrefs(p);
+          setPrefsLoaded(true);
+        }
       })
       .catch(() => {
-        /* defaults are fine */
+        /* defaults are fine, but don't block auto-sync forever */
+        if (!cancelled) setPrefsLoaded(true);
       });
     return () => {
       cancelled = true;
     };
   }, [loadPrefs]);
+
 
 
   useEffect(() => {
@@ -300,7 +307,7 @@ function Index() {
   const { syncing } = useCalendarSync({
     enabled: !!profileStatus && !needsCal,
     onSynced: () => load(),
-    auto: prefs.autoSync,
+    auto: prefsLoaded && prefs.autoSync,
     includeNextMonth: prefs.syncNextMonth,
   });
 
