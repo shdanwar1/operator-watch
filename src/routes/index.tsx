@@ -409,7 +409,7 @@ function Index() {
 
   // Reminders — only for the next shift, and only while it is still ahead.
   const reminders: Reminder[] = [];
-  if (nextDisplay && !active) {
+  if (prefsLoaded && nextDisplay && !active) {
     const startAt = nextDisplay.startAt;
     const stamp = startAt.toISOString();
     if (prefs.notifyShiftStart) {
@@ -429,7 +429,8 @@ function Index() {
       });
     }
   }
-  useReminders(reminders, prefs.notifyShiftStart || prefs.notifyTimeToLeave);
+  useReminders(reminders, prefsLoaded && (prefs.notifyShiftStart || prefs.notifyTimeToLeave));
+
 
 
   // The scheduled shift the active attendance record belongs to.
