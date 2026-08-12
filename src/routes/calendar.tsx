@@ -30,7 +30,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { IcsHelpButton } from "@/components/IcsHelpButton";
 import {
   Dialog,
   DialogContent,
@@ -619,27 +619,8 @@ function CalendarPage() {
           <DialogHeader>
             <div className="flex items-center gap-2">
               <DialogTitle>Google Calendar</DialogTitle>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="How to get your calendar link"
-                    className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <HelpCircle className="h-3.5 w-3.5" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-80 text-sm">
-                  <p className="font-medium">How to get your Google Calendar public iCal link</p>
-                  <ol className="mt-2 list-decimal space-y-1 pl-4 text-muted-foreground">
-                    <li>Open Google Calendar</li>
-                    <li>Settings</li>
-                    <li>Select your calendar</li>
-                    <li>Integrate Calendar</li>
-                    <li>Copy the “Public address in iCal format” (.ics) link</li>
-                  </ol>
-                </PopoverContent>
-              </Popover>
+              <IcsHelpButton />
+
             </div>
           </DialogHeader>
 

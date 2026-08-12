@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
+import { IcsHelpButton } from "@/components/IcsHelpButton";
+
 import { Home, CalendarDays, Info, Save, ArrowRight, ShieldCheck, User } from "lucide-react";
 
 export const Route = createFileRoute("/complete-profile")({
@@ -169,7 +171,9 @@ function CompleteProfile() {
                   <h2 className="text-sm font-medium">
                     Google Calendar URL <span className="text-destructive">*</span>
                   </h2>
+                  <IcsHelpButton />
                 </div>
+
                 <p className="text-xs text-muted-foreground">
                   Used to show your Time to Leave, prevent shift conflicts, and enable Check In
                   when you're available.
