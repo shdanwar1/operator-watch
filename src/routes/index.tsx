@@ -19,6 +19,8 @@ import {
 import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/lib/travel.functions";
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { useReminders, type Reminder } from "@/hooks/useReminders";
+import { useCachedResource } from "@/hooks/useCachedResource";
+import { operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.functions";
 import { getAppSettings } from "@/lib/settings.functions";
@@ -254,33 +256,60 @@ function Index() {
   const setClassStatusFn = useServerFn(setMyClassStatus);
   const correctClassMatchFn = useServerFn(correctMyClassMatch);
 
-  const [showActivation, setShowActivation] = useState(false);
-  const [active, setActive] = useState<Shift | null>(null);
-  const [history, setHistory] = useState<Shift[]>([]);
-  const [scheduled, setScheduled] = useState<ScheduledShift[]>([]);
-  const [teachers, setTeachers] = useState<DirectoryItem[]>([]);
-  const [classes, setClasses] = useState<DirectoryItem[]>([]);
-  const [calendarClasses, setCalendarClasses] = useState<CalendarClassRow[]>([]);
+  type DashboardSnapshot = {
+    shifts: Shift[];
+    scheduled: ScheduledShift[];
+    teachers: DirectoryItem[];
+    classes: DirectoryItem[];
+    calendarClasses: CalendarClassRow[];
+  };
+  const dashboardCacheKey = username ? `${operatorNamespace(username)}dashboard` : null;
+  // Read once, on the very first render only — not on every re-render this
+  // component does (it ticks every second for the countdown clock).
+  const [cachedDashboard] = useState<DashboardSnapshot | null>(() =>
+    dashboardCacheKey ? readCache<DashboardSnapshot>(dashboardCacheKey) : null,
+  );
 
-  const [loading, setLoading] = useState(true);
+  const [showActivation, setShowActivation] = useState(false);
+  const [active, setActive] = useState<Shift | null>(
+    cachedDashboard?.shifts.find((r) => !r.check_out_at) ?? null,
+  );
+  const [history, setHistory] = useState<Shift[]>(
+    cachedDashboard?.shifts.filter((r) => r.check_out_at) ?? [],
+  );
+  const [scheduled, setScheduled] = useState<ScheduledShift[]>(cachedDashboard?.scheduled ?? []);
+  const [teachers, setTeachers] = useState<DirectoryItem[]>(cachedDashboard?.teachers ?? []);
+  const [classes, setClasses] = useState<DirectoryItem[]>(cachedDashboard?.classes ?? []);
+  const [calendarClasses, setCalendarClasses] = useState<CalendarClassRow[]>(
+    cachedDashboard?.calendarClasses ?? [],
+  );
+
+  // Only true when there was nothing cached to paint immediately.
+  const [loading, setLoading] = useState(!cachedDashboard);
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [, setTick] = useState(0);
 
-  // Personal preferences (calendar sync, notifications, dashboard cards).
+  // Personal preferences (calendar sync, notifications, dashboard cards),
+  // cached so a returning device knows the real saved autoSync value
+  // immediately instead of assuming the default.
+  const prefsCacheKey = username ? `${operatorNamespace(username)}prefs` : null;
   const loadPrefs = useServerFn(getMyPrefs);
-  const [prefs, setPrefs] = useState<OperatorPrefs>(DEFAULT_PREFS);
-  // Until the saved preference actually arrives, "unknown" must not act as "yes".
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [prefs, setPrefs] = useState<OperatorPrefs>(
+    () => (prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)) || DEFAULT_PREFS,
+  );
+  const [prefsLoaded, setPrefsLoaded] = useState(
+    () => !!(prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)),
+  );
   const [departureIso, setDepartureIso] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     loadPrefs()
       .then((p) => {
-        if (!cancelled) {
-          setPrefs(p);
-          setPrefsLoaded(true);
-        }
+        if (cancelled) return;
+        setPrefs(p);
+        setPrefsLoaded(true);
+        if (prefsCacheKey) writeCache(prefsCacheKey, p);
       })
       .catch(() => {
         /* defaults are fine, but don't block auto-sync forever */
@@ -289,7 +318,7 @@ function Index() {
     return () => {
       cancelled = true;
     };
-  }, [loadPrefs]);
+  }, [loadPrefs, prefsCacheKey]);
 
 
 
@@ -335,7 +364,7 @@ function Index() {
   // later refresh (auto-sync, cross-tab broadcast, timed/focus refresh)
   // updates the already-visible content in place instead of blanking the
   // page — that repeated blanking, not the sync itself, was the "freeze".
-  const hasLoadedOnce = useRef(false);
+  const hasLoadedOnce = useRef(!!cachedDashboard);
   async function load() {
     if (!hasLoadedOnce.current) setLoading(true);
     try {
@@ -352,6 +381,15 @@ function Index() {
       setTeachers(tRows);
       setClasses(cRows);
       setCalendarClasses(calRows);
+      if (dashboardCacheKey) {
+        writeCache<DashboardSnapshot>(dashboardCacheKey, {
+          shifts: rows as Shift[],
+          scheduled: sched,
+          teachers: tRows,
+          classes: cRows,
+          calendarClasses: calRows,
+        });
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -620,6 +658,7 @@ function Index() {
                   />
                 ) : (
                   <TimeToLeaveCard
+                    username={username}
                     scheduled={scheduled}
                     now={now}
                     variant="hero"
@@ -1157,19 +1196,19 @@ function fmtHM(d: Date) {
 }
 
 function TimeToLeaveCard({
+  username,
   scheduled,
   now,
   variant = "default",
   onDeparture,
 }: {
+  username: string | null;
   scheduled: ScheduledShift[];
   now: Date;
   variant?: "default" | "hero";
   /** Reports the planned departure time so the dashboard can remind about it. */
   onDeparture?: (iso: string | null) => void;
 }) {
-
-
   const fetchPlan = useServerFn(getTimeToLeave);
   const next = useMemo(() => {
     const upcoming = buildDisplayShifts(scheduled, now).filter(
@@ -1179,40 +1218,27 @@ function TimeToLeaveCard({
   }, [scheduled, now]);
   const shiftIso = next?.startAt.toISOString() ?? null;
 
+  // The plan is specific to *which* shift is coming up next, so the cache
+  // key includes it.
+  const cacheKey =
+    username && shiftIso ? `${operatorNamespace(username)}time-to-leave:${shiftIso}` : null;
 
-  const [plan, setPlan] = useState<TimeToLeaveResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [errored, setErrored] = useState(false);
-
-  useEffect(() => {
-    if (!shiftIso) {
-      setPlan(null);
-      return;
-    }
-    let alive = true;
-    const load = async () => {
-      setLoading(true);
-      setErrored(false);
-      try {
-        const p = await fetchPlan({ data: { shift_start_iso: shiftIso } });
-        if (alive) setPlan(p);
-      } catch {
-        if (alive) {
-          setPlan(null);
-          setErrored(true);
-        }
-      } finally {
-        if (alive) setLoading(false);
-      }
-    };
-    load();
-    // Refresh every minute: countdown, departure, travel time and options stay live.
-    const t = setInterval(load, 60_000);
-    return () => {
-      alive = false;
-      clearInterval(t);
-    };
-  }, [shiftIso, fetchPlan]);
+  const {
+    data: plan,
+    loading,
+    error,
+  } = useCachedResource<TimeToLeaveResult | null>({
+    cacheKey,
+    fetcher: () => {
+      if (!shiftIso) return Promise.resolve(null);
+      return fetchPlan({ data: { shift_start_iso: shiftIso } });
+    },
+    fallback: null,
+    // Countdown, departure, and travel options stay live without ever
+    // blanking the card.
+    refreshIntervalMs: shiftIso ? 60_000 : undefined,
+  });
+  const errored = !!error;
 
   const departureIso = plan && plan.ok ? plan.departure_iso : null;
   const reportDeparture = onDeparture;
