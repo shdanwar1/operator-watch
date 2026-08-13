@@ -1157,19 +1157,19 @@ function fmtHM(d: Date) {
 }
 
 function TimeToLeaveCard({
+  username,
   scheduled,
   now,
   variant = "default",
   onDeparture,
 }: {
+  username: string | null;
   scheduled: ScheduledShift[];
   now: Date;
   variant?: "default" | "hero";
   /** Reports the planned departure time so the dashboard can remind about it. */
   onDeparture?: (iso: string | null) => void;
 }) {
-
-
   const fetchPlan = useServerFn(getTimeToLeave);
   const next = useMemo(() => {
     const upcoming = buildDisplayShifts(scheduled, now).filter(
@@ -1179,40 +1179,27 @@ function TimeToLeaveCard({
   }, [scheduled, now]);
   const shiftIso = next?.startAt.toISOString() ?? null;
 
+  // The plan is specific to *which* shift is coming up next, so the cache
+  // key includes it.
+  const cacheKey =
+    username && shiftIso ? `${operatorNamespace(username)}time-to-leave:${shiftIso}` : null;
 
-  const [plan, setPlan] = useState<TimeToLeaveResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [errored, setErrored] = useState(false);
-
-  useEffect(() => {
-    if (!shiftIso) {
-      setPlan(null);
-      return;
-    }
-    let alive = true;
-    const load = async () => {
-      setLoading(true);
-      setErrored(false);
-      try {
-        const p = await fetchPlan({ data: { shift_start_iso: shiftIso } });
-        if (alive) setPlan(p);
-      } catch {
-        if (alive) {
-          setPlan(null);
-          setErrored(true);
-        }
-      } finally {
-        if (alive) setLoading(false);
-      }
-    };
-    load();
-    // Refresh every minute: countdown, departure, travel time and options stay live.
-    const t = setInterval(load, 60_000);
-    return () => {
-      alive = false;
-      clearInterval(t);
-    };
-  }, [shiftIso, fetchPlan]);
+  const {
+    data: plan,
+    loading,
+    error,
+  } = useCachedResource<TimeToLeaveResult | null>({
+    cacheKey,
+    fetcher: () => {
+      if (!shiftIso) return Promise.resolve(null);
+      return fetchPlan({ data: { shift_start_iso: shiftIso } });
+    },
+    fallback: null,
+    // Countdown, departure, and travel options stay live without ever
+    // blanking the card.
+    refreshIntervalMs: shiftIso ? 60_000 : undefined,
+  });
+  const errored = !!error;
 
   const departureIso = plan && plan.ok ? plan.departure_iso : null;
   const reportDeparture = onDeparture;
