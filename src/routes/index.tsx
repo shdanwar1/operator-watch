@@ -364,7 +364,7 @@ function Index() {
   // later refresh (auto-sync, cross-tab broadcast, timed/focus refresh)
   // updates the already-visible content in place instead of blanking the
   // page — that repeated blanking, not the sync itself, was the "freeze".
-  const hasLoadedOnce = useRef(false);
+  const hasLoadedOnce = useRef(!!cachedDashboard);
   async function load() {
     if (!hasLoadedOnce.current) setLoading(true);
     try {
@@ -381,6 +381,15 @@ function Index() {
       setTeachers(tRows);
       setClasses(cRows);
       setCalendarClasses(calRows);
+      if (dashboardCacheKey) {
+        writeCache<DashboardSnapshot>(dashboardCacheKey, {
+          shifts: rows as Shift[],
+          scheduled: sched,
+          teachers: tRows,
+          classes: cRows,
+          calendarClasses: calRows,
+        });
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load");
     } finally {
