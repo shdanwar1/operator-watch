@@ -158,9 +158,15 @@ function CalendarPage() {
   const getUrlFn = useServerFn(getMyCalendarUrl);
   const setUrlFn = useServerFn(setMyCalendarUrl);
 
-  const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
-  const [logged, setLogged] = useState<ShiftRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  type CalendarSnapshot = { scheduled: ScheduledShiftRow[]; logged: ShiftRow[] };
+  const calendarCacheKey = username ? `${operatorNamespace(username)}calendar` : null;
+  const [cachedCalendar] = useState<CalendarSnapshot | null>(() =>
+    calendarCacheKey ? readCache<CalendarSnapshot>(calendarCacheKey) : null,
+  );
+
+  const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>(cachedCalendar?.scheduled ?? []);
+  const [logged, setLogged] = useState<ShiftRow[]>(cachedCalendar?.logged ?? []);
+  const [loading, setLoading] = useState(!cachedCalendar);
   const [monthOffset, setMonthOffset] = useState(0);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [icsUrl, setIcsUrl] = useState<string | null>(null);
@@ -171,12 +177,18 @@ function CalendarPage() {
   const [autoSync, setAutoSync] = useState(true);
   const [debug, setDebug] = useState(false);
 
-  // Sync preferences live on the operator account so they follow the person.
+  // Sync preferences live on the operator account so they follow the person,
+  // and are cached locally so a returning device shows the real saved choice
+  // immediately. Auto-sync gates on `prefsLoaded`, never the raw default.
+  const prefsCacheKey = username ? `${operatorNamespace(username)}prefs` : null;
   const loadPrefs = useServerFn(getMyPrefs);
   const savePrefs = useServerFn(setMyPrefs);
-  const [prefs, setPrefs] = useState<OperatorPrefs>(DEFAULT_PREFS);
-  // Until the saved preference actually arrives, "unknown" must not act as "yes".
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [prefs, setPrefs] = useState<OperatorPrefs>(
+    () => (prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)) || DEFAULT_PREFS,
+  );
+  const [prefsLoaded, setPrefsLoaded] = useState(
+    () => !!(prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)),
+  );
   useEffect(() => {
     let cancelled = false;
     loadPrefs()
@@ -186,6 +198,7 @@ function CalendarPage() {
         setSyncNextMonth(p.syncNextMonth);
         setAutoSync(p.autoSync);
         setPrefsLoaded(true);
+        if (prefsCacheKey) writeCache(prefsCacheKey, p);
       })
       .catch(() => {
         /* fall back to defaults, but don't block auto-sync forever */
@@ -194,7 +207,7 @@ function CalendarPage() {
     return () => {
       cancelled = true;
     };
-  }, [loadPrefs]);
+  }, [loadPrefs, prefsCacheKey]);
 
 
   const persistPrefs = useCallback(
@@ -220,19 +233,23 @@ function CalendarPage() {
   }, []);
 
   const hasGoogleCalendar = !!icsUrl;
-  void username;
 
+  const hasLoadedOnce = useRef(!!cachedCalendar);
   const load = useCallback(async () => {
+    if (!hasLoadedOnce.current) setLoading(true);
     try {
       const [sched, rows] = await Promise.all([fetchScheduled(), fetchShifts()]);
       setScheduled(sched);
       setLogged(rows);
+      if (calendarCacheKey)
+        writeCache<CalendarSnapshot>(calendarCacheKey, { scheduled: sched, logged: rows });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setLoading(false);
+      hasLoadedOnce.current = true;
     }
-  }, [fetchScheduled, fetchShifts]);
+  }, [fetchScheduled, fetchShifts, calendarCacheKey]);
 
   useEffect(() => {
     load();
