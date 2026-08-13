@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
+import { operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
@@ -63,20 +64,28 @@ function EarningsPage() {
   const { username } = Route.useLoaderData();
   const fetchShifts = useServerFn(listShifts);
   const fetchScheduled = useServerFn(listScheduledShifts);
-  const [shifts, setShifts] = useState<ShiftRow[]>([]);
-  const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  type EarningsSnapshot = { shifts: ShiftRow[]; scheduled: ScheduledShiftRow[] };
+  const earningsCacheKey = username ? `${operatorNamespace(username)}earnings` : null;
+  const [cachedEarnings] = useState<EarningsSnapshot | null>(() =>
+    earningsCacheKey ? readCache<EarningsSnapshot>(earningsCacheKey) : null,
+  );
+
+  const [shifts, setShifts] = useState<ShiftRow[]>(cachedEarnings?.shifts ?? []);
+  const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>(cachedEarnings?.scheduled ?? []);
+  const [loading, setLoading] = useState(!cachedEarnings);
 
   // Only the very first load shows the full-page "Loading…" state. Every
   // later refresh updates the already-visible content in place instead of
   // blanking the page on every event.
-  const hasLoadedOnce = useRef(false);
+  const hasLoadedOnce = useRef(!!cachedEarnings);
   async function load() {
     if (!hasLoadedOnce.current) setLoading(true);
     try {
       const [s, sc] = await Promise.all([fetchShifts(), fetchScheduled()]);
       setShifts(s);
       setScheduled(sc);
+      if (earningsCacheKey)
+        writeCache<EarningsSnapshot>(earningsCacheKey, { shifts: s, scheduled: sc });
     } finally {
       setLoading(false);
       hasLoadedOnce.current = true;

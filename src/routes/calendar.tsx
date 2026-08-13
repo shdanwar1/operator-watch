@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getGateStatus } from "@/lib/gate.functions";
 import {
   listScheduledShifts,
@@ -23,6 +23,7 @@ import {
   type OperatorPrefs,
 } from "@/lib/prefs.functions";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
+import { operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";

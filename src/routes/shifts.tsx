@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getGateStatus } from "@/lib/gate.functions";
 import {
   listShifts,
@@ -31,6 +31,7 @@ import {
 import { toast, Toaster } from "sonner";
 import { Pencil, Plus, Trash2, X, Save } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 import type { ShiftClass } from "./index";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 
@@ -39,6 +40,10 @@ export const Route = createFileRoute("/shifts")({
     const status = await getGateStatus();
     if (!status.unlocked) throw redirect({ to: "/unlock" });
     if (status.isAdmin) throw redirect({ to: "/admin" });
+  },
+  loader: async () => {
+    const { username } = await getGateStatus();
+    return { username: username ?? null };
   },
 
   component: ShiftsPage,
@@ -77,10 +82,17 @@ function duration(a: string, b: string | null) {
 }
 
 function ShiftsPage() {
-  const [shifts, setShifts] = useState<Shift[]>([]);
-  const [teachers, setTeachers] = useState<DirectoryItem[]>([]);
-  const [classDir, setClassDir] = useState<DirectoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { username } = Route.useLoaderData();
+  type ShiftsSnapshot = { shifts: Shift[]; teachers: DirectoryItem[]; classDir: DirectoryItem[] };
+  const shiftsCacheKey = username ? `${operatorNamespace(username)}shifts` : null;
+  const [cachedShifts] = useState<ShiftsSnapshot | null>(() =>
+    shiftsCacheKey ? readCache<ShiftsSnapshot>(shiftsCacheKey) : null,
+  );
+
+  const [shifts, setShifts] = useState<Shift[]>(cachedShifts?.shifts ?? []);
+  const [teachers, setTeachers] = useState<DirectoryItem[]>(cachedShifts?.teachers ?? []);
+  const [classDir, setClassDir] = useState<DirectoryItem[]>(cachedShifts?.classDir ?? []);
+  const [loading, setLoading] = useState(!cachedShifts);
   const [editing, setEditing] = useState<Shift | null>(null);
   const [addingPast, setAddingPast] = useState(false);
   const fetchShifts = useServerFn(listShifts);
@@ -95,8 +107,9 @@ function ShiftsPage() {
     load();
   }, []);
 
+  const hasLoadedOnce = useRef(!!cachedShifts);
   async function load() {
-    setLoading(true);
+    if (!hasLoadedOnce.current) setLoading(true);
     try {
       const [rows, tRows, cRows] = await Promise.all([
         fetchShifts(),
@@ -106,10 +119,18 @@ function ShiftsPage() {
       setShifts(rows as Shift[]);
       setTeachers(tRows);
       setClassDir(cRows);
+      if (shiftsCacheKey) {
+        writeCache<ShiftsSnapshot>(shiftsCacheKey, {
+          shifts: rows as Shift[],
+          teachers: tRows,
+          classDir: cRows,
+        });
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setLoading(false);
+      hasLoadedOnce.current = true;
     }
   }
 
