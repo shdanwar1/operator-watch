@@ -172,7 +172,7 @@ function AdminShifts() {
             disabled={!operatorSelected}
             title={
               operatorSelected
-                ? `${opFilter} · ${currentMonthLabel}`
+                ? `${opFilter} · ${exportMonthLabel}`
                 : "Select an operator to export attendance"
             }
             onClick={downloadAttendance}
@@ -184,7 +184,7 @@ function AdminShifts() {
       </header>
       {operatorSelected && (
         <p className="-mt-3 text-xs text-muted-foreground">
-          Attendance PDF: {opFilter} · {currentMonthLabel}
+          Attendance PDF: {opFilter} · {exportMonthLabel}
         </p>
       )}
 
