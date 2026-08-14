@@ -11,6 +11,16 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { PinDialog } from "@/components/admin/PinDialog";
+import { adminChangeOwnPin } from "@/lib/operators.functions";
+import { adminChangeSitePassword, getGateStatus } from "@/lib/gate.functions";
+import {
   getAppSettings,
   adminUpdateCheckoutSetting,
   adminUpdateStudioSetting,
