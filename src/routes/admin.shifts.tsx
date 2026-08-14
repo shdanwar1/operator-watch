@@ -24,7 +24,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { adminListShiftsForSession, adminListOperators } from "@/lib/operators.functions";
-import { updateShift, deleteShift, type ShiftRow } from "@/lib/shifts.functions";
+import {
+  updateShift,
+  deleteShift,
+  listScheduledShifts,
+  type ShiftRow,
+} from "@/lib/shifts.functions";
+import { summarizeMonth } from "@/lib/attendance";
+import { downloadAttendancePdf } from "@/lib/attendance-pdf";
 import { fmtHours, opColor } from "@/lib/admin-utils";
 
 export const Route = createFileRoute("/admin/shifts")({
