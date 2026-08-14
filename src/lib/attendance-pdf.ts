@@ -10,10 +10,13 @@ import autoTable from "jspdf-autotable";
 import {
   CATEGORY_COLOR,
   CATEGORY_LABEL,
+  buildAttendanceRows,
   formatDiff,
   formatHM,
   type AttendanceSummary,
 } from "@/lib/attendance";
+import type { ShiftRow, ScheduledShiftRow } from "@/lib/shifts.functions";
+
 
 function fmtDate(d: Date) {
   return d.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
