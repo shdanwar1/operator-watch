@@ -77,14 +77,14 @@ export function useCalendarSync(options: {
           force,
         });
         if (skipped || !res) return undefined;
-        const at = new Date();
-        setLastSync(at);
-        if (cacheKeyRef.current) writeCache(cacheKeyRef.current, at.getTime());
         setLogs(res.logs ?? []);
         if (!res.ok) {
           if (!silent) toast.error(res.error ?? "Sync failed");
           return res;
         }
+        const at = new Date();
+        setLastSync(at);
+        if (cacheKeyRef.current) writeCache(cacheKeyRef.current, at.getTime());
         // Refresh the caller first, then everything else that is open.
         await onSyncedRef.current();
         publishSync({ type: "data-synced", at: Date.now() });
