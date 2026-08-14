@@ -1,0 +1,144 @@
+// Shared attendance PDF export.
+//
+// Used by the operator payroll page and the admin Shifts page so both
+// produce exactly the same report from the same attendance calculations.
+// A shift that crosses midnight stays a single row; the day/night/weekend
+// split comes from `summarizeMonth` in @/lib/attendance.
+
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import {
+  CATEGORY_COLOR,
+  CATEGORY_LABEL,
+  formatDiff,
+  formatHM,
+  type AttendanceSummary,
+} from "@/lib/attendance";
+
+function fmtDate(d: Date) {
+  return d.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
+}
+function fmtTime(d: Date) {
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+function rgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
+}
+
+/** Builds and downloads the monthly attendance report for one operator. */
+export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: string) {
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const opName = operatorName || "Operator";
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text("Attendance Report", 40, 50);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(90);
+  doc.text(`Operator: ${opName}`, 40, 70);
+  doc.text(`Period: ${summary.monthLabel}`, 40, 84);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 98);
+  doc.setTextColor(20);
+
+  autoTable(doc, {
+    startY: 120,
+    head: [[
+      "Date",
+      "Scheduled",
+      "Check In",
+      "Check Out",
+      "Worked",
+      "Diff",
+      "Day",
+      "Night",
+      "Weekend",
+      "Type",
+    ]],
+    body: summary.rows.map((r) => [
+      fmtDate(r.date),
+      r.scheduledStart && r.scheduledEnd
+        ? `${fmtTime(r.scheduledStart)}-${fmtTime(r.scheduledEnd)}`
+        : "-",
+      fmtTime(r.checkIn),
+      fmtTime(r.checkOut),
+      formatHM(r.workedMin),
+      r.diffMin != null ? formatDiff(r.diffMin) : "-",
+      r.dayMin > 0 ? formatHM(r.dayMin) : "-",
+      r.nightMin > 0 ? formatHM(r.nightMin) : "-",
+      r.weekendMin > 0 ? formatHM(r.weekendMin) : "-",
+      r.categories.map((c) => CATEGORY_LABEL[c]).join(" • "),
+    ]),
+    styles: {
+      font: "helvetica",
+      fontSize: 8.5,
+      cellPadding: 5,
+      lineColor: [230, 230, 230],
+      lineWidth: 0.5,
+    },
+    headStyles: { fillColor: [245, 245, 247], textColor: 30, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [252, 252, 253] },
+    columnStyles: {
+      4: { halign: "right" },
+      5: { halign: "right" },
+      6: { halign: "right" },
+      7: { halign: "right" },
+      8: { halign: "right" },
+      9: { halign: "center" },
+    },
+    didParseCell: (data) => {
+      if (data.section !== "body" || data.column.index !== 9) return;
+      const row = summary.rows[data.row.index];
+      if (!row) return;
+      data.cell.styles.fillColor = rgb(CATEGORY_COLOR[row.primary]);
+      data.cell.styles.textColor = 255;
+      data.cell.styles.fontStyle = "bold";
+    },
+  });
+
+  // @ts-expect-error jspdf-autotable augments doc at runtime
+  const y = (doc.lastAutoTable?.finalY ?? 120) + 32;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("Payroll Hours Summary", 40, y);
+
+  const summaryRows: Array<{ label: string; value: string; color: [number, number, number] }> = [
+    { label: "Daytime Hours", value: formatHM(summary.dayMin), color: rgb(CATEGORY_COLOR.day) },
+    { label: "Night Hours", value: formatHM(summary.nightMin), color: rgb(CATEGORY_COLOR.night) },
+    {
+      label: "Weekend Hours",
+      value: formatHM(summary.weekendMin),
+      color: rgb(CATEGORY_COLOR.weekend),
+    },
+  ];
+
+  autoTable(doc, {
+    startY: y + 10,
+    head: [["", "Category", "Hours"]],
+    body: summaryRows.map((r) => ["", r.label, r.value]),
+    foot: [["", "Total Worked Hours", formatHM(summary.workedMin)]],
+    styles: { font: "helvetica", fontSize: 11, cellPadding: 8 },
+    headStyles: { fillColor: [245, 245, 247], textColor: 30, fontStyle: "bold" },
+    footStyles: { fillColor: [235, 235, 240], textColor: 20, fontStyle: "bold" },
+    columnStyles: { 0: { cellWidth: 22 }, 2: { halign: "right" } },
+    tableWidth: 340,
+    didDrawCell: (data) => {
+      if (data.section !== "body" || data.column.index !== 0) return;
+      const row = summaryRows[data.row.index];
+      if (!row) return;
+      const size = 10;
+      const cx = data.cell.x + (data.cell.width - size) / 2;
+      const cy = data.cell.y + (data.cell.height - size) / 2;
+      doc.setFillColor(row.color[0], row.color[1], row.color[2]);
+      doc.rect(cx, cy, size, size, "F");
+    },
+  });
+
+  doc.save(`attendance-${opName}-${summary.monthKey}.pdf`);
+}

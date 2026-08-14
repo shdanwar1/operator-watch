@@ -15,8 +15,17 @@ type GateSession = {
   isAdmin?: boolean;
 };
 
-// Shared site password. Not a secret — printed on the studio wall.
-const SITE_PASSWORD = "dancemasterclass";
+/**
+ * The shared site password is stored as a one-way hash in the database
+ * (app_settings → site_password) and verified with a security-definer
+ * function. It is never held in application code or sent to the browser.
+ */
+async function checkSitePassword(password: string): Promise<boolean> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.rpc("verify_site_password", { p_pw: password });
+  if (error) throw new Error(error.message);
+  return data === true;
+}
 
 function getSessionConfig() {
   const password = process.env.SESSION_SECRET;
@@ -40,13 +49,35 @@ export const unlockSite = createServerFn({ method: "POST" })
     password: String(data?.password ?? ""),
   }))
   .handler(async ({ data }) => {
-    if (data.password !== SITE_PASSWORD) {
+    if (!(await checkSitePassword(data.password))) {
       return { ok: false as const };
     }
     const session = await useSession<GateSession>(getSessionConfig());
     await session.update({ siteUnlocked: true });
     return { ok: true as const };
   });
+
+/** Admin only — replace the shared site password. */
+export const adminChangeSitePassword = createServerFn({ method: "POST" })
+  .inputValidator((data: { current: string; next: string; confirm: string }) => ({
+    current: String(data?.current ?? ""),
+    next: String(data?.next ?? ""),
+    confirm: String(data?.confirm ?? ""),
+  }))
+  .handler(async ({ data }) => {
+    const session = await useSession<GateSession>(getSessionConfig());
+    if (!session.data.siteUnlocked || !session.data.username || !session.data.isAdmin) {
+      throw new Response("Admin access required", { status: 403 });
+    }
+    if (data.next !== data.confirm) throw new Error("New passwords do not match");
+    if (data.next.trim().length < 6) throw new Error("New password must be at least 6 characters");
+    if (!(await checkSitePassword(data.current))) throw new Error("Current site password is incorrect");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.rpc("set_site_password", { p_pw: data.next.trim() });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
 
 /** Stage 2 — profiles shown on the user-selection screen. */
 export const listOperatorProfiles = createServerFn({ method: "GET" }).handler(
