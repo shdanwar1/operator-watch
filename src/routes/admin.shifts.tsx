@@ -199,8 +199,9 @@ function AdminShifts() {
       </header>
       {operatorSelected && (
         <p className="-mt-3 text-xs text-muted-foreground">
-          Attendance PDF: {opFilter} · {exportMonthLabel}
+          {allMonths ? "Payroll Summary" : "Attendance PDF"}: {opFilter} · {exportMonthLabel}
         </p>
+
       )}
 
 
