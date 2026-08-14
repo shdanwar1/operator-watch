@@ -9,7 +9,6 @@ import {
   PanelLeft,
   Settings,
   Shield,
-  User,
   Users,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -25,8 +24,7 @@ const ADMIN_NAV: { label: string; to: string; icon: typeof LayoutDashboard; exac
   { label: "Calendar", to: "/admin/calendar", icon: CalendarDays },
   { label: "Shifts", to: "/admin/shifts", icon: ListChecks },
   { label: "Operators", to: "/admin/operators", icon: Users },
-  { label: "Profile", to: "/admin/profile", icon: User },
-  { label: "App Settings", to: "/admin/settings", icon: Settings },
+  { label: "Settings", to: "/admin/settings", icon: Settings },
 ];
 
 const COLLAPSE_KEY = "so.admin.sidebar.collapsed";
