@@ -29,13 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Trash2,
-  Save,
-  RefreshCw,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Save, RefreshCw } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 export const Route = createFileRoute("/calendar")({
@@ -54,7 +48,10 @@ export const Route = createFileRoute("/calendar")({
         content: "Month view of your scheduled studio operator shifts and classes.",
       },
       { property: "og:title", content: "Monthly Schedule — Studio Operator" },
-      { property: "og:description", content: "Month view of your scheduled studio operator shifts." },
+      {
+        property: "og:description",
+        content: "Month view of your scheduled studio operator shifts.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -114,7 +111,11 @@ type Instance = {
   endAt: Date;
 };
 
-function instancesFor(day: Date, scheduled: ScheduledShiftRow[], overrides: Set<string>): Instance[] {
+function instancesFor(
+  day: Date,
+  scheduled: ScheduledShiftRow[],
+  overrides: Set<string>,
+): Instance[] {
   const out: Instance[] = [];
   for (const s of scheduled) {
     const applies = s.specific_date
@@ -167,9 +168,7 @@ function CalendarPage() {
   const [cachedPrefs] = useState<OperatorPrefs | null>(() =>
     prefsCacheKey ? readCache<OperatorPrefs>(prefsCacheKey) : null,
   );
-  const [syncNextMonth, setSyncNextMonth] = useState(
-    (cachedPrefs ?? DEFAULT_PREFS).syncNextMonth,
-  );
+  const [syncNextMonth, setSyncNextMonth] = useState((cachedPrefs ?? DEFAULT_PREFS).syncNextMonth);
   const [autoSync, setAutoSync] = useState((cachedPrefs ?? DEFAULT_PREFS).autoSync);
   const [prefsLoaded, setPrefsLoaded] = useState(!!cachedPrefs);
   useEffect(() => {
@@ -190,8 +189,6 @@ function CalendarPage() {
       cancelled = true;
     };
   }, [loadPrefs, prefsCacheKey]);
-
-
 
   // Match trace is a debug-only surface: opt in with ?debug=1.
   useEffect(() => {
@@ -241,8 +238,8 @@ function CalendarPage() {
   const healthFn = useServerFn(checkMyCalendarHealth);
   type Health = { connected: boolean; ok: boolean; error?: string };
   const healthCacheKey = username ? `${operatorNamespace(username)}calendar-health` : null;
-  const [health, setHealth] = useState<Health | null>(
-    () => (healthCacheKey ? readCache<Health>(healthCacheKey) : null),
+  const [health, setHealth] = useState<Health | null>(() =>
+    healthCacheKey ? readCache<Health>(healthCacheKey) : null,
   );
   const refreshHealth = useCallback(() => {
     healthFn()
@@ -258,8 +255,12 @@ function CalendarPage() {
     refreshHealth();
   }, [refreshHealth, icsUrl]);
 
-
-  const { syncing, lastSync, logs: matchLogs, runSync } = useCalendarSync({
+  const {
+    syncing,
+    lastSync,
+    logs: matchLogs,
+    runSync,
+  } = useCalendarSync({
     enabled: hasGoogleCalendar,
     onSynced: load,
     announce: true,
@@ -452,7 +453,9 @@ function CalendarPage() {
                     </span>
                   ) : null}
                   <span className="text-muted-foreground">{l.reason}</span>
-                  <span className="ml-auto tabular-nums text-muted-foreground">{l.confidence}%</span>
+                  <span className="ml-auto tabular-nums text-muted-foreground">
+                    {l.confidence}%
+                  </span>
                 </div>
               ))}
             </div>
@@ -461,7 +464,13 @@ function CalendarPage() {
       ) : null}
 
       <div className="mb-4 flex items-center gap-2">
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setMonthOffset((n) => n - 1)} aria-label="Previous month">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => setMonthOffset((n) => n - 1)}
+          aria-label="Previous month"
+        >
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-[180px] text-[15px] font-medium tracking-tight">{monthLabel}</div>
@@ -474,7 +483,13 @@ function CalendarPage() {
         >
           Today
         </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setMonthOffset((n) => n + 1)} aria-label="Next month">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => setMonthOffset((n) => n + 1)}
+          aria-label="Next month"
+        >
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -511,7 +526,6 @@ function CalendarPage() {
                         className={`group relative min-h-[104px] border-border/60 p-1.5 max-lg:min-h-[74px] max-lg:border-b max-lg:border-r max-lg:p-1 max-lg:[&:nth-child(7n)]:border-r-0 sm:min-h-[124px] sm:border-r sm:last:border-r-0 ${
                           inMonth ? "" : "opacity-40"
                         }`}
-
                       >
                         <div className="mb-1 flex items-center justify-between">
                           <span
@@ -539,7 +553,9 @@ function CalendarPage() {
                         <div className="space-y-1">
                           {insts.map((inst, i) => {
                             const past = inst.endAt.getTime() < now.getTime();
-                            const hasLog = dayLogged.some((l) => l.scheduled_shift_id === inst.shift.id);
+                            const hasLog = dayLogged.some(
+                              (l) => l.scheduled_shift_id === inst.shift.id,
+                            );
                             const n = classCount(inst.shift.label);
                             const tone = hasLog
                               ? "border-done/40 bg-done/10"
@@ -550,24 +566,30 @@ function CalendarPage() {
                               <button
                                 key={`${inst.shift.id}-${i}`}
                                 type="button"
-                                onClick={() => setEditor({ mode: "edit", date: day, instance: inst })}
+                                onClick={() =>
+                                  setEditor({ mode: "edit", date: day, instance: inst })
+                                }
                                 className={`press w-full rounded-lg border px-2 py-1 text-left text-[11px] leading-tight transition max-lg:rounded-[6px] max-lg:px-[2px] max-lg:py-[3px] ${tone}`}
                                 title={inst.shift.label ?? ""}
                               >
                                 {/* Desktop: 12-hour range + class count/label */}
                                 <div className="hidden lg:block">
                                   <div className="truncate font-medium tabular-nums">
-                                    {fmtTime(inst.shift.start_time)} – {fmtTime(inst.shift.end_time)}
+                                    {fmtTime(inst.shift.start_time)} –{" "}
+                                    {fmtTime(inst.shift.end_time)}
                                     {inst.shift.end_time <= inst.shift.start_time ? " (+1)" : ""}
                                   </div>
                                   <div className="truncate text-muted-foreground">
-                                    {n ? `${n} ${n === 1 ? "class" : "classes"}` : (inst.shift.label ?? "Shift")}
+                                    {n
+                                      ? `${n} ${n === 1 ? "class" : "classes"}`
+                                      : (inst.shift.label ?? "Shift")}
                                   </div>
                                 </div>
 
                                 {/* Mobile: single-line 24-hour range only */}
                                 <div className="whitespace-nowrap text-center text-[7px] font-medium tabular-nums tracking-tight leading-none lg:hidden">
-                                  {formatTime24(inst.shift.start_time)}-{formatTime24(inst.shift.end_time)}
+                                  {formatTime24(inst.shift.start_time)}-
+                                  {formatTime24(inst.shift.end_time)}
                                 </div>
                               </button>
                             );
@@ -589,8 +611,6 @@ function CalendarPage() {
         onSave={handleSave}
         onDelete={handleDelete}
       />
-
-
     </AppShell>
   );
 }
@@ -712,7 +732,6 @@ function formatLastSynced(synced: Date, now: Date): string {
   );
 
   if (dayDiff <= 0) return `${time} today`;
-  if (dayDiff < 7)
-    return `${time} on ${synced.toLocaleDateString(undefined, { weekday: "long" })}`;
+  if (dayDiff < 7) return `${time} on ${synced.toLocaleDateString(undefined, { weekday: "long" })}`;
   return `${time} on ${synced.getDate()} ${synced.toLocaleDateString(undefined, { month: "long" })}`;
 }

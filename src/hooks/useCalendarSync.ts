@@ -108,7 +108,6 @@ export function useCalendarSync(options: {
     const auto = () => runSync({ silent: true, force: false });
     auto();
 
-
     let interval: ReturnType<typeof setInterval> | null = null;
     const start = () => {
       if (interval) return;
