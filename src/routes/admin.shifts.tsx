@@ -98,11 +98,14 @@ function AdminShifts() {
     queryKey: ["admin", "scheduled-shifts"],
     queryFn: () => fetchScheduled(),
   });
-  const currentMonthStart = useMemo(() => {
+  // Attendance export always uses the operator and month selected above.
+  const exportMonthStart = useMemo(() => {
     const n = new Date();
-    return new Date(n.getFullYear(), n.getMonth(), 1);
-  }, []);
-  const currentMonthLabel = currentMonthStart.toLocaleDateString(undefined, {
+    if (month === "all") return new Date(n.getFullYear(), n.getMonth(), 1);
+    const [y, m] = month.split("-").map((v) => parseInt(v, 10));
+    return new Date(y, m - 1, 1);
+  }, [month]);
+  const exportMonthLabel = exportMonthStart.toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
   });
@@ -114,13 +117,14 @@ function AdminShifts() {
     const opScheduled = (scheduled ?? []).filter(
       (s) => (s.assigned_operator ?? "").toLowerCase() === opFilter.toLowerCase(),
     );
-    const summary = summarizeMonth(opShifts, opScheduled, currentMonthStart);
+    const summary = summarizeMonth(opShifts, opScheduled, exportMonthStart);
     if (summary.rows.length === 0) {
-      toast.error(`No completed shifts for ${opFilter} in ${currentMonthLabel}`);
+      toast.error(`No completed shifts for ${opFilter} in ${exportMonthLabel}`);
       return;
     }
     downloadAttendancePdf(summary, opFilter);
   };
+
 
   return (
     <div className="space-y-6">
@@ -168,7 +172,7 @@ function AdminShifts() {
             disabled={!operatorSelected}
             title={
               operatorSelected
-                ? `${opFilter} · ${currentMonthLabel}`
+                ? `${opFilter} · ${exportMonthLabel}`
                 : "Select an operator to export attendance"
             }
             onClick={downloadAttendance}
@@ -180,7 +184,7 @@ function AdminShifts() {
       </header>
       {operatorSelected && (
         <p className="-mt-3 text-xs text-muted-foreground">
-          Attendance PDF: {opFilter} · {currentMonthLabel}
+          Attendance PDF: {opFilter} · {exportMonthLabel}
         </p>
       )}
 
