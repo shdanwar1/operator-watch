@@ -30,40 +30,211 @@ import { backfillClassMatches } from "@/lib/gcal.functions";
 export const Route = createFileRoute("/admin/settings")({
   head: () => ({
     meta: [
-      { title: "App Settings — Dance Masterclass Admin" },
+      { title: "Settings — Dance Masterclass Admin" },
       {
         name: "description",
-        content: "System-wide studio address, class and teacher directories and operator check-out reminders.",
+        content:
+          "Admin account PIN, site password, studio address, directories and operator check-out reminders.",
       },
-      { property: "og:title", content: "App Settings — Dance Masterclass Admin" },
+      { property: "og:title", content: "Settings — Dance Masterclass Admin" },
       {
         property: "og:description",
-        content: "System-wide configuration for the studio operator application.",
+        content: "Account, security and system-wide configuration for the studio application.",
       },
     ],
   }),
+  loader: async () => {
+    const status = await getGateStatus();
+    return { username: status.username ?? "admin" };
+  },
   component: AdminSettings,
 });
 
-function AdminSettings() {
+function SectionLabel({ children }: { children: string }) {
   return (
-    <div className="space-y-6">
+    <h2 className="px-1 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+      {children}
+    </h2>
+  );
+}
+
+function AdminSettings() {
+  const { username } = Route.useLoaderData();
+  return (
+    <div className="space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">App Settings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          These settings apply to the whole application, for every operator.
+          Account, security and system-wide configuration.
         </p>
       </header>
-      <StudioSection />
-      <CheckoutSection />
-      <div className="grid gap-6 lg:grid-cols-2">
-        <DirectorySection table="classes" title="Classes" />
-        <DirectorySection table="teachers" title="Teachers" />
-      </div>
-      <MaintenanceSection />
+
+      <section className="space-y-2">
+        <SectionLabel>Account</SectionLabel>
+        <AccountSection username={username} />
+      </section>
+
+      <section className="space-y-2">
+        <SectionLabel>Security</SectionLabel>
+        <SitePasswordSection />
+      </section>
+
+      <section className="space-y-2">
+        <SectionLabel>System</SectionLabel>
+        <StudioSection />
+        <CheckoutSection />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <DirectorySection table="classes" title="Classes" />
+          <DirectorySection table="teachers" title="Teachers" />
+        </div>
+        <MaintenanceSection />
+      </section>
     </div>
   );
 }
+
+function AccountSection({ username }: { username: string }) {
+  const changeOwnPin = useServerFn(adminChangeOwnPin);
+  const [open, setOpen] = useState(false);
+  return (
+    <Card>
+      <CardContent className="divide-y divide-border p-0">
+        <div className="flex items-center justify-between gap-4 px-5 py-4">
+          <span className="text-sm">Username</span>
+          <span className="text-sm text-muted-foreground">{username}</span>
+        </div>
+        <div className="flex items-center justify-between gap-4 px-5 py-4">
+          <div>
+            <div className="text-sm">Admin PIN</div>
+            <p className="text-xs text-muted-foreground">Never displayed. Stored hashed.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="tracking-[0.4em] text-muted-foreground">••••</span>
+            <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+              Change PIN
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+      <PinDialog
+        open={open}
+        title="Change administrator PIN"
+        onOpenChange={setOpen}
+        onSubmit={async (pin) => {
+          await changeOwnPin({ data: { pin } });
+          setOpen(false);
+          toast.success("Admin PIN updated");
+        }}
+      />
+    </Card>
+  );
+}
+
+function SitePasswordSection() {
+  const changeSitePassword = useServerFn(adminChangeSitePassword);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const reset = () => {
+    setCurrent("");
+    setNext("");
+    setConfirm("");
+  };
+
+  const valid = current.length > 0 && next.trim().length >= 6 && next === confirm;
+
+  return (
+    <Card>
+      <CardContent className="flex items-center justify-between gap-4 p-5">
+        <div>
+          <div className="text-sm">Site password</div>
+          <p className="text-xs text-muted-foreground">
+            Unlocks the application. Separate from the admin PIN.
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+          Change
+        </Button>
+      </CardContent>
+
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          if (!v) reset();
+          setOpen(v);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change site password</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Current site password</Label>
+              <Input
+                type="password"
+                value={current}
+                onChange={(e) => setCurrent(e.target.value)}
+                autoComplete="current-password"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>New site password</Label>
+              <Input
+                type="password"
+                value={next}
+                onChange={(e) => setNext(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Confirm new site password</Label>
+              <Input
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+            {next.length > 0 && next.trim().length < 6 && (
+              <p className="text-xs text-destructive">Use at least 6 characters.</p>
+            )}
+            {confirm.length > 0 && next !== confirm && (
+              <p className="text-xs text-destructive">Passwords do not match.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!valid || busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await changeSitePassword({ data: { current, next, confirm } });
+                  reset();
+                  setOpen(false);
+                  toast.success("Site password changed");
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Failed to change password");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Change Site Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 
 function StudioSection() {
   const qc = useQueryClient();
