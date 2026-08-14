@@ -370,66 +370,52 @@ function CalendarPage() {
         title="Calendar"
         action={
           <div className="flex items-center gap-1.5">
-            <span
-              className="mr-1 hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex"
-              title={
-                health?.ok
-                  ? "Google Calendar link is working"
-                  : (health?.error ?? "Google Calendar not connected")
-              }
-            >
+            {showSyncStatus && (
               <span
-                aria-hidden
-                className={cn(
-                  "inline-block size-2 rounded-full",
-                  health === null
-                    ? "bg-muted-foreground/40"
-                    : health.ok
-                      ? "bg-emerald-500"
-                      : "bg-red-500",
-                )}
-              />
-              {health?.ok
-                ? lastSync
-                  ? `Synced ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                  : "Connected"
-                : health === null
-                  ? "Checking…"
-                  : health.connected
-                    ? "Link error"
-                    : "Not connected"}
-            </span>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (!hasGoogleCalendar) {
-                  setCalDraft(icsUrl ?? "");
-                  setCalDialogOpen(true);
-                } else {
-                  runSync();
+                className="mr-1 hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex"
+                title={
+                  confirmedError
+                    ? (health?.error ??
+                      (health?.connected
+                        ? "Google Calendar link error"
+                        : "Google Calendar not connected"))
+                    : undefined
                 }
-              }}
-              disabled={syncing}
-              title={hasGoogleCalendar ? "Sync shifts from your Google Calendar" : "Set your Google Calendar link"}
-            >
-              <RefreshCw className={`h-4 w-4 sm:mr-1 ${syncing ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">
-                {syncing ? "Syncing…" : hasGoogleCalendar ? "Sync" : "Connect calendar"}
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    "inline-block size-2 rounded-full",
+                    confirmedError
+                      ? "bg-red-500"
+                      : health === null
+                        ? "bg-muted-foreground/40"
+                        : "bg-emerald-500",
+                  )}
+                />
+                {autoSync ? null : syncStatusLabel}
               </span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setCalDraft(icsUrl ?? "");
-                setCalDialogOpen(true);
-              }}
-              title="Update Google Calendar link"
-            >
-              <Settings2 className="h-4 w-4" />
-            </Button>
+            )}
+
+            {hasGoogleCalendar ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => runSync()}
+                disabled={syncing}
+                title="Sync shifts from your Google Calendar"
+              >
+                <RefreshCw className={`h-4 w-4 sm:mr-1 ${syncing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">{syncing ? "Syncing…" : "Sync"}</span>
+              </Button>
+            ) : (
+              <Button asChild variant="outline" size="sm" title="Set up your Google Calendar link">
+                <Link to="/profile">
+                  <RefreshCw className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Connect calendar</span>
+                </Link>
+              </Button>
+            )}
           </div>
         }
       />
