@@ -34,11 +34,23 @@ export function useCalendarSync(options: {
   includeNextMonth?: boolean;
   /** Background (mount/interval/refocus) syncing. Manual syncs always work. */
   auto?: boolean;
+  /** Persist the last successful sync time locally under this key. */
+  cacheKey?: string | null;
 }) {
-  const { enabled, announce = false, includeNextMonth = false, auto: autoEnabled = true } = options;
+  const {
+    enabled,
+    announce = false,
+    includeNextMonth = false,
+    auto: autoEnabled = true,
+    cacheKey = null,
+  } = options;
   const syncFn = useServerFn(syncGoogleCalendar);
   const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [lastSync, setLastSync] = useState<Date | null>(() => {
+    if (!cacheKey) return null;
+    const cached = readCache<number>(cacheKey);
+    return cached ? new Date(cached) : null;
+  });
   const [logs, setLogs] = useState<MatchLog[]>([]);
 
   // Kept in refs so the auto-sync interval never restarts on every render.
