@@ -5,6 +5,7 @@ import { syncGoogleCalendar } from "@/lib/gcal.functions";
 import type { MatchLog } from "@/lib/gcal-match";
 import { publishSync, subscribeSync, type SyncMessage } from "@/lib/sync-bus";
 import { coordinatedSync } from "@/lib/gcal-sync-coordinator";
+import { readCache, writeCache } from "@/lib/local-cache";
 
 // Background cadence. Kept deliberately loose: the single-flight/cooldown
 // coordinator, the cross-tab broadcast, and realtime DB listeners already
@@ -58,6 +59,8 @@ export function useCalendarSync(options: {
   onSyncedRef.current = options.onSynced;
   const nextMonthRef = useRef(includeNextMonth);
   nextMonthRef.current = includeNextMonth;
+  const cacheKeyRef = useRef(cacheKey);
+  cacheKeyRef.current = cacheKey;
 
   const runSync = useCallback(
     async (opts?: { silent?: boolean; force?: boolean }) => {
@@ -74,7 +77,9 @@ export function useCalendarSync(options: {
           force,
         });
         if (skipped || !res) return undefined;
-        setLastSync(new Date());
+        const at = new Date();
+        setLastSync(at);
+        if (cacheKeyRef.current) writeCache(cacheKeyRef.current, at.getTime());
         setLogs(res.logs ?? []);
         if (!res.ok) {
           if (!silent) toast.error(res.error ?? "Sync failed");
