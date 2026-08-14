@@ -225,7 +225,11 @@ function SitePasswordSection() {
               onClick={async () => {
                 setBusy(true);
                 try {
-                  await changeSitePassword({ data: { current, next, confirm } });
+                  const res = await changeSitePassword({ data: { current, next, confirm } });
+                  if (!res.ok) {
+                    toast.error(res.message || "Failed to change password");
+                    return;
+                  }
                   reset();
                   setOpen(false);
                   toast.success("Site password changed");
