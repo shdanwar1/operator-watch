@@ -274,6 +274,18 @@ function CalendarPage() {
   });
 
   const now = new Date();
+  const confirmedError = health !== null && !health.ok;
+  const showSyncStatus = prefsLoaded && (!autoSync || confirmedError);
+  const syncStatusLabel = !autoSync
+    ? lastSync
+      ? `Last synced ${formatLastSynced(lastSync, now)}`
+      : health === null
+        ? "Checking…"
+        : "Not synced yet"
+    : health?.connected
+      ? "Link error"
+      : "Not connected";
+
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
 
@@ -578,117 +590,6 @@ function CalendarPage() {
         onDelete={handleDelete}
       />
 
-      <Dialog open={calDialogOpen} onOpenChange={setCalDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="flex items-center gap-2">
-              <DialogTitle>Google Calendar</DialogTitle>
-              <IcsHelpButton />
-
-            </div>
-          </DialogHeader>
-
-          <div className="space-y-6 py-1">
-            <section className="space-y-2">
-              <Label htmlFor="ics-url" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Calendar URL
-              </Label>
-              <Input
-                id="ics-url"
-                value={calDraft}
-                onChange={(e) => setCalDraft(e.target.value)}
-                placeholder="https://calendar.google.com/…/basic.ics"
-                autoFocus
-              />
-              <p className="text-xs text-muted-foreground">
-                {health?.ok ? (
-                  <>
-                    🟢 Connected
-                    {lastSync
-                      ? ` • Last synced: ${lastSync.toLocaleTimeString([], {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}`
-                      : ""}
-                  </>
-                ) : health === null ? (
-                  <>⚪ Checking…</>
-                ) : health.connected ? (
-                  <>🔴 Link error{health.error ? ` • ${health.error}` : ""}</>
-                ) : (
-                  <>🔴 Not connected</>
-                )}
-
-              </p>
-            </section>
-
-            <section className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Synchronization
-              </p>
-              <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3">
-                <Label htmlFor="auto-sync" className="text-sm font-normal">
-                  Automatic Sync
-                </Label>
-                <Switch
-                  id="auto-sync"
-                  checked={autoSync}
-                  onCheckedChange={(on) => {
-                    setAutoSync(on);
-                    persistPrefs({ autoSync: on });
-                  }}
-                />
-              </div>
-            </section>
-
-            <section className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Sync Scope
-              </p>
-              <div className="divide-y divide-border/60 rounded-xl border border-border/60">
-                <div className="flex items-center justify-between px-4 py-3">
-                  <Label htmlFor="scope-current" className="text-sm font-normal">
-                    Current Month
-                  </Label>
-                  <Switch id="scope-current" checked disabled />
-                </div>
-                <div className="flex items-center justify-between px-4 py-3">
-                  <Label htmlFor="scope-next" className="text-sm font-normal">
-                    Next Month
-                  </Label>
-                  <Switch
-                    id="scope-next"
-                    checked={syncNextMonth}
-                    onCheckedChange={(on) => {
-                      setSyncNextMonth(on);
-                      persistPrefs({ syncNextMonth: on });
-                    }}
-                  />
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <DialogFooter className="flex-row justify-between">
-            <Button
-              variant="ghost"
-              className="text-destructive hover:text-destructive"
-              onClick={() => setCalDraft("")}
-              disabled={savingUrl || !calDraft}
-            >
-              Clear
-            </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setCalDialogOpen(false)} disabled={savingUrl}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveCalendarUrl} disabled={savingUrl}>
-                <Save className="mr-1 h-4 w-4" /> {savingUrl ? "Saving…" : "Save & Sync"}
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
     </AppShell>
   );
@@ -793,4 +694,25 @@ function ShiftEditorDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function formatLastSynced(synced: Date, now: Date): string {
+  const time =
+    `${String(synced.getHours()).padStart(2, "0")}:` +
+    `${String(synced.getMinutes()).padStart(2, "0")}`;
+
+  const startOfDay = (d: Date) => {
+    const s = new Date(d);
+    s.setHours(0, 0, 0, 0);
+    return s;
+  };
+
+  const dayDiff = Math.round(
+    (startOfDay(now).getTime() - startOfDay(synced).getTime()) / 86_400_000,
+  );
+
+  if (dayDiff <= 0) return `${time} today`;
+  if (dayDiff < 7)
+    return `${time} on ${synced.toLocaleDateString(undefined, { weekday: "long" })}`;
+  return `${time} on ${synced.getDate()} ${synced.toLocaleDateString(undefined, { month: "long" })}`;
 }
