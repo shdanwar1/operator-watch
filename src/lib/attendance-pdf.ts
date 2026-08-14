@@ -142,3 +142,141 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
 
   doc.save(`attendance-${opName}-${summary.monthKey}.pdf`);
 }
+
+/** One month's aggregated payroll hours. */
+export type MonthlyPayrollRow = {
+  key: string; // YYYY-MM
+  label: string;
+  dayMin: number;
+  nightMin: number;
+  weekendMin: number;
+  workedMin: number;
+};
+
+/**
+ * Groups completed shifts by the month their check-in falls in (so an
+ * overnight shift stays in its starting month) and sums the same day/night/
+ * weekend minutes the attendance page uses.
+ */
+export function buildMonthlyPayroll(
+  shifts: ShiftRow[],
+  scheduled: ScheduledShiftRow[],
+): MonthlyPayrollRow[] {
+  const byMonth = new Map<string, MonthlyPayrollRow>();
+  for (const r of buildAttendanceRows(shifts, scheduled)) {
+    const key = `${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, "0")}`;
+    let m = byMonth.get(key);
+    if (!m) {
+      m = {
+        key,
+        label: r.date.toLocaleDateString(undefined, { month: "long", year: "numeric" }),
+        dayMin: 0,
+        nightMin: 0,
+        weekendMin: 0,
+        workedMin: 0,
+      };
+      byMonth.set(key, m);
+    }
+    m.dayMin += r.dayMin;
+    m.nightMin += r.nightMin;
+    m.weekendMin += r.weekendMin;
+    m.workedMin += r.workedMin;
+  }
+  return Array.from(byMonth.values()).sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/** Builds and downloads an all-time monthly payroll-hours summary. */
+export function downloadPayrollSummaryPdf(
+  months: MonthlyPayrollRow[],
+  operatorName: string,
+) {
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const opName = operatorName || "Operator";
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text(`Payroll Hours — ${opName}`, 40, 50);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(90);
+  doc.text("All recorded months", 40, 70);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 84);
+  doc.setTextColor(20);
+
+  const total = months.reduce(
+    (a, m) => ({
+      dayMin: a.dayMin + m.dayMin,
+      nightMin: a.nightMin + m.nightMin,
+      weekendMin: a.weekendMin + m.weekendMin,
+      workedMin: a.workedMin + m.workedMin,
+    }),
+    { dayMin: 0, nightMin: 0, weekendMin: 0, workedMin: 0 },
+  );
+
+  autoTable(doc, {
+    startY: 110,
+    head: [["Month", "Daytime", "Night", "Weekend", "Total"]],
+    body: months.map((m) => [
+      m.label,
+      formatHM(m.dayMin),
+      formatHM(m.nightMin),
+      formatHM(m.weekendMin),
+      formatHM(m.workedMin),
+    ]),
+    styles: {
+      font: "helvetica",
+      fontSize: 10,
+      cellPadding: 7,
+      lineColor: [230, 230, 230],
+      lineWidth: 0.5,
+    },
+    headStyles: { fillColor: [245, 245, 247], textColor: 30, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [252, 252, 253] },
+    columnStyles: {
+      1: { halign: "right" },
+      2: { halign: "right" },
+      3: { halign: "right" },
+      4: { halign: "right", fontStyle: "bold" },
+    },
+  });
+
+  // @ts-expect-error jspdf-autotable augments doc at runtime
+  const y = (doc.lastAutoTable?.finalY ?? 110) + 32;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("All-Time Total", 40, y);
+
+  const totalRows: Array<{ label: string; value: string; color: [number, number, number] }> = [
+    { label: "Daytime Hours", value: formatHM(total.dayMin), color: rgb(CATEGORY_COLOR.day) },
+    { label: "Night Hours", value: formatHM(total.nightMin), color: rgb(CATEGORY_COLOR.night) },
+    {
+      label: "Weekend Hours",
+      value: formatHM(total.weekendMin),
+      color: rgb(CATEGORY_COLOR.weekend),
+    },
+  ];
+
+  autoTable(doc, {
+    startY: y + 10,
+    head: [["", "Category", "Hours"]],
+    body: totalRows.map((r) => ["", r.label, r.value]),
+    foot: [["", "Total Worked Hours", formatHM(total.workedMin)]],
+    styles: { font: "helvetica", fontSize: 11, cellPadding: 8 },
+    headStyles: { fillColor: [245, 245, 247], textColor: 30, fontStyle: "bold" },
+    footStyles: { fillColor: [235, 235, 240], textColor: 20, fontStyle: "bold" },
+    columnStyles: { 0: { cellWidth: 22 }, 2: { halign: "right" } },
+    tableWidth: 340,
+    didDrawCell: (data) => {
+      if (data.section !== "body" || data.column.index !== 0) return;
+      const row = totalRows[data.row.index];
+      if (!row) return;
+      const size = 10;
+      const cx = data.cell.x + (data.cell.width - size) / 2;
+      const cy = data.cell.y + (data.cell.height - size) / 2;
+      doc.setFillColor(row.color[0], row.color[1], row.color[2]);
+      doc.rect(cx, cy, size, size, "F");
+    },
+  });
+
+  doc.save(`payroll-summary-${opName}.pdf`);
+}
