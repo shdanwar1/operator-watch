@@ -91,6 +91,36 @@ function AdminShifts() {
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["admin", "worked-shifts"] });
 
+  // Attendance export always uses the selected operator and the CURRENT month.
+  const fetchScheduled = useServerFn(listScheduledShifts);
+  const { data: scheduled } = useQuery({
+    queryKey: ["admin", "scheduled-shifts"],
+    queryFn: () => fetchScheduled(),
+  });
+  const currentMonthStart = useMemo(() => {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), 1);
+  }, []);
+  const currentMonthLabel = currentMonthStart.toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+  const operatorSelected = opFilter !== "all";
+
+  const downloadAttendance = () => {
+    if (!operatorSelected) return;
+    const opShifts = (shifts ?? []).filter((s) => s.operator_name === opFilter);
+    const opScheduled = (scheduled ?? []).filter(
+      (s) => (s.assigned_operator ?? "").toLowerCase() === opFilter.toLowerCase(),
+    );
+    const summary = summarizeMonth(opShifts, opScheduled, currentMonthStart);
+    if (summary.rows.length === 0) {
+      toast.error(`No completed shifts for ${opFilter} in ${currentMonthLabel}`);
+      return;
+    }
+    downloadAttendancePdf(summary, opFilter);
+  };
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -100,7 +130,7 @@ function AdminShifts() {
             Worked shifts for every operator.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={opFilter} onValueChange={setOpFilter}>
             <SelectTrigger className="h-9 w-44">
               <SelectValue />
@@ -130,8 +160,29 @@ function AdminShifts() {
               ))}
             </SelectContent>
           </Select>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-9"
+            disabled={!operatorSelected}
+            title={
+              operatorSelected
+                ? `${opFilter} · ${currentMonthLabel}`
+                : "Select an operator to export attendance"
+            }
+            onClick={downloadAttendance}
+          >
+            <Download className="mr-1.5 h-4 w-4" />
+            {operatorSelected ? "Download Attendance" : "Select an operator"}
+          </Button>
         </div>
       </header>
+      {operatorSelected && (
+        <p className="-mt-3 text-xs text-muted-foreground">
+          Attendance PDF: {opFilter} · {currentMonthLabel}
+        </p>
+      )}
+
 
       <Card>
         <CardContent className="p-0">
