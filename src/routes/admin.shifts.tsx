@@ -99,16 +99,16 @@ function AdminShifts() {
     queryFn: () => fetchScheduled(),
   });
   // Attendance export always uses the operator and month selected above.
+  const allMonths = month === "all";
   const exportMonthStart = useMemo(() => {
     const n = new Date();
     if (month === "all") return new Date(n.getFullYear(), n.getMonth(), 1);
     const [y, m] = month.split("-").map((v) => parseInt(v, 10));
     return new Date(y, m - 1, 1);
   }, [month]);
-  const exportMonthLabel = exportMonthStart.toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
+  const exportMonthLabel = allMonths
+    ? "All months"
+    : exportMonthStart.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const operatorSelected = opFilter !== "all";
 
   const downloadAttendance = () => {
@@ -117,6 +117,15 @@ function AdminShifts() {
     const opScheduled = (scheduled ?? []).filter(
       (s) => (s.assigned_operator ?? "").toLowerCase() === opFilter.toLowerCase(),
     );
+    if (allMonths) {
+      const months = buildMonthlyPayroll(opShifts, opScheduled);
+      if (months.length === 0) {
+        toast.error(`No completed shifts recorded for ${opFilter}`);
+        return;
+      }
+      downloadPayrollSummaryPdf(months, opFilter);
+      return;
+    }
     const summary = summarizeMonth(opShifts, opScheduled, exportMonthStart);
     if (summary.rows.length === 0) {
       toast.error(`No completed shifts for ${opFilter} in ${exportMonthLabel}`);
@@ -124,6 +133,7 @@ function AdminShifts() {
     }
     downloadAttendancePdf(summary, opFilter);
   };
+
 
 
   return (
