@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getGateStatus } from "@/lib/gate.functions";
@@ -11,17 +11,8 @@ import {
   type ScheduledShiftRow,
   type ShiftRow,
 } from "@/lib/shifts.functions";
-import {
-  getMyCalendarUrl,
-  setMyCalendarUrl,
-  checkMyCalendarHealth,
-} from "@/lib/gcal.functions";
-import {
-  getMyPrefs,
-  setMyPrefs,
-  DEFAULT_PREFS,
-  type OperatorPrefs,
-} from "@/lib/prefs.functions";
+import { getMyCalendarUrl, checkMyCalendarHealth } from "@/lib/gcal.functions";
+import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 import { AppShell, PageHeader } from "@/components/AppShell";
@@ -30,8 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { IcsHelpButton } from "@/components/IcsHelpButton";
 import {
   Dialog,
   DialogContent,
@@ -40,15 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Trash2,
-  Save,
-  RefreshCw,
-  Settings2,
-  HelpCircle,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Save, RefreshCw } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 export const Route = createFileRoute("/calendar")({
@@ -67,7 +48,10 @@ export const Route = createFileRoute("/calendar")({
         content: "Month view of your scheduled studio operator shifts and classes.",
       },
       { property: "og:title", content: "Monthly Schedule — Studio Operator" },
-      { property: "og:description", content: "Month view of your scheduled studio operator shifts." },
+      {
+        property: "og:description",
+        content: "Month view of your scheduled studio operator shifts.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -127,7 +111,11 @@ type Instance = {
   endAt: Date;
 };
 
-function instancesFor(day: Date, scheduled: ScheduledShiftRow[], overrides: Set<string>): Instance[] {
+function instancesFor(
+  day: Date,
+  scheduled: ScheduledShiftRow[],
+  overrides: Set<string>,
+): Instance[] {
   const out: Instance[] = [];
   for (const s of scheduled) {
     const applies = s.specific_date
@@ -157,7 +145,6 @@ function CalendarPage() {
   const updateSched = useServerFn(updateScheduledShift);
   const deleteSched = useServerFn(deleteScheduledShift);
   const getUrlFn = useServerFn(getMyCalendarUrl);
-  const setUrlFn = useServerFn(setMyCalendarUrl);
 
   type CalendarSnapshot = { scheduled: ScheduledShiftRow[]; logged: ShiftRow[] };
   const calendarCacheKey = username ? `${operatorNamespace(username)}calendar` : null;
@@ -171,11 +158,6 @@ function CalendarPage() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [icsUrl, setIcsUrl] = useState<string | null>(null);
-  const [calDialogOpen, setCalDialogOpen] = useState(false);
-  const [calDraft, setCalDraft] = useState("");
-  const [savingUrl, setSavingUrl] = useState(false);
-  const [syncNextMonth, setSyncNextMonth] = useState(false);
-  const [autoSync, setAutoSync] = useState(true);
   const [debug, setDebug] = useState(false);
 
   // Sync preferences live on the operator account so they follow the person,
@@ -183,19 +165,17 @@ function CalendarPage() {
   // immediately. Auto-sync gates on `prefsLoaded`, never the raw default.
   const prefsCacheKey = username ? `${operatorNamespace(username)}prefs` : null;
   const loadPrefs = useServerFn(getMyPrefs);
-  const savePrefs = useServerFn(setMyPrefs);
-  const [prefs, setPrefs] = useState<OperatorPrefs>(
-    () => (prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)) || DEFAULT_PREFS,
+  const [cachedPrefs] = useState<OperatorPrefs | null>(() =>
+    prefsCacheKey ? readCache<OperatorPrefs>(prefsCacheKey) : null,
   );
-  const [prefsLoaded, setPrefsLoaded] = useState(
-    () => !!(prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)),
-  );
+  const [syncNextMonth, setSyncNextMonth] = useState((cachedPrefs ?? DEFAULT_PREFS).syncNextMonth);
+  const [autoSync, setAutoSync] = useState((cachedPrefs ?? DEFAULT_PREFS).autoSync);
+  const [prefsLoaded, setPrefsLoaded] = useState(!!cachedPrefs);
   useEffect(() => {
     let cancelled = false;
     loadPrefs()
       .then((p) => {
         if (cancelled) return;
-        setPrefs(p);
         setSyncNextMonth(p.syncNextMonth);
         setAutoSync(p.autoSync);
         setPrefsLoaded(true);
@@ -209,22 +189,6 @@ function CalendarPage() {
       cancelled = true;
     };
   }, [loadPrefs, prefsCacheKey]);
-
-
-  const persistPrefs = useCallback(
-    (patch: Partial<OperatorPrefs>) => {
-      setPrefs((prev) => {
-        const next = { ...prev, ...patch };
-        void savePrefs({ data: next }).catch(() => {
-          toast.error("Could not save that preference");
-        });
-        return next;
-      });
-    },
-    [savePrefs],
-  );
-
-
 
   // Match trace is a debug-only surface: opt in with ?debug=1.
   useEffect(() => {
@@ -272,25 +236,37 @@ function CalendarPage() {
 
   // Link health drives the status dot, independently of automatic sync.
   const healthFn = useServerFn(checkMyCalendarHealth);
-  const [health, setHealth] = useState<{ connected: boolean; ok: boolean; error?: string } | null>(
-    null,
+  type Health = { connected: boolean; ok: boolean; error?: string };
+  const healthCacheKey = username ? `${operatorNamespace(username)}calendar-health` : null;
+  const [health, setHealth] = useState<Health | null>(() =>
+    healthCacheKey ? readCache<Health>(healthCacheKey) : null,
   );
   const refreshHealth = useCallback(() => {
     healthFn()
-      .then((h) => setHealth(h))
-      .catch(() => setHealth({ connected: false, ok: false }));
-  }, [healthFn]);
+      .then((h) => {
+        setHealth(h);
+        if (healthCacheKey) writeCache<Health>(healthCacheKey, h);
+      })
+      .catch(() => {
+        /* keep the last known state rather than flashing an error */
+      });
+  }, [healthFn, healthCacheKey]);
   useEffect(() => {
     refreshHealth();
   }, [refreshHealth, icsUrl]);
 
-
-  const { syncing, lastSync, logs: matchLogs, runSync } = useCalendarSync({
+  const {
+    syncing,
+    lastSync,
+    logs: matchLogs,
+    runSync,
+  } = useCalendarSync({
     enabled: hasGoogleCalendar,
     onSynced: load,
     announce: true,
     includeNextMonth: syncNextMonth,
     auto: prefsLoaded && autoSync,
+    cacheKey: username ? `${operatorNamespace(username)}calendar-sync` : null,
   });
 
   // Another view finished a sync — pull the newly generated shifts in.
@@ -298,22 +274,19 @@ function CalendarPage() {
     load();
   });
 
-  async function handleSaveCalendarUrl() {
-    setSavingUrl(true);
-    try {
-      const res = await setUrlFn({ data: { url: calDraft } });
-      setIcsUrl(res.icsUrl);
-      toast.success(res.icsUrl ? "Calendar link updated" : "Calendar link removed");
-      setCalDialogOpen(false);
-      if (res.icsUrl) runSync();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save link");
-    } finally {
-      setSavingUrl(false);
-    }
-  }
-
   const now = new Date();
+  const confirmedError = health !== null && !health.ok;
+  const showSyncStatus = prefsLoaded && (!autoSync || confirmedError);
+  const syncStatusLabel = !autoSync
+    ? lastSync
+      ? `Last synced ${formatLastSynced(lastSync, now)}`
+      : health === null
+        ? "Checking…"
+        : "Not synced yet"
+    : health?.connected
+      ? "Link error"
+      : "Not connected";
+
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
 
@@ -410,66 +383,52 @@ function CalendarPage() {
         title="Calendar"
         action={
           <div className="flex items-center gap-1.5">
-            <span
-              className="mr-1 hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex"
-              title={
-                health?.ok
-                  ? "Google Calendar link is working"
-                  : (health?.error ?? "Google Calendar not connected")
-              }
-            >
+            {showSyncStatus && (
               <span
-                aria-hidden
-                className={cn(
-                  "inline-block size-2 rounded-full",
-                  health === null
-                    ? "bg-muted-foreground/40"
-                    : health.ok
-                      ? "bg-emerald-500"
-                      : "bg-red-500",
-                )}
-              />
-              {health?.ok
-                ? lastSync
-                  ? `Synced ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                  : "Connected"
-                : health === null
-                  ? "Checking…"
-                  : health.connected
-                    ? "Link error"
-                    : "Not connected"}
-            </span>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (!hasGoogleCalendar) {
-                  setCalDraft(icsUrl ?? "");
-                  setCalDialogOpen(true);
-                } else {
-                  runSync();
+                className="mr-1 hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex"
+                title={
+                  confirmedError
+                    ? (health?.error ??
+                      (health?.connected
+                        ? "Google Calendar link error"
+                        : "Google Calendar not connected"))
+                    : undefined
                 }
-              }}
-              disabled={syncing}
-              title={hasGoogleCalendar ? "Sync shifts from your Google Calendar" : "Set your Google Calendar link"}
-            >
-              <RefreshCw className={`h-4 w-4 sm:mr-1 ${syncing ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">
-                {syncing ? "Syncing…" : hasGoogleCalendar ? "Sync" : "Connect calendar"}
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    "inline-block size-2 rounded-full",
+                    confirmedError
+                      ? "bg-red-500"
+                      : health === null
+                        ? "bg-muted-foreground/40"
+                        : "bg-emerald-500",
+                  )}
+                />
+                {autoSync ? null : syncStatusLabel}
               </span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setCalDraft(icsUrl ?? "");
-                setCalDialogOpen(true);
-              }}
-              title="Update Google Calendar link"
-            >
-              <Settings2 className="h-4 w-4" />
-            </Button>
+            )}
+
+            {hasGoogleCalendar ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => runSync()}
+                disabled={syncing}
+                title="Sync shifts from your Google Calendar"
+              >
+                <RefreshCw className={`h-4 w-4 sm:mr-1 ${syncing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">{syncing ? "Syncing…" : "Sync"}</span>
+              </Button>
+            ) : (
+              <Button asChild variant="outline" size="sm" title="Set up your Google Calendar link">
+                <Link to="/profile">
+                  <RefreshCw className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Connect calendar</span>
+                </Link>
+              </Button>
+            )}
           </div>
         }
       />
@@ -494,7 +453,9 @@ function CalendarPage() {
                     </span>
                   ) : null}
                   <span className="text-muted-foreground">{l.reason}</span>
-                  <span className="ml-auto tabular-nums text-muted-foreground">{l.confidence}%</span>
+                  <span className="ml-auto tabular-nums text-muted-foreground">
+                    {l.confidence}%
+                  </span>
                 </div>
               ))}
             </div>
@@ -503,7 +464,13 @@ function CalendarPage() {
       ) : null}
 
       <div className="mb-4 flex items-center gap-2">
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setMonthOffset((n) => n - 1)} aria-label="Previous month">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => setMonthOffset((n) => n - 1)}
+          aria-label="Previous month"
+        >
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-[180px] text-[15px] font-medium tracking-tight">{monthLabel}</div>
@@ -516,7 +483,13 @@ function CalendarPage() {
         >
           Today
         </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setMonthOffset((n) => n + 1)} aria-label="Next month">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => setMonthOffset((n) => n + 1)}
+          aria-label="Next month"
+        >
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -553,7 +526,6 @@ function CalendarPage() {
                         className={`group relative min-h-[104px] border-border/60 p-1.5 max-lg:min-h-[74px] max-lg:border-b max-lg:border-r max-lg:p-1 max-lg:[&:nth-child(7n)]:border-r-0 sm:min-h-[124px] sm:border-r sm:last:border-r-0 ${
                           inMonth ? "" : "opacity-40"
                         }`}
-
                       >
                         <div className="mb-1 flex items-center justify-between">
                           <span
@@ -581,7 +553,9 @@ function CalendarPage() {
                         <div className="space-y-1">
                           {insts.map((inst, i) => {
                             const past = inst.endAt.getTime() < now.getTime();
-                            const hasLog = dayLogged.some((l) => l.scheduled_shift_id === inst.shift.id);
+                            const hasLog = dayLogged.some(
+                              (l) => l.scheduled_shift_id === inst.shift.id,
+                            );
                             const n = classCount(inst.shift.label);
                             const tone = hasLog
                               ? "border-done/40 bg-done/10"
@@ -592,24 +566,30 @@ function CalendarPage() {
                               <button
                                 key={`${inst.shift.id}-${i}`}
                                 type="button"
-                                onClick={() => setEditor({ mode: "edit", date: day, instance: inst })}
+                                onClick={() =>
+                                  setEditor({ mode: "edit", date: day, instance: inst })
+                                }
                                 className={`press w-full rounded-lg border px-2 py-1 text-left text-[11px] leading-tight transition max-lg:rounded-[6px] max-lg:px-[2px] max-lg:py-[3px] ${tone}`}
                                 title={inst.shift.label ?? ""}
                               >
                                 {/* Desktop: 12-hour range + class count/label */}
                                 <div className="hidden lg:block">
                                   <div className="truncate font-medium tabular-nums">
-                                    {fmtTime(inst.shift.start_time)} – {fmtTime(inst.shift.end_time)}
+                                    {fmtTime(inst.shift.start_time)} –{" "}
+                                    {fmtTime(inst.shift.end_time)}
                                     {inst.shift.end_time <= inst.shift.start_time ? " (+1)" : ""}
                                   </div>
                                   <div className="truncate text-muted-foreground">
-                                    {n ? `${n} ${n === 1 ? "class" : "classes"}` : (inst.shift.label ?? "Shift")}
+                                    {n
+                                      ? `${n} ${n === 1 ? "class" : "classes"}`
+                                      : (inst.shift.label ?? "Shift")}
                                   </div>
                                 </div>
 
                                 {/* Mobile: single-line 24-hour range only */}
                                 <div className="whitespace-nowrap text-center text-[7px] font-medium tabular-nums tracking-tight leading-none lg:hidden">
-                                  {formatTime24(inst.shift.start_time)}-{formatTime24(inst.shift.end_time)}
+                                  {formatTime24(inst.shift.start_time)}-
+                                  {formatTime24(inst.shift.end_time)}
                                 </div>
                               </button>
                             );
@@ -631,119 +611,6 @@ function CalendarPage() {
         onSave={handleSave}
         onDelete={handleDelete}
       />
-
-      <Dialog open={calDialogOpen} onOpenChange={setCalDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="flex items-center gap-2">
-              <DialogTitle>Google Calendar</DialogTitle>
-              <IcsHelpButton />
-
-            </div>
-          </DialogHeader>
-
-          <div className="space-y-6 py-1">
-            <section className="space-y-2">
-              <Label htmlFor="ics-url" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Calendar URL
-              </Label>
-              <Input
-                id="ics-url"
-                value={calDraft}
-                onChange={(e) => setCalDraft(e.target.value)}
-                placeholder="https://calendar.google.com/…/basic.ics"
-                autoFocus
-              />
-              <p className="text-xs text-muted-foreground">
-                {health?.ok ? (
-                  <>
-                    🟢 Connected
-                    {lastSync
-                      ? ` • Last synced: ${lastSync.toLocaleTimeString([], {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}`
-                      : ""}
-                  </>
-                ) : health === null ? (
-                  <>⚪ Checking…</>
-                ) : health.connected ? (
-                  <>🔴 Link error{health.error ? ` • ${health.error}` : ""}</>
-                ) : (
-                  <>🔴 Not connected</>
-                )}
-
-              </p>
-            </section>
-
-            <section className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Synchronization
-              </p>
-              <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3">
-                <Label htmlFor="auto-sync" className="text-sm font-normal">
-                  Automatic Sync
-                </Label>
-                <Switch
-                  id="auto-sync"
-                  checked={autoSync}
-                  onCheckedChange={(on) => {
-                    setAutoSync(on);
-                    persistPrefs({ autoSync: on });
-                  }}
-                />
-              </div>
-            </section>
-
-            <section className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Sync Scope
-              </p>
-              <div className="divide-y divide-border/60 rounded-xl border border-border/60">
-                <div className="flex items-center justify-between px-4 py-3">
-                  <Label htmlFor="scope-current" className="text-sm font-normal">
-                    Current Month
-                  </Label>
-                  <Switch id="scope-current" checked disabled />
-                </div>
-                <div className="flex items-center justify-between px-4 py-3">
-                  <Label htmlFor="scope-next" className="text-sm font-normal">
-                    Next Month
-                  </Label>
-                  <Switch
-                    id="scope-next"
-                    checked={syncNextMonth}
-                    onCheckedChange={(on) => {
-                      setSyncNextMonth(on);
-                      persistPrefs({ syncNextMonth: on });
-                    }}
-                  />
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <DialogFooter className="flex-row justify-between">
-            <Button
-              variant="ghost"
-              className="text-destructive hover:text-destructive"
-              onClick={() => setCalDraft("")}
-              disabled={savingUrl || !calDraft}
-            >
-              Clear
-            </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setCalDialogOpen(false)} disabled={savingUrl}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveCalendarUrl} disabled={savingUrl}>
-                <Save className="mr-1 h-4 w-4" /> {savingUrl ? "Saving…" : "Save & Sync"}
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
     </AppShell>
   );
 }
@@ -847,4 +714,24 @@ function ShiftEditorDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function formatLastSynced(synced: Date, now: Date): string {
+  const time =
+    `${String(synced.getHours()).padStart(2, "0")}:` +
+    `${String(synced.getMinutes()).padStart(2, "0")}`;
+
+  const startOfDay = (d: Date) => {
+    const s = new Date(d);
+    s.setHours(0, 0, 0, 0);
+    return s;
+  };
+
+  const dayDiff = Math.round(
+    (startOfDay(now).getTime() - startOfDay(synced).getTime()) / 86_400_000,
+  );
+
+  if (dayDiff <= 0) return `${time} today`;
+  if (dayDiff < 7) return `${time} on ${synced.toLocaleDateString(undefined, { weekday: "long" })}`;
+  return `${time} on ${synced.getDate()} ${synced.toLocaleDateString(undefined, { month: "long" })}`;
 }

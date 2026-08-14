@@ -5,6 +5,7 @@ import { syncGoogleCalendar } from "@/lib/gcal.functions";
 import type { MatchLog } from "@/lib/gcal-match";
 import { publishSync, subscribeSync, type SyncMessage } from "@/lib/sync-bus";
 import { coordinatedSync } from "@/lib/gcal-sync-coordinator";
+import { readCache, writeCache } from "@/lib/local-cache";
 
 // Background cadence. Kept deliberately loose: the single-flight/cooldown
 // coordinator, the cross-tab broadcast, and realtime DB listeners already
@@ -34,11 +35,23 @@ export function useCalendarSync(options: {
   includeNextMonth?: boolean;
   /** Background (mount/interval/refocus) syncing. Manual syncs always work. */
   auto?: boolean;
+  /** Persist the last successful sync time locally under this key. */
+  cacheKey?: string | null;
 }) {
-  const { enabled, announce = false, includeNextMonth = false, auto: autoEnabled = true } = options;
+  const {
+    enabled,
+    announce = false,
+    includeNextMonth = false,
+    auto: autoEnabled = true,
+    cacheKey = null,
+  } = options;
   const syncFn = useServerFn(syncGoogleCalendar);
   const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [lastSync, setLastSync] = useState<Date | null>(() => {
+    if (!cacheKey) return null;
+    const cached = readCache<number>(cacheKey);
+    return cached ? new Date(cached) : null;
+  });
   const [logs, setLogs] = useState<MatchLog[]>([]);
 
   // Kept in refs so the auto-sync interval never restarts on every render.
@@ -46,6 +59,8 @@ export function useCalendarSync(options: {
   onSyncedRef.current = options.onSynced;
   const nextMonthRef = useRef(includeNextMonth);
   nextMonthRef.current = includeNextMonth;
+  const cacheKeyRef = useRef(cacheKey);
+  cacheKeyRef.current = cacheKey;
 
   const runSync = useCallback(
     async (opts?: { silent?: boolean; force?: boolean }) => {
@@ -62,12 +77,14 @@ export function useCalendarSync(options: {
           force,
         });
         if (skipped || !res) return undefined;
-        setLastSync(new Date());
         setLogs(res.logs ?? []);
         if (!res.ok) {
           if (!silent) toast.error(res.error ?? "Sync failed");
           return res;
         }
+        const at = new Date();
+        setLastSync(at);
+        if (cacheKeyRef.current) writeCache(cacheKeyRef.current, at.getTime());
         // Refresh the caller first, then everything else that is open.
         await onSyncedRef.current();
         publishSync({ type: "data-synced", at: Date.now() });
@@ -90,7 +107,6 @@ export function useCalendarSync(options: {
     if (!enabled || !autoEnabled) return;
     const auto = () => runSync({ silent: true, force: false });
     auto();
-
 
     let interval: ReturnType<typeof setInterval> | null = null;
     const start = () => {
