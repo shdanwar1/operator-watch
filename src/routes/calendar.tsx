@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getGateStatus } from "@/lib/gate.functions";
@@ -11,17 +11,8 @@ import {
   type ScheduledShiftRow,
   type ShiftRow,
 } from "@/lib/shifts.functions";
-import {
-  getMyCalendarUrl,
-  setMyCalendarUrl,
-  checkMyCalendarHealth,
-} from "@/lib/gcal.functions";
-import {
-  getMyPrefs,
-  setMyPrefs,
-  DEFAULT_PREFS,
-  type OperatorPrefs,
-} from "@/lib/prefs.functions";
+import { getMyCalendarUrl, checkMyCalendarHealth } from "@/lib/gcal.functions";
+import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 import { AppShell, PageHeader } from "@/components/AppShell";
@@ -30,8 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { IcsHelpButton } from "@/components/IcsHelpButton";
 import {
   Dialog,
   DialogContent,
@@ -46,8 +35,6 @@ import {
   Trash2,
   Save,
   RefreshCw,
-  Settings2,
-  HelpCircle,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -157,7 +144,6 @@ function CalendarPage() {
   const updateSched = useServerFn(updateScheduledShift);
   const deleteSched = useServerFn(deleteScheduledShift);
   const getUrlFn = useServerFn(getMyCalendarUrl);
-  const setUrlFn = useServerFn(setMyCalendarUrl);
 
   type CalendarSnapshot = { scheduled: ScheduledShiftRow[]; logged: ShiftRow[] };
   const calendarCacheKey = username ? `${operatorNamespace(username)}calendar` : null;
@@ -171,9 +157,6 @@ function CalendarPage() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [icsUrl, setIcsUrl] = useState<string | null>(null);
-  const [calDialogOpen, setCalDialogOpen] = useState(false);
-  const [calDraft, setCalDraft] = useState("");
-  const [savingUrl, setSavingUrl] = useState(false);
   const [syncNextMonth, setSyncNextMonth] = useState(false);
   const [autoSync, setAutoSync] = useState(true);
   const [debug, setDebug] = useState(false);
@@ -183,10 +166,7 @@ function CalendarPage() {
   // immediately. Auto-sync gates on `prefsLoaded`, never the raw default.
   const prefsCacheKey = username ? `${operatorNamespace(username)}prefs` : null;
   const loadPrefs = useServerFn(getMyPrefs);
-  const savePrefs = useServerFn(setMyPrefs);
-  const [prefs, setPrefs] = useState<OperatorPrefs>(
-    () => (prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)) || DEFAULT_PREFS,
-  );
+  const cachedPrefs = (prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)) || null;
   const [prefsLoaded, setPrefsLoaded] = useState(
     () => !!(prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)),
   );
@@ -195,7 +175,6 @@ function CalendarPage() {
     loadPrefs()
       .then((p) => {
         if (cancelled) return;
-        setPrefs(p);
         setSyncNextMonth(p.syncNextMonth);
         setAutoSync(p.autoSync);
         setPrefsLoaded(true);
@@ -209,20 +188,6 @@ function CalendarPage() {
       cancelled = true;
     };
   }, [loadPrefs, prefsCacheKey]);
-
-
-  const persistPrefs = useCallback(
-    (patch: Partial<OperatorPrefs>) => {
-      setPrefs((prev) => {
-        const next = { ...prev, ...patch };
-        void savePrefs({ data: next }).catch(() => {
-          toast.error("Could not save that preference");
-        });
-        return next;
-      });
-    },
-    [savePrefs],
-  );
 
 
 
@@ -272,14 +237,21 @@ function CalendarPage() {
 
   // Link health drives the status dot, independently of automatic sync.
   const healthFn = useServerFn(checkMyCalendarHealth);
-  const [health, setHealth] = useState<{ connected: boolean; ok: boolean; error?: string } | null>(
-    null,
+  type Health = { connected: boolean; ok: boolean; error?: string };
+  const healthCacheKey = username ? `${operatorNamespace(username)}calendar-health` : null;
+  const [health, setHealth] = useState<Health | null>(
+    () => (healthCacheKey ? readCache<Health>(healthCacheKey) : null),
   );
   const refreshHealth = useCallback(() => {
     healthFn()
-      .then((h) => setHealth(h))
-      .catch(() => setHealth({ connected: false, ok: false }));
-  }, [healthFn]);
+      .then((h) => {
+        setHealth(h);
+        if (healthCacheKey) writeCache<Health>(healthCacheKey, h);
+      })
+      .catch(() => {
+        /* keep the last known state rather than flashing an error */
+      });
+  }, [healthFn, healthCacheKey]);
   useEffect(() => {
     refreshHealth();
   }, [refreshHealth, icsUrl]);
@@ -291,27 +263,13 @@ function CalendarPage() {
     announce: true,
     includeNextMonth: syncNextMonth,
     auto: prefsLoaded && autoSync,
+    cacheKey: username ? `${operatorNamespace(username)}calendar-sync` : null,
   });
 
   // Another view finished a sync — pull the newly generated shifts in.
   useSyncListener(() => {
     load();
   });
-
-  async function handleSaveCalendarUrl() {
-    setSavingUrl(true);
-    try {
-      const res = await setUrlFn({ data: { url: calDraft } });
-      setIcsUrl(res.icsUrl);
-      toast.success(res.icsUrl ? "Calendar link updated" : "Calendar link removed");
-      setCalDialogOpen(false);
-      if (res.icsUrl) runSync();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save link");
-    } finally {
-      setSavingUrl(false);
-    }
-  }
 
   const now = new Date();
   const today = new Date(now);
