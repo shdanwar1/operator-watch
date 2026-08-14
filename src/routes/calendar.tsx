@@ -157,8 +157,6 @@ function CalendarPage() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [icsUrl, setIcsUrl] = useState<string | null>(null);
-  const [syncNextMonth, setSyncNextMonth] = useState(false);
-  const [autoSync, setAutoSync] = useState(true);
   const [debug, setDebug] = useState(false);
 
   // Sync preferences live on the operator account so they follow the person,
@@ -166,10 +164,14 @@ function CalendarPage() {
   // immediately. Auto-sync gates on `prefsLoaded`, never the raw default.
   const prefsCacheKey = username ? `${operatorNamespace(username)}prefs` : null;
   const loadPrefs = useServerFn(getMyPrefs);
-  const cachedPrefs = (prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)) || null;
-  const [prefsLoaded, setPrefsLoaded] = useState(
-    () => !!(prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)),
+  const [cachedPrefs] = useState<OperatorPrefs | null>(() =>
+    prefsCacheKey ? readCache<OperatorPrefs>(prefsCacheKey) : null,
   );
+  const [syncNextMonth, setSyncNextMonth] = useState(
+    (cachedPrefs ?? DEFAULT_PREFS).syncNextMonth,
+  );
+  const [autoSync, setAutoSync] = useState((cachedPrefs ?? DEFAULT_PREFS).autoSync);
+  const [prefsLoaded, setPrefsLoaded] = useState(!!cachedPrefs);
   useEffect(() => {
     let cancelled = false;
     loadPrefs()
