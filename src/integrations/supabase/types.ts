@@ -392,10 +392,12 @@ export type Database = {
         Args: { p_id: string; p_username: string }
         Returns: undefined
       }
+      set_site_password: { Args: { p_pw: string }; Returns: undefined }
       verify_operator_pin: {
         Args: { p_pin: string; p_username: string }
         Returns: string
       }
+      verify_site_password: { Args: { p_pw: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
