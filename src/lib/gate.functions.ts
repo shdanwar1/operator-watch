@@ -69,13 +69,19 @@ export const adminChangeSitePassword = createServerFn({ method: "POST" })
     if (!session.data.siteUnlocked || !session.data.username || !session.data.isAdmin) {
       throw new Response("Admin access required", { status: 403 });
     }
-    if (data.next !== data.confirm) throw new Error("New passwords do not match");
-    if (data.next.trim().length < 6) throw new Error("New password must be at least 6 characters");
-    if (!(await checkSitePassword(data.current))) throw new Error("Current site password is incorrect");
+    if (data.next !== data.confirm) {
+      return { ok: false as const, message: "New passwords do not match" };
+    }
+    if (data.next.trim().length < 6) {
+      return { ok: false as const, message: "New password must be at least 6 characters" };
+    }
+    if (!(await checkSitePassword(data.current))) {
+      return { ok: false as const, message: "Current site password is incorrect" };
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.rpc("set_site_password", { p_pw: data.next.trim() });
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
+    if (error) return { ok: false as const, message: "Could not save the new site password" };
+    return { ok: true as const, message: "" };
   });
 
 
