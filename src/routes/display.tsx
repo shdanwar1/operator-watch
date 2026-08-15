@@ -329,13 +329,13 @@ function PreClassStage({
   startsAt: string;
   isLandscape: boolean;
 }) {
-  // Rotating trio of prompts, refreshed every 15s
-  const [prompts, setPrompts] = useState<Prompt[]>(() => pickPromptSet());
+  // One rotating ice-breaker, refreshed every 15s
+  const [tip, setTip] = useState<string>(() => pickIcebreaker());
   const [fadeKey, setFadeKey] = useState(0);
 
   useEffect(() => {
     const tick = () => {
-      setPrompts(pickPromptSet());
+      setTip(pickIcebreaker());
       setFadeKey((k) => k + 1);
     };
     const now = Date.now();
@@ -353,38 +353,36 @@ function PreClassStage({
 
   if (isLandscape) {
     return (
-      <div className="grid h-full w-full max-w-[1900px] items-center gap-[clamp(1.5rem,5vw,5rem)] md:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]">
-        {/* Left ~70%: timer */}
-        <PreClassTimer stage={stage} startsAt={startsAt} align="right" />
-        {/* Right ~30%: 3 subtle prompts */}
-        <PromptList prompts={prompts} fadeKey={fadeKey} />
+      <div className="relative grid h-full w-full grid-cols-2">
+        {/* Left panel: timer, centered within its own half */}
+        <div className="flex items-center justify-center px-[clamp(1rem,3vw,4rem)]">
+          <PreClassTimer stage={stage} startsAt={startsAt} />
+        </div>
+        {/* Subtle divider at exactly 50% */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-1/2 w-px"
+          style={{ background: "rgba(255,255,255,0.12)" }}
+        />
+        {/* Right panel: one ice-breaker */}
+        <div className="flex items-center justify-start px-[clamp(1.5rem,4vw,5rem)]">
+          <IcebreakerLine tip={tip} fadeKey={fadeKey} />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex w-full max-w-[95vw] flex-col items-center justify-center gap-[clamp(1.25rem,4vmin,3rem)] text-center">
-      <PreClassTimer stage={stage} startsAt={startsAt} align="center" />
-      <PromptList prompts={prompts} fadeKey={fadeKey} centered />
+      <PreClassTimer stage={stage} startsAt={startsAt} />
+      <IcebreakerLine tip={tip} fadeKey={fadeKey} centered />
     </div>
   );
 }
 
-function PreClassTimer({
-  stage,
-  startsAt,
-  align,
-}: {
-  stage: StageInfo;
-  startsAt: string;
-  align: "right" | "center";
-}) {
-  const alignCls =
-    align === "right"
-      ? "items-center md:items-end text-center md:text-right md:pr-[clamp(1rem,3vw,3rem)]"
-      : "items-center text-center";
+function PreClassTimer({ stage, startsAt }: { stage: StageInfo; startsAt: string }) {
   return (
-    <div className={`flex flex-col justify-center gap-[clamp(0.5rem,1.4vmin,1.4rem)] ${alignCls}`}>
+    <div className="flex flex-col items-center justify-center gap-[clamp(0.5rem,1.4vmin,1.4rem)] text-center">
       <div
         className="font-medium uppercase opacity-70"
         style={{ fontSize: "clamp(0.7rem, 1.2vw, 1.35rem)", letterSpacing: "0.36em" }}
@@ -394,7 +392,7 @@ function PreClassTimer({
       <div
         className="font-mono font-semibold leading-none tabular-nums"
         style={{
-          fontSize: "clamp(4.5rem, 22vmin, 24rem)",
+          fontSize: "clamp(3.5rem, 15vmin, 18rem)",
           letterSpacing: "-0.05em",
         }}
       >
@@ -410,39 +408,27 @@ function PreClassTimer({
   );
 }
 
-function PromptList({
-  prompts,
+function IcebreakerLine({
+  tip,
   fadeKey,
   centered = false,
 }: {
-  prompts: Prompt[];
+  tip: string;
   fadeKey: number;
   centered?: boolean;
 }) {
-  // ~25% of timer size — keep subtle
-  const size = "clamp(0.9rem, 1.4vw, 1.6rem)";
   return (
-    <div
+    <p
       key={fadeKey}
-      className={`sd-fade flex flex-col justify-center gap-[clamp(0.9rem,2.4vmin,2rem)] ${
-        centered ? "items-center text-center" : "items-start text-left"
-      }`}
+      className={`sd-fade leading-snug ${centered ? "text-center" : "text-left"}`}
+      style={{ fontSize: "clamp(0.95rem, 1.5vw, 1.75rem)", letterSpacing: "-0.01em" }}
     >
-      {prompts.map((p, i) => (
-        <div
-          key={`${fadeKey}-${i}`}
-          className="flex items-baseline gap-[clamp(0.5rem,0.9vw,1rem)] leading-snug text-white/85"
-          style={{ fontSize: size, letterSpacing: "-0.01em" }}
-        >
-          <span aria-hidden style={{ fontSize: "1.15em", lineHeight: 1 }}>
-            {p.emoji}
-          </span>
-          <span className="font-medium">{p.text}</span>
-        </div>
-      ))}
-    </div>
+      <span className="font-medium text-white/45">Tips to break the ice: </span>
+      <span className="font-medium text-white/90">&ldquo;{tip}&rdquo;</span>
+    </p>
   );
 }
+
 
 /* --------------------------- Cinematic countdown --------------------------- */
 
