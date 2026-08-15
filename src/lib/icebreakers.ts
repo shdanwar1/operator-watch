@@ -66,3 +66,24 @@ export function pickPromptSet(now: Date = new Date()): Prompt[] {
   }
   return picks;
 }
+
+/** Practical ice-breaker questions a teacher can say out loud before class. */
+export const ICEBREAKERS: string[] = [
+  "Where are you connecting from today?",
+  "Is anyone joining us for the first time?",
+  "What are you hoping to work on today?",
+  "How is everyone feeling today?",
+  "Where is everyone joining from?",
+  "Has anyone taken this class before?",
+  "What brought you to class today?",
+  "Is anyone dancing with us from a new place today?",
+  "What song would you love to dance to today?",
+  "How many of you have been dancing this week?",
+  "Who is ready to move?",
+];
+
+/** Deterministic single ice-breaker for the current 15s window. */
+export function pickIcebreaker(now: Date = new Date()): string {
+  const slot = Math.floor(now.getTime() / 15_000);
+  return ICEBREAKERS[slot % ICEBREAKERS.length];
+}
