@@ -10,7 +10,7 @@ import {
   type StageInfo,
 } from "@/lib/studio-display";
 
-import { pickPromptSet, type Prompt } from "@/lib/icebreakers";
+import { pickIcebreaker } from "@/lib/icebreakers";
 import { subscribeSync } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/display")({
