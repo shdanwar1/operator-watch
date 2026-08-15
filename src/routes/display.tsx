@@ -372,35 +372,63 @@ function PreClassStage({
     );
   }
 
+  // Portrait: full-width stacked composition, timer on top.
   return (
-    <div className="flex w-full max-w-[95vw] flex-col items-center justify-center gap-[clamp(1.25rem,4vmin,3rem)] text-center">
-      <PreClassTimer stage={stage} startsAt={startsAt} />
-      <IcebreakerLine tip={tip} fadeKey={fadeKey} centered />
+    <div className="flex h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3vh,2.5rem)]">
+      <div className="flex w-full flex-1 items-center justify-center px-[clamp(1rem,6vw,3rem)]">
+        <PreClassTimer stage={stage} startsAt={startsAt} portrait />
+      </div>
+      <div
+        aria-hidden
+        className="h-px w-[min(88%,44rem)] shrink-0"
+        style={{ background: "rgba(255,255,255,0.10)" }}
+      />
+      <div className="flex w-full flex-1 items-start justify-center px-[clamp(1.5rem,6vw,3rem)] pt-[clamp(0.75rem,3vh,2rem)]">
+        <IcebreakerLine tip={tip} fadeKey={fadeKey} centered />
+      </div>
     </div>
   );
 }
 
-function PreClassTimer({ stage, startsAt }: { stage: StageInfo; startsAt: string }) {
+function PreClassTimer({
+  stage,
+  startsAt,
+  portrait = false,
+}: {
+  stage: StageInfo;
+  startsAt: string;
+  portrait?: boolean;
+}) {
   return (
-    <div className="flex flex-col items-center justify-center gap-[clamp(0.5rem,1.4vmin,1.4rem)] text-center">
+    <div className="flex w-full flex-col items-center justify-center gap-[clamp(0.5rem,1.4vmin,1.4rem)] text-center">
       <div
         className="font-medium uppercase opacity-70"
-        style={{ fontSize: "clamp(0.7rem, 1.2vw, 1.35rem)", letterSpacing: "0.36em" }}
+        style={{
+          fontSize: portrait ? "clamp(0.6rem, 2.6vw, 1.35rem)" : "clamp(0.7rem, 1.2vw, 1.35rem)",
+          letterSpacing: portrait ? "clamp(0.08em, 0.9vw, 0.36em)" : "0.36em",
+          whiteSpace: "nowrap",
+        }}
       >
         Class starts in
       </div>
       <div
         className="font-mono font-semibold leading-none tabular-nums"
         style={{
-          fontSize: "clamp(3.5rem, 15vmin, 18rem)",
+          fontSize: portrait ? "clamp(3rem, 22vw, 12rem)" : "clamp(3.5rem, 15vmin, 18rem)",
           letterSpacing: "-0.05em",
+          whiteSpace: "nowrap",
+          maxWidth: "100%",
         }}
       >
         {formatMMSS(stage.timerMs)}
       </div>
       <div
         className="mt-[clamp(0.25rem,0.8vmin,1rem)] opacity-50"
-        style={{ fontSize: "clamp(0.7rem, 0.95vw, 1.05rem)", letterSpacing: "0.12em" }}
+        style={{
+          fontSize: portrait ? "clamp(0.7rem, 2.2vw, 1.05rem)" : "clamp(0.7rem, 0.95vw, 1.05rem)",
+          letterSpacing: "0.12em",
+          whiteSpace: "nowrap",
+        }}
       >
         Starts at {startsAt}
       </div>
@@ -420,8 +448,13 @@ function IcebreakerLine({
   return (
     <p
       key={fadeKey}
-      className={`sd-fade leading-snug ${centered ? "text-center" : "text-left"}`}
-      style={{ fontSize: "clamp(0.95rem, 1.5vw, 1.75rem)", letterSpacing: "-0.01em" }}
+      className={`sd-fade leading-snug ${centered ? "mx-auto max-w-[36ch] text-center" : "text-left"}`}
+      style={{
+        fontSize: centered ? "clamp(0.95rem, 3.4vw, 1.75rem)" : "clamp(0.95rem, 1.5vw, 1.75rem)",
+        letterSpacing: "-0.01em",
+        wordBreak: "normal",
+        overflowWrap: "normal",
+      }}
     >
       <span className="font-medium text-white/45">Tips to break the ice: </span>
       <span className="font-medium text-white/90">&ldquo;{tip}&rdquo;</span>
