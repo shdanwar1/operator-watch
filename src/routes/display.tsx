@@ -70,7 +70,7 @@ function useSize<T extends HTMLElement>() {
 function DisplayScreen() {
   const { state: shared, ready } = useStudioDisplay("display");
   useTicker(250);
-  const { ref, isLandscape } = useAspect();
+  const { ref, ratio, isLandscape } = useAspect();
 
   // A class-specific display is opened with ?c=&t=&s=&d= — no manual setup.
   const [override, setOverride] = useState<{
@@ -170,7 +170,7 @@ function DisplayScreen() {
         ) : stage.phase === "qa" ? (
           <QAStage stage={stage} />
         ) : showPreClass ? (
-          <PreClassStage stage={stage} startsAt={state.startTime} isLandscape={isLandscape} />
+          <PreClassStage stage={stage} startsAt={state.startTime} isLandscape={ratio >= 1} />
         ) : (
           <MainStage stage={stage} notes={state.notes} isLandscape={isLandscape} />
         )}
