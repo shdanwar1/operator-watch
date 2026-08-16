@@ -74,9 +74,6 @@ function AdminSettings() {
     <div className="space-y-8">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Account, security and system-wide configuration.
-        </p>
       </header>
 
       <section className="space-y-2">
@@ -338,9 +335,6 @@ function CheckoutSection() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-sm font-semibold tracking-tight">Check-out confirmation</h2>
-            <p className="text-xs text-muted-foreground">
-              Every operator must confirm this before their shift is closed.
-            </p>
           </div>
           <Switch checked={on} onCheckedChange={(v) => setEnabled(v)} />
         </div>
@@ -489,9 +483,6 @@ function MaintenanceSection() {
       <CardContent className="space-y-4 p-5">
         <div>
           <h2 className="text-sm font-semibold tracking-tight">Data maintenance</h2>
-          <p className="text-xs text-muted-foreground">
-            Re-run class and teacher matching, and review possible duplicate directory entries.
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
