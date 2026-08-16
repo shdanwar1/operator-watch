@@ -847,7 +847,14 @@ function CheckInPanel({
         ) : null}
       </CardContent>
 
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(o) => {
+          setConfirmOpen(o);
+          if (!o) setResetSignal((n) => n + 1);
+        }}
+      >
+
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>No shifts scheduled right now</AlertDialogTitle>
