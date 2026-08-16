@@ -778,6 +778,7 @@ function CheckInPanel({
   // check-in still links to it automatically; otherwise it's recorded
   // unscheduled, after the operator confirms that's really what they want.
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [resetSignal, setResetSignal] = useState(0);
   const next = openScheduled ? null : nextShift;
   const nextRange = next ? formatShiftRange(next, now) : null;
   const hasShift = !!next || !!openScheduled;
@@ -789,6 +790,7 @@ function CheckInPanel({
       setConfirmOpen(true);
     }
   }
+
 
   // How late we are relative to the scheduled start (informational only).
   const openStart = openScheduled ? instanceTimes(openScheduled, now).startAt : null;
@@ -829,7 +831,9 @@ function CheckInPanel({
           busy={checkingIn}
           onComplete={handleHoldComplete}
           size={100}
+          resetSignal={resetSignal}
         />
+
 
         {openScheduled && lateMin > 0 ? (
           <div className="flex items-start gap-2 rounded-xl bg-warn-soft px-3 py-2 text-left">
@@ -843,7 +847,14 @@ function CheckInPanel({
         ) : null}
       </CardContent>
 
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(o) => {
+          setConfirmOpen(o);
+          if (!o) setResetSignal((n) => n + 1);
+        }}
+      >
+
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>No shifts scheduled right now</AlertDialogTitle>
