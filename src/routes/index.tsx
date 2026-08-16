@@ -1407,13 +1407,13 @@ function TimeToLeaveDetails({
         </div>
 
         {/* Right: route preview */}
-        <div className="relative min-h-[260px] overflow-hidden rounded-2xl border border-border">
+        <div className="relative isolate min-h-[260px] overflow-hidden rounded-2xl border border-border">
           <RouteMapPreview
             home={{ lat: plan.home_lat, lng: plan.home_lng }}
             office={{ lat: plan.office_lat, lng: plan.office_lng }}
             className="absolute inset-0"
           />
-          <div className="absolute right-3 top-3 z-[500] rounded-xl border border-border bg-background/90 px-3 py-2 shadow-sm backdrop-blur">
+          <div className="absolute right-3 top-3 z-[2] rounded-xl border border-border bg-background/90 px-3 py-2 shadow-sm backdrop-blur">
             <div className="flex items-center gap-2">
               <Train className="h-4 w-4 text-primary" />
               <span className="text-sm font-semibold tabular-nums">{plan.travel_minutes} min</span>
@@ -1424,7 +1424,7 @@ function TimeToLeaveDetails({
                 : "No transfer"}
             </div>
           </div>
-          <div className="absolute inset-x-3 bottom-3 z-[500] grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl border border-border bg-background/90 p-3 shadow-sm backdrop-blur">
+          <div className="absolute inset-x-3 bottom-3 z-[2] grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl border border-border bg-background/90 p-3 shadow-sm backdrop-blur">
             <div className="flex min-w-0 items-center gap-2">
               <Home className="h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="min-w-0">
