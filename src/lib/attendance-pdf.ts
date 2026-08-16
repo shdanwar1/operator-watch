@@ -68,7 +68,7 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
       fmtDate(r.date),
       r.scheduledStart && r.scheduledEnd
         ? `${fmtTime(r.scheduledStart)}-${fmtTime(r.scheduledEnd)}`
-        : "-",
+        : "Unscheduled",
       fmtTime(r.checkIn),
       fmtTime(r.checkOut),
       formatHM(r.workedMin),
