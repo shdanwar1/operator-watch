@@ -278,13 +278,11 @@ function ProfilePage() {
         >
           <ToggleRow
             label="Automatic sync"
-            hint="Keep classes up to date in the background."
             checked={prefs.autoSync}
             onChange={(v) => setPref({ autoSync: v })}
           />
           <ToggleRow
             label="Next month"
-            hint="Extend the sync window beyond the current month."
             checked={prefs.syncNextMonth}
             onChange={(v) => setPref({ syncNextMonth: v })}
             last
@@ -307,13 +305,11 @@ function ProfilePage() {
         <Panel title="Notifications">
           <ToggleRow
             label="Time to leave"
-            hint="Remind me when I need to head to the studio."
             checked={prefs.notifyTimeToLeave}
             onChange={(v) => setPref({ notifyTimeToLeave: v })}
           />
           <ToggleRow
             label="Shift start"
-            hint="Remind me shortly before my shift begins."
             checked={prefs.notifyShiftStart}
             onChange={(v) => setPref({ notifyShiftStart: v })}
             last
@@ -323,7 +319,6 @@ function ProfilePage() {
         <Panel title="Dashboard settings">
           <ToggleRow
             label="Time to leave card"
-            hint="Show travel time and departure countdown on the dashboard."
             checked={prefs.showTimeToLeave}
             onChange={(v) => setPref({ showTimeToLeave: v })}
             last
