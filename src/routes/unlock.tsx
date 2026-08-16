@@ -318,9 +318,6 @@ function SelectStage({
     <Card className="border-border/60 bg-card/60 backdrop-blur-xl p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-300">
       <div className="text-center mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Select User</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Choose your profile to continue.
-        </p>
       </div>
       <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
         {profiles.length === 0 && (
