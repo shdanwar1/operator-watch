@@ -831,7 +831,9 @@ function CheckInPanel({
           busy={checkingIn}
           onComplete={handleHoldComplete}
           size={100}
+          resetSignal={resetSignal}
         />
+
 
         {openScheduled && lateMin > 0 ? (
           <div className="flex items-start gap-2 rounded-xl bg-warn-soft px-3 py-2 text-left">
