@@ -436,14 +436,15 @@ function Index() {
   const upcomingDisplay = displayShifts.filter((s) => s.endAt.getTime() > now.getTime());
   const nextDisplay = upcomingDisplay[0] ?? null;
 
-  // Focus mode:
-  //  - More than 60 min before the next shift → "Time to leave" is the hero
-  //  - 60 min or less before the next shift (or during the shift) → check-in is the hero
+  // Time to Leave shows for the entire runway up to the shift starting —
+  // not just the last hour — since sign-in itself is no longer gated to a
+  // narrow window either. It's still tied to having an actual upcoming
+  // scheduled shift; once that shift starts, there's nothing left to count
+  // down to and Check In (always available below) takes over.
   const minutesToNext = nextDisplay
     ? Math.round((nextDisplay.startAt.getTime() - now.getTime()) / 60000)
     : Infinity;
-  const focus: "check_in" | "time_to_leave" =
-    !active && minutesToNext > 60 ? "time_to_leave" : "check_in";
+  const showTimeToLeave = !active && nextDisplay !== null && minutesToNext > 0;
 
   // Reminders — only for the next shift, and only while it is still ahead.
   const reminders: Reminder[] = [];
@@ -647,7 +648,7 @@ function Index() {
             />
           ) : (
             <>
-              {focus === "time_to_leave" &&
+              {showTimeToLeave &&
                 prefs.showTimeToLeave &&
                 (checkInLocked ? (
                   <LockedFeatureCard
@@ -757,16 +758,6 @@ function UpcomingShifts({
 
 
 
-function formatCountdown(ms: number) {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  if (h > 0) return `${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`;
-  if (m > 0) return `${m}m ${s.toString().padStart(2, "0")}s`;
-  return `${s}s`;
-}
-
 function CheckInPanel({
   openScheduled,
   nextShift,
@@ -781,18 +772,28 @@ function CheckInPanel({
   onCheckIn: () => void;
   checkingIn: boolean;
 }) {
-  const canCheckIn = !!openScheduled;
+  // Sign-in is available any time — an unexpected shift or covering for
+  // someone shouldn't require a scheduled shift to exist first. When a
+  // scheduled shift is open (starts within the hour, or already underway),
+  // check-in still links to it automatically; otherwise it's recorded
+  // unscheduled, after the operator confirms that's really what they want.
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const next = openScheduled ? null : nextShift;
-  // Check-in opens 60 minutes before the shift starts.
-  const opensAt = next ? new Date(next.startAt.getTime() - 60 * 60 * 1000) : null;
-  const msUntilOpen = opensAt ? Math.max(0, opensAt.getTime() - now.getTime()) : 0;
+  const nextRange = next ? formatShiftRange(next, now) : null;
+  const hasShift = !!next || !!openScheduled;
+
+  function handleHoldComplete() {
+    if (openScheduled) {
+      onCheckIn();
+    } else {
+      setConfirmOpen(true);
+    }
+  }
 
   // How late we are relative to the scheduled start (informational only).
   const openStart = openScheduled ? instanceTimes(openScheduled, now).startAt : null;
   const lateMin = openStart ? minutesLate(openStart, now) : 0;
   const classCount = scheduledClassCount(openScheduled?.label);
-  const nextRange = next ? formatShiftRange(next, now) : null;
-  const hasShift = !!next || !!openScheduled;
 
   return (
     <Card className="rise-in overflow-hidden max-lg:glass max-lg:rounded-[22px]">
@@ -801,14 +802,8 @@ function CheckInPanel({
         {hasShift ? (
           <div className="flex flex-col items-center gap-1.5">
             <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              {canCheckIn ? "Ready for check-in" : "Check-in opens in"}
+              {openScheduled ? "Ready for check-in" : "Next scheduled shift"}
             </span>
-            {!canCheckIn && (
-              <div className="text-2xl font-semibold tabular-nums tracking-tight max-lg:text-[40px] max-lg:leading-none max-lg:tracking-[-0.05em]">
-                {formatCountdown(msUntilOpen)}
-              </div>
-
-            )}
             <p className="text-xs text-muted-foreground">
               {openScheduled ? (
                 <>
@@ -831,13 +826,12 @@ function CheckInPanel({
 
         <HoldButton
           label="Hold to check in"
-          disabled={!canCheckIn}
           busy={checkingIn}
-          onComplete={onCheckIn}
+          onComplete={handleHoldComplete}
           size={100}
         />
 
-        {canCheckIn && lateMin > 0 ? (
+        {openScheduled && lateMin > 0 ? (
           <div className="flex items-start gap-2 rounded-xl bg-warn-soft px-3 py-2 text-left">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warn" />
             <p className="text-[11px] text-muted-foreground">
@@ -848,6 +842,28 @@ function CheckInPanel({
           </div>
         ) : null}
       </CardContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>No shifts scheduled right now</AlertDialogTitle>
+            <AlertDialogDescription>
+              There are no shifts scheduled currently — would you still like to sign in?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmOpen(false);
+                onCheckIn();
+              }}
+            >
+              Sign in anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
