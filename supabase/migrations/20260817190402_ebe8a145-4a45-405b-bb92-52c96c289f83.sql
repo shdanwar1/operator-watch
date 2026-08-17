@@ -1,0 +1,1 @@
+ALTER TABLE public.operators ADD COLUMN IF NOT EXISTS calendar_last_sync_at timestamptz NULL;
