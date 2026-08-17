@@ -1326,6 +1326,23 @@ function TimeToLeaveCard({
 }) {
   const [expanded, setExpanded] = useState(false);
 
+  // The studio (destination) is an admin-managed setting: a plan calculated to
+  // the old address must never be reused after it moves, so its coordinates
+  // are part of the plan identity.
+  const loadSettings = useServerFn(getAppSettings);
+  const [studio, setStudio] = useState<{ lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    loadSettings()
+      .then((s) => {
+        if (alive) setStudio({ lat: s.studio.lat, lng: s.studio.lng });
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [loadSettings]);
+
   const next = useMemo(() => {
     const upcoming = buildDisplayShifts(scheduled, now).filter(
       (s) => s.endAt.getTime() > now.getTime(),
@@ -1340,17 +1357,20 @@ function TimeToLeaveCard({
 
   const identity = useMemo(
     () =>
-      username && shiftIso && shiftEndIso
+      username && shiftIso && shiftEndIso && studio
         ? {
             username,
             shiftStartIso: shiftIso,
             shiftEndIso,
             homeLat: homeLat ?? null,
             homeLng: homeLng ?? null,
+            studioLat: studio.lat,
+            studioLng: studio.lng,
           }
         : null,
-    [username, shiftIso, shiftEndIso, homeLat, homeLng],
+    [username, shiftIso, shiftEndIso, homeLat, homeLng, studio],
   );
+
 
   const { snapshot, status, reason } = useTravelPlan(identity);
 
