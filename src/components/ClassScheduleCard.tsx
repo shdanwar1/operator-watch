@@ -102,6 +102,18 @@ export function ClassScheduleCard({
 
   const states = classes.map((c) => classStatusOf(c, now));
 
+  // A class is "unmatched" when it has no link to the class/teacher directory.
+  // The name check is a safety net: a stale row can still carry an id that no
+  // longer exists in the directory, and that is just as broken as a null id.
+  const knownClass = new Set(classOptions.map((o) => o.name.trim().toLowerCase()));
+  const knownTeacher = new Set(teacherOptions.map((o) => o.name.trim().toLowerCase()));
+  const classUnmatched = (c: CalendarClassRow) =>
+    !c.class_id || (knownClass.size > 0 && !knownClass.has(c.class_name.trim().toLowerCase()));
+  const teacherUnmatched = (c: CalendarClassRow) =>
+    !c.teacher_id ||
+    (knownTeacher.size > 0 && !knownTeacher.has(c.teacher_name.trim().toLowerCase()));
+
+
 
   const openDisplay = (c: CalendarClassRow) => {
     window.open(
