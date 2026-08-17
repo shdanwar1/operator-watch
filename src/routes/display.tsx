@@ -64,8 +64,48 @@ function useAspect() {
   // Single orientation threshold for the whole display — every stage reads
   // this one value, so no two panels can disagree about the layout.
   const isLandscape = w > 0 && h > 0 ? w > h * 1.15 : false;
-  return { ref, isLandscape, isPortrait: !isLandscape };
+  return { ref, isLandscape, isPortrait: !isLandscape, width: w, height: h };
 }
+
+/**
+ * Layout capacity check for the optional pre-class ice-breaker.
+ * Priority 1 is the countdown; the ice-breaker only renders when the measured
+ * display area can hold the timer at a usable size *plus* the divider and text.
+ * `showing` provides hysteresis so a resize near the threshold can't flicker.
+ */
+function shouldShowIcebreaker({
+  width,
+  height,
+  isLandscape,
+  showing,
+}: {
+  width: number;
+  height: number;
+  isLandscape: boolean;
+  showing: boolean;
+}) {
+  if (width <= 0 || height <= 0) return showing;
+  const slack = showing ? 0.92 : 1; // keep visible slightly past the hide point
+  if (isLandscape) {
+    // Side-by-side: the ice-breaker column needs real width, and the timer
+    // still needs enough height to stay large.
+    return width >= 900 * slack && height >= 380 * slack;
+  }
+  // Stacked: vertical space is the binding constraint (timer + rule + text).
+  return height >= 620 * slack && width >= 420 * slack;
+}
+
+function useIcebreakerVisible(width: number, height: number, isLandscape: boolean) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    setVisible((prev) => {
+      const next = shouldShowIcebreaker({ width, height, isLandscape, showing: prev });
+      return next === prev ? prev : next;
+    });
+  }, [width, height, isLandscape]);
+  return visible;
+}
+
 
 
 function useSize<T extends HTMLElement>() {
