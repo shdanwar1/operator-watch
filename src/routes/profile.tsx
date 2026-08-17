@@ -2,6 +2,7 @@ import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
 import { getGateStatus, signOutUser } from "@/lib/gate.functions";
+import { clearAllCaches } from "@/lib/local-cache";
 import {
   updateMyProfile,
   setMyHomeAddress,
@@ -330,7 +331,8 @@ function ProfilePage() {
       <button
         type="button"
         onClick={async () => {
-          await signOut();
+          clearAllCaches();
+    await signOut();
           await router.navigate({ to: "/unlock" });
         }}
         className="press mt-4 w-full rounded-[18px] border border-border py-3.5 text-[15px] font-medium text-destructive glass lg:hidden"

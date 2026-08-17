@@ -88,6 +88,25 @@ export function clearCacheForOperator(username: string): void {
   }
 }
 
+/**
+ * Removes every cached entry, regardless of operator. Called on sign-out:
+ * this is a shared kiosk device, so nothing an operator saw should survive
+ * into the next person's session.
+ */
+export function clearAllCaches(): void {
+  if (typeof window === "undefined" || !storageAvailable()) return;
+  try {
+    const toRemove: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && k.startsWith(PREFIX)) toRemove.push(k);
+    }
+    toRemove.forEach((k) => window.localStorage.removeItem(k));
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Namespaces a cache key by operator so switching operators on the same
  *  device never shows one person's cached shifts to another. */
 export function operatorNamespace(username: string): string {

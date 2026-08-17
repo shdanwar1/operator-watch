@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { signOutUser } from "@/lib/gate.functions";
+import { clearAllCaches } from "@/lib/local-cache";
 import { cn } from "@/lib/utils";
 
 /**
@@ -56,6 +57,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   };
 
   const handleSignOut = async () => {
+    clearAllCaches();
     await signOut();
     await router.navigate({ to: "/unlock" });
   };

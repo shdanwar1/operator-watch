@@ -420,6 +420,7 @@ function Index() {
   }, [calendarClasses]);
 
   async function handleSignOut() {
+    clearAllCaches();
     await signOut();
     await router.navigate({ to: "/unlock" });
   }
