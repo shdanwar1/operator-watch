@@ -16,7 +16,9 @@ import {
   recordDirectoryUsage,
   type DirectoryItem,
 } from "@/lib/directories.functions";
-import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/lib/travel.functions";
+import { ARRIVAL_BUFFER_MIN } from "@/lib/travel.functions";
+import { useTravelPlan } from "@/hooks/useTravelPlan";
+import { snapshotMapsUrl, type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { useReminders, type Reminder } from "@/hooks/useReminders";
 import { useCachedResource } from "@/hooks/useCachedResource";
@@ -37,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase } from "lucide-react";
+import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase, ChevronDown } from "lucide-react";
 import { RouteMapPreview } from "@/components/RouteMapPreview";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
@@ -662,6 +664,8 @@ function Index() {
                     username={username}
                     scheduled={scheduled}
                     now={now}
+                    homeLat={profileStatus?.home_lat ?? null}
+                    homeLng={profileStatus?.home_lng ?? null}
                     variant="hero"
                     onDeparture={setDepartureIso}
                   />
