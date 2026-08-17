@@ -182,7 +182,10 @@ export function RouteMapPreview({
       layersRef.current.push(provisional);
       fit(straight);
 
-      const coords = await resolveRoute(home, office, controller.signal);
+      const coords =
+        geometry !== undefined
+          ? geometry
+          : await resolveRoute(home, office, controller.signal);
       if (cancelled) return;
       setRouteFailed(!coords);
       if (coords) {
