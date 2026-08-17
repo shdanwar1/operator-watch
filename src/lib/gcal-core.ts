@@ -620,20 +620,42 @@ export function dateKey(d: Date) {
 }
 
 /**
+ * The studio's business date for an instant, in Berlin wall-clock time.
+ *
+ * Server code runs in UTC, so `dateKey(new Date())` rolls over to "tomorrow"
+ * at 23:00 (CET) / 22:00 (CEST) Berlin time and would treat a still-running
+ * evening as a past day. Every "today" decision on the server must use this.
+ */
+export function berlinDateKey(d: Date = new Date()): string {
+  // en-CA formats as YYYY-MM-DD, and the DST offset is handled by the engine.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+/** Berlin calendar year/month for an instant (month is 1-12). */
+export function berlinYearMonth(d: Date = new Date()): { year: number; month: number } {
+  const [y, m] = berlinDateKey(d).split("-").map(Number);
+  return { year: y, month: m };
+}
+
+/**
  * Sync scope: the current calendar month, optionally plus the next one.
  *
  * `from`/`scopeEnd` bound the *shift start* timestamps that are imported.
  * `parseTo` extends two days past the scope so overnight shifts crossing the
- * month boundary can be read in full and never truncated.
+ * month boundary can be read in full and never truncated. The month is the
+ * Berlin month, not the server's UTC month.
  */
 export function syncWindow(now: Date, includeNextMonth = false) {
-  const from = dateKey(new Date(now.getFullYear(), now.getMonth(), 1));
-  const scopeEndDate = new Date(
-    now.getFullYear(),
-    now.getMonth() + (includeNextMonth ? 2 : 1),
-    0,
-  );
+  const { year, month } = berlinYearMonth(now);
+  const from = dateKey(new Date(year, month - 1, 1));
+  const scopeEndDate = new Date(year, month - 1 + (includeNextMonth ? 2 : 1), 0);
   const parseToDate = new Date(scopeEndDate);
   parseToDate.setDate(parseToDate.getDate() + 2);
   return { from, scopeEnd: dateKey(scopeEndDate), to: dateKey(parseToDate) };
 }
+
