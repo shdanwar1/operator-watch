@@ -431,7 +431,10 @@ function PreClassTimer({
       <div
         className="font-mono font-semibold leading-none tabular-nums"
         style={{
-          fontSize: portrait ? "clamp(3rem, 22vw, 12rem)" : "clamp(3.5rem, 15vmin, 18rem)",
+          fontSize: portrait
+            ? "clamp(2.75rem, min(20vw, 18vh), 12rem)"
+            : "clamp(3.5rem, 15vmin, 18rem)",
+
           letterSpacing: "-0.05em",
           whiteSpace: "nowrap",
           maxWidth: "100%",
