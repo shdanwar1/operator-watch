@@ -59,10 +59,17 @@ export function RouteMapPreview({
   home,
   office,
   className,
+  geometry,
 }: {
   home: Pt;
   office: Pt;
   className?: string;
+  /**
+   * Route geometry from the persisted travel snapshot. When provided (even as
+   * `null`, meaning "the stored plan has no geometry"), the map never calls
+   * the routing service itself — the snapshot is the single source of truth.
+   */
+  geometry?: [number, number][] | null;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
