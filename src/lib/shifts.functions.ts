@@ -118,7 +118,13 @@ export const createShift = createServerFn({ method: "POST" })
     if (!username || isAdmin) {
       throw new Response("Sign in as an operator to check in", { status: 403 });
     }
+    // A scheduled shift may only be checked into by the operator it is
+    // assigned to — never trusted just because the client sent its id.
+    if (data.scheduled_shift_id) {
+      await assertScheduledOwnership(data.scheduled_shift_id, username, false);
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
 
     const { data: op } = await supabaseAdmin
       .from("operators")
