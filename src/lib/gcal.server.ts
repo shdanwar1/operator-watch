@@ -76,9 +76,11 @@ export async function loadOperatorCalendar(username: string) {
 /**
  * Reads the stored, server-authoritative last successful sync time.
  *
- * Rows synced before the timestamp column existed have no stamp, so we fall
- * back to the most recent write the importer made for that operator and
- * backfill the column with it — after that, the stored value is used as-is.
+ * Only a real, completed sync ever writes this column. Nothing is inferred
+ * from class rows: `calendar_classes.updated_at` records when a class row was
+ * last written, which is not the same event as "the calendar was synced" and
+ * would report a sync that never happened (or hide a failing one behind an
+ * unrelated edit). No stamp means no sync yet — the UI says exactly that.
  */
 export async function readCalendarSyncStatus(
   username: string,
@@ -86,30 +88,13 @@ export async function readCalendarSyncStatus(
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("operators")
-    .select("username, calendar_last_sync_at")
+    .select("calendar_last_sync_at")
     .ilike("username", username)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  const stored = (data?.calendar_last_sync_at ?? null) as string | null;
-  if (stored || !data) return { calendarLastSyncAt: stored };
-
-  const displayName = data.username as string;
-  const { data: latest } = await supabaseAdmin
-    .from("calendar_classes")
-    .select("updated_at")
-    .ilike("operator", displayName)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const inferred = (latest?.updated_at ?? null) as string | null;
-  if (!inferred) return { calendarLastSyncAt: null };
-
-  await supabaseAdmin
-    .from("operators")
-    .update({ calendar_last_sync_at: inferred })
-    .ilike("username", displayName);
-  return { calendarLastSyncAt: inferred };
+  return { calendarLastSyncAt: (data?.calendar_last_sync_at ?? null) as string | null };
 }
+
 
 /** Stamps the operator row after a fully successful sync; returns the stored value. */
 async function stampCalendarSync(username: string): Promise<string | null> {
