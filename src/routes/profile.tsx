@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast, Toaster } from "sonner";
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { PushDeviceToggle } from "@/components/PushDeviceToggle";
 import { USERNAME_RE, PIN_RE } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 
@@ -185,10 +186,6 @@ function ProfilePage() {
 
       await savePrefsFn({ data: prefs });
 
-      if (prefs.notifyTimeToLeave || prefs.notifyShiftStart) {
-        void requestNotificationPermission();
-      }
-
       if (nameChanged) {
         const fresh = await reloadProfile();
         setProfile(fresh);
@@ -313,8 +310,8 @@ function ProfilePage() {
             label="Shift start"
             checked={prefs.notifyShiftStart}
             onChange={(v) => setPref({ notifyShiftStart: v })}
-            last
           />
+          <PushDeviceToggle />
         </Panel>
 
         <Panel title="Dashboard settings">
@@ -342,15 +339,6 @@ function ProfilePage() {
 
     </AppShell>
   );
-}
-
-async function requestNotificationPermission() {
-  try {
-    if (typeof Notification === "undefined") return;
-    if (Notification.permission === "default") await Notification.requestPermission();
-  } catch {
-    /* ignore */
-  }
 }
 
 function friendlyError(e: unknown): string {

@@ -20,7 +20,6 @@ import { ARRIVAL_BUFFER_MIN } from "@/lib/travel.functions";
 import { useTravelPlan } from "@/hooks/useTravelPlan";
 import { snapshotMapsUrl, type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
-import { useReminders, type Reminder } from "@/hooks/useReminders";
 import { clearAllCaches, operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.functions";
@@ -448,29 +447,8 @@ function Index() {
     : Infinity;
   const showTimeToLeave = !active && nextDisplay !== null && minutesToNext > 0;
 
-  // Reminders — only for the next shift, and only while it is still ahead.
-  const reminders: Reminder[] = [];
-  if (prefsLoaded && nextDisplay && !active) {
-    const startAt = nextDisplay.startAt;
-    const stamp = startAt.toISOString();
-    if (prefs.notifyShiftStart) {
-      reminders.push({
-        key: `shift-start:${stamp}`,
-        at: new Date(startAt.getTime() - 15 * 60_000),
-        title: "Shift starts in 15 minutes",
-        body: `${fmtHM(startAt)} — get ready to check in.`,
-      });
-    }
-    if (prefs.notifyTimeToLeave && departureIso) {
-      reminders.push({
-        key: `leave:${stamp}`,
-        at: new Date(departureIso),
-        title: "Time to leave",
-        body: `Leave now to arrive before your ${fmtHM(startAt)} shift.`,
-      });
-    }
-  }
-  useReminders(reminders, prefsLoaded && (prefs.notifyShiftStart || prefs.notifyTimeToLeave));
+  // Reminders are delivered by the server as background Web Push (see
+  // /api/public/hooks/push-dispatch), so nothing fires from this page.
 
 
 

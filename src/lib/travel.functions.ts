@@ -107,7 +107,7 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
     const office = { label: settings.studio.label, lat: settings.studio.lat, lng: settings.studio.lng };
     const { data: op, error } = await supabaseAdmin
       .from("operators")
-      .select("home_label, home_lat, home_lng")
+      .select("id, home_label, home_lat, home_lng")
       .ilike("username", session.data.username)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -248,6 +248,29 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       // Non-fatal; the primary plan is still returned.
     }
 
+
+    // Persist the plan so background push can fire "time to leave" without
+    // the app being open. Never fatal to the response.
+    try {
+      const operatorId = (op as { id?: string }).id;
+      if (operatorId) {
+        await supabaseAdmin.from("operator_travel_plans").upsert(
+          {
+            operator_id: operatorId,
+            shift_start_at: shiftStart.toISOString(),
+            departure_at: pick.dep,
+            arrival_at: pick.arr,
+            travel_minutes: travelMinutes,
+            transfers: pick.transfers,
+            route_label: directOptions[0]?.line ?? null,
+            calculated_at: new Date().toISOString(),
+          } as never,
+          { onConflict: "operator_id,shift_start_at,algorithm_version" },
+        );
+      }
+    } catch {
+      /* ignore */
+    }
 
     return {
       ok: true,

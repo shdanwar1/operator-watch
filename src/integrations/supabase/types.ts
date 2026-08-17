@@ -177,6 +177,69 @@ export type Database = {
         }
         Relationships: []
       }
+      operator_travel_plans: {
+        Row: {
+          algorithm_version: number
+          arrival_at: string
+          calculated_at: string
+          created_at: string
+          departure_at: string
+          id: string
+          operator_id: string
+          route_label: string | null
+          shift_end_at: string | null
+          shift_start_at: string
+          transfers: number
+          travel_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          algorithm_version?: number
+          arrival_at: string
+          calculated_at?: string
+          created_at?: string
+          departure_at: string
+          id?: string
+          operator_id: string
+          route_label?: string | null
+          shift_end_at?: string | null
+          shift_start_at: string
+          transfers?: number
+          travel_minutes: number
+          updated_at?: string
+        }
+        Update: {
+          algorithm_version?: number
+          arrival_at?: string
+          calculated_at?: string
+          created_at?: string
+          departure_at?: string
+          id?: string
+          operator_id?: string
+          route_label?: string | null
+          shift_end_at?: string | null
+          shift_start_at?: string
+          transfers?: number
+          travel_minutes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operator_travel_plans_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_travel_plans_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       operators: {
         Row: {
           calendar_ics_url: string | null
@@ -224,6 +287,108 @@ export type Database = {
           username?: string
         }
         Relationships: []
+      }
+      push_notification_deliveries: {
+        Row: {
+          created_at: string
+          id: string
+          notification_key: string
+          notification_type: string
+          operator_id: string
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notification_key: string
+          notification_type: string
+          operator_id: string
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notification_key?: string
+          notification_type?: string
+          operator_id?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_notification_deliveries_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_notification_deliveries_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          disabled_at: string | null
+          endpoint: string
+          id: string
+          last_seen_at: string
+          operator_id: string
+          p256dh: string
+          platform: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          disabled_at?: string | null
+          endpoint: string
+          id?: string
+          last_seen_at?: string
+          operator_id: string
+          p256dh: string
+          platform?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          disabled_at?: string | null
+          endpoint?: string
+          id?: string
+          last_seen_at?: string
+          operator_id?: string
+          p256dh?: string
+          platform?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_subscriptions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scheduled_shifts: {
         Row: {
