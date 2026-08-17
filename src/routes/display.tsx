@@ -64,8 +64,48 @@ function useAspect() {
   // Single orientation threshold for the whole display — every stage reads
   // this one value, so no two panels can disagree about the layout.
   const isLandscape = w > 0 && h > 0 ? w > h * 1.15 : false;
-  return { ref, isLandscape, isPortrait: !isLandscape };
+  return { ref, isLandscape, isPortrait: !isLandscape, width: w, height: h };
 }
+
+/**
+ * Layout capacity check for the optional pre-class ice-breaker.
+ * Priority 1 is the countdown; the ice-breaker only renders when the measured
+ * display area can hold the timer at a usable size *plus* the divider and text.
+ * `showing` provides hysteresis so a resize near the threshold can't flicker.
+ */
+function shouldShowIcebreaker({
+  width,
+  height,
+  isLandscape,
+  showing,
+}: {
+  width: number;
+  height: number;
+  isLandscape: boolean;
+  showing: boolean;
+}) {
+  if (width <= 0 || height <= 0) return showing;
+  const slack = showing ? 0.92 : 1; // keep visible slightly past the hide point
+  if (isLandscape) {
+    // Side-by-side: the ice-breaker column needs real width, and the timer
+    // still needs enough height to stay large.
+    return width >= 1000 * slack && height >= 420 * slack;
+  }
+  // Stacked: vertical space is the binding constraint (timer + rule + text).
+  return height >= 780 * slack && width >= 460 * slack;
+}
+
+function useIcebreakerVisible(width: number, height: number, isLandscape: boolean) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    setVisible((prev) => {
+      const next = shouldShowIcebreaker({ width, height, isLandscape, showing: prev });
+      return next === prev ? prev : next;
+    });
+  }, [width, height, isLandscape]);
+  return visible;
+}
+
 
 
 function useSize<T extends HTMLElement>() {
@@ -86,7 +126,9 @@ function useSize<T extends HTMLElement>() {
 function DisplayScreen() {
   const { state: shared, ready } = useStudioDisplay("display");
   useTicker(250);
-  const { ref, isLandscape } = useAspect();
+  const { ref, isLandscape, width: surfaceW, height: surfaceH } = useAspect();
+  const icebreakerVisible = useIcebreakerVisible(surfaceW, surfaceH, isLandscape);
+
 
   // A class-specific display is opened with ?c=&t=&s=&d= — no manual setup.
   const [override, setOverride] = useState<{
@@ -201,7 +243,13 @@ function DisplayScreen() {
         ) : stage.phase === "qa" ? (
           <QAStage stage={stage} />
         ) : showPreClass ? (
-          <PreClassStage stage={stage} startsAt={state.startTime} isLandscape={isLandscape} />
+          <PreClassStage
+            stage={stage}
+            startsAt={state.startTime}
+            isLandscape={isLandscape}
+            showIcebreaker={icebreakerVisible}
+          />
+
 
         ) : (
           <MainStage stage={stage} notes={state.notes} isLandscape={isLandscape} />
@@ -494,10 +542,12 @@ function PreClassStage({
   stage,
   startsAt,
   isLandscape,
+  showIcebreaker = true,
 }: {
   stage: StageInfo;
   startsAt: string;
   isLandscape: boolean;
+  showIcebreaker?: boolean;
 }) {
   // One rotating ice-breaker, refreshed every 15s
   const [tip, setTip] = useState<string>(() => pickIcebreaker());
@@ -520,6 +570,16 @@ function PreClassStage({
       if (interval) clearInterval(interval);
     };
   }, []);
+
+  // Not enough room for the supplementary content: the timer takes the whole
+  // surface and re-centres — no divider, no empty column, no clipped text.
+  if (!showIcebreaker) {
+    return (
+      <div className="flex h-full w-full min-h-0 min-w-0 items-center justify-center px-[clamp(1rem,5vw,4rem)]">
+        <PreClassTimer stage={stage} startsAt={startsAt} portrait={!isLandscape} />
+      </div>
+    );
+  }
 
   if (isLandscape) {
     return (
@@ -555,6 +615,7 @@ function PreClassStage({
         </div>
       </div>
     </div>
+
   );
 }
 
