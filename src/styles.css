@@ -271,10 +271,20 @@
   animation: sd-fade-in 240ms ease-out both;
 }
 
-/* Studio Display — subtle blink for the final 30s timer */
+/* Studio Display — slower, more deliberate entrance for rotating content */
+@keyframes sd-rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sd-rise {
+  animation: sd-rise-in 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Studio Display — luminance breath for the final 30s digits.
+   Never drops far enough to read as "off" at a distance. */
 @keyframes sd-blink {
   0%, 100% { opacity: 1; }
-  50%      { opacity: 0.55; }
+  50%      { opacity: 0.72; }
 }
 .sd-blink {
   animation: sd-blink 1s ease-in-out infinite;
@@ -291,13 +301,60 @@
 
 /* Studio Display — cinematic per-digit countdown (10..1) before class */
 @keyframes sd-countdown {
-  0%   { opacity: 0; transform: scale(1.35); }
-  25%  { opacity: 1; transform: scale(1); }
-  100% { opacity: 0.85; transform: scale(1.02); }
+  0%   { opacity: 0; transform: scale(1.06); }
+  42%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0.92; transform: scale(1); }
 }
 .sd-countdown {
   animation: sd-countdown 1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/* Studio Display — one numeric face for every timer on every screen */
+.sd-num {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "ss01" 1, "cv02" 0, "cv03" 0, "cv04" 0, "cv11" 0;
+}
+
+/* Studio Display — hairlines that fade at both ends instead of hard borders */
+.sd-rule-v {
+  background-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, currentColor 16%, transparent) 18%,
+    color-mix(in srgb, currentColor 16%, transparent) 82%,
+    transparent 100%
+  );
+}
+
+.sd-rule-h {
+  background-image: linear-gradient(
+    to right,
+    transparent 0%,
+    color-mix(in srgb, currentColor 16%, transparent) 18%,
+    color-mix(in srgb, currentColor 16%, transparent) 82%,
+    transparent 100%
+  );
+}
+
+/* Studio Display — a black-on-black vignette to focus the countdown centre */
+.sd-vignette {
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 0.045) 0%,
+    rgba(255, 255, 255, 0) 55%
+  );
+}
+
+/* Studio Display — idle "screen is alive" breath */
+@keyframes sd-breathe {
+  0%, 100% { opacity: 0.18; transform: scale(0.9); }
+  50%      { opacity: 0.7; transform: scale(1); }
+}
+.sd-breathe {
+  animation: sd-breathe 8s ease-in-out infinite;
+}
+
 
 /* Hero surface — a very subtle vertical lift, no colour, no glow.
    Kept under the historical `.hero-aurora` name so existing usages hold. */
