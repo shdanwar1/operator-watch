@@ -82,14 +82,19 @@ export function useCalendarSync(options: {
           if (!silent) toast.error(res.error ?? "Sync failed");
           return res;
         }
-        const at = new Date();
-        setLastSync(at);
-        if (cacheKeyRef.current) writeCache(cacheKeyRef.current, at.getTime());
+        // The server/database timestamp is authoritative; the local cache is
+        // only a paint-fast copy of it.
+        if (res.syncedAt) {
+          const at = new Date(res.syncedAt);
+          setLastSync(at);
+          if (cacheKeyRef.current) writeCache(cacheKeyRef.current, at.getTime());
+        }
         // Refresh the caller first, then everything else that is open.
         await onSyncedRef.current();
         publishSync({ type: "data-synced", at: Date.now() });
         if (!silent) toast.success("Google Calendar synchronized successfully.");
         return res;
+
       } catch (e) {
         if (!silent) toast.error(e instanceof Error ? e.message : "Sync failed");
         return undefined;
