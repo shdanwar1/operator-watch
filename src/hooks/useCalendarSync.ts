@@ -75,8 +75,11 @@ export function useCalendarSync(options: {
         const { result: res, skipped } = await coordinatedSync(syncFn, {
           includeNextMonth: nextMonthRef.current,
           force,
+          // A failed sync must not start the automatic-sync cooldown.
+          isSuccess: (r) => r?.ok === true,
         });
         if (skipped || !res) return undefined;
+
         setLogs(res.logs ?? []);
         if (!res.ok) {
           if (!silent) toast.error(res.error ?? "Sync failed");
