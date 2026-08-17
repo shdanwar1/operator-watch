@@ -159,10 +159,8 @@ function DisplayScreen() {
   return (
     <>
       <SurfaceChrome color={stage.bgColor} />
-
-
-  return (
     <div ref={ref} className={`fixed inset-0 overflow-hidden ${textClass}`}>
+
       <div
         aria-hidden
         className={`absolute inset-0 ${stage.pulse && stage.phase === "final30" ? "sd-pulse-bg" : ""}`}
