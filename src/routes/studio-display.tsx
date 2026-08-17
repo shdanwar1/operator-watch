@@ -1,7 +1,11 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useRef } from "react";
+import { ArrowUpRight } from "lucide-react";
 import { getGateStatus } from "@/lib/gate.functions";
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { Button } from "@/components/ui/button";
 import { StudioDisplayPanel } from "@/components/StudioDisplayPanel";
+
 
 export const Route = createFileRoute("/studio-display")({
   beforeLoad: async () => {
