@@ -16,7 +16,9 @@ import {
   recordDirectoryUsage,
   type DirectoryItem,
 } from "@/lib/directories.functions";
-import { getTimeToLeave, ARRIVAL_BUFFER_MIN, type TimeToLeaveResult } from "@/lib/travel.functions";
+import { ARRIVAL_BUFFER_MIN } from "@/lib/travel.functions";
+import { useTravelPlan } from "@/hooks/useTravelPlan";
+import { snapshotMapsUrl, type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { useReminders, type Reminder } from "@/hooks/useReminders";
 import { useCachedResource } from "@/hooks/useCachedResource";
@@ -37,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase } from "lucide-react";
+import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase, ChevronDown } from "lucide-react";
 import { RouteMapPreview } from "@/components/RouteMapPreview";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
@@ -662,6 +664,8 @@ function Index() {
                     username={username}
                     scheduled={scheduled}
                     now={now}
+                    homeLat={profileStatus?.home_lat ?? null}
+                    homeLng={profileStatus?.home_lng ?? null}
                     variant="hero"
                     onDeparture={setDepartureIso}
                   />
@@ -1222,246 +1226,257 @@ function fmtHM(d: Date) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
+/**
+ * Time to Leave.
+ *
+ * The route comes from a persisted travel snapshot (calculated once per plan
+ * identity); everything time-based below is derived locally from that
+ * snapshot plus `now`, so the live clock never causes a network request.
+ */
 function TimeToLeaveCard({
   username,
   scheduled,
   now,
+  homeLat,
+  homeLng,
   variant = "default",
   onDeparture,
 }: {
   username: string | null;
   scheduled: ScheduledShift[];
   now: Date;
+  homeLat?: number | null;
+  homeLng?: number | null;
   variant?: "default" | "hero";
   /** Reports the planned departure time so the dashboard can remind about it. */
   onDeparture?: (iso: string | null) => void;
 }) {
-  const fetchPlan = useServerFn(getTimeToLeave);
+  const [expanded, setExpanded] = useState(false);
+
   const next = useMemo(() => {
     const upcoming = buildDisplayShifts(scheduled, now).filter(
       (s) => s.endAt.getTime() > now.getTime(),
     );
     return upcoming[0] ?? null;
-  }, [scheduled, now]);
+    // `now` ticks every second; only the shift set actually matters here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduled]);
+
   const shiftIso = next?.startAt.toISOString() ?? null;
+  const shiftEndIso = next?.endAt.toISOString() ?? null;
 
-  // The plan is specific to *which* shift is coming up next, so the cache
-  // key includes it.
-  const cacheKey =
-    username && shiftIso ? `${operatorNamespace(username)}time-to-leave:${shiftIso}` : null;
+  const identity = useMemo(
+    () =>
+      username && shiftIso && shiftEndIso
+        ? {
+            username,
+            shiftStartIso: shiftIso,
+            shiftEndIso,
+            homeLat: homeLat ?? null,
+            homeLng: homeLng ?? null,
+          }
+        : null,
+    [username, shiftIso, shiftEndIso, homeLat, homeLng],
+  );
 
-  const {
-    data: plan,
-    loading,
-    error,
-  } = useCachedResource<TimeToLeaveResult | null>({
-    cacheKey,
-    fetcher: () => {
-      if (!shiftIso) return Promise.resolve(null);
-      return fetchPlan({ data: { shift_start_iso: shiftIso } });
-    },
-    fallback: null,
-    // Countdown, departure, and travel options stay live without ever
-    // blanking the card.
-    refreshIntervalMs: shiftIso ? 60_000 : undefined,
-  });
-  const errored = !!error;
+  const { snapshot, status, reason } = useTravelPlan(identity);
 
-  const departureIso = plan && plan.ok ? plan.departure_iso : null;
+  const departureIso = snapshot?.departure_iso ?? null;
   const reportDeparture = onDeparture;
   useEffect(() => {
     reportDeparture?.(departureIso);
   }, [departureIso, reportDeparture]);
 
-
-
   if (!next) return null;
 
   const shiftStart = next.startAt;
-
+  const departure = snapshot ? new Date(snapshot.departure_iso) : null;
+  const minutesUntilLeave = departure
+    ? Math.round((departure.getTime() - now.getTime()) / 60_000)
+    : null;
+  const urgent = minutesUntilLeave !== null && minutesUntilLeave <= 10;
   const hero = variant === "hero";
 
   return (
     <Card
-      className={
-        hero
-          ? "overflow-hidden border-primary/40 max-lg:glass max-lg:rounded-[22px]"
-          : "overflow-hidden max-lg:glass max-lg:rounded-[22px]"
-      }
+      className={`overflow-hidden max-lg:glass max-lg:rounded-[22px] ${
+        hero ? "border-primary/40" : ""
+      }`}
     >
-
       <CardContent className="p-0">
-        <div className="px-5 pt-5 sm:px-6 sm:pt-6">
-          <div className="flex items-center gap-2">
-            <Train className={hero ? "h-4 w-4 text-primary" : "h-4 w-4 text-muted-foreground"} />
-            <h2
-              className={
-                hero
-                  ? "text-xs font-semibold uppercase tracking-[0.14em] text-primary"
-                  : "text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground"
-              }
-            >
-              Time to leave
-            </h2>
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          aria-label={expanded ? "Hide travel details" : "Show travel details"}
+          className="flex w-full items-center gap-4 px-5 py-5 text-left transition-colors hover:bg-muted/40 sm:px-6"
+        >
+          <div className="min-w-0 flex-1 space-y-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                Next shift
+              </span>
+              <span className="text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl">
+                {fmtHM(shiftStart)}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between gap-3">
+              <span
+                className={`text-xs font-medium uppercase tracking-[0.14em] ${
+                  urgent ? "text-destructive" : "text-muted-foreground"
+                }`}
+              >
+                Time to leave
+              </span>
+              <span
+                className={`text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl ${
+                  urgent ? "text-destructive" : ""
+                }`}
+              >
+                {departure ? fmtHM(departure) : status === "loading" ? "…" : "—"}
+              </span>
+            </div>
           </div>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Next shift{" "}
-            <span className="font-medium text-foreground">
-              {shiftStart.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
-            </span>{" "}
-            · <span className="font-medium text-foreground">{fmtHM(shiftStart)}</span>
-          </p>
-        </div>
+          <ChevronDown
+            className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-300 ${
+              expanded ? "rotate-180" : ""
+            }`}
+          />
+        </button>
 
-        {loading && !plan ? (
-          <p className="px-5 py-6 text-sm text-muted-foreground sm:px-6">Planning your trip…</p>
-        ) : plan && plan.ok ? (
-          <TimeToLeaveDetails plan={plan} now={now} />
-        ) : plan && plan.reason === "no_home" ? (
-          <div className="space-y-3 px-5 py-6 sm:px-6">
-            <p className="text-sm text-muted-foreground">
-              Add your home address in Profile to enable navigation.
-            </p>
-            <Button size="sm" variant="outline" asChild>
-              <Link to="/profile">
-                <Home className="mr-1.5 h-3.5 w-3.5" /> Open Profile
-              </Link>
-            </Button>
+        <div
+          className={`grid transition-all duration-300 ease-out ${
+            expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          }`}
+        >
+          <div className="overflow-hidden">
+            <div className="border-t border-border">
+              {snapshot ? (
+                <TimeToLeaveDetails snapshot={snapshot} now={now} />
+              ) : (
+                <div className="space-y-3 px-5 py-5 sm:px-6">
+                  {reason === "no_home" ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        Add your home address in Profile to enable navigation.
+                      </p>
+                      <Button size="sm" variant="outline" asChild>
+                        <Link to="/profile">
+                          <Home className="mr-1.5 h-3.5 w-3.5" /> Open Profile
+                        </Link>
+                      </Button>
+                    </>
+                  ) : status === "loading" ? (
+                    <p className="text-sm text-muted-foreground">Planning your trip…</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Route information is currently unavailable.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        ) : plan && plan.reason === "no_route" ? (
-          <div className="px-5 py-6 sm:px-6">
-            <p className="text-sm font-medium">Route unavailable.</p>
-            <p className="text-sm text-muted-foreground">Try again later.</p>
-          </div>
-        ) : errored ? (
-          <p className="px-5 py-6 text-sm text-destructive sm:px-6">
-            Could not reach the transit service. Retrying automatically.
-          </p>
-        ) : (
-          <p className="px-5 py-6 text-sm text-muted-foreground sm:px-6">Preparing…</p>
-        )}
+        </div>
       </CardContent>
     </Card>
   );
 }
 
-function mapsNavUrl(plan: Extract<TimeToLeaveResult, { ok: true }>) {
-  const params = new URLSearchParams({
-    api: "1",
-    origin: `${plan.home_lat},${plan.home_lng}`,
-    destination: `${plan.office_lat},${plan.office_lng}`,
-    travelmode: "transit",
-  });
-  return `https://www.google.com/maps/dir/?${params.toString()}`;
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium tabular-nums">{value}</span>
+    </div>
+  );
 }
 
 function TimeToLeaveDetails({
-  plan,
+  snapshot,
   now,
 }: {
-  plan: Extract<TimeToLeaveResult, { ok: true }>;
+  snapshot: TimeToLeaveSnapshot;
   now: Date;
 }) {
-  const departure = new Date(plan.departure_iso);
-  const arrival = new Date(plan.arrival_iso);
+  const departure = new Date(snapshot.departure_iso);
+  const arrival = new Date(snapshot.arrival_iso);
   const minutesUntilLeave = Math.round((departure.getTime() - now.getTime()) / 60_000);
-
-  const countdown =
+  const leaveIn =
     minutesUntilLeave <= 0
       ? "Now"
       : minutesUntilLeave < 60
-        ? `${minutesUntilLeave}m`
+        ? `${minutesUntilLeave} min`
         : `${Math.floor(minutesUntilLeave / 60)}h ${minutesUntilLeave % 60}m`;
 
-  const urgent = minutesUntilLeave <= 10;
-
   return (
-    <div className="mt-4 space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[45fr_55fr]">
-        {/* Left: timing + action */}
-        <div className="rounded-2xl border border-border bg-muted/30 p-5 max-lg:glass-tile max-lg:rounded-[18px]">
-          <div
-            className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${
-              urgent ? "text-destructive" : "text-muted-foreground"
-            }`}
-          >
-            Leave in
-          </div>
-          <div
-            className={`mt-1 text-5xl font-semibold tabular-nums tracking-tight sm:text-6xl ${
-              urgent ? "text-destructive" : ""
-            }`}
-          >
-            {countdown}
-          </div>
-          <div className="mt-1 text-2xl font-medium tabular-nums text-muted-foreground">
-            {fmtHM(departure)}
-          </div>
+    <div className="space-y-5 px-5 py-5 sm:px-6">
+      {/* Secondary timings */}
+      <div className="space-y-2">
+        <DetailRow label="Leave in" value={leaveIn} />
+        <DetailRow label="Arrive by" value={fmtHM(arrival)} />
+        <DetailRow
+          label="Journey time"
+          value={`${snapshot.travel_minutes} min`}
+        />
+        <DetailRow label="Transfers" value={snapshot.transfers} />
+        <p className="text-[11px] text-muted-foreground">
+          Includes a {ARRIVAL_BUFFER_MIN} min arrival buffer.
+        </p>
+      </div>
 
-          <div className="mt-4 border-t border-border pt-4 text-sm">
-            <div className="text-muted-foreground">
-              Arrive by <span className="font-medium text-foreground">{fmtHM(arrival)}</span>
-            </div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              {plan.travel_minutes} min journey · {ARRIVAL_BUFFER_MIN} min arrival buffer
-            </div>
+      {/* Route endpoints */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="min-w-0 rounded-2xl border border-border bg-muted/30 p-3">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <Home className="h-3 w-3" /> Home
           </div>
-
-          <Button className="mt-4 w-full" asChild>
-            <a href={mapsNavUrl(plan)} target="_blank" rel="noopener noreferrer">
-              <Navigation className="mr-2 h-4 w-4" /> Start Navigation
-            </a>
-          </Button>
-          <p className="mt-2 text-center text-[11px] text-muted-foreground">
-            Uses current conditions · updates automatically every minute
-          </p>
+          <div className="mt-1 truncate text-sm">{snapshot.home_label}</div>
         </div>
-
-        {/* Right: route preview */}
-        <div className="relative isolate min-h-[260px] overflow-hidden rounded-2xl border border-border">
-          <RouteMapPreview
-            home={{ lat: plan.home_lat, lng: plan.home_lng }}
-            office={{ lat: plan.office_lat, lng: plan.office_lng }}
-            className="absolute inset-0"
-          />
-          <div className="absolute right-3 top-3 z-[2] rounded-xl border border-border bg-background/90 px-3 py-2 shadow-sm backdrop-blur">
-            <div className="flex items-center gap-2">
-              <Train className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold tabular-nums">{plan.travel_minutes} min</span>
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              {plan.transfers > 0
-                ? `${plan.transfers} transfer${plan.transfers === 1 ? "" : "s"}`
-                : "No transfer"}
-            </div>
+        <div className="min-w-0 rounded-2xl border border-border bg-muted/30 p-3">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <Briefcase className="h-3 w-3" /> Studio
           </div>
-          <div className="absolute inset-x-3 bottom-3 z-[2] grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl border border-border bg-background/90 p-3 shadow-sm backdrop-blur">
-            <div className="flex min-w-0 items-center gap-2">
-              <Home className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Home</div>
-                <div className="truncate text-sm">{plan.home_label}</div>
-              </div>
-            </div>
-            <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <div className="flex min-w-0 items-center gap-2">
-              <Briefcase className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Work</div>
-                <div className="truncate text-sm">{plan.office_label}</div>
-              </div>
-            </div>
+          <div className="mt-1 truncate text-sm">{snapshot.office_label}</div>
+        </div>
+      </div>
+
+      <Button className="w-full" asChild>
+        <a href={snapshotMapsUrl(snapshot)} target="_blank" rel="noopener noreferrer">
+          <Navigation className="mr-2 h-4 w-4" /> Start Navigation
+        </a>
+      </Button>
+
+      {/* Route map — geometry comes from the stored snapshot. */}
+      <div className="relative isolate h-[220px] overflow-hidden rounded-2xl border border-border sm:h-[260px]">
+        <RouteMapPreview
+          home={{ lat: snapshot.home_lat, lng: snapshot.home_lng }}
+          office={{ lat: snapshot.office_lat, lng: snapshot.office_lng }}
+          geometry={snapshot.route_geometry}
+          className="absolute inset-0"
+        />
+        <div className="absolute right-3 top-3 z-[2] rounded-xl border border-border bg-background/90 px-3 py-2 shadow-sm backdrop-blur">
+          <div className="flex items-center gap-2">
+            <Train className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold tabular-nums">
+              {snapshot.travel_minutes} min
+            </span>
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            {snapshot.transfers > 0
+              ? `${snapshot.transfers} transfer${snapshot.transfers === 1 ? "" : "s"}`
+              : "No transfer"}
           </div>
         </div>
       </div>
 
-      {plan.direct_options.length > 0 ? (
+      {snapshot.direct_options.length > 0 ? (
         <div className="space-y-2">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Direct options
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            {plan.direct_options.map((o) => (
+            {snapshot.direct_options.map((o) => (
               <div
                 key={o.line + o.departure_iso}
                 className="rounded-2xl border border-border bg-background/60 p-4"

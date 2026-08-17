@@ -59,10 +59,17 @@ export function RouteMapPreview({
   home,
   office,
   className,
+  geometry,
 }: {
   home: Pt;
   office: Pt;
   className?: string;
+  /**
+   * Route geometry from the persisted travel snapshot. When provided (even as
+   * `null`, meaning "the stored plan has no geometry"), the map never calls
+   * the routing service itself — the snapshot is the single source of truth.
+   */
+  geometry?: [number, number][] | null;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -175,7 +182,10 @@ export function RouteMapPreview({
       layersRef.current.push(provisional);
       fit(straight);
 
-      const coords = await resolveRoute(home, office, controller.signal);
+      const coords =
+        geometry !== undefined
+          ? geometry
+          : await resolveRoute(home, office, controller.signal);
       if (cancelled) return;
       setRouteFailed(!coords);
       if (coords) {
@@ -199,7 +209,7 @@ export function RouteMapPreview({
       cancelled = true;
       controller.abort();
     };
-  }, [visible, home.lat, home.lng, office.lat, office.lng]);
+  }, [visible, home.lat, home.lng, office.lat, office.lng, geometry]);
 
   // Keep the map filling its container (and framed) on every layout change.
   useEffect(() => {
