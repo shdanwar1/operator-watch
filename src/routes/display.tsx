@@ -189,7 +189,7 @@ function DisplayScreen() {
           <PreClassStage stage={stage} startsAt={state.startTime} isLandscape={isLandscape} />
 
         ) : (
-          <MainStage stage={stage} notes={state.notes} isLandscape={isLandscape} />
+          <MainStage stage={stage} notes={state.notes} isLandscape={ratio >= 1.35} />
         )}
       </div>
     </div>
