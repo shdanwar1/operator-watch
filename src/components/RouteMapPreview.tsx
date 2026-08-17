@@ -209,7 +209,7 @@ export function RouteMapPreview({
       cancelled = true;
       controller.abort();
     };
-  }, [visible, home.lat, home.lng, office.lat, office.lng]);
+  }, [visible, home.lat, home.lng, office.lat, office.lng, geometry]);
 
   // Keep the map filling its container (and framed) on every layout change.
   useEffect(() => {
