@@ -35,22 +35,38 @@ function useTicker(ms = 250) {
   }, [ms]);
 }
 
+/**
+ * Measures the display surface and derives orientation from real pixels.
+ * Portrait when height > width * 1.15, landscape when width > height * 1.15;
+ * near-square prefers the stacked (portrait) composition.
+ */
 function useAspect() {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [ratio, setRatio] = useState(16 / 9);
+  const [size, setSize] = useState<{ w: number; h: number }>(() =>
+    typeof window === "undefined"
+      ? { w: 0, h: 0 }
+      : { w: window.innerWidth, h: window.innerHeight },
+  );
   useLayoutEffect(() => {
     if (!ref.current) return;
     const el = ref.current;
-    const ro = new ResizeObserver(() => {
+    const measure = () => {
       const w = el.clientWidth;
       const h = el.clientHeight;
-      if (w > 0 && h > 0) setRatio(w / h);
-    });
+      if (w > 0 && h > 0) setSize((p) => (p.w === w && p.h === h ? p : { w, h }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  return { ref, ratio, isLandscape: ratio >= 1.35 };
+  const { w, h } = size;
+  const ratio = w > 0 && h > 0 ? w / h : 0;
+  const isLandscape = w > 0 && h > 0 ? w > h * 1.15 : false;
+  const isPortrait = !isLandscape;
+  return { ref, ratio, isLandscape, isPortrait };
 }
+
 
 function useSize<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
@@ -163,16 +179,17 @@ function DisplayScreen() {
             stage={stage}
             startsAt={state.startTime}
             durationMin={state.durationMin}
-            isLandscape={isLandscape}
+            isLandscape={ratio >= 1.35}
           />
         ) : stage.phase === "countdown10" ? (
           <CountdownCinematic n={stage.bigNumber ?? 1} />
         ) : stage.phase === "qa" ? (
           <QAStage stage={stage} />
         ) : showPreClass ? (
-          <PreClassStage stage={stage} startsAt={state.startTime} isLandscape={ratio >= 1} />
+          <PreClassStage stage={stage} startsAt={state.startTime} isLandscape={isLandscape} />
+
         ) : (
-          <MainStage stage={stage} notes={state.notes} isLandscape={isLandscape} />
+          <MainStage stage={stage} notes={state.notes} isLandscape={ratio >= 1.35} />
         )}
       </div>
     </div>
@@ -372,10 +389,10 @@ function PreClassStage({
     );
   }
 
-  // Portrait: full-width stacked composition, timer on top.
+  // Portrait / near-square: full-width stacked composition, timer on top.
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3vh,2.5rem)]">
-      <div className="flex w-full flex-1 items-center justify-center px-[clamp(1rem,6vw,3rem)]">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3vh,2.5rem)] overflow-hidden">
+      <div className="flex min-h-0 w-full flex-[1.1] items-center justify-center px-[clamp(1rem,6vw,3rem)]">
         <PreClassTimer stage={stage} startsAt={startsAt} portrait />
       </div>
       <div
@@ -383,11 +400,12 @@ function PreClassStage({
         className="h-px w-[min(88%,44rem)] shrink-0"
         style={{ background: "rgba(255,255,255,0.10)" }}
       />
-      <div className="flex w-full flex-1 items-start justify-center px-[clamp(1.5rem,6vw,3rem)] pt-[clamp(0.75rem,3vh,2rem)]">
+      <div className="flex min-h-0 w-full flex-1 items-start justify-center overflow-hidden px-[clamp(1.5rem,6vw,3rem)] pt-[clamp(0.75rem,3vh,2rem)]">
         <IcebreakerLine tip={tip} fadeKey={fadeKey} centered />
       </div>
     </div>
   );
+
 }
 
 function PreClassTimer({
@@ -414,7 +432,10 @@ function PreClassTimer({
       <div
         className="font-mono font-semibold leading-none tabular-nums"
         style={{
-          fontSize: portrait ? "clamp(3rem, 22vw, 12rem)" : "clamp(3.5rem, 15vmin, 18rem)",
+          fontSize: portrait
+            ? "clamp(2.75rem, min(20vw, 18vh), 12rem)"
+            : "clamp(3.5rem, 15vmin, 18rem)",
+
           letterSpacing: "-0.05em",
           whiteSpace: "nowrap",
           maxWidth: "100%",
