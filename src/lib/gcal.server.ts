@@ -33,7 +33,14 @@ export type GcalSyncResult = {
   error?: string;
   /** Per-event accept/reject trace (admin/debug view only). */
   logs?: MatchLog[];
+  /**
+   * Server-authoritative time of the latest *successful* sync for this
+   * operator. On failure this is the previous successful value (or null) —
+   * never a freshly generated timestamp.
+   */
+  syncedAt?: string | null;
 };
+
 
 export type CalendarClassRow = {
   id: string;
