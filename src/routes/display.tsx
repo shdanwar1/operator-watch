@@ -89,10 +89,10 @@ function shouldShowIcebreaker({
   if (isLandscape) {
     // Side-by-side: the ice-breaker column needs real width, and the timer
     // still needs enough height to stay large.
-    return width >= 900 * slack && height >= 380 * slack;
+    return width >= 1000 * slack && height >= 420 * slack;
   }
   // Stacked: vertical space is the binding constraint (timer + rule + text).
-  return height >= 620 * slack && width >= 420 * slack;
+  return height >= 780 * slack && width >= 460 * slack;
 }
 
 function useIcebreakerVisible(width: number, height: number, isLandscape: boolean) {
