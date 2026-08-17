@@ -201,24 +201,24 @@ export function ClassScheduleCard({
                       )}
                     >
                       {c.class_name}
-                      {!isCancelled && (!c.class_id || !c.teacher_id) && (
+                      {!isCancelled && (classUnmatched(c) || teacherUnmatched(c)) && (
                         <button
                           type="button"
                           disabled={!onCorrect}
                           onClick={() => {
                             if (!onCorrect) return;
                             setFixing(c);
-                            setFixClass(c.class_id ? c.class_name : "");
-                            setFixTeacher(c.teacher_id ? c.teacher_name : "");
+                            setFixClass(classUnmatched(c) ? "" : c.class_name);
+                            setFixTeacher(teacherUnmatched(c) ? "" : c.teacher_name);
                           }}
                           className={cn(
                             "shrink-0 text-warn",
                             onCorrect && "cursor-pointer hover:text-warn/80",
                           )}
                           title={
-                            !c.class_id && !c.teacher_id
+                            classUnmatched(c) && teacherUnmatched(c)
                               ? "Class and teacher couldn't be matched automatically — tap to fix"
-                              : !c.class_id
+                              : classUnmatched(c)
                                 ? "Class couldn't be matched automatically — tap to fix"
                                 : "Teacher couldn't be matched automatically — tap to fix"
                           }
