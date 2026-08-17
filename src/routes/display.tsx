@@ -243,7 +243,13 @@ function DisplayScreen() {
         ) : stage.phase === "qa" ? (
           <QAStage stage={stage} />
         ) : showPreClass ? (
-          <PreClassStage stage={stage} startsAt={state.startTime} isLandscape={isLandscape} />
+          <PreClassStage
+            stage={stage}
+            startsAt={state.startTime}
+            isLandscape={isLandscape}
+            showIcebreaker={icebreakerVisible}
+          />
+
 
         ) : (
           <MainStage stage={stage} notes={state.notes} isLandscape={isLandscape} />
