@@ -268,8 +268,8 @@ export function ClassScheduleCard({
                           <DropdownMenuItem
                             onClick={() => {
                               setFixing(c);
-                              setFixClass(c.class_id ? c.class_name : "");
-                              setFixTeacher(c.teacher_id ? c.teacher_name : "");
+                              setFixClass(classUnmatched(c) ? "" : c.class_name);
+                              setFixTeacher(teacherUnmatched(c) ? "" : c.teacher_name);
                             }}
                           >
                             <Wand2 className="mr-2 h-4 w-4" /> Fix class match
