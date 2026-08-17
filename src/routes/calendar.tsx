@@ -11,7 +11,11 @@ import {
   type ScheduledShiftRow,
   type ShiftRow,
 } from "@/lib/shifts.functions";
-import { getMyCalendarUrl, checkMyCalendarHealth } from "@/lib/gcal.functions";
+import {
+  getMyCalendarUrl,
+  checkMyCalendarHealth,
+  getMyCalendarSyncStatus,
+} from "@/lib/gcal.functions";
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
