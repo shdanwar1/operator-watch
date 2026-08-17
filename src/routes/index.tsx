@@ -21,7 +21,6 @@ import { useTravelPlan } from "@/hooks/useTravelPlan";
 import { snapshotMapsUrl, type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { useReminders, type Reminder } from "@/hooks/useReminders";
-import { useCachedResource } from "@/hooks/useCachedResource";
 import { clearAllCaches, operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.functions";
@@ -1762,7 +1761,7 @@ function TimeToLeaveDetails({
         <RouteMapPreview
           home={{ lat: snapshot.home_lat, lng: snapshot.home_lng }}
           office={{ lat: snapshot.office_lat, lng: snapshot.office_lng }}
-          geometry={snapshot.route_geometry}
+          geometry={snapshot.route_geometry ?? undefined}
           className="absolute inset-0"
         />
       </div>
