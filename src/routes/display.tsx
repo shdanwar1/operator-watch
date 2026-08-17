@@ -542,10 +542,12 @@ function PreClassStage({
   stage,
   startsAt,
   isLandscape,
+  showIcebreaker = true,
 }: {
   stage: StageInfo;
   startsAt: string;
   isLandscape: boolean;
+  showIcebreaker?: boolean;
 }) {
   // One rotating ice-breaker, refreshed every 15s
   const [tip, setTip] = useState<string>(() => pickIcebreaker());
@@ -568,6 +570,16 @@ function PreClassStage({
       if (interval) clearInterval(interval);
     };
   }, []);
+
+  // Not enough room for the supplementary content: the timer takes the whole
+  // surface and re-centres — no divider, no empty column, no clipped text.
+  if (!showIcebreaker) {
+    return (
+      <div className="flex h-full w-full min-h-0 min-w-0 items-center justify-center px-[clamp(1rem,5vw,4rem)]">
+        <PreClassTimer stage={stage} startsAt={startsAt} portrait={!isLandscape} />
+      </div>
+    );
+  }
 
   if (isLandscape) {
     return (
@@ -603,6 +615,7 @@ function PreClassStage({
         </div>
       </div>
     </div>
+
   );
 }
 
