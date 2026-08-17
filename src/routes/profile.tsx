@@ -313,8 +313,8 @@ function ProfilePage() {
             label="Shift start"
             checked={prefs.notifyShiftStart}
             onChange={(v) => setPref({ notifyShiftStart: v })}
-            last
           />
+          <PushDeviceToggle />
         </Panel>
 
         <Panel title="Dashboard settings">
