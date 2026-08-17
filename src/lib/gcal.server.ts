@@ -117,12 +117,7 @@ export async function runCalendarSync(
   const previous = await readCalendarSyncStatus(username).catch(() => ({
     calendarLastSyncAt: null as string | null,
   }));
-  let result: GcalSyncResult;
-  try {
-    result = await runCalendarImport(username, opts);
-  } catch (e) {
-    throw e;
-  }
+  const result = await runCalendarImport(username, opts);
   if (!result.ok) return { ...result, syncedAt: previous.calendarLastSyncAt };
   const syncedAt = await stampCalendarSync(username);
   return { ...result, syncedAt };
