@@ -39,7 +39,7 @@ Shared intent: the display becomes a *stage*, not a UI. Type and negative space 
 
 ## 3. Shared design system
 
-- **Type:** system/SF stack. Three roles — display numerals (tabular, tight tracking, weight 300–600 by state), tracked uppercase labels (`0.3–0.38em`, 45–80% opacity), and body/notes (regular, loose leading). All sizes stay `clamp()`-driven off `vmin`/container units.
+- **Type — SF Pro everywhere:** every Studio Display screen (all stages plus the control panel and preview) uses the SF Pro family via the existing `--font-sans` / `--font-display` tokens in `src/styles.css` (`-apple-system, BlinkMacSystemFont, "SF Pro Display"/"SF Pro Text", …`). The current `font-mono` on the timers is dropped — digits switch to SF Pro Display with `font-variant-numeric: tabular-nums` and `font-feature-settings: "tnum", "ss01"` so they stay perfectly column-aligned while gaining SF's cleaner numerals. A `--font-display-numeric` token is added for the large clock digits so all timers share one face. Three roles: display numerals (SF Pro Display, tabular, tight tracking, weight 300–600 by state), tracked uppercase labels (SF Pro Text, `0.3–0.38em`, 45–80% opacity), and body/notes (SF Pro Text, regular, loose leading). All sizes stay `clamp()`-driven off `vmin`/container units.
 - **Spacing:** one scale, `clamp()` steps tied to `vmin` so every screen breathes identically at 500×1000 and 1920×1080.
 - **Colour:** `STAGE_COLORS` values unchanged as the semantic source; only a subtle same-hue tonal overlay is added at the surface level. Foreground stays `stage.fg`.
 - **Dividers:** always 1px, always fading at the ends, never a full-strength border.
