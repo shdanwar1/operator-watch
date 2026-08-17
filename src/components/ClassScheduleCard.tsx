@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ExternalLink, CalendarDays, MoreHorizontal, Check, X, Wand2 } from "lucide-react";
+import { ExternalLink, CalendarDays, MoreHorizontal, Check, X, Wand2, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import {
   Dialog,
@@ -184,11 +184,36 @@ export function ClassScheduleCard({
                   <div className="min-w-0 flex-1">
                     <div
                       className={cn(
-                        "truncate text-sm font-medium",
+                        "flex items-center gap-1.5 truncate text-sm font-medium",
                         isCancelled && "line-through",
                       )}
                     >
                       {c.class_name}
+                      {!isCancelled && (!c.class_id || !c.teacher_id) && (
+                        <button
+                          type="button"
+                          disabled={!onCorrect}
+                          onClick={() => {
+                            if (!onCorrect) return;
+                            setFixing(c);
+                            setFixClass(c.class_id ? c.class_name : "");
+                            setFixTeacher(c.teacher_id ? c.teacher_name : "");
+                          }}
+                          className={cn(
+                            "shrink-0 text-warn",
+                            onCorrect && "cursor-pointer hover:text-warn/80",
+                          )}
+                          title={
+                            !c.class_id && !c.teacher_id
+                              ? "Class and teacher couldn't be matched automatically — tap to fix"
+                              : !c.class_id
+                                ? "Class couldn't be matched automatically — tap to fix"
+                                : "Teacher couldn't be matched automatically — tap to fix"
+                          }
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                     <div className="truncate text-xs text-muted-foreground">{c.teacher_name}</div>
                   </div>
