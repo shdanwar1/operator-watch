@@ -35,22 +35,38 @@ function useTicker(ms = 250) {
   }, [ms]);
 }
 
+/**
+ * Measures the display surface and derives orientation from real pixels.
+ * Portrait when height > width * 1.15, landscape when width > height * 1.15;
+ * near-square prefers the stacked (portrait) composition.
+ */
 function useAspect() {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [ratio, setRatio] = useState(16 / 9);
+  const [size, setSize] = useState<{ w: number; h: number }>(() =>
+    typeof window === "undefined"
+      ? { w: 0, h: 0 }
+      : { w: window.innerWidth, h: window.innerHeight },
+  );
   useLayoutEffect(() => {
     if (!ref.current) return;
     const el = ref.current;
-    const ro = new ResizeObserver(() => {
+    const measure = () => {
       const w = el.clientWidth;
       const h = el.clientHeight;
-      if (w > 0 && h > 0) setRatio(w / h);
-    });
+      if (w > 0 && h > 0) setSize((p) => (p.w === w && p.h === h ? p : { w, h }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  return { ref, ratio, isLandscape: ratio >= 1.35 };
+  const { w, h } = size;
+  const ratio = w > 0 && h > 0 ? w / h : 0;
+  const isLandscape = w > 0 && h > 0 ? w > h * 1.15 : false;
+  const isPortrait = !isLandscape;
+  return { ref, ratio, isLandscape, isPortrait };
 }
+
 
 function useSize<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
