@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase, ChevronDown } from "lucide-react";
+import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase, ChevronDown, ArrowLeftRight, Flag, Hourglass, ShieldCheck, Building2 } from "lucide-react";
 import { RouteMapPreview } from "@/components/RouteMapPreview";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
