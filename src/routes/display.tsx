@@ -61,10 +61,10 @@ function useAspect() {
     return () => ro.disconnect();
   }, []);
   const { w, h } = size;
-  const ratio = w > 0 && h > 0 ? w / h : 0;
+  // Single orientation threshold for the whole display — every stage reads
+  // this one value, so no two panels can disagree about the layout.
   const isLandscape = w > 0 && h > 0 ? w > h * 1.15 : false;
-  const isPortrait = !isLandscape;
-  return { ref, ratio, isLandscape, isPortrait };
+  return { ref, isLandscape, isPortrait: !isLandscape };
 }
 
 
@@ -86,7 +86,7 @@ function useSize<T extends HTMLElement>() {
 function DisplayScreen() {
   const { state: shared, ready } = useStudioDisplay("display");
   useTicker(250);
-  const { ref, ratio, isLandscape } = useAspect();
+  const { ref, isLandscape } = useAspect();
 
   // A class-specific display is opened with ?c=&t=&s=&d= — no manual setup.
   const [override, setOverride] = useState<{
@@ -194,17 +194,17 @@ function DisplayScreen() {
             stage={stage}
             startsAt={state.startTime}
             durationMin={state.durationMin}
-            isLandscape={ratio >= 1.35}
+            isLandscape={isLandscape}
           />
         ) : stage.phase === "countdown10" ? (
           <CountdownCinematic n={stage.bigNumber ?? 1} />
         ) : stage.phase === "qa" ? (
           <QAStage stage={stage} />
         ) : showPreClass ? (
-          <PreClassStage stage={stage} startsAt={state.startTime} />
+          <PreClassStage stage={stage} startsAt={state.startTime} isLandscape={isLandscape} />
 
         ) : (
-          <MainStage stage={stage} notes={state.notes} isLandscape={ratio >= 1.35} />
+          <MainStage stage={stage} notes={state.notes} isLandscape={isLandscape} />
         )}
       </div>
     </div>
@@ -341,7 +341,7 @@ function ClassInfoStage({
   return (
     <div
       className={`grid h-full w-full max-w-[1800px] items-center gap-[clamp(1.25rem,4vw,4.5rem)] ${
-        isLandscape ? "md:grid-cols-[minmax(0,1.35fr)_1px_minmax(0,1fr)]" : ""
+        isLandscape ? "grid-cols-[minmax(0,1.35fr)_1px_minmax(0,1fr)]" : "grid-cols-1"
       }`}
     >
       {/* Class identity */}
@@ -373,13 +373,17 @@ function ClassInfoStage({
       </div>
 
       {isLandscape ? (
-        <div aria-hidden className="sd-rule-v hidden h-[62%] w-px md:block" />
+        <div aria-hidden className="sd-rule-v h-[62%] w-px" />
       ) : (
-        <div aria-hidden className="sd-rule-h h-px w-full md:hidden" />
+        <div aria-hidden className="sd-rule-h h-px w-full" />
       )}
 
       {/* Countdown */}
-      <div className="flex flex-col items-center justify-center gap-[clamp(0.35rem,1.2vmin,1rem)] text-center md:items-end md:text-right">
+      <div
+        className={`flex flex-col justify-center gap-[clamp(0.35rem,1.2vmin,1rem)] ${
+          isLandscape ? "items-end text-right" : "items-center text-center"
+        }`}
+      >
         <StageLabel opacity={0.5} size="clamp(0.6rem, 1vmin, 1rem)">
           Class starts in
         </StageLabel>
@@ -413,9 +417,9 @@ function MainStage({
 
   if (isLandscape && hasNotes) {
     return (
-      <div className="grid h-full w-full max-w-[1800px] items-center gap-[clamp(1.25rem,4vw,4.5rem)] lg:grid-cols-[minmax(0,1.15fr)_1px_minmax(0,1fr)]">
+      <div className="grid h-full w-full max-w-[1800px] grid-cols-[minmax(0,1.15fr)_1px_minmax(0,1fr)] items-center gap-[clamp(1.25rem,4vw,4.5rem)]">
         <TimerBlock stage={stage} compact />
-        <div aria-hidden className="sd-rule-v hidden h-[58%] w-px lg:block" />
+        <div aria-hidden className="sd-rule-v h-[58%] w-px" />
         <NotesPanel notes={notes} />
       </div>
     );
@@ -489,9 +493,11 @@ function IdleStage({ label }: { label: string }) {
 function PreClassStage({
   stage,
   startsAt,
+  isLandscape,
 }: {
   stage: StageInfo;
   startsAt: string;
+  isLandscape: boolean;
 }) {
   // One rotating ice-breaker, refreshed every 15s
   const [tip, setTip] = useState<string>(() => pickIcebreaker());
@@ -515,11 +521,10 @@ function PreClassStage({
     };
   }, []);
 
-  return (
-    <div className="h-full w-full min-h-0 min-w-0">
-      {/* CSS container queries use the actual rendered surface dimensions, so
-          orientation cannot become stale while the popup is being resized. */}
-      <div className="sd-preclass-landscape relative h-full w-full grid-cols-2">
+  if (isLandscape) {
+    return (
+      <div className="h-full w-full min-h-0 min-w-0">
+      <div className="relative grid h-full w-full grid-cols-2">
         {/* Left panel: timer, centered within its own half */}
         <div className="flex min-w-0 items-center justify-center px-[clamp(1rem,3vw,4rem)]">
           <PreClassTimer stage={stage} startsAt={startsAt} />
@@ -534,8 +539,13 @@ function PreClassStage({
           <IcebreakerLine tip={tip} fadeKey={fadeKey} />
         </div>
       </div>
+      </div>
+    );
+  }
 
-      <div className="sd-preclass-portrait h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3vh,2.5rem)] overflow-hidden">
+  return (
+    <div className="h-full w-full min-h-0 min-w-0">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3vh,2.5rem)] overflow-hidden">
         <div className="flex min-h-0 w-full flex-[1.1] items-center justify-center px-[clamp(1rem,6vw,3rem)]">
           <PreClassTimer stage={stage} startsAt={startsAt} portrait />
         </div>

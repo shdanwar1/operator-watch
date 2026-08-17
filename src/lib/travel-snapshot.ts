@@ -17,7 +17,7 @@ import { readCache, writeCache, operatorNamespace } from "@/lib/local-cache";
 import type { DirectOption, TimeToLeaveResult } from "@/lib/travel.functions";
 
 /** Bump to invalidate every stored plan (algorithm / shape changes). */
-export const TRAVEL_SNAPSHOT_VERSION = 2;
+export const TRAVEL_SNAPSHOT_VERSION = 3;
 
 export type TimeToLeaveSnapshot = {
   version: number;
@@ -68,12 +68,16 @@ export type TravelPlanIdentity = {
   shiftEndIso: string;
   homeLat: number | null;
   homeLng: number | null;
+  /** Destination: an admin can move the studio, which invalidates every plan. */
+  studioLat: number | null;
+  studioLng: number | null;
 };
 
 export function travelPlanKey(id: TravelPlanIdentity): string {
   const fingerprint = [
     id.shiftEndIso,
     coordFp(id.homeLat, id.homeLng),
+    coordFp(id.studioLat, id.studioLng),
     `v${TRAVEL_SNAPSHOT_VERSION}`,
   ].join("|");
   return `${operatorNamespace(id.username)}${BASE}:${id.shiftStartIso}:${fingerprint}`;

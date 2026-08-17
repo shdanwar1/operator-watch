@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { berlinDateKey } from "./gcal-core";
 import { useSession } from "@tanstack/react-start/server";
 import {
   validateUsername,
@@ -258,7 +259,7 @@ export const adminListOperators = createServerFn({ method: "GET" }).handler(asyn
   const rows = (data ?? []) as { id: string; username: string; is_admin: boolean; is_active: boolean }[];
 
   // Count future assigned shifts per operator (scheduled_shifts).
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = berlinDateKey();
   const { data: futureRows } = await supabaseAdmin
     .from("scheduled_shifts")
     .select("assigned_operator, specific_date")
@@ -335,7 +336,7 @@ export const adminSetOperatorActive = createServerFn({ method: "POST" })
 
     let unassigned = 0;
     if (!data.active && data.unassign_future) {
-      const todayIso = new Date().toISOString().slice(0, 10);
+      const todayIso = berlinDateKey();
       const { data: rows, error: e1 } = await supabaseAdmin
         .from("scheduled_shifts")
         .update({ assigned_operator: null, status: "unassigned" })
@@ -395,7 +396,7 @@ export const adminDeleteOperator = createServerFn({ method: "POST" })
     const username = (row as { username: string }).username;
 
     // Release any future assignments so the schedule doesn't point at a ghost.
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = berlinDateKey();
     await supabaseAdmin
       .from("scheduled_shifts")
       .update({ assigned_operator: null, status: "unassigned" })

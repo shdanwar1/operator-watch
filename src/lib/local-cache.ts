@@ -8,7 +8,7 @@
  * that isn't already visible in the UI for that signed-in operator. It is
  * not a substitute for the server being the source of truth: every read
  * from here is expected to be followed by a background refresh that
- * overwrites it once fresh data arrives (see `useCachedResource`).
+ * overwrites it once fresh data arrives.
  */
 
 const PREFIX = "studio-cache:";

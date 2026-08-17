@@ -163,12 +163,16 @@ export const getGateStatus = createServerFn({ method: "GET" }).handler(async () 
   // so protected routes redirect back to the user-select screen immediately.
   if (username && !isAdmin) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row } = await supabaseAdmin
+    const { data: row, error } = await supabaseAdmin
       .from("operators")
       .select("is_active")
       .ilike("username", username)
       .maybeSingle();
-    if (!row || (row as { is_active: boolean }).is_active === false) {
+    // A database error is not evidence that the operator was deactivated.
+    // Signing them out on a transient failure would bounce everyone to the
+    // user-select screen mid-shift, so only an authoritative answer — the row
+    // is gone, or it says inactive — ends the session.
+    if (!error && (!row || (row as { is_active: boolean }).is_active === false)) {
       await session.update({ siteUnlocked, username: undefined, isAdmin: false });
       username = null;
       isAdmin = false;

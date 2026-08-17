@@ -218,29 +218,13 @@
   }
 }
 
-/* Studio Display pre-class scene: orientation follows the rendered display
-   surface itself and updates synchronously during popup resizing. */
+/* Studio Display surface. Orientation itself is decided in one place in JS
+   (useAspect) so every stage agrees on it; this only keeps the container
+   sizing available to container-relative units inside the scene. */
 .sd-display-surface {
   container-type: size;
 }
 
-.sd-preclass-landscape {
-  display: none;
-}
-
-.sd-preclass-portrait {
-  display: flex;
-}
-
-@container (min-aspect-ratio: 23 / 20) {
-  .sd-preclass-landscape {
-    display: grid;
-  }
-
-  .sd-preclass-portrait {
-    display: none;
-  }
-}
 
 /* Realistic hourglass — sand stream + urgent pulse */
 @keyframes hg-stream-flow {
