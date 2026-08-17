@@ -102,6 +102,18 @@ export function ClassScheduleCard({
 
   const states = classes.map((c) => classStatusOf(c, now));
 
+  // A class is "unmatched" when it has no link to the class/teacher directory.
+  // The name check is a safety net: a stale row can still carry an id that no
+  // longer exists in the directory, and that is just as broken as a null id.
+  const knownClass = new Set(classOptions.map((o) => o.name.trim().toLowerCase()));
+  const knownTeacher = new Set(teacherOptions.map((o) => o.name.trim().toLowerCase()));
+  const classUnmatched = (c: CalendarClassRow) =>
+    !c.class_id || (knownClass.size > 0 && !knownClass.has(c.class_name.trim().toLowerCase()));
+  const teacherUnmatched = (c: CalendarClassRow) =>
+    !c.teacher_id ||
+    (knownTeacher.size > 0 && !knownTeacher.has(c.teacher_name.trim().toLowerCase()));
+
+
 
   const openDisplay = (c: CalendarClassRow) => {
     window.open(
@@ -189,24 +201,24 @@ export function ClassScheduleCard({
                       )}
                     >
                       {c.class_name}
-                      {!isCancelled && (!c.class_id || !c.teacher_id) && (
+                      {!isCancelled && (classUnmatched(c) || teacherUnmatched(c)) && (
                         <button
                           type="button"
                           disabled={!onCorrect}
                           onClick={() => {
                             if (!onCorrect) return;
                             setFixing(c);
-                            setFixClass(c.class_id ? c.class_name : "");
-                            setFixTeacher(c.teacher_id ? c.teacher_name : "");
+                            setFixClass(classUnmatched(c) ? "" : c.class_name);
+                            setFixTeacher(teacherUnmatched(c) ? "" : c.teacher_name);
                           }}
                           className={cn(
                             "shrink-0 text-warn",
                             onCorrect && "cursor-pointer hover:text-warn/80",
                           )}
                           title={
-                            !c.class_id && !c.teacher_id
+                            classUnmatched(c) && teacherUnmatched(c)
                               ? "Class and teacher couldn't be matched automatically — tap to fix"
-                              : !c.class_id
+                              : classUnmatched(c)
                                 ? "Class couldn't be matched automatically — tap to fix"
                                 : "Teacher couldn't be matched automatically — tap to fix"
                           }
@@ -256,8 +268,8 @@ export function ClassScheduleCard({
                           <DropdownMenuItem
                             onClick={() => {
                               setFixing(c);
-                              setFixClass(c.class_id ? c.class_name : "");
-                              setFixTeacher(c.teacher_id ? c.teacher_name : "");
+                              setFixClass(classUnmatched(c) ? "" : c.class_name);
+                              setFixTeacher(teacherUnmatched(c) ? "" : c.teacher_name);
                             }}
                           >
                             <Wand2 className="mr-2 h-4 w-4" /> Fix class match
