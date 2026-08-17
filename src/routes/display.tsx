@@ -63,14 +63,15 @@ function useAspect() {
   const { w, h } = size;
   // Single orientation threshold for the whole display — every stage reads
   // this one value, so no two panels can disagree about the layout.
-  const isLandscape = w > 0 && h > 0 ? w > h * 1.15 : false;
+  // Wider than tall => landscape (side-by-side); otherwise stacked.
+  const isLandscape = w > 0 && h > 0 ? w >= h : false;
   return { ref, isLandscape, isPortrait: !isLandscape, width: w, height: h };
 }
 
 /**
  * Layout capacity check for the optional pre-class ice-breaker.
- * Priority 1 is the countdown; the ice-breaker only renders when the measured
- * display area can hold the timer at a usable size *plus* the divider and text.
+ * Priority 1 is the countdown; the ice-breaker is dropped only when the
+ * measured surface genuinely cannot hold both at a readable size.
  * `showing` provides hysteresis so a resize near the threshold can't flicker.
  */
 function shouldShowIcebreaker({
@@ -85,15 +86,15 @@ function shouldShowIcebreaker({
   showing: boolean;
 }) {
   if (width <= 0 || height <= 0) return showing;
-  const slack = showing ? 0.92 : 1; // keep visible slightly past the hide point
+  const slack = showing ? 0.9 : 1; // keep visible slightly past the hide point
   if (isLandscape) {
-    // Side-by-side: the ice-breaker column needs real width, and the timer
-    // still needs enough height to stay large.
-    return width >= 1000 * slack && height >= 420 * slack;
+    // Side-by-side: each half needs enough width, timer needs some height.
+    return width >= 720 * slack && height >= 300 * slack;
   }
   // Stacked: vertical space is the binding constraint (timer + rule + text).
-  return height >= 780 * slack && width >= 460 * slack;
+  return height >= 520 * slack && width >= 340 * slack;
 }
+
 
 function useIcebreakerVisible(width: number, height: number, isLandscape: boolean) {
   const [visible, setVisible] = useState(false);
