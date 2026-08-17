@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase, ChevronDown } from "lucide-react";
+import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase, ChevronDown, ArrowLeftRight, Flag, Hourglass, ShieldCheck, Building2 } from "lucide-react";
 import { RouteMapPreview } from "@/components/RouteMapPreview";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
@@ -1226,6 +1226,74 @@ function fmtHM(d: Date) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
+/** Splits "07:30 AM" into value + meridiem so the suffix can be de-emphasised. */
+function splitClock(d: Date) {
+  const s = fmtHM(d);
+  const m = s.match(/^(.*?)\s*([AaPp][Mm])$/);
+  return m ? { time: m[1], suffix: m[2].toUpperCase() } : { time: s, suffix: "" };
+}
+
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+/**
+ * Day context for a shift, derived from its actual timestamp (never from a
+ * manually offset weekday), so midnight and week boundaries stay correct.
+ *
+ * today → "Today", tomorrow → "Tomorrow", within 6 days → "Wed, Aug 19",
+ * beyond → "Mon, Aug 24".
+ */
+function shiftDayLabel(shiftStart: Date, now: Date) {
+  const days = Math.round(
+    (startOfDay(shiftStart).getTime() - startOfDay(now).getTime()) / 86_400_000,
+  );
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  return shiftStart.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function fullDateLabel(d: Date) {
+  return d.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function IconTile({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary">
+      {children}
+    </div>
+  );
+}
+
+function BigClock({ date, tone }: { date: Date; tone?: "urgent" | "go" }) {
+  const { time, suffix } = splitClock(date);
+  return (
+    <span
+      className={`text-3xl font-semibold tabular-nums tracking-tight sm:text-[2.35rem] ${
+        tone === "urgent" ? "text-destructive" : tone === "go" ? "text-primary" : ""
+      }`}
+    >
+      {time}
+      {suffix ? (
+        <span className="ml-1 align-baseline text-lg font-medium text-muted-foreground sm:text-xl">
+          {suffix}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 /**
  * Time to Leave.
  *
@@ -1290,12 +1358,15 @@ function TimeToLeaveCard({
   if (!next) return null;
 
   const shiftStart = next.startAt;
+  const shiftClock = splitClock(shiftStart);
   const departure = snapshot ? new Date(snapshot.departure_iso) : null;
+  const arrival = snapshot ? new Date(snapshot.arrival_iso) : null;
   const minutesUntilLeave = departure
     ? Math.round((departure.getTime() - now.getTime()) / 60_000)
     : null;
   const urgent = minutesUntilLeave !== null && minutesUntilLeave <= 10;
   const hero = variant === "hero";
+  const best = snapshot?.direct_options[0] ?? null;
 
   return (
     <Card
@@ -1304,46 +1375,107 @@ function TimeToLeaveCard({
       }`}
     >
       <CardContent className="p-0">
+        {/* ── Header: day + time context, and the departure clock ───────── */}
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
           aria-label={expanded ? "Hide travel details" : "Show travel details"}
-          className="flex w-full items-center gap-4 px-5 py-5 text-left transition-colors hover:bg-muted/40 sm:px-6"
+          className="flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-muted/30 sm:px-6 sm:py-5"
         >
-          <div className="min-w-0 flex-1 space-y-3">
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <IconTile>
+            <CalendarDays className="h-5 w-5" />
+          </IconTile>
+
+          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+            <div className="min-w-0 sm:flex-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                 Next shift
-              </span>
-              <span className="text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl">
-                {fmtHM(shiftStart)}
-              </span>
+              </div>
+              <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-2xl font-semibold tracking-tight sm:text-[1.75rem]">
+                <span className="truncate">{shiftDayLabel(shiftStart, now)}</span>
+                <span className="text-muted-foreground">·</span>
+                <span className="tabular-nums">{shiftClock.time}</span>
+                {shiftClock.suffix ? (
+                  <span className="text-base font-medium text-muted-foreground">
+                    {shiftClock.suffix}
+                  </span>
+                ) : null}
+              </div>
+              {expanded ? (
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  {fullDateLabel(shiftStart)}
+                </div>
+              ) : null}
             </div>
-            <div className="flex items-baseline justify-between gap-3">
-              <span
-                className={`text-xs font-medium uppercase tracking-[0.14em] ${
+
+            <div className="min-w-0 sm:border-l sm:border-border sm:pl-5">
+              <div
+                className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${
                   urgent ? "text-destructive" : "text-muted-foreground"
                 }`}
               >
                 Time to leave
-              </span>
-              <span
-                className={`text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl ${
-                  urgent ? "text-destructive" : ""
-                }`}
-              >
-                {departure ? fmtHM(departure) : status === "loading" ? "…" : "—"}
-              </span>
+              </div>
+              <div className="mt-0.5">
+                {departure ? (
+                  <BigClock date={departure} tone={urgent ? "urgent" : "go"} />
+                ) : (
+                  <span className="text-3xl font-semibold tracking-tight text-muted-foreground">
+                    {status === "loading" ? "…" : "—"}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          <ChevronDown
-            className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-300 ${
-              expanded ? "rotate-180" : ""
-            }`}
-          />
+
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border text-muted-foreground">
+            <ChevronDown
+              className={`h-4.5 w-4.5 transition-transform duration-300 ${
+                expanded ? "rotate-180" : ""
+              }`}
+            />
+          </span>
         </button>
 
+        {/* ── Compact strip: the one route line that matters ────────────── */}
+        {!expanded && snapshot ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-border px-4 py-3 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              {best ? (
+                <span className="flex items-center gap-1.5 rounded-lg bg-primary/12 px-2 py-1 text-sm font-semibold text-primary">
+                  <Train className="h-3.5 w-3.5" />
+                  {best.line}
+                </span>
+              ) : (
+                <Train className="h-4 w-4 text-muted-foreground" />
+              )}
+              <span className="text-sm font-medium tabular-nums">
+                {snapshot.travel_minutes} min
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-sm text-muted-foreground tabular-nums">
+                {snapshot.transfers} transfer{snapshot.transfers === 1 ? "" : "s"}
+              </span>
+            </div>
+            <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground sm:border-l sm:border-border sm:pl-4">
+              <span className="tabular-nums">
+                Leaves <span className="font-medium text-foreground">{fmtHM(departure!)}</span>
+              </span>
+              <ArrowRight className="h-3.5 w-3.5" />
+              <span className="tabular-nums">
+                Arrives <span className="font-medium text-foreground">{fmtHM(arrival!)}</span>
+              </span>
+            </div>
+            <Button size="sm" className="ml-auto rounded-xl" asChild>
+              <a href={snapshotMapsUrl(snapshot)} target="_blank" rel="noopener noreferrer">
+                <Navigation className="mr-1.5 h-4 w-4" /> Start Navigation
+              </a>
+            </Button>
+          </div>
+        ) : null}
+
+        {/* ── Expanded detail ───────────────────────────────────────────── */}
         <div
           className={`grid transition-all duration-300 ease-out ${
             expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
@@ -1383,11 +1515,51 @@ function TimeToLeaveCard({
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+function DetailRow({
+  icon,
+  label,
+  value,
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+}) {
   return (
-    <div className="flex items-baseline justify-between gap-3 text-sm">
-      <span className="text-muted-foreground">{label}</span>
+    <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2.5 text-sm last:border-b-0">
+      <span className="flex items-center gap-2.5 text-muted-foreground">
+        {icon}
+        {label}
+      </span>
       <span className="font-medium tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+function EndpointCard({
+  icon,
+  label,
+  title,
+  subtitle,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3">
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/12 text-primary">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          {label}
+        </div>
+        <div className="truncate text-sm font-medium">{title}</div>
+        {subtitle ? (
+          <div className="truncate text-xs text-muted-foreground">{subtitle}</div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -1399,6 +1571,7 @@ function TimeToLeaveDetails({
   snapshot: TimeToLeaveSnapshot;
   now: Date;
 }) {
+  const [showOptions, setShowOptions] = useState(false);
   const departure = new Date(snapshot.departure_iso);
   const arrival = new Date(snapshot.arrival_iso);
   const minutesUntilLeave = Math.round((departure.getTime() - now.getTime()) / 60_000);
@@ -1408,114 +1581,187 @@ function TimeToLeaveDetails({
       : minutesUntilLeave < 60
         ? `${minutesUntilLeave} min`
         : `${Math.floor(minutesUntilLeave / 60)}h ${minutesUntilLeave % 60}m`;
+  const calcMin = Math.max(
+    0,
+    Math.round((now.getTime() - new Date(snapshot.calculated_at).getTime()) / 60_000),
+  );
+  const best = snapshot.direct_options[0] ?? null;
+  const rest = snapshot.direct_options.slice(1);
 
   return (
-    <div className="space-y-5 px-5 py-5 sm:px-6">
-      {/* Secondary timings */}
-      <div className="space-y-2">
-        <DetailRow label="Leave in" value={leaveIn} />
-        <DetailRow label="Arrive by" value={fmtHM(arrival)} />
-        <DetailRow
-          label="Journey time"
-          value={`${snapshot.travel_minutes} min`}
+    <div className="space-y-4 px-4 py-4 sm:px-6 sm:py-5">
+      {/* Route line: home → studio */}
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+        <EndpointCard
+          icon={<Home className="h-4 w-4" />}
+          label="Home"
+          title={snapshot.home_label}
         />
-        <DetailRow label="Transfers" value={snapshot.transfers} />
-        <p className="text-[11px] text-muted-foreground">
-          Includes a {ARRIVAL_BUFFER_MIN} min arrival buffer.
-        </p>
+        <div className="flex shrink-0 flex-col items-center justify-center gap-1 px-2">
+          <div className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+            <span className="h-px w-6 border-t border-dashed border-border sm:w-8" />
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/12 text-primary">
+              <Train className="h-4 w-4" />
+            </span>
+            <span className="h-px w-6 border-t border-dashed border-border sm:w-8" />
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+          </div>
+          <div className="whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+            ~ {snapshot.travel_minutes} min · {snapshot.transfers} transfer
+            {snapshot.transfers === 1 ? "" : "s"}
+          </div>
+        </div>
+        <EndpointCard
+          icon={<Building2 className="h-4 w-4" />}
+          label="Studio"
+          title={snapshot.office_label}
+        />
       </div>
 
-      {/* Route endpoints */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="min-w-0 rounded-2xl border border-border bg-muted/30 p-3">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-            <Home className="h-3 w-3" /> Home
-          </div>
-          <div className="mt-1 truncate text-sm">{snapshot.home_label}</div>
+      {/* Timings + best option */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-muted/20 px-4 py-1">
+          <DetailRow
+            icon={<Clock className="h-4 w-4" />}
+            label="Leave by"
+            value={fmtHM(departure)}
+          />
+          <DetailRow
+            icon={<Flag className="h-4 w-4" />}
+            label="Arrive by"
+            value={fmtHM(arrival)}
+          />
+          <DetailRow
+            icon={<Hourglass className="h-4 w-4" />}
+            label="Journey time"
+            value={`${snapshot.travel_minutes} min`}
+          />
+          <DetailRow
+            icon={<ArrowLeftRight className="h-4 w-4" />}
+            label="Transfers"
+            value={snapshot.transfers}
+          />
+          <DetailRow
+            icon={<Navigation className="h-4 w-4" />}
+            label="Leave in"
+            value={leaveIn}
+          />
         </div>
-        <div className="min-w-0 rounded-2xl border border-border bg-muted/30 p-3">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-            <Briefcase className="h-3 w-3" /> Studio
-          </div>
-          <div className="mt-1 truncate text-sm">{snapshot.office_label}</div>
+
+        <div className="rounded-2xl border border-border bg-muted/20 p-4">
+          {best ? (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="rounded-lg bg-primary/12 px-2 py-0.5 text-sm font-semibold text-primary">
+                  {best.line}
+                </span>
+                <span className="text-sm font-medium text-primary">Best option</span>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm tabular-nums">
+                <span className="text-muted-foreground">
+                  Leaves{" "}
+                  <span className="font-medium text-foreground">
+                    {fmtHM(new Date(best.departure_iso))}
+                  </span>
+                </span>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-muted-foreground">
+                  Arrives{" "}
+                  <span className="font-medium text-foreground">
+                    {fmtHM(new Date(best.arrival_iso))}
+                  </span>
+                </span>
+              </div>
+              <div className="mt-1 truncate text-xs text-muted-foreground">
+                From {best.from_stop}
+              </div>
+              <div className="mt-0.5 text-xs text-muted-foreground">
+                {best.walk_minutes} min walk to stop · No transfers
+              </div>
+            </>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              No direct connection found — see the route below.
+            </div>
+          )}
+
+          {rest.length > 0 ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowOptions((v) => !v)}
+                aria-expanded={showOptions}
+                className="mt-3 flex w-full items-center justify-between border-t border-border pt-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <span>Other options</span>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-300 ${
+                    showOptions ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+              {showOptions ? (
+                <div className="mt-2 space-y-2">
+                  {rest.map((o) => (
+                    <div
+                      key={o.line + o.departure_iso}
+                      className="rounded-xl border border-border bg-background/60 p-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                          {o.line}
+                        </span>
+                        <span className="text-sm font-medium tabular-nums">
+                          {o.duration_minutes} min
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground tabular-nums">
+                        {fmtHM(new Date(o.departure_iso))} → {fmtHM(new Date(o.arrival_iso))} ·{" "}
+                        {o.walk_minutes} min walk
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        From {o.from_stop}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : null}
         </div>
       </div>
-
-      <Button className="w-full" asChild>
-        <a href={snapshotMapsUrl(snapshot)} target="_blank" rel="noopener noreferrer">
-          <Navigation className="mr-2 h-4 w-4" /> Start Navigation
-        </a>
-      </Button>
 
       {/* Route map — geometry comes from the stored snapshot. */}
-      <div className="relative isolate h-[220px] overflow-hidden rounded-2xl border border-border sm:h-[260px]">
+      <div className="relative isolate h-[200px] overflow-hidden rounded-2xl border border-border sm:h-[240px]">
         <RouteMapPreview
           home={{ lat: snapshot.home_lat, lng: snapshot.home_lng }}
           office={{ lat: snapshot.office_lat, lng: snapshot.office_lng }}
           geometry={snapshot.route_geometry}
           className="absolute inset-0"
         />
-        <div className="absolute right-3 top-3 z-[2] rounded-xl border border-border bg-background/90 px-3 py-2 shadow-sm backdrop-blur">
-          <div className="flex items-center gap-2">
-            <Train className="h-4 w-4 text-primary" />
-            <span className="text-sm font-semibold tabular-nums">
-              {snapshot.travel_minutes} min
-            </span>
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            {snapshot.transfers > 0
-              ? `${snapshot.transfers} transfer${snapshot.transfers === 1 ? "" : "s"}`
-              : "No transfer"}
-          </div>
-        </div>
       </div>
 
-      {snapshot.direct_options.length > 0 ? (
-        <div className="space-y-2">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Direct options
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {snapshot.direct_options.map((o) => (
-              <div
-                key={o.line + o.departure_iso}
-                className="rounded-2xl border border-border bg-background/60 p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Train className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
-                      {o.line}
-                    </span>
-                  </div>
-                  <span className="shrink-0 text-sm font-semibold tabular-nums">
-                    {o.duration_minutes} min
-                  </span>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Leaves</div>
-                    <div className="tabular-nums">{fmtHM(new Date(o.departure_iso))}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Arrives</div>
-                    <div className="tabular-nums">{fmtHM(new Date(o.arrival_iso))}</div>
-                  </div>
-                </div>
-                <div className="mt-2 truncate text-xs text-muted-foreground">
-                  From {o.from_stop}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {o.walk_minutes} min walk · No transfer
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      <Button className="w-full rounded-xl" asChild>
+        <a href={snapshotMapsUrl(snapshot)} target="_blank" rel="noopener noreferrer">
+          <Navigation className="mr-2 h-4 w-4" /> Start Navigation
+        </a>
+      </Button>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+          Includes a {ARRIVAL_BUFFER_MIN} min arrival buffer.
+        </span>
+        <span className="flex items-center gap-1.5">
+          Calculated {calcMin < 1 ? "just now" : `${calcMin} min ago`}
+          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+        </span>
+      </div>
     </div>
   );
 }
+
 
 
 
