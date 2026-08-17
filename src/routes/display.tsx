@@ -389,10 +389,10 @@ function PreClassStage({
     );
   }
 
-  // Portrait: full-width stacked composition, timer on top.
+  // Portrait / near-square: full-width stacked composition, timer on top.
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3vh,2.5rem)]">
-      <div className="flex w-full flex-1 items-center justify-center px-[clamp(1rem,6vw,3rem)]">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3vh,2.5rem)] overflow-hidden">
+      <div className="flex min-h-0 w-full flex-[1.1] items-center justify-center px-[clamp(1rem,6vw,3rem)]">
         <PreClassTimer stage={stage} startsAt={startsAt} portrait />
       </div>
       <div
@@ -400,11 +400,12 @@ function PreClassStage({
         className="h-px w-[min(88%,44rem)] shrink-0"
         style={{ background: "rgba(255,255,255,0.10)" }}
       />
-      <div className="flex w-full flex-1 items-start justify-center px-[clamp(1.5rem,6vw,3rem)] pt-[clamp(0.75rem,3vh,2rem)]">
+      <div className="flex min-h-0 w-full flex-1 items-start justify-center overflow-hidden px-[clamp(1.5rem,6vw,3rem)] pt-[clamp(0.75rem,3vh,2rem)]">
         <IcebreakerLine tip={tip} fadeKey={fadeKey} centered />
       </div>
     </div>
   );
+
 }
 
 function PreClassTimer({
