@@ -126,7 +126,9 @@ function useSize<T extends HTMLElement>() {
 function DisplayScreen() {
   const { state: shared, ready } = useStudioDisplay("display");
   useTicker(250);
-  const { ref, isLandscape } = useAspect();
+  const { ref, isLandscape, width: surfaceW, height: surfaceH } = useAspect();
+  const icebreakerVisible = useIcebreakerVisible(surfaceW, surfaceH, isLandscape);
+
 
   // A class-specific display is opened with ?c=&t=&s=&d= — no manual setup.
   const [override, setOverride] = useState<{
