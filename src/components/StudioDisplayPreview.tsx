@@ -13,28 +13,43 @@ export function StudioDisplayPreview({ state }: { state: StudioDisplayState }) {
 
   return (
     <div
-      className="flex aspect-[4/5] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl px-5 text-center"
+      className="relative flex aspect-[4/5] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl px-5 text-center"
       style={{
         backgroundColor: stage.bgColor,
         transition: "background-color 600ms ease",
         color: dark ? "#171717" : "#ffffff",
       }}
     >
-      <div className="text-[10px] font-medium uppercase tracking-[0.28em] opacity-60">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background: dark
+            ? "linear-gradient(to bottom, rgba(255,255,255,0.06), rgba(0,0,0,0.05))"
+            : "linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(0,0,0,0.10))",
+        }}
+      />
+      <div className="relative text-[10px] font-medium uppercase tracking-[0.3em] opacity-55">
         {isBefore ? "Next class" : stage.label || "\u00a0"}
       </div>
-      <div className="font-mono text-[clamp(2rem,5vw,3.25rem)] font-bold leading-none tabular-nums">
+      <div
+        className="sd-num relative text-[clamp(2rem,5vw,3.25rem)] leading-none"
+        style={{ fontWeight: 250, letterSpacing: "-0.04em" }}
+      >
         {stage.phase === "countdown10"
           ? (stage.bigNumber ?? 1)
           : formatMMSS(stage.timerMs)}
       </div>
-      {isBefore && <div className="text-[11px] opacity-60">starts in</div>}
+      {isBefore && <div className="relative text-[11px] opacity-45">starts in</div>}
       {notes && (
-        <p className="mt-3 line-clamp-4 text-[13px] leading-snug opacity-85">{notes}</p>
+        <p className="relative mt-3 line-clamp-4 text-[13px] font-light leading-relaxed opacity-85">
+          {notes}
+        </p>
       )}
     </div>
   );
 }
+
 
 /** Short status word for the preview header, e.g. "22:45 · waiting". */
 export function previewStatus(state: StudioDisplayState) {
