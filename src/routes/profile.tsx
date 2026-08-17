@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast, Toaster } from "sonner";
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { PushDeviceToggle } from "@/components/PushDeviceToggle";
 import { USERNAME_RE, PIN_RE } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 
