@@ -16,7 +16,7 @@ import {
   safeRemoteUrl,
   syncWindow,
   toMin,
-  dateKey,
+  berlinDateKey,
   type CalendarMode,
   type ClassEvent,
   type ParsedEvent,
@@ -229,7 +229,7 @@ async function writeShifts(
   plans: ShiftPlan[],
 ): Promise<{ removed: number; idByUid: Map<string, string> }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const todayStr = dateKey(new Date());
+  const todayStr = berlinDateKey();
   const from = window.from < todayStr ? todayStr : window.from;
 
   const { data: existingRows, error: exErr } = await supabaseAdmin
@@ -475,7 +475,7 @@ async function syncDetailed(
   }
 
   // Persist the imported classes (Google UID is the permanent sync key).
-  const todayStr = dateKey(now);
+  const todayStr = berlinDateKey(now);
   // Operator-set lifecycle states (completed / cancelled) must survive a resync.
   const { data: existingClassRows } = await supabaseAdmin
     .from("calendar_classes")
