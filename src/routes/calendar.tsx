@@ -258,6 +258,7 @@ function CalendarPage() {
   const {
     syncing,
     lastSync,
+    setLastSync,
     logs: matchLogs,
     runSync,
   } = useCalendarSync({
@@ -269,10 +270,62 @@ function CalendarPage() {
     cacheKey: username ? `${operatorNamespace(username)}calendar-sync` : null,
   });
 
+  // Cross-device "Last synced": poll the authoritative server value while the
+  // page is visible. This reads one operator column and never triggers an
+  // import — a sync performed on another device shows up here on its own.
+  const syncStatusFn = useServerFn(getMyCalendarSyncStatus);
+  const syncCacheKey = username ? `${operatorNamespace(username)}calendar-sync` : null;
+  const lastSyncRef = useRef<number | null>(lastSync ? lastSync.getTime() : null);
+  lastSyncRef.current = lastSync ? lastSync.getTime() : null;
+  useEffect(() => {
+    if (!hasGoogleCalendar) return;
+    let cancelled = false;
+    const check = () => {
+      syncStatusFn()
+        .then((res) => {
+          if (cancelled) return;
+          const iso = res.calendarLastSyncAt;
+          const ms = iso ? new Date(iso).getTime() : null;
+          if (ms === lastSyncRef.current) return;
+          setLastSync(ms ? new Date(ms) : null);
+          if (syncCacheKey && ms) writeCache<number>(syncCacheKey, ms);
+        })
+        .catch(() => {
+          /* keep the last known value */
+        });
+    };
+    check();
+
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (!interval) interval = setInterval(check, 12_000);
+    };
+    const stop = () => {
+      if (interval) clearInterval(interval);
+      interval = null;
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        check();
+        start();
+      } else {
+        stop();
+      }
+    };
+    if (typeof document !== "undefined" && document.visibilityState === "visible") start();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [hasGoogleCalendar, syncStatusFn, syncCacheKey, setLastSync]);
+
   // Another view finished a sync — pull the newly generated shifts in.
   useSyncListener(() => {
     load();
   });
+
 
   const now = new Date();
   const confirmedError = health !== null && !health.ok;
