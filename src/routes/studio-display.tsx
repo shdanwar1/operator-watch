@@ -1,7 +1,11 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useRef } from "react";
+import { ArrowUpRight } from "lucide-react";
 import { getGateStatus } from "@/lib/gate.functions";
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { Button } from "@/components/ui/button";
 import { StudioDisplayPanel } from "@/components/StudioDisplayPanel";
+
 
 export const Route = createFileRoute("/studio-display")({
   beforeLoad: async () => {
@@ -29,16 +33,21 @@ export const Route = createFileRoute("/studio-display")({
 });
 
 function StudioDisplaySettingsPage() {
+  const openRef = useRef<(() => void) | null>(null);
   return (
     <AppShell>
       <PageHeader
         eyebrow="Teacher-facing screen"
         title="Studio Display"
-        subtitle="Custom timer and notes. Class displays open from the dashboard."
+        action={
+          <Button onClick={() => openRef.current?.()} className="rounded-full">
+            Open display
+            <ArrowUpRight className="ml-1.5 h-4 w-4" />
+          </Button>
+        }
       />
-      <div className="max-w-xl">
-        <StudioDisplayPanel />
-      </div>
+      <StudioDisplayPanel openRef={openRef} />
     </AppShell>
   );
+
 }
