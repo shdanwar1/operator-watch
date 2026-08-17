@@ -292,53 +292,56 @@ function ClassInfoStage({
 }) {
   return (
     <div
-      className={`grid h-full w-full max-w-[1800px] items-center gap-[clamp(1rem,4vw,4rem)] ${
-        isLandscape ? "md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]" : ""
+      className={`grid h-full w-full max-w-[1800px] items-center gap-[clamp(1.25rem,4vw,4.5rem)] ${
+        isLandscape ? "md:grid-cols-[minmax(0,1.35fr)_1px_minmax(0,1fr)]" : ""
       }`}
     >
-      <div className="flex flex-col justify-center gap-[clamp(0.5rem,1.6vmin,1.5rem)] text-left">
+      {/* Class identity */}
+      <div className="flex min-w-0 flex-col justify-center gap-[clamp(0.4rem,1.4vmin,1.25rem)] text-left">
+        <div aria-hidden className="sd-rule-h h-px w-[clamp(2.5rem,6vw,6rem)]" />
+        <StageLabel opacity={0.5}>Up next</StageLabel>
         <div
-          className="font-medium uppercase text-white/50"
-          style={{ fontSize: "clamp(0.65rem, 1.1vw, 1.1rem)", letterSpacing: "0.36em" }}
-        >
-          Up next
-        </div>
-        <div
-          className="font-semibold leading-[1.05]"
-          style={{ fontSize: "clamp(2rem, 7vmin, 6rem)", letterSpacing: "-0.03em" }}
+          className="font-semibold leading-[1.02]"
+          style={{ fontSize: "clamp(2rem, 7vmin, 6rem)", letterSpacing: "-0.032em" }}
         >
           {className || "Class"}
         </div>
         {teacherName && (
           <div
-            className="font-medium text-white/70"
-            style={{ fontSize: "clamp(1rem, 2.6vmin, 2.2rem)" }}
+            className="font-normal opacity-70"
+            style={{ fontSize: "clamp(1rem, 2.5vmin, 2.1rem)", letterSpacing: "-0.01em" }}
           >
             {teacherName}
           </div>
         )}
         <div
-          className="mt-[clamp(0.4rem,1.4vmin,1.4rem)] flex flex-wrap items-center gap-[clamp(0.75rem,2vw,2rem)] text-white/45"
-          style={{ fontSize: "clamp(0.7rem, 1.1vw, 1.05rem)", letterSpacing: "0.14em" }}
+          className="mt-[clamp(0.35rem,1.2vmin,1.2rem)] flex flex-wrap items-center gap-[clamp(0.5rem,1.2vw,1rem)] opacity-45"
+          style={{ fontSize: "clamp(0.68rem, 1vw, 1rem)", letterSpacing: "0.14em" }}
         >
-          <span>{startsAt}</span>
-          <span>{durationMin} MIN</span>
+          <span className="sd-num">{startsAt}</span>
+          <span aria-hidden>·</span>
+          <span className="sd-num">{durationMin} MIN</span>
         </div>
       </div>
 
-      <div className="flex flex-col items-center justify-center gap-[clamp(0.4rem,1.4vmin,1.2rem)] text-center md:items-end md:text-right">
-        <div
-          className="font-medium uppercase text-white/50"
-          style={{ fontSize: "clamp(0.6rem, 1vw, 1rem)", letterSpacing: "0.34em" }}
-        >
+      {isLandscape ? (
+        <div aria-hidden className="sd-rule-v hidden h-[62%] w-px md:block" />
+      ) : (
+        <div aria-hidden className="sd-rule-h h-px w-full md:hidden" />
+      )}
+
+      {/* Countdown */}
+      <div className="flex flex-col items-center justify-center gap-[clamp(0.35rem,1.2vmin,1rem)] text-center md:items-end md:text-right">
+        <StageLabel opacity={0.5} size="clamp(0.6rem, 1vmin, 1rem)">
           Class starts in
-        </div>
-        <div
-          className="font-mono font-semibold leading-none tabular-nums"
-          style={{ fontSize: "clamp(3rem, 16vmin, 16rem)", letterSpacing: "-0.05em" }}
-        >
-          {formatMMSS(stage.timerMs)}
-        </div>
+        </StageLabel>
+        <TimerDigits
+          value={formatMMSS(stage.timerMs)}
+          size="clamp(3rem, 15vmin, 15rem)"
+          weight={250}
+          tracking="-0.04em"
+          className="opacity-95"
+        />
       </div>
     </div>
   );
@@ -357,57 +360,78 @@ function MainStage({
   isLandscape: boolean;
 }) {
   const hasNotes = !!notes.trim();
-  const notesTone = stage.fg === "dark" ? "text-neutral-900/85" : "text-white/85";
+
+  if (stage.phase === "idle") return <IdleStage label={stage.label} />;
 
   if (isLandscape && hasNotes) {
     return (
-      <div className="grid h-full w-full max-w-[1800px] items-center gap-[clamp(1rem,4vw,4rem)] lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <div className="grid h-full w-full max-w-[1800px] items-center gap-[clamp(1.25rem,4vw,4.5rem)] lg:grid-cols-[minmax(0,1.15fr)_1px_minmax(0,1fr)]">
         <TimerBlock stage={stage} compact />
-        <NotesPanel notes={notes} tone={notesTone} fg={stage.fg} />
+        <div aria-hidden className="sd-rule-v hidden h-[58%] w-px lg:block" />
+        <NotesPanel notes={notes} />
       </div>
     );
   }
 
   return (
-    <div className="flex w-full max-w-[95vw] flex-col items-center justify-center gap-[clamp(0.5rem,2vmin,2rem)] text-center">
+    <div className="flex w-full max-w-[95vw] flex-col items-center justify-center gap-[clamp(0.75rem,2.4vmin,2.25rem)] text-center">
       <TimerBlock stage={stage} />
-      {hasNotes && <Notes notes={notes} tone={notesTone} />}
+      {hasNotes && (
+        <>
+          <div aria-hidden className="sd-rule-h h-px w-[min(78%,40rem)]" />
+          <Notes notes={notes} />
+        </>
+      )}
     </div>
   );
 }
 
 function TimerBlock({ stage, compact = false }: { stage: StageInfo; compact?: boolean }) {
-  const showTimer = stage.phase !== "complete" && stage.phase !== "idle";
   const timerSize = compact
-    ? "clamp(4rem, 20vmin, 22rem)"
-    : "clamp(5rem, 30vmin, 40rem)";
+    ? "clamp(4rem, 19vmin, 21rem)"
+    : "clamp(5rem, 28vmin, 36rem)";
   const labelSize = compact
-    ? "clamp(0.7rem, 1.3vw, 1.4rem)"
-    : "clamp(0.8rem, 1.8vw, 1.8rem)";
+    ? "clamp(0.66rem, 1.2vmin, 1.2rem)"
+    : "clamp(0.72rem, 1.5vmin, 1.5rem)";
+
+  // Urgency is carried by type weight and label presence, not extra chrome.
+  const urgent = stage.phase === "warn1" || stage.phase === "final30";
 
   return (
-    <div className="flex flex-col items-center justify-center gap-[clamp(0.4rem,1.6vmin,1.6rem)] text-center">
+    <div className="flex flex-col items-center justify-center gap-[clamp(0.5rem,1.8vmin,1.75rem)] text-center">
       {stage.label && (
-        <div
+        <StageLabel
           key={stage.label}
-          className="sd-fade font-medium uppercase opacity-80"
-          style={{ fontSize: labelSize, letterSpacing: "0.32em" }}
+          className="sd-fade"
+          size={labelSize}
+          tracking={urgent ? "0.26em" : "0.34em"}
+          opacity={urgent ? 0.9 : 0.65}
         >
           {stage.label}
-        </div>
+        </StageLabel>
       )}
-      {showTimer && (
-        <div
-          className={`sd-fade font-mono font-bold leading-none tabular-nums ${stage.blink ? "sd-blink" : ""}`}
-          style={{
-            fontSize: timerSize,
-            letterSpacing: "-0.04em",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {formatMMSS(stage.timerMs)}
-        </div>
-      )}
+      <TimerDigits
+        value={formatMMSS(stage.timerMs)}
+        size={timerSize}
+        weight={urgent ? 400 : 250}
+        tracking="-0.04em"
+        className={stage.blink ? "sd-blink" : ""}
+      />
+    </div>
+  );
+}
+
+/* --------------------------- Idle --------------------------- */
+
+function IdleStage({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-[clamp(1rem,3vmin,2.25rem)]">
+      <span
+        aria-hidden
+        className="sd-breathe block rounded-full bg-current"
+        style={{ width: "6px", height: "6px" }}
+      />
+      <StageLabel opacity={0.45}>{label || "Waiting for Next Class"}</StageLabel>
     </div>
   );
 }
@@ -455,8 +479,7 @@ function PreClassStage({
         {/* Subtle divider at exactly 50% */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 left-1/2 w-px"
-          style={{ background: "rgba(255,255,255,0.12)" }}
+          className="sd-rule-v pointer-events-none absolute inset-y-[12%] left-1/2 w-px"
         />
         {/* Right panel: one ice-breaker */}
         <div className="flex min-w-0 items-center justify-start overflow-hidden px-[clamp(1.5rem,4vw,5rem)]">
@@ -468,11 +491,7 @@ function PreClassStage({
         <div className="flex min-h-0 w-full flex-[1.1] items-center justify-center px-[clamp(1rem,6vw,3rem)]">
           <PreClassTimer stage={stage} startsAt={startsAt} portrait />
         </div>
-        <div
-          aria-hidden
-          className="h-px w-[min(88%,44rem)] shrink-0"
-          style={{ background: "rgba(255,255,255,0.10)" }}
-        />
+        <div aria-hidden className="sd-rule-h h-px w-[min(88%,44rem)] shrink-0" />
         <div className="flex min-h-0 w-full flex-1 items-start justify-center overflow-hidden px-[clamp(1.5rem,6vw,3rem)] pt-[clamp(0.75rem,3vh,2rem)]">
           <IcebreakerLine tip={tip} fadeKey={fadeKey} centered />
         </div>
@@ -491,40 +510,33 @@ function PreClassTimer({
   portrait?: boolean;
 }) {
   return (
-    <div className="flex w-full flex-col items-center justify-center gap-[clamp(0.5rem,1.4vmin,1.4rem)] text-center">
-      <div
-        className="font-medium uppercase opacity-70"
-        style={{
-          fontSize: portrait ? "clamp(0.6rem, 2.6vw, 1.35rem)" : "clamp(0.7rem, 1.2vw, 1.35rem)",
-          letterSpacing: portrait ? "clamp(0.08em, 0.9vw, 0.36em)" : "0.36em",
-          whiteSpace: "nowrap",
-        }}
+    <div className="flex w-full flex-col items-center justify-center gap-[clamp(0.5rem,1.6vmin,1.6rem)] text-center">
+      <StageLabel
+        opacity={0.5}
+        size={portrait ? "clamp(0.6rem, 2.4vw, 1.2rem)" : "clamp(0.66rem, 1.1vw, 1.2rem)"}
+        tracking={portrait ? "clamp(0.08em, 0.9vw, 0.36em)" : "0.36em"}
       >
         Class starts in
-      </div>
-      <div
-        className="font-mono font-semibold leading-none tabular-nums"
-        style={{
-          fontSize: portrait
+      </StageLabel>
+      <TimerDigits
+        value={formatMMSS(stage.timerMs)}
+        size={
+          portrait
             ? "clamp(2.75rem, min(20vw, 18vh), 12rem)"
-            : "clamp(3.5rem, 15vmin, 18rem)",
-
-          letterSpacing: "-0.05em",
-          whiteSpace: "nowrap",
-          maxWidth: "100%",
-        }}
-      >
-        {formatMMSS(stage.timerMs)}
-      </div>
+            : "clamp(3.5rem, 15vmin, 18rem)"
+        }
+        weight={200}
+        tracking="-0.045em"
+      />
       <div
-        className="mt-[clamp(0.25rem,0.8vmin,1rem)] opacity-50"
+        className="mt-[clamp(0.2rem,0.8vmin,0.9rem)] opacity-40"
         style={{
-          fontSize: portrait ? "clamp(0.7rem, 2.2vw, 1.05rem)" : "clamp(0.7rem, 0.95vw, 1.05rem)",
+          fontSize: portrait ? "clamp(0.68rem, 2.1vw, 1rem)" : "clamp(0.68rem, 0.9vw, 1rem)",
           letterSpacing: "0.12em",
           whiteSpace: "nowrap",
         }}
       >
-        Starts at {startsAt}
+        Starts at <span className="sd-num">{startsAt}</span>
       </div>
     </div>
   );
@@ -540,19 +552,31 @@ function IcebreakerLine({
   centered?: boolean;
 }) {
   return (
-    <p
+    <div
       key={fadeKey}
-      className={`sd-fade leading-snug ${centered ? "mx-auto max-w-[36ch] text-center" : "text-left"}`}
-      style={{
-        fontSize: centered ? "clamp(0.95rem, 3.4vw, 1.75rem)" : "clamp(0.95rem, 1.5vw, 1.75rem)",
-        letterSpacing: "-0.01em",
-        wordBreak: "normal",
-        overflowWrap: "normal",
-      }}
+      className={`sd-rise ${centered ? "mx-auto max-w-[36ch] text-center" : "max-w-[26ch] text-left"}`}
     >
-      <span className="font-medium text-white/45">Tips to break the ice: </span>
-      <span className="font-medium text-white/90">&ldquo;{tip}&rdquo;</span>
-    </p>
+      <StageLabel
+        opacity={0.4}
+        size={centered ? "clamp(0.58rem, 2vw, 0.95rem)" : "clamp(0.58rem, 0.85vw, 0.95rem)"}
+        tracking="0.34em"
+        className={centered ? "mb-[clamp(0.6rem,1.6vh,1.2rem)]" : "mb-[clamp(0.6rem,1.4vmin,1.2rem)]"}
+      >
+        Ice breaker
+      </StageLabel>
+      <p
+        className="font-light opacity-90"
+        style={{
+          fontSize: centered ? "clamp(1rem, 3.6vw, 1.9rem)" : "clamp(1rem, 1.7vw, 2rem)",
+          lineHeight: 1.35,
+          letterSpacing: "-0.015em",
+          wordBreak: "normal",
+          overflowWrap: "normal",
+        }}
+      >
+        {tip}
+      </p>
+    </div>
   );
 }
 
@@ -561,14 +585,16 @@ function IcebreakerLine({
 
 function CountdownCinematic({ n }: { n: number }) {
   return (
-    <div className="flex flex-col items-center justify-center">
-      <div
+    <div className="relative flex h-full w-full items-center justify-center">
+      <div aria-hidden className="sd-vignette pointer-events-none absolute inset-0" />
+      <TimerDigits
         key={n}
-        className="sd-countdown font-mono font-bold leading-none tabular-nums"
-        style={{ fontSize: "clamp(10rem, 55vmin, 60rem)", letterSpacing: "-0.05em" }}
-      >
-        {n}
-      </div>
+        value={n}
+        size="min(62vmin, 80vh)"
+        weight={200}
+        tracking="-0.06em"
+        className="sd-countdown relative"
+      />
     </div>
   );
 }
@@ -588,14 +614,12 @@ function QAStage({ stage }: { stage: StageInfo }) {
       <CircularTimer progress={progress} label={formatMMSS(stage.timerMs)} mode={mode} />
       {mode === "full" && (
         <div
-          className="pointer-events-none absolute left-1/2 -translate-x-1/2 font-medium uppercase text-white/60"
-          style={{
-            bottom: "clamp(1.5rem, 4vh, 3rem)",
-            fontSize: "clamp(0.65rem, 1.5vmin, 1.1rem)",
-            letterSpacing: "0.32em",
-          }}
+          className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+          style={{ bottom: "clamp(1.5rem, 4vh, 3rem)" }}
         >
-          Questions &amp; Discussion
+          <StageLabel opacity={0.4} size="clamp(0.6rem, 1.4vmin, 1rem)" tracking="0.28em">
+            Questions &amp; Discussion
+          </StageLabel>
         </div>
       )}
     </div>
@@ -616,7 +640,9 @@ function CircularTimer({
   const R = 46;
   const C = 2 * Math.PI * R;
   const dash = C * progress;
-  const stroke = 0.6;
+
+  const labelText =
+    mode === "full" ? "Class Complete" : mode === "compact" ? "Q&A" : "Q & A";
 
   return (
     <div
@@ -629,65 +655,43 @@ function CircularTimer({
       }}
     >
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90">
-        <circle cx="50" cy="50" r={R} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
+        <circle cx="50" cy="50" r={R} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={0.4} />
         <circle
           cx="50"
           cy="50"
           r={R}
           fill="none"
-          stroke="white"
-          strokeWidth={stroke * 1.6}
+          stroke="rgba(255,255,255,0.92)"
+          strokeWidth={0.9}
           strokeLinecap="round"
           strokeDasharray={`${dash} ${C - dash}`}
-          style={{
-            transition: "stroke-dasharray 900ms cubic-bezier(0.4, 0, 0.2, 1)",
-            filter: "drop-shadow(0 0 6px rgba(255,255,255,0.55))",
-          }}
+          style={{ transition: "stroke-dasharray 900ms cubic-bezier(0.4, 0, 0.2, 1)" }}
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-[3cqi]">
-        {mode === "full" && (
-          <div
-            className="font-light uppercase text-white/85"
-            style={{ fontSize: "clamp(0.6rem, 2.4cqi, 1.1rem)", letterSpacing: "0.38em" }}
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-[4cqi]">
+        <div className="flex items-center gap-[2cqi]">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="opacity-45"
+            style={{ width: "3.6cqi", height: "3.6cqi" }}
           >
-            Class Complete
-          </div>
-        )}
-        {mode === "compact" && (
-          <div
-            className="font-light uppercase text-white/85"
-            style={{ fontSize: "clamp(0.65rem, 2.8cqi, 1.15rem)", letterSpacing: "0.12em" }}
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <StageLabel
+            opacity={0.6}
+            size={`clamp(0.6rem, ${mode === "full" ? "2.4cqi" : "2.9cqi"}, 1.15rem)`}
+            tracking={mode === "compact" ? "0.16em" : "0.34em"}
           >
-            Q&amp;A
-          </div>
-        )}
-        {mode === "minimal" && (
-          <div
-            className="font-light uppercase text-white/85"
-            style={{ fontSize: "clamp(0.6rem, 3.2cqi, 1.2rem)", letterSpacing: "0.3em" }}
-          >
-            Q &amp; A
-          </div>
-        )}
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="rgba(255,255,255,0.55)"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ width: "6cqi", height: "6cqi" }}
-        >
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
-        </svg>
-        <div
-          className="font-light leading-none tabular-nums text-white"
-          style={{ fontSize: "clamp(2rem, 22cqi, 10rem)", letterSpacing: "-0.02em" }}
-        >
-          {label}
+            {labelText}
+          </StageLabel>
         </div>
+        <TimerDigits value={label} size="clamp(2rem, 21cqi, 10rem)" weight={200} tracking="-0.03em" />
       </div>
     </div>
   );
@@ -695,38 +699,27 @@ function CircularTimer({
 
 /* --------------------------- Notes --------------------------- */
 
-function Notes({ notes, tone }: { notes: string; tone: string }) {
+function Notes({ notes }: { notes: string }) {
   return (
     <div
-      className={`sd-fade mx-auto max-w-[52ch] whitespace-pre-wrap text-center leading-snug ${tone}`}
-      style={{ fontSize: "clamp(0.95rem, 1.6vw, 1.6rem)" }}
+      className="sd-fade mx-auto max-w-[52ch] whitespace-pre-wrap text-center font-light opacity-85"
+      style={{ fontSize: "clamp(0.95rem, 1.6vw, 1.6rem)", lineHeight: 1.5 }}
     >
       {notes}
     </div>
   );
 }
 
-function NotesPanel({
-  notes,
-  tone,
-  fg,
-}: {
-  notes: string;
-  tone: string;
-  fg: "light" | "dark";
-}) {
-  const border = fg === "dark" ? "rgba(0,0,0,0.14)" : "rgba(255,255,255,0.14)";
+function NotesPanel({ notes }: { notes: string }) {
   return (
-    <div
-      className={`flex h-full flex-col justify-center pl-[clamp(0.75rem,2vw,2.5rem)] ${tone}`}
-      style={{ borderLeft: `1px solid ${border}` }}
-    >
+    <div className="flex h-full flex-col justify-center">
       <div
-        className="whitespace-pre-wrap leading-snug"
-        style={{ fontSize: "clamp(1rem, 1.6vw, 1.75rem)", maxWidth: "44ch" }}
+        className="whitespace-pre-wrap font-light opacity-85"
+        style={{ fontSize: "clamp(1rem, 1.6vw, 1.75rem)", lineHeight: 1.5, maxWidth: "44ch" }}
       >
         {notes}
       </div>
     </div>
   );
 }
+
