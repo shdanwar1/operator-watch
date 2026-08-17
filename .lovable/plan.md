@@ -35,7 +35,7 @@ Shared intent: the display becomes a *stage*, not a UI. Type and negative space 
 
 **Screen 7 — Idle (minimal / ready).** Centred "WAITING FOR NEXT CLASS" in the small tracked label style at 45% opacity, with a single slow-breathing 6px dot above it (8s cycle) to signal the screen is alive, and nothing else.
 
-**Screen 8 — Control panel (production console).** Left column becomes a flat control stack instead of nested boxes: a single card with a top row of segmented Upcoming/Current, a two-up field row where time and duration share one hairline-divided strip (duration gets −/+ steppers around the number while keeping the same numeric input semantics), and a full-height notes editor with a monospace-ish tabular feel and a live character rhythm. Right column: preview framed as a real screen — dark bezel, status line as `HH:MM · state` in tracked caps, and the "Open display" action moved next to the preview so the causal relationship control → screen is visible. Same fields, same handlers, same `update()` calls.
+**Screen 8 — Control panel: OUT OF SCOPE.** `src/routes/studio-display.tsx` and `src/components/StudioDisplayPanel.tsx` are left exactly as they are. Only `StudioDisplayPreview.tsx` is restyled, because it must mirror the redesigned display.
 
 ## 3. Shared design system
 
@@ -51,10 +51,8 @@ Shared intent: the display becomes a *stage*, not a UI. Type and negative space 
 
 - `src/routes/display.tsx` — restyle `ClassInfoStage`, `PreClassStage`, `PreClassTimer`, `IcebreakerLine`, `CountdownCinematic`, `MainStage`, `TimerBlock`, `Notes`, `NotesPanel`, `QAStage`, `CircularTimer`; add a small shared `StageLabel`/`TimerDigits` pair inside the same file. No changes to `DisplayScreen`'s stage selection logic.
 - `src/styles.css` — refine `sd-*` keyframes (countdown, fade, blink), add fading-divider and idle-dot utilities; keep the `sd-preclass-*` container-query rules and their `23/20` breakpoint.
-- `src/components/StudioDisplayPanel.tsx` — layout/control restyle only.
 - `src/components/StudioDisplayPreview.tsx` — mirror the new display styling so preview and display stay identical.
-- `src/routes/studio-display.tsx` — header/action placement only.
-- Untouched: `src/lib/studio-display.ts`, `src/lib/icebreakers.ts`, `src/hooks/useStudioDisplay.ts`, database, APIs.
+- Untouched: `src/components/StudioDisplayPanel.tsx`, `src/routes/studio-display.tsx`, `src/lib/studio-display.ts`, `src/lib/icebreakers.ts`, `src/hooks/useStudioDisplay.ts`, database, APIs.
 
 ## 5. Regression safeguards
 
