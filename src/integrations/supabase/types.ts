@@ -387,6 +387,10 @@ export type Database = {
           username: string
         }[]
       }
+      rename_operator: {
+        Args: { p_id: string; p_username: string }
+        Returns: undefined
+      }
       set_operator_home: {
         Args: { p_id: string; p_label: string; p_lat: number; p_lng: number }
         Returns: undefined
