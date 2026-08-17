@@ -169,7 +169,7 @@ function DisplayScreen() {
       />
 
       <div
-        className="relative z-10 flex h-full w-full items-center justify-center"
+        className="sd-display-surface relative z-10 flex h-full w-full items-center justify-center"
         style={{ padding: "clamp(0.75rem, 3vmin, 3.5rem)" }}
       >
         {showClassInfo ? (
@@ -186,7 +186,7 @@ function DisplayScreen() {
         ) : stage.phase === "qa" ? (
           <QAStage stage={stage} />
         ) : showPreClass ? (
-          <PreClassStage stage={stage} startsAt={state.startTime} isLandscape={isLandscape} />
+          <PreClassStage stage={stage} startsAt={state.startTime} />
 
         ) : (
           <MainStage stage={stage} notes={state.notes} isLandscape={ratio >= 1.35} />
@@ -340,11 +340,9 @@ function TimerBlock({ stage, compact = false }: { stage: StageInfo; compact?: bo
 function PreClassStage({
   stage,
   startsAt,
-  isLandscape,
 }: {
   stage: StageInfo;
   startsAt: string;
-  isLandscape: boolean;
 }) {
   // One rotating ice-breaker, refreshed every 15s
   const [tip, setTip] = useState<string>(() => pickIcebreaker());
@@ -368,11 +366,13 @@ function PreClassStage({
     };
   }, []);
 
-  if (isLandscape) {
-    return (
-      <div className="relative grid h-full w-full grid-cols-2">
+  return (
+    <div className="h-full w-full min-h-0 min-w-0">
+      {/* CSS container queries use the actual rendered surface dimensions, so
+          orientation cannot become stale while the popup is being resized. */}
+      <div className="sd-preclass-landscape relative h-full w-full grid-cols-2">
         {/* Left panel: timer, centered within its own half */}
-        <div className="flex items-center justify-center px-[clamp(1rem,3vw,4rem)]">
+        <div className="flex min-w-0 items-center justify-center px-[clamp(1rem,3vw,4rem)]">
           <PreClassTimer stage={stage} startsAt={startsAt} />
         </div>
         {/* Subtle divider at exactly 50% */}
@@ -382,30 +382,26 @@ function PreClassStage({
           style={{ background: "rgba(255,255,255,0.12)" }}
         />
         {/* Right panel: one ice-breaker */}
-        <div className="flex items-center justify-start px-[clamp(1.5rem,4vw,5rem)]">
+        <div className="flex min-w-0 items-center justify-start overflow-hidden px-[clamp(1.5rem,4vw,5rem)]">
           <IcebreakerLine tip={tip} fadeKey={fadeKey} />
         </div>
       </div>
-    );
-  }
 
-  // Portrait / near-square: full-width stacked composition, timer on top.
-  return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3vh,2.5rem)] overflow-hidden">
-      <div className="flex min-h-0 w-full flex-[1.1] items-center justify-center px-[clamp(1rem,6vw,3rem)]">
-        <PreClassTimer stage={stage} startsAt={startsAt} portrait />
-      </div>
-      <div
-        aria-hidden
-        className="h-px w-[min(88%,44rem)] shrink-0"
-        style={{ background: "rgba(255,255,255,0.10)" }}
-      />
-      <div className="flex min-h-0 w-full flex-1 items-start justify-center overflow-hidden px-[clamp(1.5rem,6vw,3rem)] pt-[clamp(0.75rem,3vh,2rem)]">
-        <IcebreakerLine tip={tip} fadeKey={fadeKey} centered />
+      <div className="sd-preclass-portrait h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3vh,2.5rem)] overflow-hidden">
+        <div className="flex min-h-0 w-full flex-[1.1] items-center justify-center px-[clamp(1rem,6vw,3rem)]">
+          <PreClassTimer stage={stage} startsAt={startsAt} portrait />
+        </div>
+        <div
+          aria-hidden
+          className="h-px w-[min(88%,44rem)] shrink-0"
+          style={{ background: "rgba(255,255,255,0.10)" }}
+        />
+        <div className="flex min-h-0 w-full flex-1 items-start justify-center overflow-hidden px-[clamp(1.5rem,6vw,3rem)] pt-[clamp(0.75rem,3vh,2rem)]">
+          <IcebreakerLine tip={tip} fadeKey={fadeKey} centered />
+        </div>
       </div>
     </div>
   );
-
 }
 
 function PreClassTimer({
