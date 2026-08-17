@@ -69,14 +69,17 @@ export const listShifts = createServerFn({ method: "GET" }).handler(async () => 
   const { username, isAdmin } = await requireGate();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   let q = supabaseAdmin.from("shifts").select("*").order("check_in_at", { ascending: false });
-  // Non-admin operators only see their own shifts (case-insensitive match).
-  if (!isAdmin && username) {
+  // Admins see every shift. Operators only see their own (case-insensitive).
+  // Site-unlocked but not signed in is NOT authorization for any shift data.
+  if (!isAdmin) {
+    if (!username) return [];
     q = q.ilike("operator_name", username);
   }
   const { data, error } = await q;
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => normalizeShift(r as Record<string, unknown>));
 });
+
 
 export const listScheduledShifts = createServerFn({ method: "GET" }).handler(async () => {
   const { username, isAdmin } = await requireGate();
@@ -115,7 +118,13 @@ export const createShift = createServerFn({ method: "POST" })
     if (!username || isAdmin) {
       throw new Response("Sign in as an operator to check in", { status: 403 });
     }
+    // A scheduled shift may only be checked into by the operator it is
+    // assigned to — never trusted just because the client sent its id.
+    if (data.scheduled_shift_id) {
+      await assertScheduledOwnership(data.scheduled_shift_id, username, false);
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
 
     const { data: op } = await supabaseAdmin
       .from("operators")

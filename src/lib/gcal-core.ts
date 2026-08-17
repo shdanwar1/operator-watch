@@ -189,6 +189,7 @@ type RawEvent = {
   start: Date | null;
   end: Date | null;
   rrule: string | null;
+  startIsUtc: boolean;
   exdates: string[]; // YYYY-MM-DD keys (local)
 };
 
@@ -202,8 +203,27 @@ function fmtOccurrence(start: Date, end: Date) {
   };
 }
 
+/**
+ * Berlin's UTC offset (in minutes) on a given wall-clock date, measured at
+ * midday so it is never ambiguous around the changeover hour.
+ */
+function berlinOffsetMinutes(d: Date): number {
+  const noonUtc = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
+  const asBerlin = new Date(
+    new Date(noonUtc).toLocaleString("en-US", { timeZone: "Europe/Berlin" }),
+  );
+  return Math.round((asBerlin.getTime() - noonUtc) / 60000);
+}
+
 /** Expands a simple RRULE (FREQ/INTERVAL/COUNT/UNTIL/BYDAY) inside a date window. */
-function expandRrule(start: Date, rrule: string, windowFrom: Date, windowTo: Date): Date[] {
+function expandRrule(
+  start: Date,
+  rrule: string,
+  windowFrom: Date,
+  windowTo: Date,
+  /** DTSTART was UTC-anchored (…Z), so its Berlin wall clock shifts with DST. */
+  utcAnchored = false,
+): Date[] {
   const parts = Object.fromEntries(
     rrule
       .split(";")
@@ -231,7 +251,16 @@ function expandRrule(start: Date, rrule: string, windowFrom: Date, windowTo: Dat
   const hard = 800; // safety bound on iterations
   let emitted = 0;
 
-  const push = (d: Date) => {
+  const startOffset = berlinOffsetMinutes(start);
+  const push = (raw: Date) => {
+    // A UTC-anchored series repeats at a fixed UTC instant, so its Berlin wall
+    // clock moves by an hour across a DST boundary. A local (TZID) series keeps
+    // its wall clock instead — that one needs no adjustment.
+    const d = new Date(raw);
+    if (utcAnchored) {
+      const delta = berlinOffsetMinutes(d) - startOffset;
+      if (delta) d.setMinutes(d.getMinutes() + delta);
+    }
     if (emitted >= count) return;
     if (until && d.getTime() > until.getTime()) return;
     emitted++;
@@ -314,6 +343,7 @@ export function parseIcs(ics: string, window?: { from: Date; to: Date }): Parsed
         start: null,
         end: null,
         rrule: null,
+        startIsUtc: false,
         exdates: [],
       };
       continue;
@@ -373,9 +403,12 @@ export function parseIcs(ics: string, window?: { from: Date; to: Date }): Parsed
           cur.exdates.push(p.date);
         }
         break;
-      case "DTSTART":
-        cur.start = parseIcsDateTime(val, val.endsWith("Z") && !params.TZID).local;
+      case "DTSTART": {
+        const isUtc = val.endsWith("Z") && !params.TZID;
+        cur.start = parseIcsDateTime(val, isUtc).local;
+        cur.startIsUtc = isUtc;
         break;
+      }
       case "DTEND":
         cur.end = parseIcsDateTime(val, val.endsWith("Z") && !params.TZID).local;
         break;
@@ -412,7 +445,7 @@ export function parseIcs(ics: string, window?: { from: Date; to: Date }): Parsed
       continue;
     }
 
-    for (const occStart of expandRrule(r.start, r.rrule, windowFrom, windowTo)) {
+    for (const occStart of expandRrule(r.start, r.rrule, windowFrom, windowTo, r.startIsUtc)) {
       const occEnd = new Date(occStart.getTime() + durationMs);
       const f = fmtOccurrence(occStart, occEnd);
       if (r.exdates.includes(f.specific_date)) continue;

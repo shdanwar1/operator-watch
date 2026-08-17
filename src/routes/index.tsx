@@ -22,7 +22,7 @@ import { snapshotMapsUrl, type TimeToLeaveSnapshot } from "@/lib/travel-snapshot
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { useReminders, type Reminder } from "@/hooks/useReminders";
 import { useCachedResource } from "@/hooks/useCachedResource";
-import { operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
+import { clearAllCaches, operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.functions";
 import { getAppSettings } from "@/lib/settings.functions";
@@ -420,6 +420,7 @@ function Index() {
   }, [calendarClasses]);
 
   async function handleSignOut() {
+    clearAllCaches();
     await signOut();
     await router.navigate({ to: "/unlock" });
   }
@@ -564,7 +565,11 @@ function Index() {
     try {
       const row = await correctClassMatchFn({ data: { id, classId, teacherId } });
       setCalendarClasses((prev) => prev.map((c) => (c.id === id ? row : c)));
-      toast.success("Match saved — future syncs will use it");
+      toast.success(
+        row.alias_saved
+          ? "Match saved — future syncs will use it"
+          : "Match saved for this class only",
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save the match");
     }

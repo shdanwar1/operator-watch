@@ -57,30 +57,21 @@ function sanitizeNames(names: unknown): string[] {
   return out.slice(0, 100);
 }
 
+/**
+ * Records usage of directory names. The increment happens inside the database
+ * (`bump_directory_usage`) so two concurrent recordings can't overwrite each
+ * other's count, and missing names are created in the same statement.
+ */
 async function bump(table: "teachers" | "classes", names: string[]) {
   if (names.length === 0) return;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const nowIso = new Date().toISOString();
-  // Upsert new rows (name unique). ignoreDuplicates so we don't overwrite counts.
-  const rows = names.map((name) => ({ name, usage_count: 0, last_used_at: nowIso }));
-  await supabaseAdmin.from(table).upsert(rows, { onConflict: "name", ignoreDuplicates: true });
-  // Increment usage + last_used_at for each name.
-  // Fetch current counts then update (small N).
-  const { data: existing } = await supabaseAdmin
-    .from(table)
-    .select("id,name,usage_count")
-    .in("name", names);
-  if (!existing) return;
-  await Promise.all(
-    existing.map((row) => {
-      const r = row as { id: string; usage_count: number | null };
-      return supabaseAdmin
-        .from(table)
-        .update({ usage_count: (r.usage_count ?? 0) + 1, last_used_at: nowIso })
-        .eq("id", r.id);
-    }),
-  );
+  const { error } = await supabaseAdmin.rpc("bump_directory_usage", {
+    p_table: table,
+    p_names: names,
+  });
+  if (error) throw new Error(error.message);
 }
+
 
 export const recordDirectoryUsage = createServerFn({ method: "POST" })
   .inputValidator((data: { teachers?: unknown; classes?: unknown }) => ({
