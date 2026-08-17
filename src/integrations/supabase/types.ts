@@ -180,6 +180,7 @@ export type Database = {
       operators: {
         Row: {
           calendar_ics_url: string | null
+          calendar_last_sync_at: string | null
           created_at: string
           home_label: string | null
           home_lat: number | null
@@ -194,6 +195,7 @@ export type Database = {
         }
         Insert: {
           calendar_ics_url?: string | null
+          calendar_last_sync_at?: string | null
           created_at?: string
           home_label?: string | null
           home_lat?: number | null
@@ -208,6 +210,7 @@ export type Database = {
         }
         Update: {
           calendar_ics_url?: string | null
+          calendar_last_sync_at?: string | null
           created_at?: string
           home_label?: string | null
           home_lat?: number | null

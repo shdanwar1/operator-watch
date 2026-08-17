@@ -66,6 +66,15 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" })
     return runCalendarSync(username, { includeNextMonth: data.includeNextMonth });
   });
 
+/** Server-authoritative last successful sync time (no calendar fetch). */
+export const getMyCalendarSyncStatus = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ calendarLastSyncAt: string | null }> => {
+    const { username } = await requireOperator();
+    const { readCalendarSyncStatus } = await import("./gcal.server");
+    return readCalendarSyncStatus(username);
+  },
+);
+
 /** Classes imported from the operator's calendar (Detailed Mode only). */
 export const listMyCalendarClasses = createServerFn({ method: "GET" }).handler(
   async (): Promise<CalendarClassRow[]> => {

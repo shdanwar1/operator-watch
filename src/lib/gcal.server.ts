@@ -33,7 +33,14 @@ export type GcalSyncResult = {
   error?: string;
   /** Per-event accept/reject trace (admin/debug view only). */
   logs?: MatchLog[];
+  /**
+   * Server-authoritative time of the latest *successful* sync for this
+   * operator. On failure this is the previous successful value (or null) —
+   * never a freshly generated timestamp.
+   */
+  syncedAt?: string | null;
 };
+
 
 export type CalendarClassRow = {
   id: string;
@@ -54,7 +61,7 @@ export async function loadOperatorCalendar(username: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("operators")
-    .select("username, calendar_ics_url")
+    .select("username, calendar_ics_url, calendar_last_sync_at")
     .ilike("username", username)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -62,17 +69,65 @@ export async function loadOperatorCalendar(username: string) {
   return {
     displayName: data.username as string,
     icsUrl: (data.calendar_ics_url ?? null) as string | null,
+    lastSyncAt: (data.calendar_last_sync_at ?? null) as string | null,
   };
+}
+
+/** Reads the stored, server-authoritative last successful sync time. */
+export async function readCalendarSyncStatus(
+  username: string,
+): Promise<{ calendarLastSyncAt: string | null }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("operators")
+    .select("calendar_last_sync_at")
+    .ilike("username", username)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return { calendarLastSyncAt: (data?.calendar_last_sync_at ?? null) as string | null };
+}
+
+/** Stamps the operator row after a fully successful sync; returns the stored value. */
+async function stampCalendarSync(username: string): Promise<string | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const at = new Date().toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("operators")
+    .update({ calendar_last_sync_at: at })
+    .ilike("username", username)
+    .select("calendar_last_sync_at")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data?.calendar_last_sync_at ?? at) as string | null;
 }
 
 function fail(mode: CalendarMode, error: string): GcalSyncResult {
   return { ok: false, mode, fetched: 0, ignored: 0, shifts: 0, removed: 0, error };
 }
 
+/**
+ * Public entry point. Runs the import, then records the successful sync time
+ * on the operator row so every device reads the same value. A failed sync
+ * leaves the previous timestamp untouched.
+ */
 export async function runCalendarSync(
   username: string,
   opts: { includeNextMonth?: boolean } = {},
 ): Promise<GcalSyncResult> {
+  const previous = await readCalendarSyncStatus(username).catch(() => ({
+    calendarLastSyncAt: null as string | null,
+  }));
+  const result = await runCalendarImport(username, opts);
+  if (!result.ok) return { ...result, syncedAt: previous.calendarLastSyncAt };
+  const syncedAt = await stampCalendarSync(username);
+  return { ...result, syncedAt };
+}
+
+async function runCalendarImport(
+  username: string,
+  opts: { includeNextMonth?: boolean } = {},
+): Promise<GcalSyncResult> {
+
   const includeNextMonth = opts.includeNextMonth === true;
   const { displayName, icsUrl } = await loadOperatorCalendar(username);
   if (!icsUrl) {
