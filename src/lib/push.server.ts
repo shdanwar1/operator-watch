@@ -50,7 +50,7 @@ export async function sendToSubscription(
     vapid(),
   );
 
-  const res = await fetch(sub.endpoint, request);
+  const res = await fetch(sub.endpoint, request as unknown as RequestInit);
   return { ok: res.ok, gone: res.status === 404 || res.status === 410, status: res.status };
 }
 
