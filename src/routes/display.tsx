@@ -179,14 +179,15 @@ function DisplayScreen() {
             stage={stage}
             startsAt={state.startTime}
             durationMin={state.durationMin}
-            isLandscape={isLandscape}
+            isLandscape={ratio >= 1.35}
           />
         ) : stage.phase === "countdown10" ? (
           <CountdownCinematic n={stage.bigNumber ?? 1} />
         ) : stage.phase === "qa" ? (
           <QAStage stage={stage} />
         ) : showPreClass ? (
-          <PreClassStage stage={stage} startsAt={state.startTime} isLandscape={ratio >= 1} />
+          <PreClassStage stage={stage} startsAt={state.startTime} isLandscape={isLandscape} />
+
         ) : (
           <MainStage stage={stage} notes={state.notes} isLandscape={isLandscape} />
         )}
