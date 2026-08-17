@@ -186,10 +186,6 @@ function ProfilePage() {
 
       await savePrefsFn({ data: prefs });
 
-      if (prefs.notifyTimeToLeave || prefs.notifyShiftStart) {
-        void requestNotificationPermission();
-      }
-
       if (nameChanged) {
         const fresh = await reloadProfile();
         setProfile(fresh);
@@ -343,15 +339,6 @@ function ProfilePage() {
 
     </AppShell>
   );
-}
-
-async function requestNotificationPermission() {
-  try {
-    if (typeof Notification === "undefined") return;
-    if (Notification.permission === "default") await Notification.requestPermission();
-  } catch {
-    /* ignore */
-  }
 }
 
 function friendlyError(e: unknown): string {
