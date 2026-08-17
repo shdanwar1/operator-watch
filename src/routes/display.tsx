@@ -208,8 +208,53 @@ function DisplayScreen() {
         )}
       </div>
     </div>
+    </>
   );
 }
+
+/**
+ * Paints the browser chrome (title bar / status bar / overscroll) with the
+ * current stage colour so the window frame never lags behind the screen.
+ */
+function SurfaceChrome({ color }: { color: string }) {
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prev = {
+      html: html.style.backgroundColor,
+      body: body.style.backgroundColor,
+      htmlTransition: html.style.transition,
+      bodyTransition: body.style.transition,
+    };
+    const transition = "background-color 10000ms cubic-bezier(0.4, 0, 0.2, 1)";
+    html.style.transition = transition;
+    body.style.transition = transition;
+    html.style.backgroundColor = color;
+    body.style.backgroundColor = color;
+
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    let created = false;
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "theme-color";
+      document.head.appendChild(meta);
+      created = true;
+    }
+    const prevContent = meta.content;
+    meta.content = color;
+
+    return () => {
+      html.style.backgroundColor = prev.html;
+      body.style.backgroundColor = prev.body;
+      html.style.transition = prev.htmlTransition;
+      body.style.transition = prev.bodyTransition;
+      if (created) meta?.remove();
+      else if (meta) meta.content = prevContent;
+    };
+  }, [color]);
+  return null;
+}
+
 
 /* --------------------------- Shared type primitives --------------------------- */
 
