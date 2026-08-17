@@ -166,7 +166,19 @@ function DisplayScreen() {
           transition: "background-color 10000ms cubic-bezier(0.4, 0, 0.2, 1)",
           willChange: "background-color",
         }}
-      />
+      >
+        {/* Same semantic colour, just a touch of vertical tone so large flat
+            fields don't read as a dead screen. */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              stage.fg === "dark"
+                ? "linear-gradient(to bottom, rgba(255,255,255,0.06), rgba(0,0,0,0.05))"
+                : "linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(0,0,0,0.10))",
+          }}
+        />
+      </div>
 
       <div
         className="sd-display-surface relative z-10 flex h-full w-full items-center justify-center"
@@ -195,6 +207,71 @@ function DisplayScreen() {
     </div>
   );
 }
+
+/* --------------------------- Shared type primitives --------------------------- */
+
+/** Small tracked uppercase label — the one label voice for every screen. */
+function StageLabel({
+  children,
+  size = "clamp(0.62rem, 1.1vmin, 1.05rem)",
+  tracking = "0.34em",
+  opacity = 0.55,
+  className = "",
+  style,
+}: {
+  children: React.ReactNode;
+  size?: string;
+  tracking?: string;
+  opacity?: number;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      className={`font-medium uppercase ${className}`}
+      style={{
+        fontSize: size,
+        letterSpacing: tracking,
+        opacity,
+        whiteSpace: "nowrap",
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** The single numeric face shared by every timer on every screen (SF Pro). */
+function TimerDigits({
+  value,
+  size,
+  weight = 300,
+  tracking = "-0.035em",
+  className = "",
+}: {
+  value: string | number;
+  size: string;
+  weight?: number;
+  tracking?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`sd-num leading-none ${className}`}
+      style={{
+        fontSize: size,
+        fontWeight: weight,
+        letterSpacing: tracking,
+        whiteSpace: "nowrap",
+        maxWidth: "100%",
+      }}
+    >
+      {value}
+    </div>
+  );
+}
+
 
 /* --------------------------- Class information banner --------------------------- */
 
