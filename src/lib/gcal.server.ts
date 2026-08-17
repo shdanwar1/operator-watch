@@ -615,7 +615,7 @@ export async function correctClassMapping(
   id: string,
   classId: string,
   teacherId: string | null,
-): Promise<CalendarClassRow> {
+): Promise<CalendarClassRow & { alias_saved: boolean }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: row, error: readErr } = await supabaseAdmin
     .from("calendar_classes")
@@ -652,10 +652,14 @@ export async function correctClassMapping(
     .single();
   if (error) throw new Error(error.message);
 
+  // The row itself is already corrected. Remembering it as an alias is a
+  // separate step that can fail on its own; when it does, the caller is told
+  // so it doesn't promise "future syncs will use it".
   const rawTitle = (row.raw_title as string | null) ?? (row.class_name as string);
   const aliasKey = aliasKeyFor(rawTitle);
+  let aliasSaved = false;
   if (aliasKey) {
-    await supabaseAdmin.from("class_aliases").upsert(
+    const { error: aliasErr } = await supabaseAdmin.from("class_aliases").upsert(
       {
         alias_key: aliasKey,
         raw_title: rawTitle.slice(0, 500),
@@ -664,9 +668,11 @@ export async function correctClassMapping(
       },
       { onConflict: "alias_key" },
     );
+    if (aliasErr) console.error("[gcal] alias upsert failed", aliasErr.message);
+    else aliasSaved = true;
   }
 
-  return data as CalendarClassRow;
+  return { ...(data as CalendarClassRow), alias_saved: aliasSaved };
 }
 
 export type CalendarHealth = { connected: boolean; ok: boolean; error?: string };

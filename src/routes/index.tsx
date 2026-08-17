@@ -564,7 +564,11 @@ function Index() {
     try {
       const row = await correctClassMatchFn({ data: { id, classId, teacherId } });
       setCalendarClasses((prev) => prev.map((c) => (c.id === id ? row : c)));
-      toast.success("Match saved — future syncs will use it");
+      toast.success(
+        row.alias_saved
+          ? "Match saved — future syncs will use it"
+          : "Match saved for this class only",
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save the match");
     }

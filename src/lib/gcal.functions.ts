@@ -121,7 +121,7 @@ export const correctMyClassMatch = createServerFn({ method: "POST" })
       teacherId: typeof data.teacherId === "string" && data.teacherId ? data.teacherId : null,
     };
   })
-  .handler(async ({ data }): Promise<CalendarClassRow> => {
+  .handler(async ({ data }): Promise<CalendarClassRow & { alias_saved: boolean }> => {
     const { username } = await requireOperator();
     const { loadOperatorCalendar, correctClassMapping } = await import("./gcal.server");
     const { displayName } = await loadOperatorCalendar(username);
