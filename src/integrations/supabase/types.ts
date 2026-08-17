@@ -375,6 +375,10 @@ export type Database = {
         Args: { p_id: string; p_pin?: string; p_username?: string }
         Returns: undefined
       }
+      bump_directory_usage: {
+        Args: { p_names: string[]; p_table: string }
+        Returns: undefined
+      }
       list_operators_for_selection: {
         Args: never
         Returns: {
