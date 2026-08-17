@@ -73,18 +73,42 @@ export async function loadOperatorCalendar(username: string) {
   };
 }
 
-/** Reads the stored, server-authoritative last successful sync time. */
+/**
+ * Reads the stored, server-authoritative last successful sync time.
+ *
+ * Rows synced before the timestamp column existed have no stamp, so we fall
+ * back to the most recent write the importer made for that operator and
+ * backfill the column with it — after that, the stored value is used as-is.
+ */
 export async function readCalendarSyncStatus(
   username: string,
 ): Promise<{ calendarLastSyncAt: string | null }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("operators")
-    .select("calendar_last_sync_at")
+    .select("username, calendar_last_sync_at")
     .ilike("username", username)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return { calendarLastSyncAt: (data?.calendar_last_sync_at ?? null) as string | null };
+  const stored = (data?.calendar_last_sync_at ?? null) as string | null;
+  if (stored || !data) return { calendarLastSyncAt: stored };
+
+  const displayName = data.username as string;
+  const { data: latest } = await supabaseAdmin
+    .from("calendar_classes")
+    .select("updated_at")
+    .ilike("operator", displayName)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const inferred = (latest?.updated_at ?? null) as string | null;
+  if (!inferred) return { calendarLastSyncAt: null };
+
+  await supabaseAdmin
+    .from("operators")
+    .update({ calendar_last_sync_at: inferred })
+    .ilike("username", displayName);
+  return { calendarLastSyncAt: inferred };
 }
 
 /** Stamps the operator row after a fully successful sync; returns the stored value. */
