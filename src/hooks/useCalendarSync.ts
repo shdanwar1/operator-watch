@@ -139,7 +139,7 @@ export function useCalendarSync(options: {
     };
   }, [enabled, autoEnabled, runSync]);
 
-  return { syncing, lastSync, logs, setLogs, runSync };
+  return { syncing, lastSync, setLastSync, logs, setLogs, runSync };
 }
 
 /** Refreshes the caller whenever any view reports a completed sync. */
