@@ -157,6 +157,11 @@ function DisplayScreen() {
   const textClass = stage.fg === "dark" ? "text-neutral-900" : "text-white";
 
   return (
+    <>
+      <SurfaceChrome color={stage.bgColor} />
+
+
+  return (
     <div ref={ref} className={`fixed inset-0 overflow-hidden ${textClass}`}>
       <div
         aria-hidden
