@@ -143,9 +143,16 @@ export function PushDeviceToggle() {
             onClick={async () => {
               try {
                 const res = await test();
-                toast[res.sent > 0 ? "success" : "error"](
-                  res.sent > 0 ? "Test sent" : "Couldn't deliver the test",
-                );
+                if (res.total === 0) {
+                  toast.error("No device is registered for notifications yet");
+                } else if (res.sent > 0) {
+                  toast.success(
+                    res.failed > 0 ? `Test sent to ${res.sent} of ${res.total} devices` : "Test sent",
+                  );
+                } else {
+                  toast.error("Couldn't deliver the test to any device");
+                }
+
               } catch {
                 toast.error("Couldn't send a test");
               }
