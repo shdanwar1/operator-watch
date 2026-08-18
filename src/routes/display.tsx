@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStudioDisplay } from "@/hooks/useStudioDisplay";
 import {
   computeStage,
@@ -41,25 +41,48 @@ function useTicker(ms = 250) {
  * near-square prefers the stacked (portrait) composition.
  */
 function useAspect() {
-  const ref = useRef<HTMLDivElement | null>(null);
+  const elRef = useRef<HTMLDivElement | null>(null);
+  const roRef = useRef<ResizeObserver | null>(null);
   const [size, setSize] = useState<{ w: number; h: number }>(() =>
     typeof window === "undefined"
       ? { w: 0, h: 0 }
       : { w: window.innerWidth, h: window.innerHeight },
   );
-  useLayoutEffect(() => {
-    if (!ref.current) return;
-    const el = ref.current;
-    const measure = () => {
-      const w = el.clientWidth;
-      const h = el.clientHeight;
-      if (w > 0 && h > 0) setSize((p) => (p.w === w && p.h === h ? p : { w, h }));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
+
+  const measure = useCallback(() => {
+    const el = elRef.current;
+    const w = el?.clientWidth || (typeof window === "undefined" ? 0 : window.innerWidth);
+    const h = el?.clientHeight || (typeof window === "undefined" ? 0 : window.innerHeight);
+    if (w > 0 && h > 0) setSize((p) => (p.w === w && p.h === h ? p : { w, h }));
   }, []);
+
+  // Callback ref: the surface mounts after an early return, so a plain
+  // useLayoutEffect could run before the node exists and never observe it.
+  const ref = useCallback(
+    (node: HTMLDivElement | null) => {
+      roRef.current?.disconnect();
+      roRef.current = null;
+      elRef.current = node;
+      if (!node) return;
+      measure();
+      const ro = new ResizeObserver(measure);
+      ro.observe(node);
+      roRef.current = ro;
+    },
+    [measure],
+  );
+
+  useEffect(() => {
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+      roRef.current?.disconnect();
+      roRef.current = null;
+    };
+  }, [measure]);
+
   const { w, h } = size;
   // Single orientation threshold for the whole display — every stage reads
   // this one value, so no two panels can disagree about the layout.
@@ -67,6 +90,7 @@ function useAspect() {
   const isLandscape = w > 0 && h > 0 ? w >= h : false;
   return { ref, isLandscape, isPortrait: !isLandscape, width: w, height: h };
 }
+
 
 /**
  * Layout capacity check for the optional pre-class ice-breaker.
