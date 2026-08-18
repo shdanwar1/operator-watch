@@ -120,3 +120,39 @@ export async function currentPushEndpoint(): Promise<string | null> {
   const subscription = await registration?.pushManager.getSubscription();
   return subscription?.endpoint ?? null;
 }
+
+/**
+ * Silent repair: if permission is already granted, make sure a subscription
+ * exists and hand its keys back so the caller can re-register it.
+ *
+ * Never prompts — it returns null unless permission is already "granted".
+ * Mobile browsers rotate push endpoints, and without this the operator would
+ * have to toggle notifications off and on again to keep receiving them.
+ */
+export async function reconcilePushSubscription(
+  publicKey: string | null,
+): Promise<{ endpoint: string; p256dh: string; auth: string } | null> {
+  const support = pushSupport();
+  if (!support.supported || support.permission !== "granted") return null;
+
+  try {
+    const registration = await ensureRegistration();
+    await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      if (!publicKey) return null;
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as unknown as BufferSource,
+      });
+    }
+    return {
+      endpoint: subscription.endpoint,
+      p256dh: encodeKey(subscription.getKey("p256dh")),
+      auth: encodeKey(subscription.getKey("auth")),
+    };
+  } catch {
+    return null;
+  }
+}
+
