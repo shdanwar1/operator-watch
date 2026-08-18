@@ -605,11 +605,12 @@ function PreClassStage({
   // surface and re-centres — no divider, no empty column, no clipped text.
   if (!showIcebreaker) {
     return (
-      <div className="flex h-full w-full min-h-0 min-w-0 items-center justify-center px-[clamp(1rem,5vw,4rem)]">
-        <PreClassTimer stage={stage} startsAt={startsAt} portrait={!isLandscape} />
+      <div className="flex h-full w-full min-h-0 min-w-0 items-center justify-center px-[clamp(0.75rem,3vw,3rem)]">
+        <PreClassTimer stage={stage} startsAt={startsAt} portrait={!isLandscape} solo />
       </div>
     );
   }
+
 
   if (isLandscape) {
     return (
