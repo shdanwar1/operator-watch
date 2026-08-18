@@ -290,8 +290,15 @@ export type Database = {
       }
       push_notification_deliveries: {
         Row: {
+          attempts: number
           created_at: string
+          devices_failed: number
+          devices_sent: number
+          expires_at: string | null
           id: string
+          last_attempt_at: string | null
+          last_error: string | null
+          locked_at: string | null
           notification_key: string
           notification_type: string
           operator_id: string
@@ -300,8 +307,15 @@ export type Database = {
           status: string
         }
         Insert: {
+          attempts?: number
           created_at?: string
+          devices_failed?: number
+          devices_sent?: number
+          expires_at?: string | null
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          locked_at?: string | null
           notification_key: string
           notification_type: string
           operator_id: string
@@ -310,8 +324,15 @@ export type Database = {
           status?: string
         }
         Update: {
+          attempts?: number
           created_at?: string
+          devices_failed?: number
+          devices_sent?: number
+          expires_at?: string | null
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          locked_at?: string | null
           notification_key?: string
           notification_type?: string
           operator_id?: string
@@ -543,6 +564,21 @@ export type Database = {
       bump_directory_usage: {
         Args: { p_names: string[]; p_table: string }
         Returns: undefined
+      }
+      claim_push_delivery: {
+        Args: {
+          p_expires_at: string
+          p_key: string
+          p_max_attempts?: number
+          p_operator_id: string
+          p_scheduled_at: string
+          p_stale_after?: string
+          p_type: string
+        }
+        Returns: {
+          attempts: number
+          id: string
+        }[]
       }
       list_operators_for_selection: {
         Args: never

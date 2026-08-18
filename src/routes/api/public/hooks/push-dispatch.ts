@@ -9,7 +9,9 @@ import { berlinClock, berlinInstant } from "@/lib/push-time";
  * no-op, so overlapping cron ticks cannot double-notify.
  */
 
-const LOOKBACK_MS = 5 * 60 * 1000; // tolerate a few missed ticks
+// A late scheduler tick must still deliver, but an hours-old reminder must
+// never surface. 15 minutes is the maximum lateness we accept.
+const LOOKBACK_MS = 15 * 60 * 1000;
 const LOOKAHEAD_MS = 60 * 1000; // "due within this tick"
 const SHIFT_START_LEAD_MIN = 15;
 
@@ -19,6 +21,7 @@ function due(at: Date, now: number): boolean {
   const t = at.getTime();
   return t <= now + LOOKAHEAD_MS && t >= now - LOOKBACK_MS;
 }
+
 
 export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
   server: {
@@ -126,42 +129,97 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           });
         }
 
-        let sent = 0;
-        let skipped = 0;
+        const stats = {
+          candidates: jobs.length,
+          claimed: 0,
+          skipped: 0,
+          sent: 0,
+          delivered: 0,
+          partial: 0,
+          failed: 0,
+          no_subscription: 0,
+        };
 
         for (const job of jobs) {
-          // The unique (operator_id, notification_key) claim is the lock.
-          const { error: claimErr } = await supabaseAdmin.from("push_notification_deliveries").insert({
-            operator_id: job.operatorId,
-            notification_key: job.key,
-            notification_type: job.type,
-            scheduled_at: job.at.toISOString(),
-            status: "sending",
+          // Atomic claim: inserts a fresh row, or takes over a row that
+          // failed / was left "sending" by a crashed run. Anything already
+          // sent, expired, out of attempts, or held by a concurrent run
+          // returns nothing — so the same logical notification is never
+          // sent twice, and a transient failure is not permanent.
+          const expiresAt = new Date(job.at.getTime() + LOOKBACK_MS).toISOString();
+          const { data: claim, error: claimErr } = await supabaseAdmin.rpc("claim_push_delivery", {
+            p_operator_id: job.operatorId,
+            p_key: job.key,
+            p_type: job.type,
+            p_scheduled_at: job.at.toISOString(),
+            p_expires_at: expiresAt,
           } as never);
-          if (claimErr) {
-            skipped += 1;
+          const claimed = Array.isArray(claim) ? claim[0] : claim;
+          if (claimErr || !claimed) {
+            stats.skipped += 1;
             continue;
           }
+          stats.claimed += 1;
 
-          const result = await sendToOperator(job.operatorId, {
-            title: job.title,
-            body: job.body,
-            tag: job.key,
-            url: "/",
-          });
-          sent += result.sent;
+          let result: Awaited<ReturnType<typeof sendToOperator>>;
+          try {
+            result = await sendToOperator(job.operatorId, {
+              title: job.title,
+              body: job.body,
+              tag: job.key,
+              url: "/",
+            });
+          } catch (err) {
+            result = {
+              sent: 0,
+              failed: 1,
+              gone: 0,
+              total: 1,
+              error: err instanceof Error ? err.message : "send failed",
+            };
+          }
+
+          // no device at all -> terminal (retrying cannot help)
+          // every live device failed -> retryable
+          // some succeeded -> delivered (partial), not retried
+          const status =
+            result.total === 0
+              ? "no_subscription"
+              : result.sent > 0
+                ? result.failed > 0
+                  ? "partial"
+                  : "sent"
+                : "failed";
+
+          stats.sent += result.sent;
+          if (status === "sent") stats.delivered += 1;
+          else if (status === "partial") stats.partial += 1;
+          else if (status === "failed") stats.failed += 1;
+          else stats.no_subscription += 1;
 
           await supabaseAdmin
             .from("push_notification_deliveries")
             .update({
-              status: result.sent > 0 ? "sent" : "failed",
-              sent_at: new Date().toISOString(),
+              status,
+              sent_at: result.sent > 0 ? new Date().toISOString() : null,
+              devices_sent: result.sent,
+              devices_failed: result.failed,
+              last_error: result.error ?? null,
+              locked_at: null,
             } as never)
             .eq("operator_id", job.operatorId)
             .eq("notification_key", job.key);
         }
 
-        return Response.json({ ok: true, candidates: jobs.length, sent, skipped });
+        // Reminders whose lateness window has passed can never fire again.
+        await supabaseAdmin
+          .from("push_notification_deliveries")
+          .update({ status: "expired", locked_at: null } as never)
+          .in("status", ["pending", "failed"])
+          .lt("expires_at", new Date(now).toISOString());
+
+        return Response.json({ ok: true, ...stats });
+
       },
     },
   },

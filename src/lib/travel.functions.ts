@@ -69,6 +69,8 @@ export type TimeToLeaveResult =
       travel_minutes: number;
       transfers: number;
       direct_options: DirectOption[];
+      /** false when the background-notification copy of this plan could not be stored */
+      plan_saved: boolean;
     }
   | { ok: false; reason: "no_home" | "no_session" | "no_route"; home_label?: string };
 
@@ -250,27 +252,41 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
 
 
     // Persist the plan so background push can fire "time to leave" without
-    // the app being open. Never fatal to the response.
-    try {
-      const operatorId = (op as { id?: string }).id;
-      if (operatorId) {
-        await supabaseAdmin.from("operator_travel_plans").upsert(
-          {
-            operator_id: operatorId,
-            shift_start_at: shiftStart.toISOString(),
-            departure_at: pick.dep,
-            arrival_at: pick.arr,
-            travel_minutes: travelMinutes,
-            transfers: pick.transfers,
-            route_label: directOptions[0]?.line ?? null,
-            calculated_at: new Date().toISOString(),
-          } as never,
-          { onConflict: "operator_id,shift_start_at,algorithm_version" },
-        );
+    // the app being open. A failure here must never break the dashboard, but
+    // it must also never be invisible: the caller gets `plan_saved` and can
+    // safely retry (the upsert is idempotent, and a failed write leaves any
+    // previously good row untouched).
+    let planSaved = false;
+    let planError: string | undefined;
+    const operatorId = (op as { id?: string }).id;
+    if (operatorId) {
+      for (let attempt = 0; attempt < 3 && !planSaved; attempt += 1) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 250 * attempt));
+        try {
+          const { error: planErr } = await supabaseAdmin.from("operator_travel_plans").upsert(
+            {
+              operator_id: operatorId,
+              shift_start_at: shiftStart.toISOString(),
+              departure_at: pick.dep,
+              arrival_at: pick.arr,
+              travel_minutes: travelMinutes,
+              transfers: pick.transfers,
+              route_label: directOptions[0]?.line ?? null,
+              calculated_at: new Date().toISOString(),
+            } as never,
+            { onConflict: "operator_id,shift_start_at,algorithm_version" },
+          );
+          if (planErr) planError = planErr.message;
+          else planSaved = true;
+        } catch (err) {
+          planError = err instanceof Error ? err.message : "travel plan write failed";
+        }
       }
-    } catch {
-      /* ignore */
+      if (!planSaved) {
+        console.error("[travel] server travel plan not persisted", { planError });
+      }
     }
+
 
     return {
       ok: true,
@@ -287,6 +303,7 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       travel_minutes: travelMinutes,
       transfers: pick.transfers,
       direct_options: directOptions,
+      plan_saved: planSaved,
     };
   });
 
