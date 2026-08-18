@@ -112,11 +112,15 @@ function shouldShowIcebreaker({
   if (width <= 0 || height <= 0) return showing;
   const slack = showing ? 0.92 : 1; // small hysteresis gap — no flicker at the edge
   if (isLandscape) {
+    // Very wide, short window: horizontal room is plentiful, so the two
+    // columns still fit comfortably even with limited height.
+    if (width >= 900 * slack && width / height >= 2.2) return height >= 170 * slack;
     // Side-by-side: each half needs enough width, timer needs some height.
     return width >= 560 * slack && height >= 240 * slack;
   }
   // Stacked: vertical space is the binding constraint (timer + rule + text).
   return height >= 430 * slack && width >= 280 * slack;
+
 
 }
 
