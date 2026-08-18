@@ -675,20 +675,20 @@ function IcebreakerLine({
   return (
     <div
       key={fadeKey}
-      className={`sd-rise ${centered ? "mx-auto max-w-[36ch] text-center" : "max-w-[28ch] text-left"}`}
+      className={`sd-rise min-w-0 ${centered ? "mx-auto max-w-[36ch] text-center" : "max-w-[28ch] text-left"}`}
     >
       <StageLabel
         opacity={0.45}
-        size={centered ? "clamp(0.58rem, 2vw, 0.95rem)" : "clamp(0.58rem, 0.85vw, 0.95rem)"}
+        size={centered ? "clamp(0.5rem, 2vw, 0.95rem)" : "clamp(0.5rem, 0.85vw, 0.95rem)"}
         tracking="0.34em"
-        className={centered ? "mb-[clamp(0.4rem,1.2vh,0.9rem)]" : "mb-[clamp(0.4rem,1.2vmin,0.9rem)]"}
+        className={`overflow-hidden ${centered ? "mb-[clamp(0.4rem,1.2vh,0.9rem)]" : "mb-[clamp(0.4rem,1.2vmin,0.9rem)]"}`}
       >
         Break the ice
       </StageLabel>
       <div
-        className="font-medium"
+        className="overflow-hidden font-medium"
         style={{
-          fontSize: centered ? "clamp(0.7rem, 2.1vw, 1.05rem)" : "clamp(0.7rem, 1.1vw, 1.05rem)",
+          fontSize: centered ? "clamp(0.62rem, 2.1vw, 1.05rem)" : "clamp(0.62rem, 1.1vw, 1.05rem)",
           letterSpacing: "0.02em",
           opacity: 0.55,
           whiteSpace: "nowrap",
@@ -699,7 +699,9 @@ function IcebreakerLine({
       <p
         className="mt-[clamp(0.55rem,1.4vmin,1rem)] italic font-light opacity-95"
         style={{
-          fontSize: centered ? "clamp(1.15rem, 3.8vw, 2.1rem)" : "clamp(1.15rem, 1.9vw, 2.2rem)",
+          fontSize: centered
+            ? "clamp(0.92rem, 3.04vw, 1.68rem)"
+            : "clamp(0.92rem, 1.52vw, 1.76rem)",
           lineHeight: 1.3,
           letterSpacing: "-0.015em",
           wordBreak: "normal",
@@ -709,6 +711,7 @@ function IcebreakerLine({
         {tip}
       </p>
     </div>
+
   );
 }
 
