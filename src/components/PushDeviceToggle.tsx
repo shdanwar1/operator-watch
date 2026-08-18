@@ -12,6 +12,7 @@ import {
 import {
   currentPushEndpoint,
   pushSupport,
+  reconcilePushSubscription,
   subscribeToPush,
   unsubscribeFromPush,
 } from "@/lib/push-client";
