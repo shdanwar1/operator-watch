@@ -227,7 +227,7 @@ function DisplayScreen() {
   return (
     <>
       <SurfaceChrome color={stage.bgColor} />
-    <div ref={ref} className={`fixed inset-0 overflow-hidden ${textClass}`}>
+    <div ref={ref} data-dbg={`${surfaceW}x${surfaceH}:${icebreakerVisible}`} className={`fixed inset-0 overflow-hidden ${textClass}`}>
 
       <div
         aria-hidden
