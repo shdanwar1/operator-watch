@@ -86,13 +86,14 @@ function shouldShowIcebreaker({
   showing: boolean;
 }) {
   if (width <= 0 || height <= 0) return showing;
-  const slack = showing ? 0.9 : 1; // keep visible slightly past the hide point
+  const slack = showing ? 0.92 : 1; // small hysteresis gap — no flicker at the edge
   if (isLandscape) {
     // Side-by-side: each half needs enough width, timer needs some height.
-    return width >= 720 * slack && height >= 300 * slack;
+    return width >= 560 * slack && height >= 240 * slack;
   }
   // Stacked: vertical space is the binding constraint (timer + rule + text).
-  return height >= 520 * slack && width >= 340 * slack;
+  return height >= 430 * slack && width >= 280 * slack;
+
 }
 
 
