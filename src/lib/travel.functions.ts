@@ -69,6 +69,8 @@ export type TimeToLeaveResult =
       travel_minutes: number;
       transfers: number;
       direct_options: DirectOption[];
+      /** false when the background-notification copy of this plan could not be stored */
+      plan_saved: boolean;
     }
   | { ok: false; reason: "no_home" | "no_session" | "no_route"; home_label?: string };
 
@@ -301,6 +303,7 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       travel_minutes: travelMinutes,
       transfers: pick.transfers,
       direct_options: directOptions,
+      plan_saved: planSaved,
     };
   });
 
