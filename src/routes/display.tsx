@@ -102,6 +102,7 @@ function useIcebreakerVisible(width: number, height: number, isLandscape: boolea
   useEffect(() => {
     setVisible((prev) => {
       const next = shouldShowIcebreaker({ width, height, isLandscape, showing: prev });
+      console.log("[sd-dbg]", width, height, isLandscape, prev, "->", next);
       return next === prev ? prev : next;
     });
   }, [width, height, isLandscape]);
