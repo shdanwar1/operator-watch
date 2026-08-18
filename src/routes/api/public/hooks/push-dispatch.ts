@@ -9,7 +9,9 @@ import { berlinClock, berlinInstant } from "@/lib/push-time";
  * no-op, so overlapping cron ticks cannot double-notify.
  */
 
-const LOOKBACK_MS = 5 * 60 * 1000; // tolerate a few missed ticks
+// A late scheduler tick must still deliver, but an hours-old reminder must
+// never surface. 15 minutes is the maximum lateness we accept.
+const LOOKBACK_MS = 15 * 60 * 1000;
 const LOOKAHEAD_MS = 60 * 1000; // "due within this tick"
 const SHIFT_START_LEAD_MIN = 15;
 
@@ -19,6 +21,7 @@ function due(at: Date, now: number): boolean {
   const t = at.getTime();
   return t <= now + LOOKAHEAD_MS && t >= now - LOOKBACK_MS;
 }
+
 
 export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
   server: {
