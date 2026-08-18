@@ -54,11 +54,17 @@ export async function sendToSubscription(
   return { ok: res.ok, gone: res.status === 404 || res.status === 410, status: res.status };
 }
 
-/** Sends to every active device of an operator, disabling dead endpoints. */
+/**
+ * Sends to every active device of an operator, disabling dead endpoints.
+ *
+ * One failing device never stops the others: every subscription is attempted
+ * and the caller gets the full picture (`total` = active devices at send time)
+ * so it can tell "all sent" from "partly sent" from "nothing to send".
+ */
 export async function sendToOperator(
   operatorId: string,
   payload: PushPayload,
-): Promise<{ sent: number; failed: number }> {
+): Promise<{ sent: number; failed: number; gone: number; total: number; error?: string }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("push_subscriptions")
@@ -70,25 +76,32 @@ export async function sendToOperator(
   const subs = (data ?? []) as StoredSubscription[];
   let sent = 0;
   let failed = 0;
+  let gone = 0;
+  let lastError: string | undefined;
 
   for (const sub of subs) {
     try {
       const res = await sendToSubscription(sub, payload);
       if (res.ok) {
         sent += 1;
+      } else if (res.gone) {
+        // Dead device: retire it. Not counted as a failure — retrying it
+        // would never help, and it must not block the live devices.
+        gone += 1;
+        await supabaseAdmin
+          .from("push_subscriptions")
+          .update({ disabled_at: new Date().toISOString() } as never)
+          .eq("id", sub.id);
       } else {
         failed += 1;
-        if (res.gone) {
-          await supabaseAdmin
-            .from("push_subscriptions")
-            .update({ disabled_at: new Date().toISOString() } as never)
-            .eq("id", sub.id);
-        }
+        lastError = `push service returned ${res.status}`;
       }
-    } catch {
+    } catch (err) {
       failed += 1;
+      lastError = err instanceof Error ? err.message : "send failed";
     }
   }
 
-  return { sent, failed };
+  return { sent, failed, gone, total: subs.length, ...(lastError ? { error: lastError } : {}) };
 }
+
