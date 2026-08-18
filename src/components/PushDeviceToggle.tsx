@@ -38,15 +38,37 @@ export function PushDeviceToggle() {
     const s = pushSupport();
     setSupport(s);
     if (!s.supported) return;
-    const endpoint = await currentPushEndpoint();
+
+    // Silent reconciliation: when permission is already granted the browser's
+    // current endpoint is re-registered without prompting or notifying, so a
+    // rotated mobile subscription keeps working on its own.
+    let endpoint = await currentPushEndpoint();
     try {
-      const status = await fetchStatus();
+      let status = await fetchStatus();
+      if (s.permission === "granted") {
+        const { publicKey } = await fetchKey();
+        const live = await reconcilePushSubscription(publicKey);
+        if (live && !status.devices.includes(live.endpoint)) {
+          await register({
+            data: {
+              endpoint: live.endpoint,
+              p256dh: live.p256dh,
+              auth: live.auth,
+              userAgent: navigator.userAgent,
+              platform: navigator.platform,
+            },
+          });
+          status = await fetchStatus();
+        }
+        if (live) endpoint = live.endpoint;
+      }
       setDevices(status.devices.length);
       setEnabled(Boolean(endpoint) && status.devices.includes(endpoint ?? ""));
     } catch {
       setEnabled(false);
     }
-  }, [fetchStatus]);
+  }, [fetchStatus, fetchKey, register]);
+
 
   useEffect(() => {
     void refresh();
