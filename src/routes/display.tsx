@@ -112,11 +112,15 @@ function shouldShowIcebreaker({
   if (width <= 0 || height <= 0) return showing;
   const slack = showing ? 0.92 : 1; // small hysteresis gap — no flicker at the edge
   if (isLandscape) {
+    // Very wide, short window: horizontal room is plentiful, so the two
+    // columns still fit comfortably even with limited height.
+    if (width >= 900 * slack && width / height >= 2.2) return height >= 170 * slack;
     // Side-by-side: each half needs enough width, timer needs some height.
     return width >= 560 * slack && height >= 240 * slack;
   }
   // Stacked: vertical space is the binding constraint (timer + rule + text).
   return height >= 430 * slack && width >= 280 * slack;
+
 
 }
 
@@ -601,11 +605,12 @@ function PreClassStage({
   // surface and re-centres — no divider, no empty column, no clipped text.
   if (!showIcebreaker) {
     return (
-      <div className="flex h-full w-full min-h-0 min-w-0 items-center justify-center px-[clamp(1rem,5vw,4rem)]">
-        <PreClassTimer stage={stage} startsAt={startsAt} portrait={!isLandscape} />
+      <div className="flex h-full w-full min-h-0 min-w-0 items-center justify-center px-[clamp(0.75rem,3vw,3rem)]">
+        <PreClassTimer stage={stage} startsAt={startsAt} portrait={!isLandscape} solo />
       </div>
     );
   }
+
 
   if (isLandscape) {
     return (
@@ -649,16 +654,25 @@ function PreClassTimer({
   stage,
   startsAt,
   portrait = false,
+  solo = false,
 }: {
   stage: StageInfo;
   startsAt: string;
   portrait?: boolean;
+  /** Timer-only layout: no icebreaker column, so the digits can grow. */
+  solo?: boolean;
 }) {
   return (
     <div className="flex w-full min-w-0 flex-col items-center justify-center gap-[clamp(0.5rem,1.6vmin,1.6rem)] overflow-hidden text-center">
       <StageLabel
         opacity={0.5}
-        size={portrait ? "clamp(0.5rem, 2.4vw, 1.2rem)" : "clamp(0.52rem, 1.1vw, 1.2rem)"}
+        size={
+          solo
+            ? "clamp(0.55rem, min(3.4vw, 3.4vh), 1.35rem)"
+            : portrait
+              ? "clamp(0.5rem, 2.4vw, 1.2rem)"
+              : "clamp(0.52rem, 1.1vw, 1.2rem)"
+        }
         tracking={portrait ? "clamp(0.08em, 0.9vw, 0.36em)" : "clamp(0.1em, 0.9vw, 0.36em)"}
         className="max-w-full overflow-hidden"
       >
@@ -667,9 +681,11 @@ function PreClassTimer({
       <TimerDigits
         value={formatMMSS(stage.timerMs)}
         size={
-          portrait
-            ? "clamp(1.75rem, min(20vw, 18vh), 12rem)"
-            : "clamp(1.75rem, 15vmin, 18rem)"
+          solo
+            ? "clamp(2rem, min(30vw, 46vh), 22rem)"
+            : portrait
+              ? "clamp(1.75rem, min(20vw, 18vh), 12rem)"
+              : "clamp(1.75rem, 15vmin, 18rem)"
         }
         weight={200}
         tracking="-0.045em"
@@ -677,7 +693,12 @@ function PreClassTimer({
       <div
         className="mt-[clamp(0.2rem,0.8vmin,0.9rem)] max-w-full overflow-hidden opacity-40"
         style={{
-          fontSize: portrait ? "clamp(0.55rem, 2.1vw, 1rem)" : "clamp(0.55rem, 0.9vw, 1rem)",
+          fontSize: solo
+            ? "clamp(0.6rem, min(2.8vw, 2.8vh), 1.15rem)"
+            : portrait
+              ? "clamp(0.55rem, 2.1vw, 1rem)"
+              : "clamp(0.55rem, 0.9vw, 1rem)",
+
           letterSpacing: "0.12em",
           whiteSpace: "nowrap",
         }}
