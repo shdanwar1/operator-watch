@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   ListChecks,
   LogOut,
+  MessageSquare,
   Monitor,
   PanelLeft,
   User,
@@ -21,6 +22,7 @@ const NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: bo
   { label: "Calendar", to: "/calendar", icon: CalendarDays },
   { label: "Shifts", to: "/shifts", icon: ListChecks },
   { label: "Attendance", to: "/earnings", icon: ClipboardList },
+  { label: "Chat", to: "/chat", icon: MessageSquare },
   { label: "Studio Display", to: "/studio-display", icon: Monitor },
   { label: "Profile", to: "/profile", icon: User },
 ];
@@ -34,6 +36,7 @@ const MOBILE_NAV: { label: string; to: string; icon: typeof LayoutDashboard; exa
   { label: "Shifts", to: "/shifts", icon: ListChecks },
   { label: "Dashboard", to: "/", icon: LayoutDashboard, exact: true },
   { label: "Attendance", to: "/earnings", icon: ClipboardList },
+  { label: "Chat", to: "/chat", icon: MessageSquare },
   { label: "Profile", to: "/profile", icon: User },
 ];
 
@@ -188,7 +191,7 @@ export function AppShell({
 
         {/* Mobile tab bar — flush with the bottom edge, thin top border. */}
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border glass-bar pb-safe lg:hidden">
-          <div className="mx-auto grid max-w-[430px] grid-cols-5 px-1.5 pb-1.5 pt-1">
+          <div className="mx-auto grid max-w-[430px] grid-cols-6 px-1.5 pb-1.5 pt-1">
             {MOBILE_NAV.map((item) => {
               const active = item.exact
                 ? pathname === item.to
