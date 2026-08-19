@@ -5,13 +5,8 @@ import { AppShell, PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { getGateStatus } from "@/lib/gate.functions";
-import {
-  CHAT_MAX_CHARS,
-  fetchChatSince,
-  getChatBootstrap,
-  sendChatMessage,
-  type ChatMessage,
-} from "@/lib/chat.functions";
+import { fetchChatSince, getChatBootstrap, sendChatMessage } from "@/lib/chat.functions";
+import { CHAT_MAX_CHARS, type ChatMessage } from "@/lib/chat-shared";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 

@@ -11,15 +11,7 @@ import { useSession } from "@tanstack/react-start/server";
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
-export type ChatMessage = {
-  id: string;
-  operator_id: string;
-  sender: string;
-  text: string;
-  created_at: string;
-};
-
-export const CHAT_MAX_CHARS = 256;
+import { CHAT_MAX_CHARS, type ChatMessage } from "./chat-shared";
 const HISTORY = "1 month";
 
 function getSessionConfig() {
