@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.notify_operator_chat() FROM PUBLIC, anon, authenticated;
