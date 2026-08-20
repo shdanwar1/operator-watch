@@ -1580,11 +1580,15 @@ function StepRow({
   );
 }
 
-function EndpointMarker() {
+function EndpointMarker({ kind = "home" }: { kind?: "home" | "studio" }) {
+  const Icon = kind === "home" ? Home : Building2;
   return (
-    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border bg-background" />
+    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground">
+      <Icon className="h-4 w-4" strokeWidth={1.6} />
+    </span>
   );
 }
+
 
 type TransitLeg = Extract<JourneyPlan["legs"][number], { kind: "transit" }>;
 
