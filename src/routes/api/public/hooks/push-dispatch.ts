@@ -57,7 +57,16 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           byName.set(row.username.toLowerCase(), row.id);
         }
 
-        type Job = { operatorId: string; key: string; type: string; at: Date; title: string; body: string };
+        type Job = {
+          operatorId: string;
+          key: string;
+          type: string;
+          at: Date;
+          title: string;
+          body: string;
+          /** Start instant of the shift this reminder belongs to. */
+          shiftStartMs: number;
+        };
         const jobs: Job[] = [];
 
         // --- Time to leave (from the server-side travel plans) ---
