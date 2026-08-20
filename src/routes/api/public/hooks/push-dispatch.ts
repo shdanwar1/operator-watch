@@ -134,9 +134,12 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
           jobs.push({
             operatorId,
-            key: `start:${shift.id}`,
+            // Key carries the shift's current start instant, so a calendar
+            // retime invalidates the previously scheduled reminder.
+            key: `start:${shift.id}@${start.toISOString()}`,
             type: "shift_start",
             at,
+            shiftStartMs: start.getTime(),
             title: "Shift starts soon",
             body: `Your shift starts at ${berlinClock(start)} — ${SHIFT_START_LEAD_MIN} minutes from now.`,
           });
