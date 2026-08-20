@@ -1508,11 +1508,11 @@ function LineLabel({ line }: { line: string }) {
   );
 }
 
-/** Timeline marker: circular outline holding the mode glyph. */
+/** Timeline marker: the official mode mark. */
 function ModeMarker({ mode }: { mode: string }) {
   return (
-    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground">
-      <ModeIcon mode={mode} size={16} variant="outline" />
+    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-background text-foreground">
+      <ModeIcon mode={mode} size={22} />
     </span>
   );
 }
