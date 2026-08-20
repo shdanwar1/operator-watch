@@ -87,11 +87,15 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           if (!op || op.prefs.notifyTimeToLeave === false) continue;
           const at = new Date(plan.departure_at);
           if (!due(at, now)) continue;
+          const shiftStart = new Date(plan.shift_start_at);
           jobs.push({
             operatorId: plan.operator_id,
-            key: `leave:${plan.shift_start_at}`,
+            // Canonical instant in the key: a retimed shift produces a new key,
+            // so the old reminder can never be reused.
+            key: `leave:${shiftStart.toISOString()}`,
             type: "time_to_leave",
             at,
+            shiftStartMs: shiftStart.getTime(),
             title: "Time to leave",
             body: `Leave now — about ${plan.travel_minutes} min to the studio for your ${berlinClock(
               new Date(plan.shift_start_at),
