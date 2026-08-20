@@ -8,25 +8,10 @@
  */
 
 import type { SmartDeparture, SmartRoute } from "./smart-routes";
+import { fetchProviderJourneys, type ProviderJourney, type ProviderLeg } from "./journeys.server";
 
-const API = "https://v6.bvg.transport.rest/journeys";
-const TIMEOUT_MS = 9_000;
-
-type BvgLine = { name?: string; product?: string; mode?: string };
-type BvgStop = { name?: string };
-type BvgLeg = {
-  departure?: string;
-  plannedDeparture?: string;
-  arrival?: string;
-  plannedArrival?: string;
-  walking?: boolean;
-  line?: BvgLine;
-  direction?: string;
-  origin?: BvgStop;
-  destination?: BvgStop;
-};
-type BvgJourney = { legs?: BvgLeg[] };
-type BvgResponse = { journeys?: BvgJourney[] };
+type BvgLeg = ProviderLeg;
+type BvgJourney = ProviderJourney;
 
 type Point = { lat: number; lng: number; label: string };
 
@@ -43,31 +28,9 @@ async function fetchJourneys(
   anchor: { kind: "departure" | "arrival"; iso: string },
   results: number,
 ): Promise<BvgJourney[]> {
-  const url = new URL(API);
-  url.searchParams.set("from.latitude", String(home.lat));
-  url.searchParams.set("from.longitude", String(home.lng));
-  url.searchParams.set("from.address", home.label);
-  url.searchParams.set("to.latitude", String(office.lat));
-  url.searchParams.set("to.longitude", String(office.lng));
-  url.searchParams.set("to.address", office.label);
-  url.searchParams.set(anchor.kind, anchor.iso);
-  url.searchParams.set("results", String(results));
-  url.searchParams.set("transfers", "0");
-  url.searchParams.set("stopovers", "false");
-  url.searchParams.set("remarks", "false");
-
-  try {
-    const res = await fetch(url.toString(), {
-      headers: { accept: "application/json", "user-agent": "studio-operator/1.0" },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    if (!res.ok) return [];
-    const body = (await res.json()) as BvgResponse;
-    return Array.isArray(body.journeys) ? body.journeys : [];
-  } catch {
-    return [];
-  }
+  return fetchProviderJourneys(home, office, anchor, results, { directOnly: true });
 }
+
 
 type Candidate = {
   key: string;
