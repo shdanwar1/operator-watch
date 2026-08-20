@@ -95,7 +95,9 @@ export function toJourneyPlan(j: RawJourney): JourneyPlan | null {
     if (!d || !a) continue;
     if (l.walking || !l.line?.name) {
       const m = mins(d, a);
-      if (m > 0) legs.push({ kind: "walk", minutes: m, to_label: l.destination?.name });
+      const label = l.destination?.name;
+      const named = label && label !== "END" && label !== "START" ? label : undefined;
+      if (m > 0) legs.push({ kind: "walk", minutes: m, to_label: named });
       continue;
     }
     if (lastTransitEnd) {
