@@ -96,7 +96,7 @@ export function TramIcon({ size, className, variant = "filled" }: TransitIconPro
     <Frame size={size} className={className}>
       {filled && <circle cx="12" cy="12" r="11" fill="currentColor" />}
       {!filled && <circle cx="12" cy="12" r="10.5" fill="none" stroke="currentColor" strokeWidth="1.6" />}
-      <g stroke={glyph} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none">
+      <g transform="translate(12 12) scale(1.12) translate(-12 -12)" stroke={glyph} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none">
         <path d="M8.6 5.2 12 3.6l3.4 1.6" />
         <path d="M12 3.6v1.9" />
         <rect x="6.4" y="5.9" width="11.2" height="11" rx="2.2" />
@@ -117,7 +117,7 @@ export function BusIcon({ size, className, variant = "filled" }: TransitIconProp
     <Frame size={size} className={className}>
       {filled && <circle cx="12" cy="12" r="11" fill="currentColor" />}
       {!filled && <circle cx="12" cy="12" r="10.5" fill="none" stroke="currentColor" strokeWidth="1.6" />}
-      <g stroke={glyph} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none">
+      <g transform="translate(12 12) scale(1.12) translate(-12 -12)" stroke={glyph} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none">
         <path d="M6.2 10.2a5.8 5.8 0 0 1 5.8-5.4 5.8 5.8 0 0 1 5.8 5.4v6.5a1.4 1.4 0 0 1-1.4 1.4H7.6a1.4 1.4 0 0 1-1.4-1.4z" />
         <rect x="8.4" y="6.6" width="7.2" height="1.5" rx="0.7" fill={glyph} stroke="none" />
         <rect x="8.2" y="9.6" width="7.6" height="3.6" rx="0.9" fill={glyph} stroke="none" />
