@@ -9,8 +9,8 @@ export const OFFICE = {
   lng: 13.3229399,
 } as const;
 
-// Always arrive this many minutes before the shift starts.
-export const ARRIVAL_BUFFER_MIN = 15;
+// Aim to arrive this many minutes before the shift starts (0–5 min window).
+export const ARRIVAL_BUFFER_MIN = 5;
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
