@@ -25,33 +25,7 @@ function getGateConfig() {
   };
 }
 
-// Approximate walk time from each transit mode's typical stop near the office
-// to the office door. Used to pick direct options that let the operator arrive
-// on time even after walking from the stop.
-const MODE_WALK_MINUTES: Record<string, number> = {
-  bus: 7,
-  tram: 7,
-  ferry: 10,
-  subway: 15,
-  suburban: 20, // S-Bahn
-  regional: 20,
-  express: 20,
-};
-
-function walkMinutesFor(mode: string): number {
-  return MODE_WALK_MINUTES[mode] ?? 15;
-}
-
-export type DirectOption = {
-  line: string;
-  mode: string;
-  from_stop: string;
-  to_stop: string;
-  departure_iso: string;
-  arrival_iso: string;
-  duration_minutes: number;
-  walk_minutes: number;
-};
+export type { DirectPlan, JourneyPlan, JourneyLeg } from "./journey-plan";
 
 export type TimeToLeaveResult =
   | {
@@ -68,26 +42,14 @@ export type TimeToLeaveResult =
       arrival_iso: string;
       travel_minutes: number;
       transfers: number;
-      direct_options: DirectOption[];
+      /** Option 1 — fastest door-to-door route, transfers allowed. */
+      best: import("./journey-plan").JourneyPlan;
+      /** Options 2 and 3 — fastest direct routes, door-to-door ranked. */
+      direct_routes: import("./journey-plan").DirectPlan[];
       /** false when the background-notification copy of this plan could not be stored */
       plan_saved: boolean;
     }
   | { ok: false; reason: "no_home" | "no_session" | "no_route"; home_label?: string };
-
-type BvgLine = { name?: string; product?: string; mode?: string };
-type BvgStop = { name?: string };
-type BvgLeg = {
-  departure?: string;
-  plannedDeparture?: string;
-  arrival?: string;
-  plannedArrival?: string;
-  walking?: boolean;
-  line?: BvgLine;
-  origin?: BvgStop;
-  destination?: BvgStop;
-};
-type BvgJourney = { legs: BvgLeg[] };
-type BvgResponse = { journeys?: BvgJourney[] };
 
 export const getTimeToLeave = createServerFn({ method: "POST" })
   .inputValidator((data: { shift_start_iso: string }) => {
@@ -126,113 +88,31 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       lng: Number(op.home_lng),
       label: op.home_label ?? "Home",
     };
-    const journeys = (await fetchProviderJourneys(
-      home,
-      { lat: office.lat, lng: office.lng, label: office.label },
-      { kind: "arrival", iso: targetArrival.toISOString() },
-      3,
-    )) as BvgJourney[];
-    if (journeys.length === 0) {
+    const office_pt = { lat: office.lat, lng: office.lng, label: office.label };
+    const target = { kind: "arrival" as const, iso: targetArrival.toISOString() };
+
+    // One engine, two views: every route (transfers allowed) and the direct
+    // subset. Providers already search all stops within walking distance of
+    // home, so direct discovery is never limited to the nearest stop.
+    const [anyJourneys, directJourneys] = await Promise.all([
+      fetchProviderJourneys(home, office_pt, target, 8).catch(() => []),
+      fetchProviderJourneys(home, office_pt, target, 12, { directOnly: true }).catch(() => []),
+    ]);
+
+    const { pickBestPlan, pickDirectPlans } = await import("./journey-plan");
+    const pool = [...anyJourneys, ...directJourneys];
+    const best = pickBestPlan(pool, targetArrival);
+    if (!best) {
       return { ok: false, reason: "no_route", home_label: op.home_label ?? undefined };
     }
+    const directRoutes = pickDirectPlans(pool, targetArrival, 2);
 
-
-    // Pick the journey with the latest departure that still arrives by target.
-    const candidates = journeys
-      .map((j) => {
-        const first = j.legs[0];
-        const last = j.legs[j.legs.length - 1];
-        const dep = first?.departure ?? first?.plannedDeparture;
-        const arr = last?.arrival ?? last?.plannedArrival;
-        if (!dep || !arr) return null;
-        return {
-          dep,
-          arr,
-          transfers: Math.max(0, j.legs.filter((l) => !l.walking).length - 1),
-        };
-      })
-      .filter((c): c is { dep: string; arr: string; transfers: number } => c !== null)
-      .filter((c) => new Date(c.arr).getTime() <= targetArrival.getTime() + 60_000)
-      .sort((a, b) => new Date(b.dep).getTime() - new Date(a.dep).getTime());
-
-    const pick = candidates[0] ?? (() => {
-      // Fallback: fastest journey overall (first result from API).
-      const j = journeys[0];
-      const first = j.legs[0];
-      const last = j.legs[j.legs.length - 1];
-      const dep = first?.departure ?? first?.plannedDeparture ?? "";
-      const arr = last?.arrival ?? last?.plannedArrival ?? "";
-      return { dep, arr, transfers: Math.max(0, j.legs.filter((l) => !l.walking).length - 1) };
-    })();
-
-    if (!pick.dep || !pick.arr) {
-      return { ok: false, reason: "no_route", home_label: op.home_label ?? undefined };
-    }
-
-    const travelMinutes = Math.max(
-      1,
-      Math.round((new Date(pick.arr).getTime() - new Date(pick.dep).getTime()) / 60_000),
-    );
-
-    // Fetch direct (0-transfer) options that arrive at the stop early enough
-    // to walk to the office door before the shift starts. Per mode we keep
-    // the single option whose arrival is closest to (but not after) the
-    // shift-start minus that mode's walk buffer.
-    const directOptions: DirectOption[] = [];
-    try {
-      const directJourneys = (await fetchProviderJourneys(
-        home,
-        { lat: office.lat, lng: office.lng, label: office.label },
-        { kind: "arrival", iso: shiftStart.toISOString() },
-        12,
-        { directOnly: true },
-      )) as BvgJourney[];
-      {
-        const bestByMode = new Map<string, DirectOption>();
-        for (const j of directJourneys) {
-
-          const transit = j.legs.filter((l) => !l.walking && l.line?.name);
-          if (transit.length !== 1) continue;
-          const leg = transit[0];
-          const line = leg.line?.name ?? "";
-          if (!line) continue;
-          const dep = leg.departure ?? leg.plannedDeparture;
-          const arr = leg.arrival ?? leg.plannedArrival;
-          if (!dep || !arr) continue;
-          const mode = leg.line?.product ?? leg.line?.mode ?? "transit";
-          const walk = walkMinutesFor(mode);
-          const cutoff = shiftStart.getTime() - walk * 60_000;
-          const arrMs = new Date(arr).getTime();
-          if (arrMs > cutoff) continue;
-          const candidate: DirectOption = {
-            line,
-            mode,
-            from_stop: leg.origin?.name ?? "",
-            to_stop: leg.destination?.name ?? "",
-            departure_iso: dep,
-            arrival_iso: arr,
-            duration_minutes: Math.max(
-              1,
-              Math.round((arrMs - new Date(dep).getTime()) / 60_000),
-            ),
-            walk_minutes: walk,
-          };
-          // Keep the latest-arriving valid option per mode (closest to shift).
-          const prev = bestByMode.get(mode);
-          if (!prev || new Date(prev.arrival_iso).getTime() < arrMs) {
-            bestByMode.set(mode, candidate);
-          }
-        }
-        directOptions.push(
-          ...Array.from(bestByMode.values()).sort(
-            (a, b) => new Date(b.arrival_iso).getTime() - new Date(a.arrival_iso).getTime(),
-          ),
-        );
-      }
-    } catch {
-      // Non-fatal; the primary plan is still returned.
-    }
-
+    const pick = {
+      dep: best.leave_iso,
+      arr: best.arrive_iso,
+      transfers: best.transfers,
+    };
+    const travelMinutes = best.total_minutes;
 
     // Persist the plan so background push can fire "time to leave" without
     // the app being open. A failure here must never break the dashboard, but
@@ -254,7 +134,8 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
               arrival_at: pick.arr,
               travel_minutes: travelMinutes,
               transfers: pick.transfers,
-              route_label: directOptions[0]?.line ?? null,
+              route_label:
+                best.legs.find((l) => l.kind === "transit")?.line ?? null,
               calculated_at: new Date().toISOString(),
             } as never,
             { onConflict: "operator_id,shift_start_at,algorithm_version" },
@@ -285,88 +166,8 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       arrival_iso: pick.arr,
       travel_minutes: travelMinutes,
       transfers: pick.transfers,
-      direct_options: directOptions,
+      best,
+      direct_routes: directRoutes,
       plan_saved: planSaved,
     };
   });
-
-// ---------- Route geometry (server-side; keeps routing API key off the client) ----------
-
-const COORD = (n: unknown) => {
-  const v = Number(n);
-  if (!Number.isFinite(v)) throw new Error("Invalid coordinate");
-  return v;
-};
-
-async function orsGeometry(
-  home: { lat: number; lng: number },
-  office: { lat: number; lng: number },
-): Promise<[number, number][] | null> {
-  const key = process.env["ORS_API_KEY"];
-  if (!key) return null;
-  const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car/geojson", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: key },
-    body: JSON.stringify({
-      coordinates: [
-        [home.lng, home.lat],
-        [office.lng, office.lat],
-      ],
-    }),
-  });
-  if (!res.ok) return null;
-  const json = (await res.json()) as {
-    features?: { geometry?: { coordinates?: [number, number][] } }[];
-  };
-  const line = json.features?.[0]?.geometry?.coordinates;
-  if (!line?.length) return null;
-  return line.map(([lng, lat]) => [lat, lng] as [number, number]);
-}
-
-async function osrmGeometry(
-  home: { lat: number; lng: number },
-  office: { lat: number; lng: number },
-): Promise<[number, number][] | null> {
-  const url = `https://router.project-osrm.org/route/v1/driving/${home.lng},${home.lat};${office.lng},${office.lat}?overview=full&geometries=geojson`;
-  const res = await fetch(url);
-  if (!res.ok) return null;
-  const json = (await res.json()) as {
-    routes?: { geometry?: { coordinates?: [number, number][] } }[];
-  };
-  const line = json.routes?.[0]?.geometry?.coordinates;
-  if (!line?.length) return null;
-  return line.map(([lng, lat]) => [lat, lng] as [number, number]);
-}
-
-export const getRouteGeometry = createServerFn({ method: "POST" })
-  .inputValidator(
-    (data: { from_lat: number; from_lng: number; to_lat: number; to_lng: number }) => ({
-      from_lat: COORD(data?.from_lat),
-      from_lng: COORD(data?.from_lng),
-      to_lat: COORD(data?.to_lat),
-      to_lng: COORD(data?.to_lng),
-    }),
-  )
-  .handler(async ({ data }): Promise<{ coords: [number, number][] | null }> => {
-    const session = await useSession<GateSession>(getGateConfig());
-    if (!session.data.siteUnlocked || !session.data.username) {
-      return { coords: null };
-    }
-    const from = { lat: data.from_lat, lng: data.from_lng };
-    const to = { lat: data.to_lat, lng: data.to_lng };
-    let coords: [number, number][] | null = null;
-    try {
-      coords = await orsGeometry(from, to);
-    } catch {
-      coords = null;
-    }
-    if (!coords) {
-      try {
-        coords = await osrmGeometry(from, to);
-      } catch {
-        coords = null;
-      }
-    }
-    return { coords };
-  });
-

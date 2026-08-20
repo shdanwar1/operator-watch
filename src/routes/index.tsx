@@ -18,10 +18,8 @@ import {
 } from "@/lib/directories.functions";
 import { ARRIVAL_BUFFER_MIN } from "@/lib/travel.functions";
 import { useTravelPlan } from "@/hooks/useTravelPlan";
-import { useSmartRoutes } from "@/hooks/useSmartRoutes";
-import { planFromSmartRoutes } from "@/lib/smart-routes";
-import { SmartRouteTables } from "@/components/SmartRouteTables";
-import { snapshotMapsUrl, type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
+import { type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
+import { modeLabel, type DirectPlan, type JourneyPlan } from "@/lib/journey-plan";
 
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { clearAllCaches, operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
@@ -41,8 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase, ChevronDown, ArrowLeftRight, Flag, Hourglass, ShieldCheck, Building2 } from "lucide-react";
-import { RouteMapPreview } from "@/components/RouteMapPreview";
+import { Plus, X, Clock, LogIn, CalendarDays, Train, TrainFront, Bus, Ship, Footprints, Home, MapPin, AlertTriangle, Lock, ArrowRight, Briefcase, ChevronDown, Building2 } from "lucide-react";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
@@ -1286,6 +1283,10 @@ function BigClock({ date, tone }: { date: Date; tone?: "urgent" | "go" }) {
  * The route comes from a persisted travel snapshot (calculated once per plan
  * identity); everything time-based below is derived locally from that
  * snapshot plus `now`, so the live clock never causes a network request.
+ *
+ * Compact view: the departure clock only.
+ * Detailed view: at most three sections — the fastest overall route and the
+ * two fastest direct alternatives.
  */
 function TimeToLeaveCard({
   username,
@@ -1352,37 +1353,10 @@ function TimeToLeaveCard({
     [username, shiftIso, shiftEndIso, homeLat, homeLng, studio],
   );
 
-
   const { snapshot, status, reason } = useTravelPlan(identity);
 
-  // Smart, locally cached direct-route intelligence. It paints from cache and
-  // refreshes in the background, so it stays useful when BVG is unreachable.
-  const targetArrival = useMemo(
-    () => (shiftIso ? new Date(Date.parse(shiftIso) - ARRIVAL_BUFFER_MIN * 60_000) : null),
-    [shiftIso],
-  );
-  const smartIdentity = useMemo(
-    () =>
-      username && studio
-        ? {
-            username,
-            homeLat: homeLat ?? null,
-            homeLng: homeLng ?? null,
-            studioLat: studio.lat,
-            studioLng: studio.lng,
-          }
-        : null,
-    [username, homeLat, homeLng, studio],
-  );
-  const smart = useSmartRoutes(smartIdentity, targetArrival);
-  const smartPlan = useMemo(
-    () => planFromSmartRoutes(smart.set, targetArrival),
-    [smart.set, targetArrival],
-  );
-
-  // The snapshot stays authoritative when it exists; the cached smart routes
-  // take over whenever it does not, so the card keeps a real departure time.
-  const departureIso = snapshot?.departure_iso ?? smartPlan?.leave.toISOString() ?? null;
+  // Time to leave always follows Option 1 (the fastest overall route).
+  const departureIso = snapshot?.best.leave_iso ?? snapshot?.departure_iso ?? null;
   const reportDeparture = onDeparture;
   useEffect(() => {
     reportDeparture?.(departureIso);
@@ -1392,19 +1366,12 @@ function TimeToLeaveCard({
 
   const shiftStart = next.startAt;
   const shiftClock = splitClock(shiftStart);
-  const departure = snapshot
-    ? new Date(snapshot.departure_iso)
-    : (smartPlan?.leave ?? null);
-  const arrival = snapshot
-    ? new Date(snapshot.arrival_iso)
-    : (smartPlan?.arrival ?? null);
+  const departure = departureIso ? new Date(departureIso) : null;
   const minutesUntilLeave = departure
     ? Math.round((departure.getTime() - now.getTime()) / 60_000)
     : null;
   const urgent = minutesUntilLeave !== null && minutesUntilLeave <= 10;
   const hero = variant === "hero";
-  const best = snapshot?.direct_options[0] ?? null;
-
 
   return (
     <Card
@@ -1413,7 +1380,7 @@ function TimeToLeaveCard({
       }`}
     >
       <CardContent className="p-0">
-        {/* ── Header: day + time context, and the departure clock ───────── */}
+        {/* ── Header: shift context + the one number that matters ───────── */}
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
@@ -1476,70 +1443,7 @@ function TimeToLeaveCard({
           </span>
         </button>
 
-        {/* ── Compact strip: the one route line that matters ────────────── */}
-        {!expanded && snapshot ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-border px-4 py-3 sm:px-6">
-            <div className="flex min-w-0 items-center gap-3">
-              {best ? (
-                <span className="flex items-center gap-1.5 rounded-lg bg-primary/12 px-2 py-1 text-sm font-semibold text-primary">
-                  <Train className="h-3.5 w-3.5" />
-                  {best.line}
-                </span>
-              ) : (
-                <Train className="h-4 w-4 text-muted-foreground" />
-              )}
-              <span className="text-sm font-medium tabular-nums">
-                {snapshot.travel_minutes} min
-              </span>
-              <span className="text-muted-foreground">·</span>
-              <span className="text-sm text-muted-foreground tabular-nums">
-                {snapshot.transfers} transfer{snapshot.transfers === 1 ? "" : "s"}
-              </span>
-            </div>
-            <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground sm:border-l sm:border-border sm:pl-4">
-              <span className="tabular-nums">
-                Leaves <span className="font-medium text-foreground">{fmtHM(departure!)}</span>
-              </span>
-              <ArrowRight className="h-3.5 w-3.5" />
-              <span className="tabular-nums">
-                Arrives <span className="font-medium text-foreground">{fmtHM(arrival!)}</span>
-              </span>
-            </div>
-            <Button size="sm" className="ml-auto rounded-xl" asChild>
-              <a href={snapshotMapsUrl(snapshot)} target="_blank" rel="noopener noreferrer">
-                <Navigation className="mr-1.5 h-4 w-4" /> Start Navigation
-              </a>
-            </Button>
-          </div>
-        ) : null}
-
-        {/* Cached smart-route strip — used whenever the snapshot is missing. */}
-        {!expanded && !snapshot && smartPlan ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border px-4 py-3 sm:px-6">
-            <span className="flex items-center gap-1.5 rounded-lg bg-primary/12 px-2 py-1 text-sm font-semibold text-primary">
-              <Train className="h-3.5 w-3.5" />
-              {smartPlan.route.line}
-            </span>
-            <span className="text-sm font-medium tabular-nums">
-              {smartPlan.total_minutes} min
-            </span>
-            <span className="text-muted-foreground">·</span>
-            <span className="text-sm text-muted-foreground tabular-nums">direct</span>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="tabular-nums">
-                Leaves{" "}
-                <span className="font-medium text-foreground">{fmtHM(smartPlan.leave)}</span>
-              </span>
-              <ArrowRight className="h-3.5 w-3.5" />
-              <span className="tabular-nums">
-                Arrives{" "}
-                <span className="font-medium text-foreground">{fmtHM(smartPlan.arrival)}</span>
-              </span>
-            </div>
-          </div>
-        ) : null}
-
-        {/* ── Expanded detail ───────────────────────────────────────────── */}
+        {/* ── Expanded detail: best option + up to two direct options ───── */}
         <div
           className={`grid transition-all duration-300 ease-out ${
             expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
@@ -1548,24 +1452,13 @@ function TimeToLeaveCard({
           <div className="overflow-hidden">
             <div className="border-t border-border">
               {snapshot ? (
-                <TimeToLeaveDetails snapshot={snapshot} now={now} />
-              ) : smart.set ? (
-                <div className="px-4 py-4 sm:px-6 sm:py-5">
-                  <SmartRouteTables
-                    set={smart.set}
-                    now={now}
-                    stale={smart.stale}
-                    selectedDepartureIso={
-                      smartPlan?.from_timetable ? smartPlan.leave.toISOString() : null
-                    }
-                  />
-                </div>
+                <TimeToLeaveDetails snapshot={snapshot} />
               ) : (
                 <div className="space-y-3 px-5 py-5 sm:px-6">
                   {reason === "no_home" ? (
                     <>
                       <p className="text-sm text-muted-foreground">
-                        Add your home address in Profile to enable navigation.
+                        Add your home address in Profile to plan your trip.
                       </p>
                       <Button size="sm" variant="outline" asChild>
                         <Link to="/profile">
@@ -1573,12 +1466,8 @@ function TimeToLeaveCard({
                         </Link>
                       </Button>
                     </>
-                  ) : status === "loading" || smart.refreshing ? (
+                  ) : status === "loading" ? (
                     <p className="text-sm text-muted-foreground">Planning your trip…</p>
-                  ) : smart.noDirect ? (
-                    <p className="text-sm text-muted-foreground">
-                      No direct public-transport connection from your home to the studio.
-                    </p>
                   ) : (
                     <p className="text-sm text-muted-foreground">
                       Route information is currently unavailable.
@@ -1586,275 +1475,204 @@ function TimeToLeaveCard({
                   )}
                 </div>
               )}
-              {snapshot && smart.set ? (
-                <div className="border-t border-border px-4 py-4 sm:px-6 sm:py-5">
-                  <SmartRouteTables
-                    set={smart.set}
-                    now={now}
-                    stale={smart.stale}
-                    selectedDepartureIso={
-                      smartPlan?.from_timetable ? smartPlan.leave.toISOString() : null
-                    }
-                  />
-                </div>
-              ) : null}
             </div>
           </div>
         </div>
-
       </CardContent>
     </Card>
   );
 }
 
-function DetailRow({
-  icon,
-  label,
-  value,
-}: {
-  icon?: React.ReactNode;
-  label: string;
-  value: React.ReactNode;
-}) {
+function ModeIcon({ mode, className }: { mode: string; className?: string }) {
+  if (mode === "bus") return <Bus className={className} />;
+  if (mode === "ferry") return <Ship className={className} />;
+  if (mode === "subway" || mode === "tram") return <TrainFront className={className} />;
+  return <Train className={className} />;
+}
+
+function LineBadge({ line, mode }: { line: string; mode: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2.5 text-sm last:border-b-0">
-      <span className="flex items-center gap-2.5 text-muted-foreground">
-        {icon}
-        {label}
-      </span>
-      <span className="font-medium tabular-nums">{value}</span>
-    </div>
+    <span className="flex items-center gap-1.5 rounded-lg bg-primary/12 px-2 py-1 text-sm font-semibold text-primary">
+      <ModeIcon mode={mode} className="h-3.5 w-3.5" />
+      {line}
+    </span>
   );
 }
 
-function EndpointCard({
-  icon,
-  label,
+function SectionShell({
   title,
-  subtitle,
+  badge,
+  total,
+  children,
 }: {
-  icon: React.ReactNode;
-  label: string;
   title: string;
-  subtitle?: string;
+  badge?: string;
+  total: number;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3">
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/12 text-primary">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          {label}
-        </div>
-        <div className="truncate text-sm font-medium">{title}</div>
-        {subtitle ? (
-          <div className="truncate text-xs text-muted-foreground">{subtitle}</div>
+    <section className="rounded-2xl border border-border bg-muted/20 p-4">
+      <header className="flex items-center gap-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          {title}
+        </h3>
+        {badge ? (
+          <span className="rounded-md bg-primary/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
+            {badge}
+          </span>
         ) : null}
+        <span className="ml-auto text-sm font-semibold tabular-nums">{total} min</span>
+      </header>
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
+/** One row of the vertical journey timeline. */
+function StepRow({
+  marker,
+  children,
+  time,
+  last = false,
+}: {
+  marker: React.ReactNode;
+  children: React.ReactNode;
+  time?: string;
+  last?: boolean;
+}) {
+  return (
+    <div className="flex gap-3">
+      <div className="w-12 shrink-0 pt-0.5 text-right text-xs text-muted-foreground tabular-nums">
+        {time ?? ""}
       </div>
+      <div className="flex flex-col items-center">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground">
+          {marker}
+        </span>
+        {last ? null : <span className="w-px flex-1 bg-border" />}
+      </div>
+      <div className={`min-w-0 flex-1 ${last ? "pb-0" : "pb-4"}`}>{children}</div>
     </div>
   );
 }
 
-function TimeToLeaveDetails({
-  snapshot,
-  now,
-}: {
-  snapshot: TimeToLeaveSnapshot;
-  now: Date;
-}) {
-  const [showOptions, setShowOptions] = useState(false);
-  const departure = new Date(snapshot.departure_iso);
-  const arrival = new Date(snapshot.arrival_iso);
-  const minutesUntilLeave = Math.round((departure.getTime() - now.getTime()) / 60_000);
-  const leaveIn =
-    minutesUntilLeave <= 0
-      ? "Now"
-      : minutesUntilLeave < 60
-        ? `${minutesUntilLeave} min`
-        : `${Math.floor(minutesUntilLeave / 60)}h ${minutesUntilLeave % 60}m`;
-  const calcMin = Math.max(
-    0,
-    Math.round((now.getTime() - new Date(snapshot.calculated_at).getTime()) / 60_000),
-  );
-  const best = snapshot.direct_options[0] ?? null;
-  const rest = snapshot.direct_options.slice(1);
-
+function BestOptionSection({ plan, alsoDirect }: { plan: JourneyPlan; alsoDirect: boolean }) {
   return (
-    <div className="space-y-4 px-4 py-4 sm:px-6 sm:py-5">
-      {/* Route line: home → studio */}
-      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-        <EndpointCard
-          icon={<Home className="h-4 w-4" />}
-          label="Home"
-          title={snapshot.home_label}
-        />
-        <div className="flex shrink-0 flex-col items-center justify-center gap-1 px-2">
-          <div className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
-            <span className="h-px w-6 border-t border-dashed border-border sm:w-8" />
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/12 text-primary">
-              <Train className="h-4 w-4" />
-            </span>
-            <span className="h-px w-6 border-t border-dashed border-border sm:w-8" />
-            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
-          </div>
-          <div className="whitespace-nowrap text-xs text-muted-foreground tabular-nums">
-            ~ {snapshot.travel_minutes} min · {snapshot.transfers} transfer
-            {snapshot.transfers === 1 ? "" : "s"}
-          </div>
-        </div>
-        <EndpointCard
-          icon={<Building2 className="h-4 w-4" />}
-          label="Studio"
-          title={snapshot.office_label}
-        />
-      </div>
+    <SectionShell title="Best option" badge={alsoDirect ? "Fastest · direct" : "Fastest"} total={plan.total_minutes}>
+      <div>
+        <StepRow marker={<Home className="h-3.5 w-3.5" />} time={fmtHM(new Date(plan.leave_iso))}>
+          <div className="text-sm font-medium">Home</div>
+        </StepRow>
 
-      {/* Timings + best option */}
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-muted/20 px-4 py-1">
-          <DetailRow
-            icon={<Clock className="h-4 w-4" />}
-            label="Leave by"
-            value={fmtHM(departure)}
-          />
-          <DetailRow
-            icon={<Flag className="h-4 w-4" />}
-            label="Arrive by"
-            value={fmtHM(arrival)}
-          />
-          <DetailRow
-            icon={<Hourglass className="h-4 w-4" />}
-            label="Journey time"
-            value={`${snapshot.travel_minutes} min`}
-          />
-          <DetailRow
-            icon={<ArrowLeftRight className="h-4 w-4" />}
-            label="Transfers"
-            value={snapshot.transfers}
-          />
-          <DetailRow
-            icon={<Navigation className="h-4 w-4" />}
-            label="Leave in"
-            value={leaveIn}
-          />
-        </div>
-
-        <div className="rounded-2xl border border-border bg-muted/20 p-4">
-          {best ? (
-            <>
-              <div className="flex items-center gap-2">
-                <span className="rounded-lg bg-primary/12 px-2 py-0.5 text-sm font-semibold text-primary">
-                  {best.line}
-                </span>
-                <span className="text-sm font-medium text-primary">Best option</span>
+        {plan.legs.map((leg, i) =>
+          leg.kind === "walk" ? (
+            <StepRow key={i} marker={<Footprints className="h-3.5 w-3.5" />}>
+              <div className="text-sm text-muted-foreground">
+                {leg.minutes} min walk
+                {leg.to_label ? ` · ${leg.to_label}` : ""}
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm tabular-nums">
-                <span className="text-muted-foreground">
-                  Leaves{" "}
-                  <span className="font-medium text-foreground">
-                    {fmtHM(new Date(best.departure_iso))}
-                  </span>
-                </span>
-                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-muted-foreground">
-                  Arrives{" "}
-                  <span className="font-medium text-foreground">
-                    {fmtHM(new Date(best.arrival_iso))}
-                  </span>
-                </span>
+            </StepRow>
+          ) : leg.kind === "transfer" ? (
+            <StepRow key={i} marker={<ArrowRight className="h-3.5 w-3.5" />}>
+              <div className="text-sm text-muted-foreground">
+                {leg.minutes} min transfer{leg.at ? ` · ${leg.at}` : ""}
               </div>
-              <div className="mt-1 truncate text-xs text-muted-foreground">
-                From {best.from_stop}
-              </div>
-              <div className="mt-0.5 text-xs text-muted-foreground">
-                {best.walk_minutes} min walk to stop · No transfers
-              </div>
-            </>
+            </StepRow>
           ) : (
-            <div className="text-sm text-muted-foreground">
-              No direct connection found — see the route below.
-            </div>
-          )}
-
-          {rest.length > 0 ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setShowOptions((v) => !v)}
-                aria-expanded={showOptions}
-                className="mt-3 flex w-full items-center justify-between border-t border-border pt-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <span>Other options</span>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform duration-300 ${
-                    showOptions ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-              {showOptions ? (
-                <div className="mt-2 space-y-2">
-                  {rest.map((o) => (
-                    <div
-                      key={o.line + o.departure_iso}
-                      className="rounded-xl border border-border bg-background/60 p-3"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                          {o.line}
-                        </span>
-                        <span className="text-sm font-medium tabular-nums">
-                          {o.duration_minutes} min
-                        </span>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground tabular-nums">
-                        {fmtHM(new Date(o.departure_iso))} → {fmtHM(new Date(o.arrival_iso))} ·{" "}
-                        {o.walk_minutes} min walk
-                      </div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        From {o.from_stop}
-                      </div>
-                    </div>
-                  ))}
+            <StepRow
+              key={i}
+              marker={<ModeIcon mode={leg.mode} className="h-3.5 w-3.5" />}
+              time={fmtHM(new Date(leg.departure_iso))}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <LineBadge line={leg.line} mode={leg.mode} />
+                {leg.direction ? (
+                  <span className="truncate text-xs text-muted-foreground">
+                    {modeLabel(leg.mode)} · {leg.direction}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground tabular-nums">
+                {fmtHM(new Date(leg.departure_iso))} → {fmtHM(new Date(leg.arrival_iso))} ·{" "}
+                {leg.minutes} min
+              </div>
+              {leg.from_stop || leg.to_stop ? (
+                <div className="truncate text-xs text-muted-foreground">
+                  {leg.from_stop} → {leg.to_stop}
                 </div>
               ) : null}
-            </>
-          ) : null}
-        </div>
-      </div>
+            </StepRow>
+          ),
+        )}
 
-      {/* Route map — geometry comes from the stored snapshot. */}
-      <div className="relative isolate h-[200px] overflow-hidden rounded-2xl border border-border sm:h-[240px]">
-        <RouteMapPreview
-          home={{ lat: snapshot.home_lat, lng: snapshot.home_lng }}
-          office={{ lat: snapshot.office_lat, lng: snapshot.office_lng }}
-          geometry={snapshot.route_geometry ?? undefined}
-          className="absolute inset-0"
-        />
+        <StepRow
+          marker={<Building2 className="h-3.5 w-3.5" />}
+          time={fmtHM(new Date(plan.arrive_iso))}
+          last
+        >
+          <div className="text-sm font-medium">Studio</div>
+        </StepRow>
       </div>
-
-      <Button className="w-full rounded-xl" asChild>
-        <a href={snapshotMapsUrl(snapshot)} target="_blank" rel="noopener noreferrer">
-          <Navigation className="mr-2 h-4 w-4" /> Start Navigation
-        </a>
-      </Button>
-
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-          Includes a {ARRIVAL_BUFFER_MIN} min arrival buffer.
-        </span>
-        <span className="flex items-center gap-1.5">
-          Calculated {calcMin < 1 ? "just now" : `${calcMin} min ago`}
-          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-        </span>
-      </div>
-    </div>
+    </SectionShell>
   );
 }
 
+function DirectOptionSection({ title, route }: { title: string; route: DirectPlan }) {
+  return (
+    <SectionShell title={title} total={route.total_minutes}>
+      <div className="flex flex-wrap items-center gap-2">
+        <LineBadge line={route.line} mode={route.mode} />
+        {route.direction ? (
+          <span className="truncate text-xs text-muted-foreground">
+            {modeLabel(route.mode)} · {route.direction}
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground tabular-nums">
+        <span>{route.walk_to_minutes} min walk</span>
+        <ArrowRight className="h-3.5 w-3.5" />
+        <span className="font-medium text-foreground">
+          {fmtHM(new Date(route.departure_iso))} → {fmtHM(new Date(route.arrival_iso))}
+        </span>
+        <ArrowRight className="h-3.5 w-3.5" />
+        <span>{route.walk_from_minutes} min walk</span>
+      </div>
+      {route.from_stop || route.to_stop ? (
+        <div className="mt-1 truncate text-xs text-muted-foreground">
+          {route.from_stop} → {route.to_stop}
+        </div>
+      ) : null}
+      <div className="mt-1 text-xs text-muted-foreground tabular-nums">
+        Leave {fmtHM(new Date(route.leave_iso))} · arrive {fmtHM(new Date(route.arrive_iso))}
+      </div>
+    </SectionShell>
+  );
+}
 
+function TimeToLeaveDetails({ snapshot }: { snapshot: TimeToLeaveSnapshot }) {
+  const best = snapshot.best;
+  const bestLine =
+    best.legs.find((l) => l.kind === "transit")?.kind === "transit"
+      ? (best.legs.find((l) => l.kind === "transit") as Extract<
+          JourneyPlan["legs"][number],
+          { kind: "transit" }
+        >)
+      : null;
+
+  // A direct route identical to the best option is labelled, never duplicated.
+  const sameAsBest = (r: DirectPlan) =>
+    best.direct && bestLine?.line === r.line && bestLine?.departure_iso === r.departure_iso;
+  const directs = snapshot.direct_routes.filter((r) => !sameAsBest(r)).slice(0, 2);
+  const alsoDirect = best.direct && snapshot.direct_routes.some(sameAsBest);
+
+  return (
+    <div className="space-y-3 px-4 py-4 sm:px-6 sm:py-5">
+      <BestOptionSection plan={best} alsoDirect={alsoDirect} />
+      {directs[0] ? <DirectOptionSection title="Direct option 1" route={directs[0]} /> : null}
+      {directs[1] ? <DirectOptionSection title="Direct option 2" route={directs[1]} /> : null}
+    </div>
+  );
+}
 
 
 function ProfileIncompleteBanner({ missing }: { missing: string[] }) {

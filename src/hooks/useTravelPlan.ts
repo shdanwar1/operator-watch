@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { getTimeToLeave, getRouteGeometry } from "@/lib/travel.functions";
+import { getTimeToLeave } from "@/lib/travel.functions";
 import {
   readSnapshot,
   writeSnapshot,
@@ -23,7 +23,6 @@ export type TravelPlanStatus = "idle" | "loading" | "ready" | "unavailable";
  */
 export function useTravelPlan(identity: TravelPlanIdentity | null) {
   const fetchPlan = useServerFn(getTimeToLeave);
-  const fetchGeometry = useServerFn(getRouteGeometry);
 
   const key = identity ? travelPlanKey(identity) : null;
 
@@ -64,25 +63,9 @@ export function useTravelPlan(identity: TravelPlanIdentity | null) {
           setStatus("unavailable");
           return;
         }
-        let geometry: [number, number][] | null = null;
-        try {
-          const geo = await fetchGeometry({
-            data: {
-              from_lat: res.home_lat,
-              from_lng: res.home_lng,
-              to_lat: res.office_lat,
-              to_lng: res.office_lng,
-            },
-          });
-          geometry = geo?.coords ?? null;
-        } catch {
-          geometry = null;
-        }
-        if (cancelled) return;
         const snap = snapshotFromResult(res, {
           operator: identity.username,
           shiftEndIso: identity.shiftEndIso,
-          geometry,
         });
         writeSnapshot(key, snap);
         setSnapshot(snap);

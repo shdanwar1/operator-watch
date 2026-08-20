@@ -7,17 +7,17 @@
  *   clock locally.
  *
  * A snapshot holds everything needed to reconstruct the card (times, route
- * details, direct options, map geometry) without touching the transit or
- * routing APIs again — so reloads, rerenders, focus changes and clock ticks
+ * details, direct options) without touching the transit API again — so reloads, rerenders, focus changes and clock ticks
  * are all free. A failed route request is *never* persisted and never
  * replaces a valid snapshot.
  */
 
 import { readCache, writeCache, operatorNamespace } from "@/lib/local-cache";
-import type { DirectOption, TimeToLeaveResult } from "@/lib/travel.functions";
+import type { TimeToLeaveResult } from "@/lib/travel.functions";
+import type { DirectPlan, JourneyPlan } from "@/lib/journey-plan";
 
 /** Bump to invalidate every stored plan (algorithm / shape changes). */
-export const TRAVEL_SNAPSHOT_VERSION = 3;
+export const TRAVEL_SNAPSHOT_VERSION = 4;
 
 export type TimeToLeaveSnapshot = {
   version: number;
@@ -43,9 +43,10 @@ export type TimeToLeaveSnapshot = {
   travel_minutes: number;
   transfers: number;
 
-  direct_options: DirectOption[];
-
-  route_geometry: [number, number][] | null;
+  /** Option 1 — fastest overall route. */
+  best: JourneyPlan;
+  /** Options 2 and 3 — fastest direct alternatives. */
+  direct_routes: DirectPlan[];
 
   calculated_at: string;
 };
@@ -98,7 +99,7 @@ export function writeSnapshot(key: string, snap: TimeToLeaveSnapshot): void {
 
 export function snapshotFromResult(
   result: Extract<TimeToLeaveResult, { ok: true }>,
-  meta: { operator: string; shiftEndIso: string; geometry: [number, number][] | null },
+  meta: { operator: string; shiftEndIso: string },
 ): TimeToLeaveSnapshot {
   return {
     version: TRAVEL_SNAPSHOT_VERSION,
@@ -116,19 +117,8 @@ export function snapshotFromResult(
     arrival_iso: result.arrival_iso,
     travel_minutes: result.travel_minutes,
     transfers: result.transfers,
-    direct_options: result.direct_options,
-    route_geometry: meta.geometry,
+    best: result.best,
+    direct_routes: result.direct_routes,
     calculated_at: new Date().toISOString(),
   };
-}
-
-/** Google Maps transit navigation for a stored plan. */
-export function snapshotMapsUrl(snap: TimeToLeaveSnapshot): string {
-  const params = new URLSearchParams({
-    api: "1",
-    origin: `${snap.home_lat},${snap.home_lng}`,
-    destination: `${snap.office_lat},${snap.office_lng}`,
-    travelmode: "transit",
-  });
-  return `https://www.google.com/maps/dir/?${params.toString()}`;
 }

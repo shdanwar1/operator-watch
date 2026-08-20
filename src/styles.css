@@ -427,14 +427,3 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Keep Leaflet map panes below app overlays (dialogs use z-50). */
-.leaflet-container {
-  isolation: isolate;
-  z-index: 0;
-}
-.leaflet-pane,
-.leaflet-top,
-.leaflet-bottom,
-.leaflet-control {
-  z-index: 1 !important;
-}
