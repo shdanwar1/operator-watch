@@ -1610,7 +1610,8 @@ function buildRows(plan: JourneyPlan) {
       note = `${leg.minutes} min walk to ${cleanStop(leg.to_label)}`;
     }
     if (rows.length === 0) {
-      const target = upcoming ? cleanStop(upcoming.from_stop || leg.to_label || "") : "";
+      const fallback = leg.kind === "walk" ? (leg.to_label ?? "") : "";
+      const target = upcoming ? cleanStop(upcoming.from_stop || fallback) : "";
       leadNote = target ? `${leg.minutes} min walk to ${target}` : `${leg.minutes} min walk`;
     } else {
       rows[rows.length - 1].note = note;
