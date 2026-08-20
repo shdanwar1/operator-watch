@@ -9,8 +9,8 @@ export const OFFICE = {
   lng: 13.3229399,
 } as const;
 
-// Always arrive this many minutes before the shift starts.
-export const ARRIVAL_BUFFER_MIN = 15;
+// Aim to arrive this many minutes before the shift starts (0–5 min window).
+export const ARRIVAL_BUFFER_MIN = 5;
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
@@ -99,13 +99,19 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
       fetchProviderJourneys(home, office_pt, target, 12, { directOnly: true }).catch(() => []),
     ]);
 
-    const { pickBestPlan, pickDirectPlans } = await import("./journey-plan");
+    const { pickBestPlan, pickDirectPlans, rescheduleJourneyPlan, rescheduleDirectPlan } =
+      await import("./journey-plan");
     const pool = [...anyJourneys, ...directJourneys];
-    const best = pickBestPlan(pool, targetArrival);
-    if (!best) {
+    const rawBest = pickBestPlan(pool, targetArrival);
+    if (!rawBest) {
       return { ok: false, reason: "no_route", home_label: op.home_label ?? undefined };
     }
-    const directRoutes = pickDirectPlans(pool, targetArrival, 2);
+    // Departure is scheduled backward from the shift, per option.
+    const now = new Date();
+    const best = rescheduleJourneyPlan(rawBest, targetArrival, now);
+    const directRoutes = pickDirectPlans(pool, targetArrival, 2).map((p) =>
+      rescheduleDirectPlan(p, targetArrival, now),
+    );
 
     const pick = {
       dep: best.leave_iso,
