@@ -504,6 +504,12 @@ export const updateScheduledShift = createServerFn({ method: "POST" })
       .update(data.patch as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    try {
+      const { reconcileShiftNotifications } = await import("./notifications.server");
+      await reconcileShiftNotifications();
+    } catch (err) {
+      console.error("[shifts] notification reconciliation failed", err);
+    }
     return { ok: true as const };
   });
 
@@ -518,6 +524,12 @@ export const deleteScheduledShift = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("scheduled_shifts").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+    try {
+      const { reconcileShiftNotifications } = await import("./notifications.server");
+      await reconcileShiftNotifications();
+    } catch (err) {
+      console.error("[shifts] notification reconciliation failed", err);
+    }
     return { ok: true as const };
   });
 

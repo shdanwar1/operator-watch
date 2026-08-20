@@ -13,6 +13,21 @@ self.addEventListener("push", (event) => {
     payload = { title: "Studio Shift Tracker", body: event.data ? event.data.text() : "" };
   }
 
+  // A retraction: the shift behind this reminder was cancelled or retimed.
+  if (payload.type === "close") {
+    event.waitUntil(
+      (async () => {
+        const shown = await self.registration.getNotifications(
+          payload.tag ? { tag: payload.tag } : {},
+        );
+        for (const n of shown) {
+          if (!payload.tag || n.tag === payload.tag) n.close();
+        }
+      })(),
+    );
+    return;
+  }
+
   const title = payload.title || "Studio Shift Tracker";
   const options = {
     body: payload.body || "",

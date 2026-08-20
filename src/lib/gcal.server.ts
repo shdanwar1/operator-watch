@@ -128,6 +128,16 @@ export async function runCalendarSync(
   }));
   const result = await runCalendarImport(username, opts);
   if (!result.ok) return { ...result, syncedAt: previous.calendarLastSyncAt };
+  // Shifts are now current: bring the notification state in line with them
+  // (new / retimed / removed / restored shifts). Idempotent, so repeated
+  // syncs never duplicate anything. A reconciliation hiccup must not fail
+  // an otherwise successful sync.
+  try {
+    const { reconcileShiftNotifications } = await import("./notifications.server");
+    await reconcileShiftNotifications();
+  } catch (err) {
+    console.error("[gcal] notification reconciliation failed", err);
+  }
   const syncedAt = await stampCalendarSync(username);
   return { ...result, syncedAt };
 }

@@ -39,6 +39,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { sendToOperator } = await import("@/lib/push.server");
+        const { activeShiftStartSet } = await import("@/lib/notifications.server");
 
         const now = Date.now();
         const fromIso = new Date(now - LOOKBACK_MS).toISOString();
@@ -57,7 +58,16 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           byName.set(row.username.toLowerCase(), row.id);
         }
 
-        type Job = { operatorId: string; key: string; type: string; at: Date; title: string; body: string };
+        type Job = {
+          operatorId: string;
+          key: string;
+          type: string;
+          at: Date;
+          title: string;
+          body: string;
+          /** Start instant of the shift this reminder belongs to. */
+          shiftStartMs: number;
+        };
         const jobs: Job[] = [];
 
         // --- Time to leave (from the server-side travel plans) ---
@@ -78,11 +88,15 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           if (!op || op.prefs.notifyTimeToLeave === false) continue;
           const at = new Date(plan.departure_at);
           if (!due(at, now)) continue;
+          const shiftStart = new Date(plan.shift_start_at);
           jobs.push({
             operatorId: plan.operator_id,
-            key: `leave:${plan.shift_start_at}`,
+            // Canonical instant in the key: a retimed shift produces a new key,
+            // so the old reminder can never be reused.
+            key: `leave:${shiftStart.toISOString()}`,
             type: "time_to_leave",
             at,
+            shiftStartMs: shiftStart.getTime(),
             title: "Time to leave",
             body: `Leave now — about ${plan.travel_minutes} min to the studio for your ${berlinClock(
               new Date(plan.shift_start_at),
@@ -121,9 +135,12 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
           jobs.push({
             operatorId,
-            key: `start:${shift.id}`,
+            // Key carries the shift's current start instant, so a calendar
+            // retime invalidates the previously scheduled reminder.
+            key: `start:${shift.id}@${start.toISOString()}`,
             type: "shift_start",
             at,
+            shiftStartMs: start.getTime(),
             title: "Shift starts soon",
             body: `Your shift starts at ${berlinClock(start)} — ${SHIFT_START_LEAD_MIN} minutes from now.`,
           });
@@ -138,6 +155,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           partial: 0,
           failed: 0,
           no_subscription: 0,
+          cancelled: 0,
         };
 
         for (const job of jobs) {
@@ -160,6 +178,19 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             continue;
           }
           stats.claimed += 1;
+
+          // Final state check, after the claim and immediately before sending:
+          // a shift cancelled or retimed in the meantime must not notify.
+          const liveStarts = await activeShiftStartSet(job.operatorId);
+          if (!liveStarts.has(job.shiftStartMs)) {
+            stats.cancelled += 1;
+            await supabaseAdmin
+              .from("push_notification_deliveries")
+              .update({ status: "cancelled", locked_at: null } as never)
+              .eq("operator_id", job.operatorId)
+              .eq("notification_key", job.key);
+            continue;
+          }
 
           let result: Awaited<ReturnType<typeof sendToOperator>>;
           try {

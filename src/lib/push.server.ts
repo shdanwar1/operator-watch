@@ -18,6 +18,8 @@ export type PushPayload = {
   body: string;
   tag?: string;
   url?: string;
+  /** "close" asks the service worker to retract an already-shown notification. */
+  type?: "notify" | "close";
 };
 
 function vapid() {
