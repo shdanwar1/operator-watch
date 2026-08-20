@@ -18,7 +18,11 @@ import {
 } from "@/lib/directories.functions";
 import { ARRIVAL_BUFFER_MIN } from "@/lib/travel.functions";
 import { useTravelPlan } from "@/hooks/useTravelPlan";
+import { useSmartRoutes } from "@/hooks/useSmartRoutes";
+import { planFromSmartRoutes } from "@/lib/smart-routes";
+import { SmartRouteTables } from "@/components/SmartRouteTables";
 import { snapshotMapsUrl, type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
+
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { clearAllCaches, operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 import { getOperatorDisplayName } from "@/lib/operators.functions";
