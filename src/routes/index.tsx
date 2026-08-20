@@ -39,7 +39,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, Train, TrainFront, Bus, Ship, Footprints, Home, MapPin, AlertTriangle, Lock, ArrowRight, Briefcase, ChevronDown, Building2 } from "lucide-react";
+import { Plus, X, Clock, LogIn, CalendarDays, Train, Ship, Footprints, Home, MapPin, AlertTriangle, Lock, ArrowRight, Briefcase, ChevronDown, Building2 } from "lucide-react";
+import { transitIconFor } from "@/components/TransitIcons";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
@@ -1483,17 +1484,25 @@ function TimeToLeaveCard({
   );
 }
 
-function ModeIcon({ mode, className }: { mode: string; className?: string }) {
-  if (mode === "bus") return <Bus className={className} />;
-  if (mode === "ferry") return <Ship className={className} />;
-  if (mode === "subway" || mode === "tram") return <TrainFront className={className} />;
-  return <Train className={className} />;
+function ModeIcon({
+  mode,
+  size = 14,
+  variant = "outline",
+}: {
+  mode: string;
+  size?: number;
+  variant?: "filled" | "outline";
+}) {
+  // Ferry has no dedicated glyph — keep the lucide ship.
+  if (mode === "ferry") return <Ship className="h-3.5 w-3.5" />;
+  const Icon = transitIconFor(mode);
+  return <Icon size={size} variant={variant} />;
 }
 
 function LineBadge({ line, mode }: { line: string; mode: string }) {
   return (
     <span className="flex items-center gap-1.5 rounded-lg bg-primary/12 px-2 py-1 text-sm font-semibold text-primary">
-      <ModeIcon mode={mode} className="h-3.5 w-3.5" />
+      <ModeIcon mode={mode} size={14} variant="filled" />
       {line}
     </span>
   );
@@ -1581,7 +1590,7 @@ function BestOptionSection({ plan, alsoDirect }: { plan: JourneyPlan; alsoDirect
           ) : (
             <StepRow
               key={i}
-              marker={<ModeIcon mode={leg.mode} className="h-3.5 w-3.5" />}
+              marker={<ModeIcon mode={leg.mode} size={14} />}
               time={fmtHM(new Date(leg.departure_iso))}
             >
               <div className="flex flex-wrap items-center gap-2">
