@@ -18,10 +18,8 @@ import {
 } from "@/lib/directories.functions";
 import { ARRIVAL_BUFFER_MIN } from "@/lib/travel.functions";
 import { useTravelPlan } from "@/hooks/useTravelPlan";
-import { useSmartRoutes } from "@/hooks/useSmartRoutes";
-import { planFromSmartRoutes } from "@/lib/smart-routes";
-import { SmartRouteTables } from "@/components/SmartRouteTables";
-import { snapshotMapsUrl, type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
+import { type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
+import { modeLabel, type DirectPlan, type JourneyPlan } from "@/lib/journey-plan";
 
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { clearAllCaches, operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
@@ -41,8 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, Train, Home, MapPin, AlertTriangle, Lock, Navigation, ArrowRight, Briefcase, ChevronDown, ArrowLeftRight, Flag, Hourglass, ShieldCheck, Building2 } from "lucide-react";
-import { RouteMapPreview } from "@/components/RouteMapPreview";
+import { Plus, X, Clock, LogIn, CalendarDays, Train, TrainFront, Bus, Ship, Footprints, Home, MapPin, AlertTriangle, Lock, ArrowRight, Briefcase, ChevronDown, Building2 } from "lucide-react";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
