@@ -120,29 +120,22 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
     const shiftStart = new Date(data.shift_start_iso);
     const targetArrival = new Date(shiftStart.getTime() - ARRIVAL_BUFFER_MIN * 60_000);
 
-    const url = new URL("https://v6.bvg.transport.rest/journeys");
-    url.searchParams.set("from.latitude", String(op.home_lat));
-    url.searchParams.set("from.longitude", String(op.home_lng));
-    url.searchParams.set("from.address", op.home_label ?? "Home");
-    url.searchParams.set("to.latitude", String(office.lat));
-    url.searchParams.set("to.longitude", String(office.lng));
-    url.searchParams.set("to.address", office.label);
-    url.searchParams.set("arrival", targetArrival.toISOString());
-    url.searchParams.set("results", "3");
-    url.searchParams.set("stopovers", "false");
-    url.searchParams.set("remarks", "false");
-
-    const res = await fetch(url.toString(), {
-      headers: { accept: "application/json", "user-agent": "studio-operator/1.0" },
-    });
-    if (!res.ok) {
-      return { ok: false, reason: "no_route", home_label: op.home_label ?? undefined };
-    }
-    const body = (await res.json()) as BvgResponse;
-    const journeys = body.journeys ?? [];
+    const { fetchProviderJourneys } = await import("./journeys.server");
+    const home = {
+      lat: Number(op.home_lat),
+      lng: Number(op.home_lng),
+      label: op.home_label ?? "Home",
+    };
+    const journeys = (await fetchProviderJourneys(
+      home,
+      { lat: office.lat, lng: office.lng, label: office.label },
+      { kind: "arrival", iso: targetArrival.toISOString() },
+      3,
+    )) as BvgJourney[];
     if (journeys.length === 0) {
       return { ok: false, reason: "no_route", home_label: op.home_label ?? undefined };
     }
+
 
     // Pick the journey with the latest departure that still arrives by target.
     const candidates = journeys
