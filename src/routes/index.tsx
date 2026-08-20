@@ -1499,12 +1499,24 @@ function ModeIcon({
   return <Icon size={size} variant={variant} />;
 }
 
-function LineBadge({ line, mode }: { line: string; mode: string }) {
+/** Small filled badge carrying the line number — replaces any mode wording. */
+function LineBadge({ line }: { line: string }) {
   return (
-    <span className="flex items-center gap-1.5 rounded-lg bg-primary/12 px-2 py-1 text-sm font-semibold text-primary">
-      <ModeIcon mode={mode} size={14} variant="filled" />
+    <span className="grid h-7 min-w-7 shrink-0 place-items-center rounded-md bg-foreground px-1.5 text-[11px] font-bold leading-none text-background">
       {line}
     </span>
+  );
+}
+
+/** "S+U Gesundbrunnen Bhf (Berlin)" → "Gesundbrunnen" */
+function cleanStop(name: string): string {
+  return (
+    name
+      .replace(/\s*\([^)]*\)\s*$/, "")
+      .replace(/,\s*Berlin\s*$/i, "")
+      .replace(/^(S\+U|U\+S|S|U)\s+/i, "")
+      .replace(/\s+(Bhf|Bahnhof)\.?$/i, "")
+      .trim() || name
   );
 }
 
@@ -1541,23 +1553,16 @@ function SectionShell({
 function StepRow({
   marker,
   children,
-  time,
   last = false,
 }: {
   marker: React.ReactNode;
   children: React.ReactNode;
-  time?: string;
   last?: boolean;
 }) {
   return (
     <div className="flex gap-3">
-      <div className="w-12 shrink-0 pt-0.5 text-right text-xs text-muted-foreground tabular-nums">
-        {time ?? ""}
-      </div>
       <div className="flex flex-col items-center">
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground">
-          {marker}
-        </span>
+        {marker}
         {last ? null : <span className="w-px flex-1 bg-border" />}
       </div>
       <div className={`min-w-0 flex-1 ${last ? "pb-0" : "pb-4"}`}>{children}</div>
@@ -1565,62 +1570,134 @@ function StepRow({
   );
 }
 
-function BestOptionSection({ plan, alsoDirect }: { plan: JourneyPlan; alsoDirect: boolean }) {
+function EndpointMarker() {
   return (
-    <SectionShell title="Best option" badge={alsoDirect ? "Fastest · direct" : "Fastest"} total={plan.total_minutes}>
+    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border bg-background" />
+  );
+}
+
+type TransitLeg = Extract<JourneyPlan["legs"][number], { kind: "transit" }>;
+
+/**
+ * Turns the raw leg list into display rows: a transit row per service, with
+ * same-station transfers and adjoining walks folded into a single note line.
+ */
+function buildRows(plan: JourneyPlan) {
+  const legs = plan.legs;
+  const rows: { leg: TransitLeg; note: string | null }[] = [];
+  let leadNote: string | null = null;
+
+  const nextTransit = (from: number): TransitLeg | null => {
+    for (let i = from; i < legs.length; i++) {
+      const l = legs[i];
+      if (l.kind === "transit") return l;
+    }
+    return null;
+  };
+
+  legs.forEach((leg, i) => {
+    if (leg.kind === "transit") {
+      rows.push({ leg, note: null });
+      return;
+    }
+    const upcoming = nextTransit(i + 1);
+    let note: string | null;
+    if (!upcoming) {
+      note = `${leg.minutes} min walk to studio`;
+    } else if (leg.kind === "transfer" || leg.minutes <= 2 || !leg.to_label) {
+      note = `Transfer to ${upcoming.line}`;
+    } else {
+      note = `${leg.minutes} min walk to ${cleanStop(leg.to_label)}`;
+    }
+    if (rows.length === 0) {
+      const fallback = leg.kind === "walk" ? (leg.to_label ?? "") : "";
+      const target = upcoming ? cleanStop(upcoming.from_stop || fallback) : "";
+      leadNote = target ? `${leg.minutes} min walk to ${target}` : `${leg.minutes} min walk`;
+    } else {
+      rows[rows.length - 1].note = note;
+    }
+  });
+
+  return { rows, leadNote };
+}
+
+function Endpoint({
+  time,
+  label,
+  address,
+  last = false,
+}: {
+  time: string;
+  label: string;
+  address?: string | null;
+  last?: boolean;
+}) {
+  return (
+    <StepRow marker={<EndpointMarker />} last={last}>
+      <div className="text-xs text-muted-foreground tabular-nums">{time}</div>
+      <div className="text-sm">
+        <span className="font-semibold">{label}</span>
+        {address ? <span className="text-muted-foreground"> · {address}</span> : null}
+      </div>
+    </StepRow>
+  );
+}
+
+function BestOptionSection({
+  plan,
+  alsoDirect,
+  homeAddress,
+  studioAddress,
+}: {
+  plan: JourneyPlan;
+  alsoDirect: boolean;
+  homeAddress?: string | null;
+  studioAddress?: string | null;
+}) {
+  const { rows, leadNote } = buildRows(plan);
+  return (
+    <SectionShell
+      title="Best option"
+      badge={alsoDirect ? "Fastest · direct" : "Fastest"}
+      total={plan.total_minutes}
+    >
       <div>
-        <StepRow marker={<Home className="h-3.5 w-3.5" />} time={fmtHM(new Date(plan.leave_iso))}>
-          <div className="text-sm font-medium">Home</div>
+        <StepRow marker={<EndpointMarker />}>
+          <div className="text-xs text-muted-foreground tabular-nums">
+            {fmtHM(new Date(plan.leave_iso))}
+          </div>
+          <div className="text-sm">
+            <span className="font-semibold">Home</span>
+            {homeAddress ? <span className="text-muted-foreground"> · {homeAddress}</span> : null}
+          </div>
+          {leadNote ? (
+            <div className="mt-0.5 text-sm text-muted-foreground">{leadNote}</div>
+          ) : null}
         </StepRow>
 
-        {plan.legs.map((leg, i) =>
-          leg.kind === "walk" ? (
-            <StepRow key={i} marker={<Footprints className="h-3.5 w-3.5" />}>
-              <div className="text-sm text-muted-foreground">
-                {leg.minutes} min walk
-                {leg.to_label ? ` · ${leg.to_label}` : ""}
+        {rows.map(({ leg, note }, i) => (
+          <StepRow key={i} marker={<LineBadge line={leg.line} />}>
+            <div className="text-xs text-muted-foreground tabular-nums">
+              {fmtHM(new Date(leg.departure_iso))}
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1 text-sm font-semibold">
+                {cleanStop(leg.from_stop)} → {cleanStop(leg.to_stop)}
               </div>
-            </StepRow>
-          ) : leg.kind === "transfer" ? (
-            <StepRow key={i} marker={<ArrowRight className="h-3.5 w-3.5" />}>
-              <div className="text-sm text-muted-foreground">
-                {leg.minutes} min transfer{leg.at ? ` · ${leg.at}` : ""}
-              </div>
-            </StepRow>
-          ) : (
-            <StepRow
-              key={i}
-              marker={<ModeIcon mode={leg.mode} size={14} />}
-              time={fmtHM(new Date(leg.departure_iso))}
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <LineBadge line={leg.line} mode={leg.mode} />
-                {leg.direction ? (
-                  <span className="truncate text-xs text-muted-foreground">
-                    {modeLabel(leg.mode)} · {leg.direction}
-                  </span>
-                ) : null}
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground tabular-nums">
-                {fmtHM(new Date(leg.departure_iso))} → {fmtHM(new Date(leg.arrival_iso))} ·{" "}
+              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                 {leg.minutes} min
-              </div>
-              {leg.from_stop || leg.to_stop ? (
-                <div className="truncate text-xs text-muted-foreground">
-                  {leg.from_stop} → {leg.to_stop}
-                </div>
-              ) : null}
-            </StepRow>
-          ),
-        )}
+              </span>
+            </div>
+            {note ? <div className="mt-0.5 text-sm text-muted-foreground">{note}</div> : null}
+          </StepRow>
+        ))}
 
-        <StepRow
-          marker={<Building2 className="h-3.5 w-3.5" />}
+        <Endpoint
           time={fmtHM(new Date(plan.arrive_iso))}
+          label="Studio"
+          address={studioAddress}
           last
-        >
-          <div className="text-sm font-medium">Studio</div>
-        </StepRow>
+        />
       </div>
     </SectionShell>
   );
@@ -1629,30 +1706,24 @@ function BestOptionSection({ plan, alsoDirect }: { plan: JourneyPlan; alsoDirect
 function DirectOptionSection({ title, route }: { title: string; route: DirectPlan }) {
   return (
     <SectionShell title={title} total={route.total_minutes}>
-      <div className="flex flex-wrap items-center gap-2">
-        <LineBadge line={route.line} mode={route.mode} />
-        {route.direction ? (
-          <span className="truncate text-xs text-muted-foreground">
-            {modeLabel(route.mode)} · {route.direction}
-          </span>
-        ) : null}
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground tabular-nums">
-        <span>{route.walk_to_minutes} min walk</span>
-        <ArrowRight className="h-3.5 w-3.5" />
-        <span className="font-medium text-foreground">
-          {fmtHM(new Date(route.departure_iso))} → {fmtHM(new Date(route.arrival_iso))}
-        </span>
-        <ArrowRight className="h-3.5 w-3.5" />
-        <span>{route.walk_from_minutes} min walk</span>
-      </div>
-      {route.from_stop || route.to_stop ? (
-        <div className="mt-1 truncate text-xs text-muted-foreground">
-          {route.from_stop} → {route.to_stop}
+      <div className="flex items-start gap-3">
+        <LineBadge line={route.line} />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm">
+            <span className="font-medium">
+              {cleanStop(route.from_stop)} → {cleanStop(route.to_stop)}
+            </span>
+            <span className="text-muted-foreground tabular-nums">
+              {" · "}
+              {fmtHM(new Date(route.departure_iso))}–{fmtHM(new Date(route.arrival_iso))}
+            </span>
+          </div>
+          <div className="mt-0.5 text-sm text-muted-foreground tabular-nums">
+            {route.walk_to_minutes} min walk · {modeLabel(route.mode).toLowerCase()}{" "}
+            {route.ride_minutes} min · {route.walk_from_minutes} min walk — leave{" "}
+            {fmtHM(new Date(route.leave_iso))}, arrive {fmtHM(new Date(route.arrive_iso))}
+          </div>
         </div>
-      ) : null}
-      <div className="mt-1 text-xs text-muted-foreground tabular-nums">
-        Leave {fmtHM(new Date(route.leave_iso))} · arrive {fmtHM(new Date(route.arrive_iso))}
       </div>
     </SectionShell>
   );
@@ -1660,13 +1731,7 @@ function DirectOptionSection({ title, route }: { title: string; route: DirectPla
 
 function TimeToLeaveDetails({ snapshot }: { snapshot: TimeToLeaveSnapshot }) {
   const best = snapshot.best;
-  const bestLine =
-    best.legs.find((l) => l.kind === "transit")?.kind === "transit"
-      ? (best.legs.find((l) => l.kind === "transit") as Extract<
-          JourneyPlan["legs"][number],
-          { kind: "transit" }
-        >)
-      : null;
+  const bestLine = best.legs.find((l): l is TransitLeg => l.kind === "transit") ?? null;
 
   // A direct route identical to the best option is labelled, never duplicated.
   const sameAsBest = (r: DirectPlan) =>
@@ -1674,9 +1739,23 @@ function TimeToLeaveDetails({ snapshot }: { snapshot: TimeToLeaveSnapshot }) {
   const directs = snapshot.direct_routes.filter((r) => !sameAsBest(r)).slice(0, 2);
   const alsoDirect = best.direct && snapshot.direct_routes.some(sameAsBest);
 
+  const homeAddress =
+    snapshot.home_label && snapshot.home_label.trim().toLowerCase() !== "home"
+      ? snapshot.home_label.trim()
+      : null;
+  const studioAddress =
+    snapshot.office_label && snapshot.office_label.trim().toLowerCase() !== "studio"
+      ? snapshot.office_label.trim()
+      : null;
+
   return (
     <div className="space-y-3 px-4 py-4 sm:px-6 sm:py-5">
-      <BestOptionSection plan={best} alsoDirect={alsoDirect} />
+      <BestOptionSection
+        plan={best}
+        alsoDirect={alsoDirect}
+        homeAddress={homeAddress}
+        studioAddress={studioAddress}
+      />
       {directs[0] ? <DirectOptionSection title="Direct option 1" route={directs[0]} /> : null}
       {directs[1] ? <DirectOptionSection title="Direct option 2" route={directs[1]} /> : null}
     </div>
