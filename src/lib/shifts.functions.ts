@@ -450,6 +450,19 @@ function sanitizeScheduledPatch(patch: ScheduledPatch): ScheduledPatch {
   return out;
 }
 
+/**
+ * Keeps push notifications in step with a shift change (cancel, retime,
+ * delete). Never allowed to fail the mutation itself.
+ */
+async function syncNotificationsAfterShiftChange() {
+  try {
+    const { reconcileShiftNotifications } = await import("./notifications.server");
+    await reconcileShiftNotifications();
+  } catch (err) {
+    console.error("[shifts] notification reconciliation failed", err);
+  }
+}
+
 export const createScheduledShift = createServerFn({ method: "POST" })
   .inputValidator((data: ScheduledPatch) => {
     const p = sanitizeScheduledPatch(data ?? {});
@@ -504,6 +517,7 @@ export const updateScheduledShift = createServerFn({ method: "POST" })
       .update(data.patch as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    await syncNotificationsAfterShiftChange();
     return { ok: true as const };
   });
 
@@ -518,6 +532,7 @@ export const deleteScheduledShift = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("scheduled_shifts").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+    await syncNotificationsAfterShiftChange();
     return { ok: true as const };
   });
 
