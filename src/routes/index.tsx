@@ -1725,12 +1725,15 @@ function DirectOptionSection({ title, route }: { title: string; route: DirectPla
   return (
     <SectionShell title={title} total={route.total_minutes}>
       <div className="flex items-start gap-3">
-        <LineBadge line={route.line} />
+        <ModeMarker mode={route.mode} />
         <div className="min-w-0 flex-1">
-          <div className="text-sm">
-            <span className="font-medium">
+          <div className="flex items-center gap-2 text-sm">
+            <LineLabel line={route.line} />
+            <span className="min-w-0 truncate font-medium">
               {cleanStop(route.from_stop)} → {cleanStop(route.to_stop)}
             </span>
+          </div>
+
             <span className="text-muted-foreground tabular-nums">
               {" · "}
               {fmtHM(new Date(route.departure_iso))}–{fmtHM(new Date(route.arrival_iso))}
