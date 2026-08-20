@@ -1499,14 +1499,24 @@ function ModeIcon({
   return <Icon size={size} variant={variant} />;
 }
 
-/** Small filled badge carrying the line number — replaces any mode wording. */
-function LineBadge({ line }: { line: string }) {
+/** Small low-emphasis label carrying the line number. */
+function LineLabel({ line }: { line: string }) {
   return (
-    <span className="grid h-7 min-w-7 shrink-0 place-items-center rounded-md bg-foreground px-1.5 text-[11px] font-bold leading-none text-background">
+    <span className="inline-flex h-5 shrink-0 items-center rounded border border-border px-1.5 text-[11px] font-semibold leading-none text-foreground">
       {line}
     </span>
   );
 }
+
+/** Timeline marker: circular outline holding the mode glyph. */
+function ModeMarker({ mode }: { mode: string }) {
+  return (
+    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground">
+      <ModeIcon mode={mode} size={16} variant="outline" />
+    </span>
+  );
+}
+
 
 /** "S+U Gesundbrunnen Bhf (Berlin)" → "Gesundbrunnen" */
 function cleanStop(name: string): string {
@@ -1570,11 +1580,15 @@ function StepRow({
   );
 }
 
-function EndpointMarker() {
+function EndpointMarker({ kind = "home" }: { kind?: "home" | "studio" }) {
+  const Icon = kind === "home" ? Home : Building2;
   return (
-    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border bg-background" />
+    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground">
+      <Icon className="h-4 w-4" strokeWidth={1.6} />
+    </span>
   );
 }
+
 
 type TransitLeg = Extract<JourneyPlan["legs"][number], { kind: "transit" }>;
 
@@ -1633,7 +1647,7 @@ function Endpoint({
   last?: boolean;
 }) {
   return (
-    <StepRow marker={<EndpointMarker />} last={last}>
+    <StepRow marker={<EndpointMarker kind="studio" />} last={last}>
       <div className="text-xs text-muted-foreground tabular-nums">{time}</div>
       <div className="text-sm">
         <span className="font-semibold">{label}</span>
@@ -1676,13 +1690,16 @@ function BestOptionSection({
         </StepRow>
 
         {rows.map(({ leg, note }, i) => (
-          <StepRow key={i} marker={<LineBadge line={leg.line} />}>
+          <StepRow key={i} marker={<ModeMarker mode={leg.mode} />}>
             <div className="text-xs text-muted-foreground tabular-nums">
               {fmtHM(new Date(leg.departure_iso))}
             </div>
             <div className="flex items-start gap-3">
-              <div className="min-w-0 flex-1 text-sm font-semibold">
-                {cleanStop(leg.from_stop)} → {cleanStop(leg.to_stop)}
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <LineLabel line={leg.line} />
+                <span className="min-w-0 truncate text-sm font-semibold">
+                  {cleanStop(leg.from_stop)} → {cleanStop(leg.to_stop)}
+                </span>
               </div>
               <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                 {leg.minutes} min
@@ -1691,6 +1708,7 @@ function BestOptionSection({
             {note ? <div className="mt-0.5 text-sm text-muted-foreground">{note}</div> : null}
           </StepRow>
         ))}
+
 
         <Endpoint
           time={fmtHM(new Date(plan.arrive_iso))}
@@ -1707,17 +1725,18 @@ function DirectOptionSection({ title, route }: { title: string; route: DirectPla
   return (
     <SectionShell title={title} total={route.total_minutes}>
       <div className="flex items-start gap-3">
-        <LineBadge line={route.line} />
+        <ModeMarker mode={route.mode} />
         <div className="min-w-0 flex-1">
-          <div className="text-sm">
-            <span className="font-medium">
+          <div className="flex items-center gap-2 text-sm">
+            <LineLabel line={route.line} />
+            <span className="min-w-0 truncate font-medium">
               {cleanStop(route.from_stop)} → {cleanStop(route.to_stop)}
             </span>
-            <span className="text-muted-foreground tabular-nums">
-              {" · "}
-              {fmtHM(new Date(route.departure_iso))}–{fmtHM(new Date(route.arrival_iso))}
-            </span>
           </div>
+          <div className="text-sm text-muted-foreground tabular-nums">
+            {fmtHM(new Date(route.departure_iso))}–{fmtHM(new Date(route.arrival_iso))}
+          </div>
+
           <div className="mt-0.5 text-sm text-muted-foreground tabular-nums">
             {route.walk_to_minutes} min walk · {modeLabel(route.mode).toLowerCase()}{" "}
             {route.ride_minutes} min · {route.walk_from_minutes} min walk — leave{" "}
