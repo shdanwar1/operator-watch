@@ -39,6 +39,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { sendToOperator } = await import("@/lib/push.server");
+        const { activeShiftStartSet } = await import("@/lib/notifications.server");
 
         const now = Date.now();
         const fromIso = new Date(now - LOOKBACK_MS).toISOString();
@@ -154,6 +155,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           partial: 0,
           failed: 0,
           no_subscription: 0,
+          cancelled: 0,
         };
 
         for (const job of jobs) {
