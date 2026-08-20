@@ -1499,14 +1499,24 @@ function ModeIcon({
   return <Icon size={size} variant={variant} />;
 }
 
-/** Small filled badge carrying the line number — replaces any mode wording. */
-function LineBadge({ line }: { line: string }) {
+/** Small low-emphasis label carrying the line number. */
+function LineLabel({ line }: { line: string }) {
   return (
-    <span className="grid h-7 min-w-7 shrink-0 place-items-center rounded-md bg-foreground px-1.5 text-[11px] font-bold leading-none text-background">
+    <span className="inline-flex h-5 shrink-0 items-center rounded border border-border px-1.5 text-[11px] font-semibold leading-none text-foreground">
       {line}
     </span>
   );
 }
+
+/** Timeline marker: circular outline holding the mode glyph. */
+function ModeMarker({ mode }: { mode: string }) {
+  return (
+    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground">
+      <ModeIcon mode={mode} size={16} variant="outline" />
+    </span>
+  );
+}
+
 
 /** "S+U Gesundbrunnen Bhf (Berlin)" → "Gesundbrunnen" */
 function cleanStop(name: string): string {
