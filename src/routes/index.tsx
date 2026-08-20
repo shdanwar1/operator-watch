@@ -1590,7 +1590,7 @@ function BestOptionSection({ plan, alsoDirect }: { plan: JourneyPlan; alsoDirect
           ) : (
             <StepRow
               key={i}
-              marker={<ModeIcon mode={leg.mode} className="h-3.5 w-3.5" />}
+              marker={<ModeIcon mode={leg.mode} size={14} />}
               time={fmtHM(new Date(leg.departure_iso))}
             >
               <div className="flex flex-wrap items-center gap-2">
