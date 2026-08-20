@@ -177,6 +177,19 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           }
           stats.claimed += 1;
 
+          // Final state check, after the claim and immediately before sending:
+          // a shift cancelled or retimed in the meantime must not notify.
+          const liveStarts = await activeShiftStartSet(job.operatorId);
+          if (!liveStarts.has(job.shiftStartMs)) {
+            stats.cancelled += 1;
+            await supabaseAdmin
+              .from("push_notification_deliveries")
+              .update({ status: "cancelled", locked_at: null } as never)
+              .eq("operator_id", job.operatorId)
+              .eq("notification_key", job.key);
+            continue;
+          }
+
           let result: Awaited<ReturnType<typeof sendToOperator>>;
           try {
             result = await sendToOperator(job.operatorId, {
