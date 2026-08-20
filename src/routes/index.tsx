@@ -1513,6 +1513,32 @@ function TimeToLeaveCard({
           </div>
         ) : null}
 
+        {/* Cached smart-route strip — used whenever the snapshot is missing. */}
+        {!expanded && !snapshot && smartPlan ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border px-4 py-3 sm:px-6">
+            <span className="flex items-center gap-1.5 rounded-lg bg-primary/12 px-2 py-1 text-sm font-semibold text-primary">
+              <Train className="h-3.5 w-3.5" />
+              {smartPlan.route.line}
+            </span>
+            <span className="text-sm font-medium tabular-nums">
+              {smartPlan.total_minutes} min
+            </span>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-sm text-muted-foreground tabular-nums">direct</span>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="tabular-nums">
+                Leaves{" "}
+                <span className="font-medium text-foreground">{fmtHM(smartPlan.leave)}</span>
+              </span>
+              <ArrowRight className="h-3.5 w-3.5" />
+              <span className="tabular-nums">
+                Arrives{" "}
+                <span className="font-medium text-foreground">{fmtHM(smartPlan.arrival)}</span>
+              </span>
+            </div>
+          </div>
+        ) : null}
+
         {/* ── Expanded detail ───────────────────────────────────────────── */}
         <div
           className={`grid transition-all duration-300 ease-out ${
@@ -1523,6 +1549,17 @@ function TimeToLeaveCard({
             <div className="border-t border-border">
               {snapshot ? (
                 <TimeToLeaveDetails snapshot={snapshot} now={now} />
+              ) : smart.set ? (
+                <div className="px-4 py-4 sm:px-6 sm:py-5">
+                  <SmartRouteTables
+                    set={smart.set}
+                    now={now}
+                    stale={smart.stale}
+                    selectedDepartureIso={
+                      smartPlan?.from_timetable ? smartPlan.leave.toISOString() : null
+                    }
+                  />
+                </div>
               ) : (
                 <div className="space-y-3 px-5 py-5 sm:px-6">
                   {reason === "no_home" ? (
@@ -1536,8 +1573,12 @@ function TimeToLeaveCard({
                         </Link>
                       </Button>
                     </>
-                  ) : status === "loading" ? (
+                  ) : status === "loading" || smart.refreshing ? (
                     <p className="text-sm text-muted-foreground">Planning your trip…</p>
+                  ) : smart.noDirect ? (
+                    <p className="text-sm text-muted-foreground">
+                      No direct public-transport connection from your home to the studio.
+                    </p>
                   ) : (
                     <p className="text-sm text-muted-foreground">
                       Route information is currently unavailable.
@@ -1545,9 +1586,22 @@ function TimeToLeaveCard({
                   )}
                 </div>
               )}
+              {snapshot && smart.set ? (
+                <div className="border-t border-border px-4 py-4 sm:px-6 sm:py-5">
+                  <SmartRouteTables
+                    set={smart.set}
+                    now={now}
+                    stale={smart.stale}
+                    selectedDepartureIso={
+                      smartPlan?.from_timetable ? smartPlan.leave.toISOString() : null
+                    }
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
+
       </CardContent>
     </Card>
   );
