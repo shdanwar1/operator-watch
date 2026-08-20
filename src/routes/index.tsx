@@ -1351,7 +1351,34 @@ function TimeToLeaveCard({
 
   const { snapshot, status, reason } = useTravelPlan(identity);
 
-  const departureIso = snapshot?.departure_iso ?? null;
+  // Smart, locally cached direct-route intelligence. It paints from cache and
+  // refreshes in the background, so it stays useful when BVG is unreachable.
+  const targetArrival = useMemo(
+    () => (shiftIso ? new Date(Date.parse(shiftIso) - ARRIVAL_BUFFER_MIN * 60_000) : null),
+    [shiftIso],
+  );
+  const smartIdentity = useMemo(
+    () =>
+      username && studio
+        ? {
+            username,
+            homeLat: homeLat ?? null,
+            homeLng: homeLng ?? null,
+            studioLat: studio.lat,
+            studioLng: studio.lng,
+          }
+        : null,
+    [username, homeLat, homeLng, studio],
+  );
+  const smart = useSmartRoutes(smartIdentity, targetArrival);
+  const smartPlan = useMemo(
+    () => planFromSmartRoutes(smart.set, targetArrival),
+    [smart.set, targetArrival],
+  );
+
+  // The snapshot stays authoritative when it exists; the cached smart routes
+  // take over whenever it does not, so the card keeps a real departure time.
+  const departureIso = snapshot?.departure_iso ?? smartPlan?.leave.toISOString() ?? null;
   const reportDeparture = onDeparture;
   useEffect(() => {
     reportDeparture?.(departureIso);
@@ -1361,14 +1388,19 @@ function TimeToLeaveCard({
 
   const shiftStart = next.startAt;
   const shiftClock = splitClock(shiftStart);
-  const departure = snapshot ? new Date(snapshot.departure_iso) : null;
-  const arrival = snapshot ? new Date(snapshot.arrival_iso) : null;
+  const departure = snapshot
+    ? new Date(snapshot.departure_iso)
+    : (smartPlan?.leave ?? null);
+  const arrival = snapshot
+    ? new Date(snapshot.arrival_iso)
+    : (smartPlan?.arrival ?? null);
   const minutesUntilLeave = departure
     ? Math.round((departure.getTime() - now.getTime()) / 60_000)
     : null;
   const urgent = minutesUntilLeave !== null && minutesUntilLeave <= 10;
   const hero = variant === "hero";
   const best = snapshot?.direct_options[0] ?? null;
+
 
   return (
     <Card
