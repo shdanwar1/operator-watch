@@ -1647,7 +1647,7 @@ function Endpoint({
   last?: boolean;
 }) {
   return (
-    <StepRow marker={<EndpointMarker />} last={last}>
+    <StepRow marker={<EndpointMarker kind="studio" />} last={last}>
       <div className="text-xs text-muted-foreground tabular-nums">{time}</div>
       <div className="text-sm">
         <span className="font-semibold">{label}</span>
