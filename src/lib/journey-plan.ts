@@ -224,3 +224,68 @@ export function modeLabel(mode: string): string {
       return "Transit";
   }
 }
+
+/**
+ * Backward scheduling.
+ *
+ * Departure is derived from the shift, not from "now": every option is shifted
+ * so it arrives as late as possible inside the 0–5 minute window before the
+ * shift starts (aiming for exactly 5 minutes early). Leg durations never
+ * change — the whole timeline just slides.
+ *
+ * If the resulting departure is already in the past the plan is instead
+ * anchored to `now`, so the card never shows a departure that has passed and
+ * the (possibly late) arrival is shown honestly.
+ */
+export const SHIFT_ARRIVAL_BUFFER_MIN = 5;
+
+function shiftIso(iso: string, deltaMs: number): string {
+  return new Date(Date.parse(iso) + deltaMs).toISOString();
+}
+
+/** Offset (ms) that lands the plan's arrival in the target window. */
+function offsetFor(arriveIso: string, leaveIso: string, targetArrival: Date, now: Date): number {
+  let delta = targetArrival.getTime() - Date.parse(arriveIso);
+  const leaveAt = Date.parse(leaveIso) + delta;
+  if (leaveAt < now.getTime()) delta += now.getTime() - leaveAt;
+  return delta;
+}
+
+export function rescheduleJourneyPlan(
+  plan: JourneyPlan,
+  targetArrival: Date,
+  now: Date = new Date(),
+): JourneyPlan {
+  const delta = offsetFor(plan.arrive_iso, plan.leave_iso, targetArrival, now);
+  if (delta === 0) return plan;
+  return {
+    ...plan,
+    legs: plan.legs.map((l) =>
+      l.kind === "transit"
+        ? {
+            ...l,
+            departure_iso: shiftIso(l.departure_iso, delta),
+            arrival_iso: shiftIso(l.arrival_iso, delta),
+          }
+        : l,
+    ),
+    leave_iso: shiftIso(plan.leave_iso, delta),
+    arrive_iso: shiftIso(plan.arrive_iso, delta),
+  };
+}
+
+export function rescheduleDirectPlan(
+  plan: DirectPlan,
+  targetArrival: Date,
+  now: Date = new Date(),
+): DirectPlan {
+  const delta = offsetFor(plan.arrive_iso, plan.leave_iso, targetArrival, now);
+  if (delta === 0) return plan;
+  return {
+    ...plan,
+    departure_iso: shiftIso(plan.departure_iso, delta),
+    arrival_iso: shiftIso(plan.arrival_iso, delta),
+    leave_iso: shiftIso(plan.leave_iso, delta),
+    arrive_iso: shiftIso(plan.arrive_iso, delta),
+  };
+}
