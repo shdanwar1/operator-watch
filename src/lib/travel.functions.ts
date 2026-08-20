@@ -25,23 +25,6 @@ function getGateConfig() {
   };
 }
 
-// Approximate walk time from each transit mode's typical stop near the office
-// to the office door. Used to pick direct options that let the operator arrive
-// on time even after walking from the stop.
-const MODE_WALK_MINUTES: Record<string, number> = {
-  bus: 7,
-  tram: 7,
-  ferry: 10,
-  subway: 15,
-  suburban: 20, // S-Bahn
-  regional: 20,
-  express: 20,
-};
-
-function walkMinutesFor(mode: string): number {
-  return MODE_WALK_MINUTES[mode] ?? 15;
-}
-
 export type { DirectPlan, JourneyPlan, JourneyLeg } from "./journey-plan";
 
 export type TimeToLeaveResult =
@@ -67,21 +50,6 @@ export type TimeToLeaveResult =
       plan_saved: boolean;
     }
   | { ok: false; reason: "no_home" | "no_session" | "no_route"; home_label?: string };
-
-type BvgLine = { name?: string; product?: string; mode?: string };
-type BvgStop = { name?: string };
-type BvgLeg = {
-  departure?: string;
-  plannedDeparture?: string;
-  arrival?: string;
-  plannedArrival?: string;
-  walking?: boolean;
-  line?: BvgLine;
-  origin?: BvgStop;
-  destination?: BvgStop;
-};
-type BvgJourney = { legs: BvgLeg[] };
-type BvgResponse = { journeys?: BvgJourney[] };
 
 export const getTimeToLeave = createServerFn({ method: "POST" })
   .inputValidator((data: { shift_start_iso: string }) => {
