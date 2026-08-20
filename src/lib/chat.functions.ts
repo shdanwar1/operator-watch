@@ -23,3 +23,10 @@ export const sendChatMessage = createServerFn({ method: "POST" })
     const { postChatMessage } = await import("./chat.server");
     return postChatMessage(data.text);
   });
+
+export const deleteChatMessage = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string }) => ({ id: String(data?.id ?? "") }))
+  .handler(async ({ data }): Promise<{ id: string }> => {
+    const { removeChatMessage } = await import("./chat.server");
+    return removeChatMessage(data.id);
+  });

@@ -1,12 +1,34 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MoreHorizontal } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { getGateStatus } from "@/lib/gate.functions";
-import { fetchChatSince, getChatBootstrap, sendChatMessage } from "@/lib/chat.functions";
+import {
+  deleteChatMessage,
+  fetchChatSince,
+  getChatBootstrap,
+  sendChatMessage,
+} from "@/lib/chat.functions";
 import { CHAT_MAX_CHARS, type ChatMessage } from "@/lib/chat-shared";
+import { opColor } from "@/lib/admin-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -42,8 +64,7 @@ function timeOf(iso: string) {
 function dayOf(iso: string) {
   const d = new Date(iso);
   const today = new Date();
-  const same = d.toDateString() === today.toDateString();
-  if (same) return "Today";
+  if (d.toDateString() === today.toDateString()) return "Today";
   return d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
 }
 
@@ -60,6 +81,7 @@ function ChatPage() {
   const bootstrap = useServerFn(getChatBootstrap);
   const since = useServerFn(fetchChatSince);
   const send = useServerFn(sendChatMessage);
+  const remove = useServerFn(deleteChatMessage);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [me, setMe] = useState<string | null>(null);
@@ -70,6 +92,7 @@ function ChatPage() {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [hasNew, setHasNew] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<ChatMessage | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
@@ -105,6 +128,16 @@ function ChatPage() {
     }
   }, [since, scrollToBottom]);
 
+  /** A deletion changes older rows, so the window is re-read in full. */
+  const reload = useCallback(async () => {
+    try {
+      const all = await since({ data: { after: null } });
+      setMessages(all);
+    } catch {
+      /* transient */
+    }
+  }, [since]);
+
   // Initial load.
   useEffect(() => {
     let alive = true;
@@ -126,7 +159,7 @@ function ChatPage() {
     };
   }, [bootstrap, scrollToBottom]);
 
-  // Realtime: a content-free signal tells us to pull what we're missing.
+  // Realtime: content-free signals tell us to pull or re-read.
   useEffect(() => {
     if (!topic) return;
     const channel = supabase
@@ -134,14 +167,16 @@ function ChatPage() {
       .on("broadcast", { event: "new" }, () => {
         void pull();
       })
+      .on("broadcast", { event: "del" }, () => {
+        void reload();
+      })
       .subscribe((status) => {
-        // Reconnects can drop signals; refetch to close the gap.
         if (status === "SUBSCRIBED") void pull();
       });
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [topic, pull]);
+  }, [topic, pull, reload]);
 
   const submit = async () => {
     const text = draft.trim();
@@ -160,7 +195,20 @@ function ChatPage() {
     }
   };
 
+  const confirmDelete = async () => {
+    const target = pendingDelete;
+    setPendingDelete(null);
+    if (!target) return;
+    setMessages((prev) => prev.filter((m) => m.id !== target.id));
+    try {
+      await remove({ data: { id: target.id } });
+    } catch {
+      void reload();
+    }
+  };
+
   let lastDay = "";
+  let lastSender = "";
 
   return (
     <AppShell>
@@ -168,40 +216,96 @@ function ChatPage() {
 
       <div className="flex h-[calc(100vh-14rem)] min-h-[420px] flex-col rounded-2xl border border-border bg-card max-lg:h-[calc(100vh-16rem)]">
         <div className="relative min-h-0 flex-1">
-          <div ref={scrollRef} className="h-full overflow-y-auto overflow-x-hidden px-4 py-4">
+          <div ref={scrollRef} className="h-full overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-4">
             {loadError ? (
               <p className="py-8 text-center text-[13px] text-destructive">{loadError}</p>
             ) : !loaded ? (
               <p className="py-8 text-center text-[13px] text-muted-foreground">Loading…</p>
             ) : messages.length === 0 ? (
-              <p className="py-8 text-center text-[13px] text-muted-foreground">No messages yet.</p>
+              <div className="py-10 text-center">
+                <p className="text-[13px] font-medium">No messages yet</p>
+                <p className="mt-1 text-[12px] text-muted-foreground">
+                  Start the conversation with the team.
+                </p>
+              </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-1">
                 {messages.map((m) => {
                   const day = dayOf(m.created_at);
                   const showDay = day !== lastDay;
+                  if (showDay) lastSender = "";
                   lastDay = day;
                   const mine = m.operator_id === me;
+                  const grouped = lastSender === m.operator_id;
+                  lastSender = m.operator_id;
+                  const c = opColor(m.sender);
+
                   return (
                     <div key={m.id}>
                       {showDay && (
-                        <p className="py-2 text-center text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        <p className="py-3 text-center text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60">
                           {day}
                         </p>
                       )}
-                      <div className={cn("max-w-[85%]", mine && "ml-auto text-right")}>
-                        <p className="text-[12px] font-medium text-muted-foreground">{m.sender}</p>
-                        <p
+                      <div
+                        className={cn(
+                          "group flex flex-col",
+                          grouped ? "mt-0.5" : "mt-3",
+                          mine ? "items-end" : "items-start",
+                        )}
+                      >
+                        {!grouped && (
+                          <p
+                            className={cn(
+                              "mb-1 px-1 text-[11px] font-semibold",
+                              c?.text ?? "text-muted-foreground",
+                            )}
+                          >
+                            {m.sender}
+                          </p>
+                        )}
+                        <div
                           className={cn(
-                            "mt-0.5 whitespace-pre-wrap break-words text-[14px] leading-snug",
-                            mine && "text-foreground",
+                            "flex items-center gap-1",
+                            mine && "flex-row-reverse",
                           )}
                         >
-                          {m.text}
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">
-                          {timeOf(m.created_at)}
-                        </p>
+                          <div
+                            className={cn(
+                              "max-w-[85%] rounded-2xl border px-3 py-1.5 sm:max-w-[65%]",
+                              c ? `${c.bg} ${c.border}` : "border-border bg-muted/40",
+                            )}
+                          >
+                            <p className="whitespace-pre-wrap break-words text-[14px] leading-snug">
+                              {m.text}
+                            </p>
+                            <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground">
+                              {timeOf(m.created_at)}
+                            </p>
+                          </div>
+
+                          {mine && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  aria-label="Message options"
+                                  className="rounded-full p-1 text-muted-foreground opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100 max-lg:opacity-60"
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align={mine ? "end" : "start"}>
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onSelect={() => setPendingDelete(m)}
+                                >
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -244,6 +348,23 @@ function ChatPage() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <AlertDialogContent className="max-w-xs">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[15px]">Delete this message?</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void confirmDelete()}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }

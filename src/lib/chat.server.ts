@@ -125,3 +125,19 @@ export async function postChatMessage(raw: string): Promise<ChatMessage> {
     created_at: r.created_at,
   };
 }
+
+/** Delete one of your own messages. Ownership is verified server-side. */
+export async function removeChatMessage(id: string): Promise<{ id: string }> {
+  const { id: operatorId, supabaseAdmin } = await requireEnabledOperator();
+  if (!id) throw new Error("Message id is required");
+  const { data, error } = await supabaseAdmin
+    .from("operator_chat_messages")
+    .delete()
+    .eq("id", id)
+    .eq("operator_id", operatorId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Response("Forbidden", { status: 403 });
+  return { id };
+}
