@@ -1733,12 +1733,10 @@ function DirectOptionSection({ title, route }: { title: string; route: DirectPla
               {cleanStop(route.from_stop)} → {cleanStop(route.to_stop)}
             </span>
           </div>
-
-            <span className="text-muted-foreground tabular-nums">
-              {" · "}
-              {fmtHM(new Date(route.departure_iso))}–{fmtHM(new Date(route.arrival_iso))}
-            </span>
+          <div className="text-sm text-muted-foreground tabular-nums">
+            {fmtHM(new Date(route.departure_iso))}–{fmtHM(new Date(route.arrival_iso))}
           </div>
+
           <div className="mt-0.5 text-sm text-muted-foreground tabular-nums">
             {route.walk_to_minutes} min walk · {modeLabel(route.mode).toLowerCase()}{" "}
             {route.ride_minutes} min · {route.walk_from_minutes} min walk — leave{" "}
