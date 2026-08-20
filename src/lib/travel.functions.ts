@@ -180,27 +180,17 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
     // shift-start minus that mode's walk buffer.
     const directOptions: DirectOption[] = [];
     try {
-      const directUrl = new URL("https://v6.bvg.transport.rest/journeys");
-      directUrl.searchParams.set("from.latitude", String(op.home_lat));
-      directUrl.searchParams.set("from.longitude", String(op.home_lng));
-      directUrl.searchParams.set("from.address", op.home_label ?? "Home");
-      directUrl.searchParams.set("to.latitude", String(office.lat));
-      directUrl.searchParams.set("to.longitude", String(office.lng));
-      directUrl.searchParams.set("to.address", office.label);
-      // Anchor at the shift start (not the 15-min buffer) so per-mode walk
-      // times can be applied precisely below.
-      directUrl.searchParams.set("arrival", shiftStart.toISOString());
-      directUrl.searchParams.set("results", "12");
-      directUrl.searchParams.set("transfers", "0");
-      directUrl.searchParams.set("stopovers", "false");
-      directUrl.searchParams.set("remarks", "false");
-      const dres = await fetch(directUrl.toString(), {
-        headers: { accept: "application/json", "user-agent": "studio-operator/1.0" },
-      });
-      if (dres.ok) {
-        const dbody = (await dres.json()) as BvgResponse;
+      const directJourneys = (await fetchProviderJourneys(
+        home,
+        { lat: office.lat, lng: office.lng, label: office.label },
+        { kind: "arrival", iso: shiftStart.toISOString() },
+        12,
+        { directOnly: true },
+      )) as BvgJourney[];
+      {
         const bestByMode = new Map<string, DirectOption>();
-        for (const j of dbody.journeys ?? []) {
+        for (const j of directJourneys) {
+
           const transit = j.legs.filter((l) => !l.walking && l.line?.name);
           if (transit.length !== 1) continue;
           const leg = transit[0];
