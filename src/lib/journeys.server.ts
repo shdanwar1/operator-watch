@@ -104,7 +104,7 @@ async function fetchMotis(
   to: JourneyPoint,
   anchor: JourneyAnchor,
   results: number,
-  options?: { transitModes?: string; maxWalkSec?: number },
+  options?: { transitModes?: string; maxWalkSec?: number; maxWalkToDestSec?: number },
 ): Promise<ProviderJourney[]> {
   const url = new URL(MOTIS_API);
   url.searchParams.set("fromPlace", `${from.lat},${from.lng}`);
@@ -113,11 +113,11 @@ async function fetchMotis(
   if (anchor.kind === "arrival") url.searchParams.set("arriveBy", "true");
   url.searchParams.set("numItineraries", String(Math.min(results, 10)));
   if (options?.transitModes) url.searchParams.set("transitModes", options.transitModes);
-  const walk = String(options?.maxWalkSec ?? 900);
-  // Direct discovery must consider every stop within ~15 minutes of walking,
-  // at both ends of the trip — not just the nearest one.
-  url.searchParams.set("maxPreTransitTime", walk);
-  url.searchParams.set("maxPostTransitTime", walk);
+  // Direct discovery must consider every stop within ~15 minutes of walking
+  // from home — not just the nearest one — and allow a longer final walk to
+  // the studio, because that walk is part of the door-to-door comparison.
+  url.searchParams.set("maxPreTransitTime", String(options?.maxWalkSec ?? 900));
+  url.searchParams.set("maxPostTransitTime", String(options?.maxWalkToDestSec ?? 1500));
 
   const res = await fetch(url.toString(), {
     headers: { accept: "application/json", "user-agent": "studio-operator/1.0" },
@@ -180,6 +180,7 @@ export async function fetchProviderJourneys(
       fetchMotis(from, to, anchor, 5, {
         transitModes: transitModes || undefined,
         maxWalkSec: 900,
+        maxWalkToDestSec: 1500,
       }).catch(() => [] as ProviderJourney[]),
     );
     const all = await Promise.all(probes);
