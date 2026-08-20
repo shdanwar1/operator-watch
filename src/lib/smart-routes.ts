@@ -114,9 +114,13 @@ export function shouldRefreshSmartRoutes(
   now: Date,
 ): boolean {
   if (!set) return true;
+  // An empty set means the last refresh found nothing (often a transit-API
+  // outage) — retry it instead of showing "no direct route" for 12 hours.
+  if (set.routes.length === 0) return true;
   if (now.getTime() - Date.parse(set.fetched_at) > SMART_ROUTES_TTL_MS) return true;
   if (targetArrival && set.anchor_day !== berlinDayOf(targetArrival)) return true;
   return false;
+
 }
 
 export type SmartPlan = {
