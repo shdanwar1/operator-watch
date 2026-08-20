@@ -1690,13 +1690,16 @@ function BestOptionSection({
         </StepRow>
 
         {rows.map(({ leg, note }, i) => (
-          <StepRow key={i} marker={<LineBadge line={leg.line} />}>
+          <StepRow key={i} marker={<ModeMarker mode={leg.mode} />}>
             <div className="text-xs text-muted-foreground tabular-nums">
               {fmtHM(new Date(leg.departure_iso))}
             </div>
             <div className="flex items-start gap-3">
-              <div className="min-w-0 flex-1 text-sm font-semibold">
-                {cleanStop(leg.from_stop)} → {cleanStop(leg.to_stop)}
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <LineLabel line={leg.line} />
+                <span className="min-w-0 truncate text-sm font-semibold">
+                  {cleanStop(leg.from_stop)} → {cleanStop(leg.to_stop)}
+                </span>
               </div>
               <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                 {leg.minutes} min
@@ -1705,6 +1708,7 @@ function BestOptionSection({
             {note ? <div className="mt-0.5 text-sm text-muted-foreground">{note}</div> : null}
           </StepRow>
         ))}
+
 
         <Endpoint
           time={fmtHM(new Date(plan.arrive_iso))}
