@@ -17,7 +17,7 @@ import type { TimeToLeaveResult } from "@/lib/travel.functions";
 import type { DirectPlan, JourneyPlan } from "@/lib/journey-plan";
 
 /** Bump to invalidate every stored plan (algorithm / shape changes). */
-export const TRAVEL_SNAPSHOT_VERSION = 4;
+export const TRAVEL_SNAPSHOT_VERSION = 5;
 
 export type TimeToLeaveSnapshot = {
   version: number;
