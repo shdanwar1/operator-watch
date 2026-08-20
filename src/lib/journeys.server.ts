@@ -88,6 +88,17 @@ type MotisLeg = {
 };
 type MotisItinerary = { legs?: MotisLeg[] };
 
+/** MOTIS reports S-Bahn and U-Bahn both as METRO; the line name disambiguates. */
+function refineProduct(product: string, shortName?: string): string {
+  const n = (shortName ?? "").trim().toUpperCase();
+  if (/^S\d/.test(n)) return "suburban";
+  if (/^U\d/.test(n)) return "subway";
+  if (/^(RE|RB|FEX)\d*/.test(n)) return "regional";
+  if (/^(ICE|IC|EC)\d*/.test(n)) return "express";
+  if (/^M?\d{1,2}$/.test(n) && product === "tram") return "tram";
+  return product;
+}
+
 async function fetchMotis(
   from: JourneyPoint,
   to: JourneyPoint,
@@ -113,7 +124,10 @@ async function fetchMotis(
     .map((it) => {
       const legs: ProviderLeg[] = (it.legs ?? []).map((l) => {
         const walking = (l.mode ?? "").toUpperCase() === "WALK";
-        const product = MOTIS_MODE[(l.mode ?? "").toUpperCase()] ?? "transit";
+        const product = refineProduct(
+          MOTIS_MODE[(l.mode ?? "").toUpperCase()] ?? "transit",
+          l.routeShortName,
+        );
         return {
           departure: l.startTime,
           plannedDeparture: l.startTime,
