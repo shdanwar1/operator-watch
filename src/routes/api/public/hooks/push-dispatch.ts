@@ -13,7 +13,10 @@ import { berlinClock, berlinInstant } from "@/lib/push-time";
 // never surface. 15 minutes is the maximum lateness we accept.
 const LOOKBACK_MS = 15 * 60 * 1000;
 const LOOKAHEAD_MS = 60 * 1000; // "due within this tick"
+// Exactly two reminders exist, both with the same 15-minute lead:
+// "leave in 15 minutes" and "shift starts in 15 minutes".
 const SHIFT_START_LEAD_MIN = 15;
+const LEAVE_LEAD_MIN = 15;
 
 type Prefs = { notifyTimeToLeave?: boolean; notifyShiftStart?: boolean };
 
@@ -42,8 +45,6 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         const { activeShiftStartSet } = await import("@/lib/notifications.server");
 
         const now = Date.now();
-        const fromIso = new Date(now - LOOKBACK_MS).toISOString();
-        const toIso = new Date(now + LOOKAHEAD_MS).toISOString();
 
         const { data: operators, error: opErr } = await supabaseAdmin
           .from("operators")
@@ -70,12 +71,16 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         };
         const jobs: Job[] = [];
 
-        // --- Time to leave (from the server-side travel plans) ---
+        // --- Leave in 15 minutes (from the server-side travel plans) ---
+        // The reminder fires 15 minutes *before* the departure time, so the
+        // due-window is shifted forward by the same lead.
+        const leaveLeadMs = LEAVE_LEAD_MIN * 60_000;
         const { data: plans } = await supabaseAdmin
           .from("operator_travel_plans")
           .select("operator_id, shift_start_at, departure_at, travel_minutes, route_label")
-          .gte("departure_at", fromIso)
-          .lte("departure_at", toIso);
+          .gte("departure_at", new Date(now - LOOKBACK_MS + leaveLeadMs).toISOString())
+          .lte("departure_at", new Date(now + LOOKAHEAD_MS + leaveLeadMs).toISOString());
+
 
         for (const plan of (plans ?? []) as {
           operator_id: string;
@@ -86,7 +91,8 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         }[]) {
           const op = byId.get(plan.operator_id);
           if (!op || op.prefs.notifyTimeToLeave === false) continue;
-          const at = new Date(plan.departure_at);
+          const departure = new Date(plan.departure_at);
+          const at = new Date(departure.getTime() - leaveLeadMs);
           if (!due(at, now)) continue;
           const shiftStart = new Date(plan.shift_start_at);
           jobs.push({
@@ -97,9 +103,9 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             type: "time_to_leave",
             at,
             shiftStartMs: shiftStart.getTime(),
-            title: "Time to leave",
-            body: `Leave now — about ${plan.travel_minutes} min to the studio for your ${berlinClock(
-              new Date(plan.shift_start_at),
+            title: "Leave in 15 minutes",
+            body: `Leave at ${berlinClock(departure)} — about ${plan.travel_minutes} min to the studio for your ${berlinClock(
+              shiftStart,
             )} shift.`,
           });
         }

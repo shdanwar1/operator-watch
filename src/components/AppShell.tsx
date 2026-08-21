@@ -13,7 +13,10 @@ import {
   User,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PushBinding } from "@/components/PushBinding";
 import { signOutUser } from "@/lib/gate.functions";
+import { releasePushEndpoint } from "@/lib/push.functions";
+import { unsubscribeFromPush } from "@/lib/push-client";
 import { clearAllCaches } from "@/lib/local-cache";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +66,7 @@ export function AppShell({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const router = useRouter();
   const signOut = useServerFn(signOutUser);
+  const releaseEndpoint = useServerFn(releasePushEndpoint);
 
   // Restore after hydration so server and client markup match.
   useEffect(() => {
@@ -87,12 +91,21 @@ export function AppShell({
 
   const handleSignOut = async () => {
     clearAllCaches();
+    // A push endpoint must never outlive the session that created it: the next
+    // operator on this browser would otherwise inherit these reminders.
+    try {
+      const endpoint = await unsubscribeFromPush();
+      if (endpoint) await releaseEndpoint({ data: { endpoint } });
+    } catch {
+      /* ignore — sign-out must proceed regardless */
+    }
     await signOut();
     await router.navigate({ to: "/unlock" });
   };
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
+      <PushBinding />
       <aside
         className={cn(
           "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-out lg:flex",

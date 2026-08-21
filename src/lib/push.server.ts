@@ -67,15 +67,26 @@ export async function sendToOperator(
   operatorId: string,
   payload: PushPayload,
 ): Promise<{ sent: number; failed: number; gone: number; total: number; error?: string }> {
+  // Hard isolation invariant: a notification is always addressed to exactly
+  // one operator. Without a concrete operator id there is no "send to
+  // everyone" fallback — the send is simply refused.
+  if (!/^[0-9a-f-]{36}$/i.test(operatorId ?? "")) {
+    return { sent: 0, failed: 0, gone: 0, total: 0, error: "missing operator id" };
+  }
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("push_subscriptions")
-    .select("id, endpoint, p256dh, auth")
+    .select("id, endpoint, p256dh, auth, operator_id")
     .eq("operator_id", operatorId)
     .is("disabled_at", null);
   if (error) throw new Error(error.message);
 
-  const subs = (data ?? []) as StoredSubscription[];
+  // Belt and braces: only rows that actually carry this operator's id are
+  // ever sent to, whatever the query returned.
+  const subs = ((data ?? []) as (StoredSubscription & { operator_id: string })[]).filter(
+    (s) => s.operator_id === operatorId,
+  );
   let sent = 0;
   let failed = 0;
   let gone = 0;
