@@ -75,6 +75,17 @@ export const registerPushSubscription = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { operatorId } = await requireOperatorId();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // A device belongs to exactly one operator. If this endpoint was
+    // registered by someone else (shared browser, operator switch), that
+    // association is removed before the new one is written — never kept
+    // alongside it.
+    await supabaseAdmin
+      .from("push_subscriptions")
+      .delete()
+      .eq("endpoint", data.endpoint)
+      .neq("operator_id", operatorId);
+
     const { error } = await supabaseAdmin.from("push_subscriptions").upsert(
       {
         operator_id: operatorId,
@@ -130,3 +141,22 @@ export const sendTestPush = createServerFn({ method: "POST" }).handler(async () 
     url: "/",
   });
 });
+
+/**
+ * Detaches this device's endpoint from *any* operator.
+ *
+ * Called at sign-out: the browser may next be used by a different operator,
+ * and a subscription must never outlive the session that created it.
+ */
+export const releasePushEndpoint = createServerFn({ method: "POST" })
+  .inputValidator((data: { endpoint: string }) => ({ endpoint: String(data?.endpoint ?? "") }))
+  .handler(async ({ data }) => {
+    if (!/^https:\/\//.test(data.endpoint)) return { ok: true };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("push_subscriptions")
+      .delete()
+      .eq("endpoint", data.endpoint);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
