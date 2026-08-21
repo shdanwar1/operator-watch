@@ -66,6 +66,7 @@ export function AppShell({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const router = useRouter();
   const signOut = useServerFn(signOutUser);
+  const releaseEndpoint = useServerFn(releasePushEndpoint);
 
   // Restore after hydration so server and client markup match.
   useEffect(() => {
