@@ -105,6 +105,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
+      <PushBinding />
       <aside
         className={cn(
           "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-out lg:flex",
