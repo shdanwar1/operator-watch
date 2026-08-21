@@ -45,8 +45,6 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         const { activeShiftStartSet } = await import("@/lib/notifications.server");
 
         const now = Date.now();
-        const fromIso = new Date(now - LOOKBACK_MS).toISOString();
-        const toIso = new Date(now + LOOKAHEAD_MS).toISOString();
 
         const { data: operators, error: opErr } = await supabaseAdmin
           .from("operators")
