@@ -141,3 +141,22 @@ export const sendTestPush = createServerFn({ method: "POST" }).handler(async () 
     url: "/",
   });
 });
+
+/**
+ * Detaches this device's endpoint from *any* operator.
+ *
+ * Called at sign-out: the browser may next be used by a different operator,
+ * and a subscription must never outlive the session that created it.
+ */
+export const releasePushEndpoint = createServerFn({ method: "POST" })
+  .inputValidator((data: { endpoint: string }) => ({ endpoint: String(data?.endpoint ?? "") }))
+  .handler(async ({ data }) => {
+    if (!/^https:\/\//.test(data.endpoint)) return { ok: true };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("push_subscriptions")
+      .delete()
+      .eq("endpoint", data.endpoint);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
