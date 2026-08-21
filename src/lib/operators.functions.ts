@@ -152,7 +152,33 @@ export const getMyOperatorProfile = createServerFn({ method: "GET" }).handler(
   },
 );
 
+/** Change the signed-in operator's PIN after verifying the current one. */
+export const changeMyPin = createServerFn({ method: "POST" })
+  .inputValidator((data: { current_pin: string; new_pin: string }) => ({
+    current_pin: validatePin(data?.current_pin),
+    new_pin: validatePin(data?.new_pin),
+  }))
+  .handler(async ({ data }) => {
+    const { username } = await requireSignedInOperator();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: verified, error: vErr } = await supabaseAdmin.rpc("verify_operator_pin", {
+      p_username: username,
+      p_pin: data.current_pin,
+    });
+    if (vErr) throw new Error(vErr.message);
+    if (!verified) throw new Error("Current PIN is incorrect");
+
+    const { error } = await supabaseAdmin.rpc("set_operator_pin", {
+      p_id: verified as string,
+      p_pin: data.new_pin,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
 // ---------- Home address (Google Maps) ----------
+
 
 async function resolveGoogleMapsUrl(
   input: string,
