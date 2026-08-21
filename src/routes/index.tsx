@@ -426,18 +426,20 @@ function Index() {
   }
 
   // NOTE: not memoized — the parent re-renders every second (setTick),
-  // so this recomputes and the check-in window actually opens live.
+  // so this recomputes and the check-in target follows the clock live.
   const now = new Date();
-  const openScheduled =
-    scheduled
-      .filter((s) => scheduledWindow(s, scheduled, now).canStart)
-      .sort((a, b) => a.start_time.localeCompare(b.start_time))[0] ?? null;
 
   // Continuous "display shifts": raw rows split at midnight are merged back
   // into the single operator shift they represent.
   const displayShifts = buildDisplayShifts(scheduled, now);
   const upcomingDisplay = displayShifts.filter((s) => s.endAt.getTime() > now.getTime());
   const nextDisplay = upcomingDisplay[0] ?? null;
+
+  // The check-in target is derived from the current time only: the running
+  // shift, else the next one if it starts within two hours. A shift whose end
+  // has passed is never resolved again, whatever was checked in before.
+  const openTarget = resolveCheckInTarget(scheduled, now);
+  const openScheduled = openTarget?.segments[0] ?? null;
 
   // Time to Leave shows for the entire runway up to the shift starting —
   // not just the last hour — since sign-in itself is no longer gated to a
