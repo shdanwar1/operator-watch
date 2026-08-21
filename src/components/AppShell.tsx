@@ -13,7 +13,10 @@ import {
   User,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PushBinding } from "@/components/PushBinding";
 import { signOutUser } from "@/lib/gate.functions";
+import { releasePushEndpoint } from "@/lib/push.functions";
+import { unsubscribeFromPush } from "@/lib/push-client";
 import { clearAllCaches } from "@/lib/local-cache";
 import { cn } from "@/lib/utils";
 
