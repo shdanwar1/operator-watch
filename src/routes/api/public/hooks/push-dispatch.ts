@@ -73,12 +73,16 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         };
         const jobs: Job[] = [];
 
-        // --- Time to leave (from the server-side travel plans) ---
+        // --- Leave in 15 minutes (from the server-side travel plans) ---
+        // The reminder fires 15 minutes *before* the departure time, so the
+        // due-window is shifted forward by the same lead.
+        const leaveLeadMs = LEAVE_LEAD_MIN * 60_000;
         const { data: plans } = await supabaseAdmin
           .from("operator_travel_plans")
           .select("operator_id, shift_start_at, departure_at, travel_minutes, route_label")
-          .gte("departure_at", fromIso)
-          .lte("departure_at", toIso);
+          .gte("departure_at", new Date(now - LOOKBACK_MS + leaveLeadMs).toISOString())
+          .lte("departure_at", new Date(now + LOOKAHEAD_MS + leaveLeadMs).toISOString());
+
 
         for (const plan of (plans ?? []) as {
           operator_id: string;
