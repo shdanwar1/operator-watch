@@ -13,7 +13,10 @@ import { berlinClock, berlinInstant } from "@/lib/push-time";
 // never surface. 15 minutes is the maximum lateness we accept.
 const LOOKBACK_MS = 15 * 60 * 1000;
 const LOOKAHEAD_MS = 60 * 1000; // "due within this tick"
+// Exactly two reminders exist, both with the same 15-minute lead:
+// "leave in 15 minutes" and "shift starts in 15 minutes".
 const SHIFT_START_LEAD_MIN = 15;
+const LEAVE_LEAD_MIN = 15;
 
 type Prefs = { notifyTimeToLeave?: boolean; notifyShiftStart?: boolean };
 
