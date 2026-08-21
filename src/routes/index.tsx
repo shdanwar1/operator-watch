@@ -58,6 +58,7 @@ import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
 import {
   buildDisplayShifts,
+  resolveCheckInTarget,
   classesForShift,
   classStartAt,
   formatShiftRange,
@@ -668,6 +669,7 @@ function Index() {
                 ) : (
                   <CheckInPanel
                     openScheduled={openScheduled}
+                    openShift={openTarget}
                     nextShift={nextDisplay}
                     now={now}
                     onCheckIn={checkIn}
@@ -750,12 +752,15 @@ function UpcomingShifts({
 
 function CheckInPanel({
   openScheduled,
+  openShift,
   nextShift,
   now,
   onCheckIn,
   checkingIn,
 }: {
   openScheduled: ScheduledShift | null;
+  /** The resolved check-in target as a continuous (midnight-merged) shift. */
+  openShift: DisplayShift | null;
   /** Next continuous shift (midnight-merged), used for the countdown. */
   nextShift: DisplayShift | null;
   now: Date;
@@ -783,7 +788,8 @@ function CheckInPanel({
 
 
   // How late we are relative to the scheduled start (informational only).
-  const openStart = openScheduled ? instanceTimes(openScheduled, now).startAt : null;
+  const openStart = openShift?.startAt ?? null;
+  const openRange = openShift ? formatShiftRange(openShift, now) : null;
   const lateMin = openStart ? minutesLate(openStart, now) : 0;
   const classCount = scheduledClassCount(openScheduled?.label);
 
@@ -799,7 +805,7 @@ function CheckInPanel({
             <p className="text-xs text-muted-foreground">
               {openScheduled ? (
                 <>
-                  {fmtTime(openScheduled.start_time)} – {fmtTime(openScheduled.end_time)}
+                  {openRange!.range}
                   {classCount ? ` · ${classCount} ${classCount === 1 ? "class" : "classes"}` : ""}
                 </>
               ) : (
