@@ -75,6 +75,17 @@ export const registerPushSubscription = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { operatorId } = await requireOperatorId();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // A device belongs to exactly one operator. If this endpoint was
+    // registered by someone else (shared browser, operator switch), that
+    // association is removed before the new one is written — never kept
+    // alongside it.
+    await supabaseAdmin
+      .from("push_subscriptions")
+      .delete()
+      .eq("endpoint", data.endpoint)
+      .neq("operator_id", operatorId);
+
     const { error } = await supabaseAdmin.from("push_subscriptions").upsert(
       {
         operator_id: operatorId,
