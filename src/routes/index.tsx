@@ -58,6 +58,7 @@ import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
 import {
   buildDisplayShifts,
+  resolveCheckInTarget,
   classesForShift,
   classStartAt,
   formatShiftRange,
@@ -426,18 +427,20 @@ function Index() {
   }
 
   // NOTE: not memoized — the parent re-renders every second (setTick),
-  // so this recomputes and the check-in window actually opens live.
+  // so this recomputes and the check-in target follows the clock live.
   const now = new Date();
-  const openScheduled =
-    scheduled
-      .filter((s) => scheduledWindow(s, scheduled, now).canStart)
-      .sort((a, b) => a.start_time.localeCompare(b.start_time))[0] ?? null;
 
   // Continuous "display shifts": raw rows split at midnight are merged back
   // into the single operator shift they represent.
   const displayShifts = buildDisplayShifts(scheduled, now);
   const upcomingDisplay = displayShifts.filter((s) => s.endAt.getTime() > now.getTime());
   const nextDisplay = upcomingDisplay[0] ?? null;
+
+  // The check-in target is derived from the current time only: the running
+  // shift, else the next one if it starts within two hours. A shift whose end
+  // has passed is never resolved again, whatever was checked in before.
+  const openTarget = resolveCheckInTarget(scheduled, now);
+  const openScheduled = openTarget?.segments[0] ?? null;
 
   // Time to Leave shows for the entire runway up to the shift starting —
   // not just the last hour — since sign-in itself is no longer gated to a
@@ -666,6 +669,7 @@ function Index() {
                 ) : (
                   <CheckInPanel
                     openScheduled={openScheduled}
+                    openShift={openTarget}
                     nextShift={nextDisplay}
                     now={now}
                     onCheckIn={checkIn}
@@ -748,12 +752,15 @@ function UpcomingShifts({
 
 function CheckInPanel({
   openScheduled,
+  openShift,
   nextShift,
   now,
   onCheckIn,
   checkingIn,
 }: {
   openScheduled: ScheduledShift | null;
+  /** The resolved check-in target as a continuous (midnight-merged) shift. */
+  openShift: DisplayShift | null;
   /** Next continuous shift (midnight-merged), used for the countdown. */
   nextShift: DisplayShift | null;
   now: Date;
@@ -781,7 +788,8 @@ function CheckInPanel({
 
 
   // How late we are relative to the scheduled start (informational only).
-  const openStart = openScheduled ? instanceTimes(openScheduled, now).startAt : null;
+  const openStart = openShift?.startAt ?? null;
+  const openRange = openShift ? formatShiftRange(openShift, now) : null;
   const lateMin = openStart ? minutesLate(openStart, now) : 0;
   const classCount = scheduledClassCount(openScheduled?.label);
 
@@ -797,7 +805,7 @@ function CheckInPanel({
             <p className="text-xs text-muted-foreground">
               {openScheduled ? (
                 <>
-                  {fmtTime(openScheduled.start_time)} – {fmtTime(openScheduled.end_time)}
+                  {openRange!.range}
                   {classCount ? ` · ${classCount} ${classCount === 1 ? "class" : "classes"}` : ""}
                 </>
               ) : (

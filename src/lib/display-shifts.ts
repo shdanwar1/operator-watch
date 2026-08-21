@@ -162,3 +162,27 @@ export function formatShiftRange(shift: DisplayShift, now: Date) {
     crosses,
   };
 }
+
+/** A next shift this close (or closer) becomes the check-in target. */
+export const CHECK_IN_LEAD_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Resolves which shift the Check-In screen should target, from the clock alone.
+ *
+ * Order: the shift currently running (start <= now < end) wins; otherwise the
+ * next shift, but only when it starts within `leadMs`. A shift whose end time
+ * has passed is never a candidate — check-in and check-out history play no
+ * part in this decision.
+ */
+export function resolveCheckInTarget(
+  scheduled: ScheduledShiftRow[],
+  now: Date,
+  leadMs: number = CHECK_IN_LEAD_MS,
+): DisplayShift | null {
+  const t = now.getTime();
+  const live = buildDisplayShifts(scheduled, now).filter((s) => s.endAt.getTime() > t);
+  const active = live.find((s) => s.startAt.getTime() <= t);
+  if (active) return active;
+  const next = live[0];
+  return next && next.startAt.getTime() - t <= leadMs ? next : null;
+}
