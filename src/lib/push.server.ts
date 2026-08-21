@@ -82,7 +82,11 @@ export async function sendToOperator(
     .is("disabled_at", null);
   if (error) throw new Error(error.message);
 
-  const subs = (data ?? []) as StoredSubscription[];
+  // Belt and braces: only rows that actually carry this operator's id are
+  // ever sent to, whatever the query returned.
+  const subs = ((data ?? []) as (StoredSubscription & { operator_id: string })[]).filter(
+    (s) => s.operator_id === operatorId,
+  );
   let sent = 0;
   let failed = 0;
   let gone = 0;
