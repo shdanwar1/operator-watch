@@ -91,6 +91,14 @@ export function AppShell({
 
   const handleSignOut = async () => {
     clearAllCaches();
+    // A push endpoint must never outlive the session that created it: the next
+    // operator on this browser would otherwise inherit these reminders.
+    try {
+      const endpoint = await unsubscribeFromPush();
+      if (endpoint) await releaseEndpoint({ data: { endpoint } });
+    } catch {
+      /* ignore — sign-out must proceed regardless */
+    }
     await signOut();
     await router.navigate({ to: "/unlock" });
   };
