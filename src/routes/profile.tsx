@@ -6,6 +6,7 @@ import { clearAllCaches } from "@/lib/local-cache";
 import {
   updateMyProfile,
   setMyHomeAddress,
+  changeMyPin,
   getMyOperatorProfile,
   type OperatorProfile,
 } from "@/lib/operators.functions";
@@ -14,11 +15,20 @@ import { getMyPrefs, setMyPrefs, type OperatorPrefs } from "@/lib/prefs.function
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast, Toaster } from "sonner";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { PushDeviceToggle } from "@/components/PushDeviceToggle";
 import { USERNAME_RE, PIN_RE } from "@/lib/validation";
 import { cn } from "@/lib/utils";
+
 
 export const Route = createFileRoute("/profile")({
   beforeLoad: async () => {
