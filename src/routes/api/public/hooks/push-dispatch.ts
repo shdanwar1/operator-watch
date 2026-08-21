@@ -93,7 +93,8 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         }[]) {
           const op = byId.get(plan.operator_id);
           if (!op || op.prefs.notifyTimeToLeave === false) continue;
-          const at = new Date(plan.departure_at);
+          const departure = new Date(plan.departure_at);
+          const at = new Date(departure.getTime() - leaveLeadMs);
           if (!due(at, now)) continue;
           const shiftStart = new Date(plan.shift_start_at);
           jobs.push({
@@ -104,9 +105,9 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             type: "time_to_leave",
             at,
             shiftStartMs: shiftStart.getTime(),
-            title: "Time to leave",
-            body: `Leave now — about ${plan.travel_minutes} min to the studio for your ${berlinClock(
-              new Date(plan.shift_start_at),
+            title: "Leave in 15 minutes",
+            body: `Leave at ${berlinClock(departure)} — about ${plan.travel_minutes} min to the studio for your ${berlinClock(
+              shiftStart,
             )} shift.`,
           });
         }
