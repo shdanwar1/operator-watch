@@ -31,11 +31,20 @@ type Envelope = SyncMessage & { __source?: string };
  * Identifies this document. BroadcastChannel delivers a message to every other
  * channel object — including ones created by the *same* page — so without this
  * tag a view would react to its own broadcast and refetch in a loop.
+ *
+ * Generated lazily on first use: Cloudflare Workers forbid `crypto.randomUUID()`
+ * / `Math.random()` at module top-level (global scope) during SSR, so this must
+ * only run inside a request handler, never at import time.
  */
-const SOURCE_ID =
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2);
+let _sourceId: string | undefined;
+function sourceId(): string {
+  if (_sourceId) return _sourceId;
+  _sourceId =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
+  return _sourceId;
+}
 
 export function publishSync(message: SyncMessage) {
   if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") return;
