@@ -59,7 +59,7 @@ export function subscribeSync(handler: (message: SyncMessage) => void): () => vo
   const ch = new BroadcastChannel(SYNC_CHANNEL);
   ch.onmessage = (ev: MessageEvent<Envelope>) => {
     if (!ev.data) return;
-    if (ev.data.__source === SOURCE_ID) return; // never react to our own broadcast
+    if (ev.data.__source === sourceId()) return; // never react to our own broadcast
     handler(ev.data);
   };
   return () => ch.close();
