@@ -49,7 +49,7 @@ function sourceId(): string {
 export function publishSync(message: SyncMessage) {
   if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") return;
   const ch = new BroadcastChannel(SYNC_CHANNEL);
-  ch.postMessage({ ...message, __source: SOURCE_ID } satisfies Envelope);
+  ch.postMessage({ ...message, __source: sourceId() } satisfies Envelope);
   ch.close();
 }
 
