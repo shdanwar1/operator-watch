@@ -130,18 +130,10 @@ function AdminCalendar() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Calendar</h1>
-          
+          <p className="mt-1 text-sm text-muted-foreground">Click any date to create a shift.</p>
         </div>
-        <Button
-          size="sm"
-          onClick={() => {
-            setCreateDate(new Date());
-            setCreateOpen(true);
-          }}
-        >
-          <Plus className="mr-1 h-4 w-4" /> New shift
-        </Button>
       </header>
+
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
