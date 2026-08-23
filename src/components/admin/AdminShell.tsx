@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
  * The Admin application frame. Completely separate from the operator
  * AppShell: different navigation, different routes, no operator features.
  */
-const ADMIN_NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: boolean }[] = [
+const ADMIN_NAV: { label: string; to: string; icon: typeof CalendarDays; exact?: boolean }[] = [
   { label: "Calendar", to: "/admin/calendar", icon: CalendarDays },
   { label: "Shifts", to: "/admin/shifts", icon: ListChecks },
   { label: "Operators", to: "/admin/operators", icon: Users },
