@@ -130,18 +130,10 @@ function AdminCalendar() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Calendar</h1>
-          
+          <p className="mt-1 text-sm text-muted-foreground">Click any date to create a shift.</p>
         </div>
-        <Button
-          size="sm"
-          onClick={() => {
-            setCreateDate(new Date());
-            setCreateOpen(true);
-          }}
-        >
-          <Plus className="mr-1 h-4 w-4" /> New shift
-        </Button>
       </header>
+
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
@@ -222,10 +214,24 @@ function AdminCalendar() {
               const list = byDate.get(key) ?? [];
               const isCurrentMonth = view === "week" || d.getMonth() === anchor.getMonth();
               const isToday = sameDay(d, new Date());
+              const openCreate = () => {
+                setCreateDate(d);
+                setCreateOpen(true);
+              };
               return (
                 <div
                   key={key}
-                  className={`min-h-[104px] rounded-lg border p-1.5 ${
+                  role="button"
+                  tabIndex={0}
+                  onClick={openCreate}
+                  onKeyDown={(e) => {
+                    if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault();
+                      openCreate();
+                    }
+                  }}
+                  aria-label={`Create shift on ${key}`}
+                  className={`group min-h-[104px] cursor-pointer rounded-lg border p-1.5 transition-colors hover:bg-accent/40 ${
                     isCurrentMonth ? "border-border" : "border-transparent opacity-40"
                   } ${isToday ? "ring-1 ring-primary/50" : ""}`}
                 >
@@ -237,24 +243,21 @@ function AdminCalendar() {
                     >
                       {d.getDate()}
                     </span>
-                    <button
-                      onClick={() => {
-                        setCreateDate(d);
-                        setCreateOpen(true);
-                      }}
-                      className="rounded p-0.5 text-muted-foreground opacity-0 transition hover:bg-accent hover:opacity-100 focus:opacity-100"
-                      aria-label="Add shift"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
+                    <Plus
+                      className="h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                      aria-hidden
+                    />
                   </div>
                   <div className="space-y-1">
                     {list.map((s) => (
-                      <ShiftCard key={s.id} shift={s} onClick={() => setEditing(s)} />
+                      <div key={s.id} onClick={(e) => e.stopPropagation()}>
+                        <ShiftCard shift={s} onClick={() => setEditing(s)} />
+                      </div>
                     ))}
                   </div>
                 </div>
               );
+
             })}
           </div>
         </CardContent>
