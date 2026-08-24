@@ -80,6 +80,7 @@ export function ShiftLogSection({ username }: { username: string | null }) {
   const [classDir, setClassDir] = useState<DirectoryItem[]>(cachedShifts?.classDir ?? []);
   const [loading, setLoading] = useState(!cachedShifts);
   const [editing, setEditing] = useState<Shift | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [addingPast, setAddingPast] = useState(false);
   const fetchShifts = useServerFn(listShifts);
   const fetchTeachers = useServerFn(listTeachers);
