@@ -8,7 +8,7 @@
 // Night takes precedence over weekend when both apply (e.g. a Saturday
 // shift that runs into the next morning's 00:00–06:00 window).
 
-import type { ShiftRow, ScheduledShiftRow } from "@/lib/shifts.functions";
+import type { ShiftRow, ScheduledShiftRow, ShiftClass } from "@/lib/shifts.functions";
 
 export type HourCategory = "day" | "night" | "weekend";
 
@@ -30,6 +30,10 @@ export type AttendanceRow = {
   scheduledEnd: Date | null;
   scheduledMin: number | null;
   diffMin: number | null; // worked - scheduled
+  // Per-shift detail shown when a row is expanded.
+  classes: ShiftClass[];
+  notes: string | null;
+  scheduled_shift_id: string | null;
 };
 
 export type AttendanceSummary = {
