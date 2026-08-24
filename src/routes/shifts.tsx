@@ -1,3 +1,4 @@
+import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
@@ -46,6 +47,9 @@ export const Route = createFileRoute("/shifts")({
     return { username: username ?? null };
   },
 
+  head: () => ({
+    meta: pageMeta(PAGE_TITLES.shifts, "Your logged shifts, classes and hours."),
+  }),
   component: ShiftsPage,
 });
 

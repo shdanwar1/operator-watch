@@ -1,3 +1,4 @@
+import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,18 +40,7 @@ import { PinDialog } from "@/components/admin/PinDialog";
 
 export const Route = createFileRoute("/admin/operators")({
   head: () => ({
-    meta: [
-      { title: "Operators — Dance Masterclass Admin" },
-      {
-        name: "description",
-        content: "Create, edit, enable or disable studio operators and reset their access PINs.",
-      },
-      { property: "og:title", content: "Operators — Dance Masterclass Admin" },
-      {
-        property: "og:description",
-        content: "Manage studio operator accounts and access PINs.",
-      },
-    ],
+    meta: pageMeta(PAGE_TITLES.operators, "Manage operator accounts and access."),
   }),
   component: AdminOperators,
 });

@@ -1,3 +1,4 @@
+import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -42,18 +43,7 @@ import { fmtHours, opColor } from "@/lib/admin-utils";
 
 export const Route = createFileRoute("/admin/shifts")({
   head: () => ({
-    meta: [
-      { title: "Worked Shifts — Dance Masterclass Admin" },
-      {
-        name: "description",
-        content: "Management table of every operator's worked shifts with classes, hours and notes.",
-      },
-      { property: "og:title", content: "Worked Shifts — Dance Masterclass Admin" },
-      {
-        property: "og:description",
-        content: "Management table of every operator's worked shifts.",
-      },
-    ],
+    meta: pageMeta(PAGE_TITLES.adminShifts, "Admin view of worked shifts and attendance exports."),
   }),
   component: AdminShifts,
 });

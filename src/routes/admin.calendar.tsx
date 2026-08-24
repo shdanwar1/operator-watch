@@ -1,3 +1,4 @@
+import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -36,18 +37,7 @@ import {
 
 export const Route = createFileRoute("/admin/calendar")({
   head: () => ({
-    meta: [
-      { title: "Schedule Calendar — Dance Masterclass Admin" },
-      {
-        name: "description",
-        content: "Month and week scheduling overview for every studio operator, with filters and colour coding.",
-      },
-      { property: "og:title", content: "Schedule Calendar — Dance Masterclass Admin" },
-      {
-        property: "og:description",
-        content: "Month and week scheduling overview for every studio operator.",
-      },
-    ],
+    meta: pageMeta(PAGE_TITLES.adminCalendar, "Admin month view of scheduled shifts and class assignments."),
   }),
   component: AdminCalendar,
 });
