@@ -28,10 +28,10 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { Pencil, Plus, Trash2, X, Save } from "lucide-react";
 import { operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
-import type { ShiftClass } from "@/routes/index";
+export type ShiftClass = { class: string; teacher: string };
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 
 
