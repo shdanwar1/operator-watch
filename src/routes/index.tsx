@@ -56,6 +56,7 @@ import {
 } from "@/lib/gcal.functions";
 import { AppShell, PageHeader, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
+import { shiftPhase, phaseLabel, type ShiftPhase } from "@/lib/shift-phase";
 import { StudioActivation } from "@/components/StudioActivation";
 import {
   buildDisplayShifts,
@@ -451,10 +452,13 @@ function Index() {
   // narrow window either. It's still tied to having an actual upcoming
   // scheduled shift; once that shift starts, there's nothing left to count
   // down to and Check In (always available below) takes over.
-  const minutesToNext = nextDisplay
-    ? Math.round((nextDisplay.startAt.getTime() - now.getTime()) / 60000)
-    : Infinity;
-  const showTimeToLeave = !active && nextDisplay !== null && minutesToNext > 0;
+  // One state machine drives the Shift Card: travel from six hours out,
+  // check-in from one hour out, on-air once an attendance record is open.
+  const phase = shiftPhase({ now, next: nextDisplay, active: !!active });
+  const showTravel =
+    (phase === "leave" || phase === "check-in") &&
+    nextDisplay !== null &&
+    nextDisplay.startAt.getTime() > now.getTime();
 
   // Reminders are delivered by the server as background Web Push (see
   // /api/public/hooks/push-dispatch), so nothing fires from this page.
@@ -690,6 +694,52 @@ function Index() {
 }
 
 
+
+/**
+ * The Shift Card — the dashboard's single operational surface.
+ *
+ * Fixed anatomy in every phase: a status strip, one primary action, and a
+ * detail region. Only the content changes as the clock moves, so the operator
+ * never has to re-orient.
+ */
+function ShiftCard({
+  phase,
+  next,
+  now,
+  action,
+  detail,
+}: {
+  phase: ShiftPhase;
+  next: DisplayShift | null;
+  now: Date;
+  action: React.ReactNode;
+  detail?: React.ReactNode;
+}) {
+  const range = next ? formatShiftRange(next, now) : null;
+  const dot =
+    phase === "on-air" ? "bg-live" : phase === "check-in" ? "bg-primary" : "bg-muted-foreground";
+  return (
+    <Card className="rise-in overflow-hidden max-lg:glass max-lg:rounded-[22px]">
+      <CardContent className="p-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
+          <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            <span className={`status-dot ${dot}`} />
+            {phaseLabel(phase)}
+          </span>
+          {range && (
+            <span className="text-[13px] tabular-nums text-muted-foreground">
+              {range.dayLabel} · {range.range}
+            </span>
+          )}
+        </div>
+
+        {action}
+
+        {detail && <div className="border-t border-border">{detail}</div>}
+      </CardContent>
+    </Card>
+  );
+}
 
 function UpcomingShifts({
   shifts,
