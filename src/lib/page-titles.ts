@@ -10,6 +10,7 @@ export const PAGE_TITLES = {
   calendar: "Calendar",
   shifts: "Shifts",
   attendance: "Attendance",
+  record: "Record",
   profile: "Profile",
   chat: "Chat",
   adminCalendar: "Calendar - Admin",

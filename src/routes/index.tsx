@@ -40,7 +40,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, Train, Ship, Footprints, Home, MapPin, AlertTriangle, Lock, ArrowRight, Briefcase, ChevronDown, Building2 } from "lucide-react";
+import { Plus, X, Clock, LogIn, CalendarDays, Ship, Footprints, Home, MapPin, AlertTriangle, Lock, ArrowRight, Briefcase, ChevronDown, Building2 } from "lucide-react";
 import { transitIconFor } from "@/components/TransitIcons";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
@@ -56,6 +56,7 @@ import {
 } from "@/lib/gcal.functions";
 import { AppShell, PageHeader, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
+import { shiftPhase, phaseLabel, type ShiftPhase } from "@/lib/shift-phase";
 import { StudioActivation } from "@/components/StudioActivation";
 import {
   buildDisplayShifts,
@@ -451,10 +452,13 @@ function Index() {
   // narrow window either. It's still tied to having an actual upcoming
   // scheduled shift; once that shift starts, there's nothing left to count
   // down to and Check In (always available below) takes over.
-  const minutesToNext = nextDisplay
-    ? Math.round((nextDisplay.startAt.getTime() - now.getTime()) / 60000)
-    : Infinity;
-  const showTimeToLeave = !active && nextDisplay !== null && minutesToNext > 0;
+  // One state machine drives the Shift Card: travel from six hours out,
+  // check-in from one hour out, on-air once an attendance record is open.
+  const phase = shiftPhase({ now, next: nextDisplay, active: !!active });
+  const showTravel =
+    (phase === "leave" || phase === "check-in") &&
+    nextDisplay !== null &&
+    nextDisplay.startAt.getTime() > now.getTime();
 
   // Reminders are delivered by the server as background Web Push (see
   // /api/public/hooks/push-dispatch), so nothing fires from this page.
@@ -619,99 +623,143 @@ function Index() {
       )}
 
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="min-w-0 space-y-6">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : active ? (
-            <ActiveShiftPanel
-              shift={active}
-              scheduledShift={activeScheduled}
-              now={now}
-              onCheckOut={checkOut}
-              onAddClass={addClassRow}
-              onUpdateClass={updateClassRow}
-              onRemoveClass={removeClassRow}
-              checkingOut={checkingOut}
-              teachers={teachers}
-              classes={classes}
-              importedClasses={activeShiftClasses}
-              onSetClassStatus={setClassStatus}
-              onCorrectClassMatch={correctClassMatch}
-            />
-          ) : (
-            <>
-              {showTimeToLeave &&
-                prefs.showTimeToLeave &&
-                (checkInLocked ? (
-                  <LockedFeatureCard
-                    icon={<Train className="h-4 w-4" />}
-                    title="Time to Leave"
-                    reason="Complete your profile to enable Time to Leave."
-                    hero
-                  />
-                ) : (
-                  <TimeToLeaveCard
-                    username={username}
-                    scheduled={scheduled}
-                    now={now}
-                    homeLat={profileStatus?.home_lat ?? null}
-                    homeLng={profileStatus?.home_lng ?? null}
-                    variant="hero"
-                    onDeparture={setDepartureIso}
-                  />
-                ))}
-
-              {/* Check In is always present — only its state changes. */}
-              <div className="max-w-sm">
-                {checkInLocked ? (
-                  <LockedFeatureCard
-                    icon={<LogIn className="h-4 w-4" />}
-                    title="Check In"
-                    reason="Complete your profile to enable Check In."
-                  />
-                ) : (
-                  <CheckInPanel
-                    openScheduled={openScheduled}
-                    openShift={openTarget}
-                    nextShift={nextDisplay}
-                    now={now}
-                    onCheckIn={checkIn}
-                    checkingIn={checkingIn}
-                  />
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        <aside className="xl:sticky xl:top-24 xl:self-start">
-          {!loading && (
-            <UpcomingShifts shifts={upcomingDisplay} now={now} calendarClasses={calendarClasses} />
-          )}
-        </aside>
+      <div className="mx-auto w-full max-w-3xl space-y-6">
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : active ? (
+          <ActiveShiftPanel
+            shift={active}
+            scheduledShift={activeScheduled}
+            now={now}
+            onCheckOut={checkOut}
+            onAddClass={addClassRow}
+            onUpdateClass={updateClassRow}
+            onRemoveClass={removeClassRow}
+            checkingOut={checkingOut}
+            teachers={teachers}
+            classes={classes}
+            importedClasses={activeShiftClasses}
+            onSetClassStatus={setClassStatus}
+            onCorrectClassMatch={correctClassMatch}
+          />
+        ) : checkInLocked ? (
+          <LockedFeatureCard
+            icon={<LogIn className="h-4 w-4" />}
+            title="Check In"
+            reason="Complete your profile to enable Check In and Time to Leave."
+            hero
+          />
+        ) : (
+          <ShiftCard
+            phase={phase}
+            next={nextDisplay}
+            now={now}
+            action={
+              <CheckInPanel
+                openScheduled={openScheduled}
+                openShift={openTarget}
+                nextShift={nextDisplay}
+                now={now}
+                onCheckIn={checkIn}
+                checkingIn={checkingIn}
+              />
+            }
+            detail={
+              showTravel && prefs.showTimeToLeave ? (
+                <TimeToLeaveCard
+                  username={username}
+                  scheduled={scheduled}
+                  now={now}
+                  homeLat={profileStatus?.home_lat ?? null}
+                  homeLng={profileStatus?.home_lng ?? null}
+                  variant="embedded"
+                  onDeparture={setDepartureIso}
+                />
+              ) : (
+                <UpcomingShifts
+                  shifts={upcomingDisplay}
+                  now={now}
+                  calendarClasses={calendarClasses}
+                  embedded
+                  limit={3}
+                />
+              )
+            }
+          />
+        )}
       </div>
+
     </AppShell>
   );
 }
 
 
 
+/**
+ * The Shift Card — the dashboard's single operational surface.
+ *
+ * Fixed anatomy in every phase: a status strip, one primary action, and a
+ * detail region. Only the content changes as the clock moves, so the operator
+ * never has to re-orient.
+ */
+function ShiftCard({
+  phase,
+  next,
+  now,
+  action,
+  detail,
+}: {
+  phase: ShiftPhase;
+  next: DisplayShift | null;
+  now: Date;
+  action: React.ReactNode;
+  detail?: React.ReactNode;
+}) {
+  const range = next ? formatShiftRange(next, now) : null;
+  const dot =
+    phase === "on-air" ? "bg-live" : phase === "check-in" ? "bg-primary" : "bg-muted-foreground";
+  return (
+    <Card className="rise-in overflow-hidden max-lg:glass max-lg:rounded-[22px]">
+      <CardContent className="p-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
+          <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            <span className={`status-dot ${dot}`} />
+            {phaseLabel(phase)}
+          </span>
+          {range && (
+            <span className="text-[13px] tabular-nums text-muted-foreground">
+              {range.dayLabel} · {range.range}
+            </span>
+          )}
+        </div>
+
+        {action}
+
+        {detail && <div className="border-t border-border">{detail}</div>}
+      </CardContent>
+    </Card>
+  );
+}
+
 function UpcomingShifts({
   shifts,
   now,
   calendarClasses = [],
+  embedded = false,
+  limit = 6,
 }: {
+  /** Rendered without its own card shell (inside the Shift Card). */
+  embedded?: boolean;
+  limit?: number;
   /** Continuous (midnight-merged) shifts, already filtered to the future. */
   shifts: DisplayShift[];
   now: Date;
   /** Used to show how many classes a continuous shift contains. */
   calendarClasses?: CalendarClassRow[];
 }) {
-  const instances = shifts.slice(0, 6);
-  return (
-    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
-      <CardContent className="p-5">
+  const instances = shifts.slice(0, limit);
+  const body = (
+    <>
 
         <SectionTitle title="Upcoming shifts" />
         {instances.length === 0 ? (
@@ -745,7 +793,12 @@ function UpcomingShifts({
             })}
           </ul>
         )}
-      </CardContent>
+    </>
+  );
+  if (embedded) return <div className="px-5 py-5">{body}</div>;
+  return (
+    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
+      <CardContent className="p-5">{body}</CardContent>
     </Card>
   );
 }
@@ -798,8 +851,8 @@ function CheckInPanel({
   const classCount = scheduledClassCount(openScheduled?.label);
 
   return (
-    <Card className="rise-in overflow-hidden max-lg:glass max-lg:rounded-[22px]">
-      <CardContent className="flex flex-col items-center gap-5 px-5 py-6 text-center max-lg:py-7">
+    <>
+      <div className="flex flex-col items-center gap-5 px-5 py-6 text-center max-lg:py-7">
 
         {hasShift ? (
           <div className="flex flex-col items-center gap-1.5">
@@ -845,7 +898,7 @@ function CheckInPanel({
             </p>
           </div>
         ) : null}
-      </CardContent>
+      </div>
 
       <AlertDialog
         open={confirmOpen}
@@ -875,7 +928,7 @@ function CheckInPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </>
   );
 }
 
@@ -1315,7 +1368,7 @@ function TimeToLeaveCard({
   now: Date;
   homeLat?: number | null;
   homeLng?: number | null;
-  variant?: "default" | "hero";
+  variant?: "default" | "hero" | "embedded";
   /** Reports the planned departure time so the dashboard can remind about it. */
   onDeparture?: (iso: string | null) => void;
 }) {
@@ -1385,12 +1438,15 @@ function TimeToLeaveCard({
     : null;
   const urgent = minutesUntilLeave !== null && minutesUntilLeave <= 10;
   const hero = variant === "hero";
+  const embedded = variant === "embedded";
 
   return (
     <Card
-      className={`overflow-hidden max-lg:glass max-lg:rounded-[22px] ${
-        hero ? "border-primary/40" : ""
-      }`}
+      className={
+        embedded
+          ? "overflow-hidden rounded-none border-0 bg-transparent shadow-none"
+          : `overflow-hidden max-lg:glass max-lg:rounded-[22px] ${hero ? "border-primary/40" : ""}`
+      }
     >
       <CardContent className="p-0">
         {/* ── Header: shift context + the one number that matters ───────── */}

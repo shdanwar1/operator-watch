@@ -13,6 +13,7 @@ import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as TransitIconsRouteImport } from './routes/transit-icons'
 import { Route as StudioDisplayRouteImport } from './routes/studio-display'
 import { Route as ShiftsRouteImport } from './routes/shifts'
+import { Route as RecordRouteImport } from './routes/record'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as EarningsRouteImport } from './routes/earnings'
 import { Route as DisplayRouteImport } from './routes/display'
@@ -46,6 +47,11 @@ const StudioDisplayRoute = StudioDisplayRouteImport.update({
 const ShiftsRoute = ShiftsRouteImport.update({
   id: '/shifts',
   path: '/shifts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecordRoute = RecordRouteImport.update({
+  id: '/record',
+  path: '/record',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -129,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/display': typeof DisplayRoute
   '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
+  '/record': typeof RecordRoute
   '/shifts': typeof ShiftsRoute
   '/studio-display': typeof StudioDisplayRoute
   '/transit-icons': typeof TransitIconsRoute
@@ -148,6 +155,7 @@ export interface FileRoutesByTo {
   '/display': typeof DisplayRoute
   '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
+  '/record': typeof RecordRoute
   '/shifts': typeof ShiftsRoute
   '/studio-display': typeof StudioDisplayRoute
   '/transit-icons': typeof TransitIconsRoute
@@ -169,6 +177,7 @@ export interface FileRoutesById {
   '/display': typeof DisplayRoute
   '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
+  '/record': typeof RecordRoute
   '/shifts': typeof ShiftsRoute
   '/studio-display': typeof StudioDisplayRoute
   '/transit-icons': typeof TransitIconsRoute
@@ -191,6 +200,7 @@ export interface FileRouteTypes {
     | '/display'
     | '/earnings'
     | '/profile'
+    | '/record'
     | '/shifts'
     | '/studio-display'
     | '/transit-icons'
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
     | '/display'
     | '/earnings'
     | '/profile'
+    | '/record'
     | '/shifts'
     | '/studio-display'
     | '/transit-icons'
@@ -230,6 +241,7 @@ export interface FileRouteTypes {
     | '/display'
     | '/earnings'
     | '/profile'
+    | '/record'
     | '/shifts'
     | '/studio-display'
     | '/transit-icons'
@@ -251,6 +263,7 @@ export interface RootRouteChildren {
   DisplayRoute: typeof DisplayRoute
   EarningsRoute: typeof EarningsRoute
   ProfileRoute: typeof ProfileRoute
+  RecordRoute: typeof RecordRoute
   ShiftsRoute: typeof ShiftsRoute
   StudioDisplayRoute: typeof StudioDisplayRoute
   TransitIconsRoute: typeof TransitIconsRoute
@@ -286,6 +299,13 @@ declare module '@tanstack/react-router' {
       path: '/shifts'
       fullPath: '/shifts'
       preLoaderRoute: typeof ShiftsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/record': {
+      id: '/record'
+      path: '/record'
+      fullPath: '/record'
+      preLoaderRoute: typeof RecordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -416,6 +436,7 @@ const rootRouteChildren: RootRouteChildren = {
   DisplayRoute: DisplayRoute,
   EarningsRoute: EarningsRoute,
   ProfileRoute: ProfileRoute,
+  RecordRoute: RecordRoute,
   ShiftsRoute: ShiftsRoute,
   StudioDisplayRoute: StudioDisplayRoute,
   TransitIconsRoute: TransitIconsRoute,
