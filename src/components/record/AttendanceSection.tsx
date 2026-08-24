@@ -112,7 +112,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
   return (
     <section className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <PageHeader eyebrow="Attendance" title={summary.monthLabel} />
+        <h2 className="text-[15px] font-medium tracking-tight">Attendance</h2>
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" onClick={() => shiftMonth(-1)} aria-label="Previous month">
             <ChevronLeft className="h-4 w-4" />
