@@ -619,78 +619,72 @@ function Index() {
       )}
 
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="min-w-0 space-y-6">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : active ? (
-            <ActiveShiftPanel
-              shift={active}
-              scheduledShift={activeScheduled}
-              now={now}
-              onCheckOut={checkOut}
-              onAddClass={addClassRow}
-              onUpdateClass={updateClassRow}
-              onRemoveClass={removeClassRow}
-              checkingOut={checkingOut}
-              teachers={teachers}
-              classes={classes}
-              importedClasses={activeShiftClasses}
-              onSetClassStatus={setClassStatus}
-              onCorrectClassMatch={correctClassMatch}
-            />
-          ) : (
-            <>
-              {showTimeToLeave &&
-                prefs.showTimeToLeave &&
-                (checkInLocked ? (
-                  <LockedFeatureCard
-                    icon={<Train className="h-4 w-4" />}
-                    title="Time to Leave"
-                    reason="Complete your profile to enable Time to Leave."
-                    hero
-                  />
-                ) : (
-                  <TimeToLeaveCard
-                    username={username}
-                    scheduled={scheduled}
-                    now={now}
-                    homeLat={profileStatus?.home_lat ?? null}
-                    homeLng={profileStatus?.home_lng ?? null}
-                    variant="hero"
-                    onDeparture={setDepartureIso}
-                  />
-                ))}
-
-              {/* Check In is always present — only its state changes. */}
-              <div className="max-w-sm">
-                {checkInLocked ? (
-                  <LockedFeatureCard
-                    icon={<LogIn className="h-4 w-4" />}
-                    title="Check In"
-                    reason="Complete your profile to enable Check In."
-                  />
-                ) : (
-                  <CheckInPanel
-                    openScheduled={openScheduled}
-                    openShift={openTarget}
-                    nextShift={nextDisplay}
-                    now={now}
-                    onCheckIn={checkIn}
-                    checkingIn={checkingIn}
-                  />
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        <aside className="xl:sticky xl:top-24 xl:self-start">
-          {!loading && (
-            <UpcomingShifts shifts={upcomingDisplay} now={now} calendarClasses={calendarClasses} />
-          )}
-        </aside>
+      <div className="mx-auto w-full max-w-3xl space-y-6">
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : active ? (
+          <ActiveShiftPanel
+            shift={active}
+            scheduledShift={activeScheduled}
+            now={now}
+            onCheckOut={checkOut}
+            onAddClass={addClassRow}
+            onUpdateClass={updateClassRow}
+            onRemoveClass={removeClassRow}
+            checkingOut={checkingOut}
+            teachers={teachers}
+            classes={classes}
+            importedClasses={activeShiftClasses}
+            onSetClassStatus={setClassStatus}
+            onCorrectClassMatch={correctClassMatch}
+          />
+        ) : checkInLocked ? (
+          <LockedFeatureCard
+            icon={<LogIn className="h-4 w-4" />}
+            title="Check In"
+            reason="Complete your profile to enable Check In and Time to Leave."
+            hero
+          />
+        ) : (
+          <ShiftCard
+            phase={phase}
+            next={nextDisplay}
+            now={now}
+            action={
+              <CheckInPanel
+                openScheduled={openScheduled}
+                openShift={openTarget}
+                nextShift={nextDisplay}
+                now={now}
+                onCheckIn={checkIn}
+                checkingIn={checkingIn}
+              />
+            }
+            detail={
+              showTravel && prefs.showTimeToLeave ? (
+                <TimeToLeaveCard
+                  username={username}
+                  scheduled={scheduled}
+                  now={now}
+                  homeLat={profileStatus?.home_lat ?? null}
+                  homeLng={profileStatus?.home_lng ?? null}
+                  variant="embedded"
+                  onDeparture={setDepartureIso}
+                />
+              ) : (
+                <UpcomingShifts
+                  shifts={upcomingDisplay}
+                  now={now}
+                  calendarClasses={calendarClasses}
+                  embedded
+                  limit={3}
+                />
+              )
+            }
+          />
+        )}
       </div>
+
     </AppShell>
   );
 }
