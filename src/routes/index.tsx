@@ -701,17 +701,21 @@ function UpcomingShifts({
   shifts,
   now,
   calendarClasses = [],
+  embedded = false,
+  limit = 6,
 }: {
+  /** Rendered without its own card shell (inside the Shift Card). */
+  embedded?: boolean;
+  limit?: number;
   /** Continuous (midnight-merged) shifts, already filtered to the future. */
   shifts: DisplayShift[];
   now: Date;
   /** Used to show how many classes a continuous shift contains. */
   calendarClasses?: CalendarClassRow[];
 }) {
-  const instances = shifts.slice(0, 6);
-  return (
-    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
-      <CardContent className="p-5">
+  const instances = shifts.slice(0, limit);
+  const body = (
+    <>
 
         <SectionTitle title="Upcoming shifts" />
         {instances.length === 0 ? (
@@ -745,7 +749,12 @@ function UpcomingShifts({
             })}
           </ul>
         )}
-      </CardContent>
+    </>
+  );
+  if (embedded) return <div className="px-5 py-5">{body}</div>;
+  return (
+    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
+      <CardContent className="p-5">{body}</CardContent>
     </Card>
   );
 }
@@ -798,8 +807,8 @@ function CheckInPanel({
   const classCount = scheduledClassCount(openScheduled?.label);
 
   return (
-    <Card className="rise-in overflow-hidden max-lg:glass max-lg:rounded-[22px]">
-      <CardContent className="flex flex-col items-center gap-5 px-5 py-6 text-center max-lg:py-7">
+    <>
+      <div className="flex flex-col items-center gap-5 px-5 py-6 text-center max-lg:py-7">
 
         {hasShift ? (
           <div className="flex flex-col items-center gap-1.5">
@@ -845,7 +854,7 @@ function CheckInPanel({
             </p>
           </div>
         ) : null}
-      </CardContent>
+      </div>
 
       <AlertDialog
         open={confirmOpen}
@@ -875,7 +884,7 @@ function CheckInPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </>
   );
 }
 
@@ -1315,7 +1324,7 @@ function TimeToLeaveCard({
   now: Date;
   homeLat?: number | null;
   homeLng?: number | null;
-  variant?: "default" | "hero";
+  variant?: "default" | "hero" | "embedded";
   /** Reports the planned departure time so the dashboard can remind about it. */
   onDeparture?: (iso: string | null) => void;
 }) {
@@ -1385,12 +1394,15 @@ function TimeToLeaveCard({
     : null;
   const urgent = minutesUntilLeave !== null && minutesUntilLeave <= 10;
   const hero = variant === "hero";
+  const embedded = variant === "embedded";
 
   return (
     <Card
-      className={`overflow-hidden max-lg:glass max-lg:rounded-[22px] ${
-        hero ? "border-primary/40" : ""
-      }`}
+      className={
+        embedded
+          ? "overflow-hidden rounded-none border-0 bg-transparent shadow-none"
+          : `overflow-hidden max-lg:glass max-lg:rounded-[22px] ${hero ? "border-primary/40" : ""}`
+      }
     >
       <CardContent className="p-0">
         {/* ── Header: shift context + the one number that matters ───────── */}
