@@ -1,3 +1,4 @@
+import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -30,13 +31,10 @@ import { downloadAttendancePdf } from "@/lib/attendance-pdf";
 
 export const Route = createFileRoute("/earnings")({
   head: () => ({
-    meta: [
-      { title: "Payroll · Studio Operator" },
-      {
-        name: "description",
-        content: "Attendance history, worked hours, and downloadable payroll report.",
-      },
-    ],
+    meta: pageMeta(
+      PAGE_TITLES.attendance,
+      "Attendance history, worked hours, and downloadable payroll report.",
+    ),
   }),
   beforeLoad: async () => {
     const status = await getGateStatus();

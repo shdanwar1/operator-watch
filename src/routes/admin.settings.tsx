@@ -1,3 +1,4 @@
+import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,19 +40,7 @@ import { backfillClassMatches } from "@/lib/gcal.functions";
 
 export const Route = createFileRoute("/admin/settings")({
   head: () => ({
-    meta: [
-      { title: "Settings — Dance Masterclass Admin" },
-      {
-        name: "description",
-        content:
-          "Admin account PIN, site password, studio address, directories and operator check-out reminders.",
-      },
-      { property: "og:title", content: "Settings — Dance Masterclass Admin" },
-      {
-        property: "og:description",
-        content: "Account, security and system-wide configuration for the studio application.",
-      },
-    ],
+    meta: pageMeta(PAGE_TITLES.settings, "Manage studio settings and directories."),
   }),
   loader: async () => {
     const status = await getGateStatus();

@@ -1,3 +1,4 @@
+import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute, redirect, useRouter, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -84,6 +85,9 @@ export const Route = createFileRoute("/")({
     ]);
     return { username: canonical ?? username, profile };
   },
+  head: () => ({
+    meta: pageMeta(PAGE_TITLES.dashboard, "Your next shift, travel plan and check-in for today."),
+  }),
   component: Index,
 });
 

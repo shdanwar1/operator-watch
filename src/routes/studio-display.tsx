@@ -1,3 +1,4 @@
+import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useRef } from "react";
 import { ArrowUpRight } from "lucide-react";
@@ -14,20 +15,10 @@ export const Route = createFileRoute("/studio-display")({
     if (status.isAdmin) throw redirect({ to: "/admin" });
   },
   head: () => ({
-    meta: [
-      { title: "Studio Display Settings — Studio Operator" },
-      {
-        name: "description",
-        content: "Configure the custom studio display timer and teacher notes, then open the display window.",
-      },
-      { property: "og:title", content: "Studio Display Settings — Studio Operator" },
-      {
-        property: "og:description",
-        content: "Configure the custom studio display timer and teacher notes.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
+    meta: pageMeta(
+      PAGE_TITLES.studioDisplayConfig,
+      "Configure the custom studio display timer and teacher notes, then open the display window.",
+    ),
   }),
   component: StudioDisplaySettingsPage,
 });
@@ -38,7 +29,7 @@ function StudioDisplaySettingsPage() {
     <AppShell>
       <PageHeader
         eyebrow="Teacher-facing screen"
-        title="Studio Display"
+        title="Custom Studio Display"
         action={
           <Button onClick={() => openRef.current?.()} className="rounded-full">
             Open display

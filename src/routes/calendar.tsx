@@ -1,3 +1,4 @@
+import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -45,20 +46,10 @@ export const Route = createFileRoute("/calendar")({
   },
   loader: ({ context }) => ({ username: (context as { username: string }).username }),
   head: () => ({
-    meta: [
-      { title: "Monthly Schedule — Studio Operator" },
-      {
-        name: "description",
-        content: "Month view of your scheduled studio operator shifts and classes.",
-      },
-      { property: "og:title", content: "Monthly Schedule — Studio Operator" },
-      {
-        property: "og:description",
-        content: "Month view of your scheduled studio operator shifts.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
+    meta: pageMeta(
+      PAGE_TITLES.calendar,
+      "Month view of your scheduled studio operator shifts and classes.",
+    ),
   }),
   component: CalendarPage,
 });
