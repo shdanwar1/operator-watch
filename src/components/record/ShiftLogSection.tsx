@@ -204,90 +204,118 @@ export function ShiftLogSection({ username }: { username: string | null }) {
           <p className="text-sm text-muted-foreground">No shifts yet.</p>
         ) : (
           <div className="space-y-3">
-            {shifts.map((s) => (
-              <Card key={s.id} className="max-lg:glass max-lg:rounded-[22px]">
-                <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">{s.operator_name}</span>
-                      {!s.check_out_at && (
-                        <Badge variant="destructive" className="text-[10px]">ACTIVE</Badge>
-                      )}
-                    </div>
-                    <div className="mt-1 text-sm text-muted-foreground max-md:text-[12px]">
-                      <span className="tabular-nums">{fmt(s.check_in_at)}</span> →{" "}
-                      <span className="tabular-nums">{fmt(s.check_out_at)}</span> •{" "}
-                      <span className="tabular-nums">{duration(s.check_in_at, s.check_out_at)}</span> •{" "}
-                      <span className="text-foreground tabular-nums">{s.classes.length}</span> streams
-                    </div>
-                    {s.classes.length > 0 && (
-                      <>
-                        {/* Mobile: a plain divided list instead of a cramped table. */}
-                        <ul className="mt-3 border-t border-border md:hidden">
-                          {s.classes.map((c, i) => (
-                            <li
-                              key={i}
-                              className="flex items-center justify-between gap-3 border-b border-border py-2.5 last:border-b-0"
-                            >
-                              <span className="min-w-0 truncate text-[12px] font-medium">
-                                {c.class || <span className="text-muted-foreground">—</span>}
-                              </span>
-                              <span className="shrink-0 text-[10px] text-muted-foreground">
-                                {c.teacher || "—"}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
+            {shifts.map((s) => {
+              const isOpen = !!expanded[s.id];
+              return (
+                <Card key={s.id} className="max-lg:glass max-lg:rounded-[22px]">
+                  <CardContent className="p-0">
+                    {/* Compact header row — always visible. Clicking toggles the
+                        detail panel (class/teacher list + notes). */}
+                    <button
+                      type="button"
+                      onClick={() => setExpanded((e) => ({ ...e, [s.id]: !e[s.id] }))}
+                      className="flex w-full items-center gap-3 p-4 text-left"
+                      aria-expanded={isOpen}
+                      aria-label="Toggle shift details"
+                    >
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+                      />
+                      <div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                        <span className="font-medium">{s.operator_name}</span>
+                        {!s.check_out_at && (
+                          <Badge variant="destructive" className="text-[10px]">ACTIVE</Badge>
+                        )}
+                        <span className="tabular-nums text-muted-foreground">{fmtDate(s.check_in_at)}</span>
+                        <span className="tabular-nums">
+                          <span className="text-muted-foreground">in </span>{fmtTime(s.check_in_at)}
+                          <span className="text-muted-foreground"> · out </span>{fmtTime(s.check_out_at)}
+                        </span>
+                        <span className="tabular-nums text-muted-foreground">
+                          {duration(s.check_in_at, s.check_out_at)}
+                        </span>
+                        <span className="tabular-nums">
+                          <span className="text-foreground">{s.classes.length}</span>
+                          <span className="text-muted-foreground"> classes</span>
+                        </span>
+                      </div>
+                    </button>
 
-                        <div className="mt-3 hidden overflow-hidden rounded-md border md:block">
-                          <table className="w-full text-sm">
-                            <thead className="bg-muted/50 text-[10px] uppercase tracking-wide text-muted-foreground">
-                              <tr>
-                                <th className="px-3 py-1.5 text-left font-medium">Class</th>
-                                <th className="px-3 py-1.5 text-left font-medium">Teacher</th>
-                              </tr>
-                            </thead>
-                            <tbody>
+                    {/* Expandable detail: classes (class + teacher) and notes. */}
+                    {isOpen && (
+                      <div className="border-t border-border px-4 pb-4 pt-3">
+                        {s.classes.length > 0 ? (
+                          <>
+                            {/* Mobile: a plain divided list. */}
+                            <ul className="md:hidden">
                               {s.classes.map((c, i) => (
-                                <tr key={i} className="border-t">
-                                  <td className="px-3 py-1.5">{c.class || <span className="text-muted-foreground">—</span>}</td>
-                                  <td className="px-3 py-1.5">{c.teacher || <span className="text-muted-foreground">—</span>}</td>
-                                </tr>
+                                <li
+                                  key={i}
+                                  className="flex items-center justify-between gap-3 border-b border-border py-2.5 last:border-b-0"
+                                >
+                                  <span className="min-w-0 truncate text-[12px] font-medium">
+                                    {c.class || <span className="text-muted-foreground">—</span>}
+                                  </span>
+                                  <span className="shrink-0 text-[10px] text-muted-foreground">
+                                    {c.teacher || "—"}
+                                  </span>
+                                </li>
                               ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </>
-                    )}
-                    {s.notes && (
-                      <p className="mt-2 text-sm italic text-muted-foreground">"{s.notes}"</p>
-                    )}
-                  </div>
-                  <div className="flex gap-1 max-md:mt-1 max-md:justify-end">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditing(s)}
-                      aria-label="Edit shift"
-                      className="max-md:h-9 max-md:w-9 max-md:p-0"
-                    >
-                      <Pencil className="h-3.5 w-3.5 md:mr-1" />
-                      <span className="max-md:hidden">Edit</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteShift(s.id)}
-                      aria-label="Delete shift"
-                      className="max-md:h-9 max-md:w-9"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
+                            </ul>
 
-              </Card>
-            ))}
+                            <div className="hidden overflow-hidden rounded-md border md:block">
+                              <table className="w-full text-sm">
+                                <thead className="bg-muted/50 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                  <tr>
+                                    <th className="px-3 py-1.5 text-left font-medium">Class</th>
+                                    <th className="px-3 py-1.5 text-left font-medium">Teacher</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {s.classes.map((c, i) => (
+                                    <tr key={i} className="border-t">
+                                      <td className="px-3 py-1.5">{c.class || <span className="text-muted-foreground">—</span>}</td>
+                                      <td className="px-3 py-1.5">{c.teacher || <span className="text-muted-foreground">—</span>}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No classes logged.</p>
+                        )}
+                        {s.notes && (
+                          <p className="mt-2 text-sm italic text-muted-foreground">"{s.notes}"</p>
+                        )}
+                        <div className="mt-3 flex justify-end gap-1 max-md:mt-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditing(s)}
+                            aria-label="Edit shift"
+                            className="max-md:h-9 max-md:w-9 max-md:p-0"
+                          >
+                            <Pencil className="h-3.5 w-3.5 md:mr-1" />
+                            <span className="max-md:hidden">Edit</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteShift(s.id)}
+                            aria-label="Delete shift"
+                            className="max-md:h-9 max-md:w-9"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+
+                </Card>
+              );
+            })}
           </div>
         )}
 
