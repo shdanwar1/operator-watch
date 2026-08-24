@@ -74,7 +74,11 @@ It simultaneously fixes: information hierarchy (one thing is the most important 
 
 ## What actually gets rewritten
 
-The Dashboard's top-level composition: a `ShiftCard` shell plus a small pure `shiftPhase(now, shifts, active, departure)` selector (unit-testable) that picks one of the five states. The current branchy `active ? … : (timeToLeave + checkIn)` tree goes away.
+The Dashboard's top-level composition: a `ShiftCard` shell plus a small pure `shiftPhase(now, shifts, active, departure)` selector (unit-testable, with the 6 h / 1 h / 2 h thresholds as named constants) that picks one of the five states. The current branchy `active ? … : (timeToLeave + checkIn)` tree goes away.
+
+## Explicitly not touched
+
+Studio Display (`/display`, its timer, ticker and stage machine), the Studio Display config page, Chat, Calendar, Profile, all Admin screens, push notifications, Google Calendar sync, and every server function. `resolveCheckInTarget`, `buildDisplayShifts` and the check-in/check-out mutations keep their current behaviour; only the presentation layer around them is re-composed.
 
 - Implementation complexity: **Medium**
 - Risk to existing functionality: **Low–Medium** — presentation and routing only; check-in/check-out and travel logic are moved, not modified. Old `/shifts` and `/earnings` URLs redirect.
