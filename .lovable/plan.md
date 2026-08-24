@@ -38,15 +38,22 @@ Consequences: shifting hierarchy, duplicated shift data, weak state feedback (yo
 
 The five states of the same card:
 
-| State | Status strip | Primary action | Detail region |
-|---|---|---|---|
-| No shift soon | "Next shift Fri 18:00" | — | Next 3 upcoming |
-| Leave window | "Leave in 12 min" + departure clock | Directions (expand) | Transit timeline (today's Time-to-Leave content) |
-| Check-in window | "Starts in 24 min" | **Check In** (hold) | Classes for the shift |
-| On air | "On air · 1h 12m" | **Check Out** (hold) | Live class list + editor |
-| Just finished | "Checked out 2:04 AM · 2h 34m" | — | Summary, link to record |
+| State | Trigger | Status strip | Primary action | Detail region |
+|---|---|---|---|---|
+| No shift soon | more than 6 h to next shift | "Next shift Fri 18:00" | **Start unscheduled shift** (hold) | Next 3 upcoming |
+| Leave window | 6 h → 1 h before start | "Leave in 12 min" + departure clock | Directions (expand) | Transit timeline (today's Time-to-Leave content) |
+| Check-in window | 1 h before start → shift end | "Starts in 24 min" | **Check In** (hold) | Classes for the shift |
+| On air | checked in, not out | "On air · 1h 12m" | **Check Out** (hold) | Live class list + editor |
+| Just finished | checked out < 30 min ago | "Checked out 2:04 AM · 2h 34m" | — | Summary, link to record |
+
+Timing rules the state machine uses:
+
+- **Leave window opens 6 hours before shift start.** Time to Leave content (departure clock, transit timeline) is available from that point, so the card shows travel info well before the check-in affordance appears.
+- **Check-in window opens 1 hour before shift start** and stays open until the shift's scheduled end. Inside this window the primary action is Check In against that scheduled shift.
+- **Check-in is always available.** If no scheduled shift starts within the next 2 hours, the primary action is still a check-in — it just starts an **unscheduled shift with no classes**, exactly as today (`resolveCheckInTarget` already returns `null` in that case and the existing unscheduled path handles it). The operator is never blocked from checking in.
 
 Everything the Dashboard currently renders survives — Time to Leave, transit steps, check-in, class editor, upcoming — it just stops being four competing cards and becomes one card with a fixed anatomy: **status strip → one primary action → collapsible detail**.
+
 
 Second half of the same change: **navigation collapses 7 → 4.** `Shifts` + `Attendance` merge into one **Record** page (month header with the existing totals, then the existing worked-shift rows below — they are already the same rows). Nav becomes **Dashboard · Calendar · Record · Chat**, with Profile and Studio Display moving to a top-bar menu. Mobile tabs go from six cramped targets to four comfortable ones.
 
@@ -67,7 +74,11 @@ It simultaneously fixes: information hierarchy (one thing is the most important 
 
 ## What actually gets rewritten
 
-The Dashboard's top-level composition: a `ShiftCard` shell plus a small pure `shiftPhase(now, shifts, active, departure)` selector (unit-testable) that picks one of the five states. The current branchy `active ? … : (timeToLeave + checkIn)` tree goes away.
+The Dashboard's top-level composition: a `ShiftCard` shell plus a small pure `shiftPhase(now, shifts, active, departure)` selector (unit-testable, with the 6 h / 1 h / 2 h thresholds as named constants) that picks one of the five states. The current branchy `active ? … : (timeToLeave + checkIn)` tree goes away.
+
+## Explicitly not touched
+
+Studio Display (`/display`, its timer, ticker and stage machine), the Studio Display config page, Chat, Calendar, Profile, all Admin screens, push notifications, Google Calendar sync, and every server function. `resolveCheckInTarget`, `buildDisplayShifts` and the check-in/check-out mutations keep their current behaviour; only the presentation layer around them is re-composed.
 
 - Implementation complexity: **Medium**
 - Risk to existing functionality: **Low–Medium** — presentation and routing only; check-in/check-out and travel logic are moved, not modified. Old `/shifts` and `/earnings` URLs redirect.
