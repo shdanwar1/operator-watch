@@ -40,7 +40,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, Train, Ship, Footprints, Home, MapPin, AlertTriangle, Lock, ArrowRight, Briefcase, ChevronDown, Building2 } from "lucide-react";
+import { Plus, X, Clock, LogIn, CalendarDays, Ship, Footprints, Home, MapPin, AlertTriangle, Lock, ArrowRight, Briefcase, ChevronDown, Building2 } from "lucide-react";
 import { transitIconFor } from "@/components/TransitIcons";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
