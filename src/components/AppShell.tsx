@@ -23,27 +23,21 @@ import { cn } from "@/lib/utils";
 const NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: boolean }[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard, exact: true },
   { label: "Calendar", to: "/calendar", icon: CalendarDays },
-  { label: "Shifts", to: "/shifts", icon: ListChecks },
-  { label: "Attendance", to: "/earnings", icon: ClipboardList },
+  { label: "Record", to: "/record", icon: ListChecks },
   { label: "Chat", to: "/chat", icon: MessageSquare },
-  { label: "Studio Display", to: "/studio-display", icon: Monitor },
-  { label: "Profile", to: "/profile", icon: User },
 ];
 
-/**
- * Mobile tab bar: Dashboard sits in the middle. Same routes as the sidebar,
- * minus Studio Display (reachable from the mobile top bar).
- */
-const MOBILE_NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: boolean }[] = [
-  { label: "Calendar", to: "/calendar", icon: CalendarDays },
-  { label: "Shifts", to: "/shifts", icon: ListChecks },
-  { label: "Dashboard", to: "/", icon: LayoutDashboard, exact: true },
-  { label: "Attendance", to: "/earnings", icon: ClipboardList },
-  { label: "Chat", to: "/chat", icon: MessageSquare },
+/** Secondary destinations — reachable from the top-bar menu, not the tab bar. */
+const MENU: { label: string; to: string; icon: typeof LayoutDashboard }[] = [
   { label: "Profile", to: "/profile", icon: User },
+  { label: "Studio Display", to: "/studio-display", icon: Monitor },
 ];
+
+/** Mobile tab bar: the same four primary destinations as the sidebar. */
+const MOBILE_NAV = NAV;
 
 const COLLAPSE_KEY = "so.sidebar.collapsed";
+
 
 
 export const STUDIO_NAME = "DMC Studio";
