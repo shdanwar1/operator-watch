@@ -29,7 +29,7 @@ function StudioDisplaySettingsPage() {
     <AppShell>
       <PageHeader
         eyebrow="Teacher-facing screen"
-        title="Studio Display"
+        title="Custom Studio Display"
         action={
           <Button onClick={() => openRef.current?.()} className="rounded-full">
             Open display
