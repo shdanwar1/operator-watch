@@ -3,15 +3,22 @@ import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarDays,
-  ClipboardList,
   LayoutDashboard,
   ListChecks,
   LogOut,
   MessageSquare,
   Monitor,
+  MoreHorizontal,
   PanelLeft,
   User,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { PushBinding } from "@/components/PushBinding";
 import { signOutUser } from "@/lib/gate.functions";
@@ -180,6 +187,32 @@ export function AppShell({
           </span>
 
           <div className="ml-auto flex items-center gap-4 max-lg:gap-1.5">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="More"
+                  className="press grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground max-lg:h-9 max-lg:w-9"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                {MENU.map((item) => (
+                  <DropdownMenuItem key={item.to} asChild>
+                    <Link to={item.to} className="flex items-center gap-2">
+                      <item.icon className="h-4 w-4" />
+                      {item.label}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => void handleSignOut()} className="flex items-center gap-2">
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {onAir && (
               <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-done">
                 <span className="status-dot bg-done" />
@@ -198,7 +231,7 @@ export function AppShell({
 
         {/* Mobile tab bar — flush with the bottom edge, thin top border. */}
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border glass-bar pb-safe lg:hidden">
-          <div className="mx-auto grid max-w-[430px] grid-cols-6 px-1.5 pb-1.5 pt-1">
+          <div className="mx-auto grid max-w-[430px] grid-cols-4 px-1.5 pb-1.5 pt-1">
             {MOBILE_NAV.map((item) => {
               const active = item.exact
                 ? pathname === item.to
