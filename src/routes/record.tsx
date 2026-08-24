@@ -5,12 +5,12 @@ import { AppShell, PageHeader } from "@/components/AppShell";
 import { getGateStatus } from "@/lib/gate.functions";
 import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { AttendanceSection } from "@/components/record/AttendanceSection";
-import { ShiftLogSection } from "@/components/record/ShiftLogSection";
 
 /**
  * Record — one screen for the operator's own shift dataset: monthly
- * attendance totals on top, the worked-shift log below. Replaces the former
- * separate /shifts and /earnings pages, which both described the same rows.
+ * attendance totals and a history table whose rows expand to show each
+ * shift's classes and notes. Replaces the former separate /shifts and
+ * /earnings pages, which both described the same rows.
  */
 export const Route = createFileRoute("/record")({
   beforeLoad: async () => {
@@ -36,10 +36,7 @@ function RecordPage() {
     <AppShell>
       <Toaster richColors position="top-center" />
       <PageHeader title="Record" />
-      <div className="space-y-10">
-        <AttendanceSection username={username} />
-        <ShiftLogSection username={username} />
-      </div>
+      <AttendanceSection username={username} />
     </AppShell>
   );
 }
