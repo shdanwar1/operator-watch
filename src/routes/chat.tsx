@@ -1,3 +1,4 @@
+import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -39,20 +40,7 @@ export const Route = createFileRoute("/chat")({
     if (status.isAdmin) throw redirect({ to: "/admin" });
   },
   head: () => ({
-    meta: [
-      { title: "Chat — DMC Studio Operators" },
-      {
-        name: "description",
-        content: "Private group chat for DMC Studio operators on shift.",
-      },
-      { property: "og:title", content: "Chat — DMC Studio Operators" },
-      {
-        property: "og:description",
-        content: "Private group chat for DMC Studio operators on shift.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
+    meta: pageMeta(PAGE_TITLES.chat, "Private group chat for studio operators on shift."),
   }),
   component: ChatPage,
 });

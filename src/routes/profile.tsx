@@ -1,3 +1,4 @@
+import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
@@ -49,21 +50,10 @@ export const Route = createFileRoute("/profile")({
     return { profile, icsUrl: calRes.icsUrl, prefs };
   },
   head: () => ({
-    meta: [
-      { title: "Profile — DMC Studio Operator" },
-      {
-        name: "description",
-        content:
-          "Manage your operator account, Google Calendar sync, notifications and dashboard preferences.",
-      },
-      { property: "og:title", content: "Profile — DMC Studio Operator" },
-      {
-        property: "og:description",
-        content: "Operator account, calendar sync and notification settings.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
+    meta: pageMeta(
+      PAGE_TITLES.profile,
+      "Manage your operator account, calendar sync, notifications and dashboard preferences.",
+    ),
   }),
   component: ProfilePage,
 });
