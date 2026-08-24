@@ -56,10 +56,6 @@ function fromLocalInput(v: string): string | null {
   if (!v) return null;
   return new Date(v).toISOString();
 }
-function fmt(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-}
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
