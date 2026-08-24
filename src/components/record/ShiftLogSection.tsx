@@ -60,6 +60,14 @@ function fmt(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
+function fmtDate(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
+}
+function fmtTime(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString(undefined, { timeStyle: "short" });
+}
 function duration(a: string, b: string | null) {
   const end = b ? new Date(b).getTime() : Date.now();
   const mins = Math.max(0, Math.floor((end - new Date(a).getTime()) / 60000));
