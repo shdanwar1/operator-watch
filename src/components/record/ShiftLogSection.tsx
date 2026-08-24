@@ -29,7 +29,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, X, Save } from "lucide-react";
+import { ChevronDown, Pencil, Plus, Trash2, X, Save } from "lucide-react";
 import { operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 export type ShiftClass = { class: string; teacher: string };
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
