@@ -134,6 +134,9 @@ export function buildAttendanceRows(
         scheduledEnd: sched?.end ?? null,
         scheduledMin,
         diffMin: scheduledMin != null ? totalMin - scheduledMin : null,
+        classes: s.classes,
+        notes: s.notes,
+        scheduled_shift_id: s.scheduled_shift_id,
       };
     })
     .sort((a, b) => a.date.getTime() - b.date.getTime());
