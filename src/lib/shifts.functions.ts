@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
+import { assertCanCheckOut } from "./checkout-validation";
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
@@ -298,6 +299,60 @@ export const updateShift = createServerFn({ method: "POST" })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true as const };
+  });
+
+export const checkOutShift = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string; classes?: ShiftClass[] }) => {
+    if (!data?.id) throw new Error("id required");
+    const classes = data.classes === undefined
+      ? undefined
+      : sanitizeShiftPatch({ classes: data.classes }).classes;
+    return { id: String(data.id), classes };
+  })
+  .handler(async ({ data }) => {
+    const { username, isAdmin } = await requireGate();
+    if (!username || isAdmin) throw new Response("Forbidden", { status: 403 });
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: existing, error: loadError } = await supabaseAdmin
+      .from("shifts")
+      .select("id, operator_name, check_in_at, check_out_at")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (loadError) throw new Error(loadError.message);
+    if (!existing) throw new Response("Shift not found", { status: 404 });
+
+    const owner = String(existing.operator_name ?? "");
+    if (owner.toLowerCase() !== username.toLowerCase()) {
+      throw new Response("Forbidden", { status: 403 });
+    }
+
+    const now = new Date();
+    assertCanCheckOut(
+      {
+        check_in_at: String(existing.check_in_at),
+        check_out_at: existing.check_out_at ? String(existing.check_out_at) : null,
+      },
+      now,
+    );
+
+    const patch: ShiftPatch = { check_out_at: now.toISOString() };
+    if (data.classes !== undefined) {
+      patch.classes = data.classes;
+      patch.live_streams_count = data.classes.length;
+    }
+
+    const { data: closed, error } = await supabaseAdmin
+      .from("shifts")
+      .update(patch as never)
+      .eq("id", data.id)
+      .is("check_out_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!closed) throw new Error("This shift is already checked out");
+
+    return { ok: true as const, check_out_at: now.toISOString() };
   });
 
 export const deleteShift = createServerFn({ method: "POST" })
