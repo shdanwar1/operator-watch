@@ -7,6 +7,7 @@ import {
   listShifts,
   listScheduledShifts,
   createShift,
+  checkOutShift,
   updateShift as updateShiftFn,
   type ShiftRow,
   type ScheduledShiftRow,
@@ -260,6 +261,7 @@ function Index() {
   const fetchCalendarClasses = useServerFn(listMyCalendarClasses);
   const recordUsage = useServerFn(recordDirectoryUsage);
   const createShiftFn = useServerFn(createShift);
+  const checkOutShiftServer = useServerFn(checkOutShift);
   const updateShiftServer = useServerFn(updateShiftFn);
   const setClassStatusFn = useServerFn(setMyClassStatus);
   const correctClassMatchFn = useServerFn(correctMyClassMatch);
@@ -573,10 +575,11 @@ function Index() {
       const completed = activeShiftClasses
         .filter((c) => classStatusOf(c, new Date()) === "completed")
         .map((c) => ({ class: c.class_name, teacher: c.teacher_name }));
-      const patch: Partial<Shift> = { check_out_at: new Date().toISOString() };
-      if (completed.length) patch.classes = completed;
-      await updateShiftServer({
-        data: { id: active.id, patch },
+      await checkOutShiftServer({
+        data: {
+          id: active.id,
+          ...(completed.length ? { classes: completed } : {}),
+        },
       });
 
       // Best-effort: record used teachers/classes in the directories.
