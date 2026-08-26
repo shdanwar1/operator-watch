@@ -55,7 +55,7 @@ import {
   correctMyClassMatch,
   type CalendarClassRow,
 } from "@/lib/gcal.functions";
-import { AppShell, PageHeader, SectionTitle } from "@/components/AppShell";
+import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
 import { shiftPhase, phaseLabel, type ShiftPhase } from "@/lib/shift-phase";
 import { StudioActivation } from "@/components/StudioActivation";
@@ -619,7 +619,6 @@ function Index() {
         />
       )}
 
-      <PageHeader eyebrow="Operator dashboard" title={`${greeting(now)}, ${username}.`} />
 
       {!profileComplete && !active && (
         <ProfileIncompleteBanner missing={profileStatus?.missing ?? []} />
@@ -1107,18 +1106,19 @@ function ActiveShiftPanel({
           onCorrect={onCorrectClassMatch}
           classOptions={classes}
           teacherOptions={teachers}
-          footer={
-            <div className="flex items-center justify-end">
-              <HoldButton
-                label="Hold to check out"
-                tone="danger"
-                busy={checkingOut}
-                onComplete={handleHoldComplete}
-                size={84}
-                resetSignal={resetSignal}
-              />
-            </div>
-          }
+            footer={
+              <div className="flex flex-col items-center gap-2">
+                <HoldButton
+                  label="Hold to check out"
+                  hint="Hold for check out"
+                  tone="danger"
+                  busy={checkingOut}
+                  onComplete={handleHoldComplete}
+                  size={84}
+                  resetSignal={resetSignal}
+                />
+              </div>
+            }
         />
       ) : (
         <Card>
@@ -1190,9 +1190,10 @@ function ActiveShiftPanel({
               </div>
             )}
 
-            <div className="flex items-center justify-end border-t border-border pt-4">
+            <div className="flex flex-col items-center gap-2 border-t border-border pt-4">
               <HoldButton
                 label="Hold to check out"
+                hint="Hold for check out"
                 tone="danger"
                 busy={checkingOut}
                 onComplete={handleHoldComplete}
@@ -1266,13 +1267,6 @@ function ActiveShiftPanel({
 
 
 
-/** Time-of-day greeting shown on the dashboard header. */
-function greeting(d: Date) {
-  const h = d.getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-}
 
 function fmtHM(d: Date) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });

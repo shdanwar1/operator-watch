@@ -8,17 +8,9 @@ import {
   LogOut,
   MessageSquare,
   Monitor,
-  MoreHorizontal,
   PanelLeft,
   User,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { PushBinding } from "@/components/PushBinding";
 import { signOutUser } from "@/lib/gate.functions";
@@ -34,9 +26,9 @@ const NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: bo
   { label: "Chat", to: "/chat", icon: MessageSquare },
 ];
 
-/** Secondary destinations — reachable from the top-bar menu, not the tab bar. */
-const MENU: { label: string; to: string; icon: typeof LayoutDashboard }[] = [
-  { label: "Profile", to: "/profile", icon: User },
+/** Desktop sidebar: the four primary destinations plus Studio Display. */
+const SIDEBAR_NAV = [
+  ...NAV,
   { label: "Studio Display", to: "/studio-display", icon: Monitor },
 ];
 
@@ -129,7 +121,7 @@ export function AppShell({
         </div>
 
         <nav className="flex-1 space-y-0.5 px-2 py-4">
-          {NAV.map((item) => {
+          {SIDEBAR_NAV.map((item) => {
             const active = item.exact
               ? pathname === item.to
               : pathname === item.to || pathname.startsWith(`${item.to}/`);
@@ -152,6 +144,23 @@ export function AppShell({
             );
           })}
         </nav>
+
+        <div className="space-y-0.5 border-t border-sidebar-border px-2 py-3">
+          <Link
+            to="/profile"
+            title={collapsed ? "Profile" : undefined}
+            className={cn(
+              "press flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors",
+              collapsed && "justify-center px-0",
+              pathname === "/profile"
+                ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+            )}
+          >
+            <User className="h-4 w-4 shrink-0" />
+            {!collapsed && <span>Profile</span>}
+          </Link>
+        </div>
 
         <div className="border-t border-sidebar-border px-2 py-3">
           <button
@@ -187,32 +196,6 @@ export function AppShell({
           </span>
 
           <div className="ml-auto flex items-center gap-4 max-lg:gap-1.5">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="More"
-                  className="press grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground max-lg:h-9 max-lg:w-9"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                {MENU.map((item) => (
-                  <DropdownMenuItem key={item.to} asChild>
-                    <Link to={item.to} className="flex items-center gap-2">
-                      <item.icon className="h-4 w-4" />
-                      {item.label}
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => void handleSignOut()} className="flex items-center gap-2">
-                  <LogOut className="h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
             {onAir && (
               <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-done">
                 <span className="status-dot bg-done" />
