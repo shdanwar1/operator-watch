@@ -116,6 +116,8 @@ export type ParsedEvent = {
   end_time: string; // HH:MM:SS
   day_of_week: number;
   status: "confirmed" | "cancelled";
+  /** DTSTART;VALUE=DATE — an all-day block, never a live class. */
+  allDay: boolean;
 };
 
 function unfoldIcs(text: string): string[] {
@@ -190,6 +192,7 @@ type RawEvent = {
   end: Date | null;
   rrule: string | null;
   startIsUtc: boolean;
+  allDay: boolean;
   exdates: string[]; // YYYY-MM-DD keys (local)
 };
 
@@ -344,6 +347,7 @@ export function parseIcs(ics: string, window?: { from: Date; to: Date }): Parsed
         end: null,
         rrule: null,
         startIsUtc: false,
+        allDay: false,
         exdates: [],
       };
       continue;
@@ -407,6 +411,9 @@ export function parseIcs(ics: string, window?: { from: Date; to: Date }): Parsed
         const isUtc = val.endsWith("Z") && !params.TZID;
         cur.start = parseIcsDateTime(val, isUtc).local;
         cur.startIsUtc = isUtc;
+        // VALUE=DATE (or a bare YYYYYMMDD value) marks an all-day event.
+        cur.allDay =
+          (params.VALUE ?? "").toUpperCase() === "DATE" || /^\d{8}$/.test(val.trim());
         break;
       }
       case "DTEND":
@@ -432,6 +439,7 @@ export function parseIcs(ics: string, window?: { from: Date; to: Date }): Parsed
       organizer: r.organizer,
       meetLink: findMeetLink(r.meetLink, r.conference, r.description),
       status: r.status,
+      allDay: r.allDay,
     };
 
     if (!r.rrule || r.recurrenceId) {
