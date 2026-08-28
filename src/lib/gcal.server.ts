@@ -22,6 +22,7 @@ import {
   type ParsedEvent,
 } from "./gcal-core";
 import { aliasKeyFor, matchEvent, type AliasEntry, type MatchLog } from "./gcal-match";
+import { isValidDanceMasterclassClass } from "./class-eligibility";
 
 export type GcalSyncResult = {
   ok: boolean;
@@ -340,9 +341,19 @@ async function syncBusy(
 ): Promise<GcalSyncResult> {
   const opKey = displayName.toLowerCase();
 
+  let ignoredBusy = 0;
   const blocks: ClassEvent[] = events
-    .filter((e) => e.status !== "cancelled")
     .filter((e) => e.specific_date >= window.from && e.specific_date <= window.to)
+    .filter((e) => {
+      // Untitled busy blocks still have to look like a live class: no all-day
+      // blocks, and an exact 45 / 60 minute duration.
+      const verdict = isValidDanceMasterclassClass(e);
+      if (!verdict.valid) {
+        ignoredBusy++;
+        console.warn(`[gcal] Ignored event: "${e.summary || "(busy)"}" — reason: ${verdict.reason}`);
+      }
+      return verdict.valid;
+    })
     .map((e) => ({
       key: e.uid,
       date: e.specific_date,
@@ -370,7 +381,7 @@ async function syncBusy(
     ok: true,
     mode: "busy",
     fetched: grouped.reduce((n, g) => n + g.classCount, 0),
-    ignored: 0,
+    ignored: ignoredBusy,
     shifts: plans.length,
     removed,
   };
@@ -420,23 +431,31 @@ async function syncDetailed(
   const logs: MatchLog[] = [];
   let ignored = 0;
   for (const e of inWindow) {
-    if (e.status === "cancelled") {
+    // Title matching only supplies *evidence*; eligibility is decided by the
+    // single central gate so nothing else in the pipeline can widen it.
+    const matched =
+      e.status === "cancelled"
+        ? null
+        : matchEvent(e.summary, classDir, teacherDir, aliases);
+    const verdict = isValidDanceMasterclassClass(e, {
+      classId: matched?.result.classId ?? null,
+      teacherId: matched?.result.teacherId ?? null,
+    });
+
+    if (!verdict.valid) {
       ignored++;
+      console.warn(`[gcal] Ignored event: "${e.summary}" — reason: ${verdict.reason}`);
       logs.push({
         title: e.summary,
         accepted: false,
-        confidence: 0,
-        reason: "Event cancelled in Google Calendar",
+        confidence: matched?.log.confidence ?? 0,
+        reason: verdict.reason,
       });
       continue;
     }
-    const { result, log } = matchEvent(e.summary, classDir, teacherDir, aliases);
-    logs.push(log);
-    // Nothing is ever dropped: an event without a confident directory match is
-    // still a real calendar block, so it imports with its raw title and no ids.
-    // Only the metadata degrades — shift boundaries stay identical. The
-    // fallback text comes from matchEvent itself (not a second, independent
-    // splitter) so the class and teacher text always agree with each other.
+
+    const result = matched!.result;
+    logs.push({ ...matched!.log, accepted: true, reason: `${matched!.log.reason} · ${verdict.reason}` });
     imported.push({
       event: e,
       className: result.className ?? result.fallbackClassName,
@@ -444,7 +463,6 @@ async function syncDetailed(
       classId: result.classId,
       teacherId: result.teacherId,
     });
-
   }
 
 
