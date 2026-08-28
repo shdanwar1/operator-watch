@@ -942,7 +942,7 @@ export async function updateShiftClass(
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("calendar_classes")
-    .update(update)
+    .update(update as never)
     .eq("id", id)
     .select(CLASS_COLUMNS)
     .single();
