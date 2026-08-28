@@ -35,6 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ChevronLeft, ChevronRight, Trash2, Save, RefreshCw } from "lucide-react";
+import { ShiftOverviewDialog } from "@/components/ShiftOverviewDialog";
 import { toast, Toaster } from "sonner";
 
 export const Route = createFileRoute("/calendar")({
@@ -152,6 +153,8 @@ function CalendarPage() {
   const [loading, setLoading] = useState(!cachedCalendar);
   const [monthOffset, setMonthOffset] = useState(0);
   const [editor, setEditor] = useState<EditorState | null>(null);
+  // Clicking an existing shift opens the read-only overview first.
+  const [overview, setOverview] = useState<ScheduledShiftRow | null>(null);
   const [icsUrl, setIcsUrl] = useState<string | null>(null);
   const [debug, setDebug] = useState(false);
 
@@ -614,9 +617,7 @@ function CalendarPage() {
                               <button
                                 key={`${inst.shift.id}-${i}`}
                                 type="button"
-                                onClick={() =>
-                                  setEditor({ mode: "edit", date: day, instance: inst })
-                                }
+                                onClick={() => setOverview(inst.shift)}
                                 className={`press w-full rounded-lg border px-2 py-1 text-left text-[11px] leading-tight transition max-lg:rounded-[6px] max-lg:px-[2px] max-lg:py-[3px] ${tone}`}
                                 title={inst.shift.label ?? ""}
                               >
@@ -652,6 +653,12 @@ function CalendarPage() {
           </CardContent>
         </Card>
       )}
+
+      <ShiftOverviewDialog
+        shift={overview}
+        onClose={() => setOverview(null)}
+        onChanged={load}
+      />
 
       <ShiftEditorDialog
         state={editor}

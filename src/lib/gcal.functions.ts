@@ -236,3 +236,116 @@ export const checkMyCalendarHealth = createServerFn({ method: "GET" }).handler(
     return checkOperatorCalendar(username);
   },
 );
+
+/* ───────── Operator calendar: shift overview class management ───────── */
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+
+function normTime(v: unknown): string {
+  const s = String(v ?? "").slice(0, 8);
+  if (!TIME_RE.test(s)) throw new Error("Invalid time");
+  return s.length === 5 ? `${s}:00` : s;
+}
+
+function normDate(v: unknown): string {
+  const s = String(v ?? "");
+  if (!DATE_RE.test(s)) throw new Error("Invalid date");
+  return s;
+}
+
+/** Classes contained in one scheduled shift (same rows as the dashboard). */
+export const listMyShiftClasses = createServerFn({ method: "GET" })
+  .inputValidator((data: { shiftId: string }) => {
+    if (!data?.shiftId) throw new Error("shiftId required");
+    return { shiftId: String(data.shiftId) };
+  })
+  .handler(async ({ data }): Promise<CalendarClassRow[]> => {
+    const { username } = await requireOperator();
+    const { loadOperatorCalendar, listClassesForShift } = await import("./gcal.server");
+    const { displayName } = await loadOperatorCalendar(username);
+    return listClassesForShift(displayName, data.shiftId);
+  });
+
+export const addMyShiftClass = createServerFn({ method: "POST" })
+  .inputValidator(
+    (data: {
+      shiftId: string;
+      className: string;
+      teacherName?: string;
+      specificDate: string;
+      startTime: string;
+      endTime: string;
+    }) => {
+      if (!data?.shiftId) throw new Error("shiftId required");
+      const className = String(data.className ?? "").trim().slice(0, 200);
+      if (!className) throw new Error("Class name is required");
+      return {
+        shiftId: String(data.shiftId),
+        className,
+        teacherName: String(data.teacherName ?? "").trim().slice(0, 200),
+        specificDate: normDate(data.specificDate),
+        startTime: normTime(data.startTime),
+        endTime: normTime(data.endTime),
+      };
+    },
+  )
+  .handler(async ({ data }): Promise<CalendarClassRow> => {
+    const { username } = await requireOperator();
+    const { loadOperatorCalendar, addClassToShift } = await import("./gcal.server");
+    const { displayName } = await loadOperatorCalendar(username);
+    const { shiftId, ...input } = data;
+    return addClassToShift(displayName, shiftId, input);
+  });
+
+export const updateMyShiftClass = createServerFn({ method: "POST" })
+  .inputValidator(
+    (data: {
+      id: string;
+      className?: string;
+      teacherName?: string;
+      specificDate?: string;
+      startTime?: string;
+      endTime?: string;
+    }) => {
+      if (!data?.id) throw new Error("id required");
+      const patch: {
+        className?: string;
+        teacherName?: string;
+        specificDate?: string;
+        startTime?: string;
+        endTime?: string;
+      } = {};
+      if (data.className !== undefined) {
+        const c = String(data.className).trim().slice(0, 200);
+        if (!c) throw new Error("Class name is required");
+        patch.className = c;
+      }
+      if (data.teacherName !== undefined) {
+        patch.teacherName = String(data.teacherName).trim().slice(0, 200);
+      }
+      if (data.specificDate !== undefined) patch.specificDate = normDate(data.specificDate);
+      if (data.startTime !== undefined) patch.startTime = normTime(data.startTime);
+      if (data.endTime !== undefined) patch.endTime = normTime(data.endTime);
+      return { id: String(data.id), patch };
+    },
+  )
+  .handler(async ({ data }): Promise<CalendarClassRow> => {
+    const { username } = await requireOperator();
+    const { loadOperatorCalendar, updateShiftClass } = await import("./gcal.server");
+    const { displayName } = await loadOperatorCalendar(username);
+    return updateShiftClass(displayName, data.id, data.patch);
+  });
+
+export const removeMyShiftClass = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string }) => {
+    if (!data?.id) throw new Error("id required");
+    return { id: String(data.id) };
+  })
+  .handler(async ({ data }) => {
+    const { username } = await requireOperator();
+    const { loadOperatorCalendar, removeShiftClass } = await import("./gcal.server");
+    const { displayName } = await loadOperatorCalendar(username);
+    await removeShiftClass(displayName, data.id);
+    return { ok: true as const };
+  });

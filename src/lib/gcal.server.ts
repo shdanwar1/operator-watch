@@ -548,12 +548,19 @@ async function syncDetailed(
     .ilike("operator", displayName)
     .gte("specific_date", todayStr)
     .lte("specific_date", window.to);
+  // Manually added classes (uid prefix `manual:`) never came from the feed, so
+  // they are not "disappeared" calendar events and must survive a resync.
   const staleClassIds = (futureRows ?? [])
-    .filter((r) => !keepUids.has(r.uid as string))
+    .filter((r) => !keepUids.has(r.uid as string) && !String(r.uid).startsWith("manual:"))
     .map((r) => r.id as string);
   if (staleClassIds.length) {
     await supabaseAdmin.from("calendar_classes").delete().in("id", staleClassIds);
   }
+
+  // The shift label is derived from the current valid class count, including
+  // any manually added classes, so it can never go stale after a sync.
+  await refreshShiftLabels([...idByUid.values()]);
+
 
   return {
     ok: true,
@@ -728,4 +735,230 @@ export async function checkOperatorCalendar(username: string): Promise<CalendarH
   } catch (e) {
     return { connected: true, ok: false, error: e instanceof Error ? e.message : "Unreachable" };
   }
+}
+
+/* ─────────────── Operator shift overview: class management ─────────────── */
+
+const CLASS_COLUMNS =
+  "id, uid, class_id, teacher_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id";
+
+/**
+ * The shift label is derived data: it always states how many valid (non
+ * cancelled) classes the shift currently contains. This is the single place
+ * that computes it, used after sync and after any operator class edit.
+ */
+export async function refreshShiftLabels(shiftIds: string[]): Promise<void> {
+  const ids = [...new Set(shiftIds.filter(Boolean))];
+  if (!ids.length) return;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("calendar_classes")
+    .select("scheduled_shift_id, status")
+    .in("scheduled_shift_id", ids);
+  if (error) throw new Error(error.message);
+  const counts = new Map<string, number>(ids.map((id) => [id, 0]));
+  for (const row of data ?? []) {
+    const sid = row.scheduled_shift_id as string | null;
+    if (!sid || (row.status as string) === "cancelled") continue;
+    counts.set(sid, (counts.get(sid) ?? 0) + 1);
+  }
+  for (const id of ids) {
+    const n = counts.get(id) ?? 0;
+    if (n === 0) continue; // busy-mode / class-less shifts keep their own label
+    await supabaseAdmin
+      .from("scheduled_shifts")
+      .update({ label: n === 1 ? "1 class" : `${n} classes` })
+      .eq("id", id);
+  }
+}
+
+async function assertShiftOwnedBy(displayName: string, shiftId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("scheduled_shifts")
+    .select("id, assigned_operator, specific_date, start_time, end_time")
+    .eq("id", shiftId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Response("Shift not found", { status: 404 });
+  const owner = String((data as { assigned_operator: string | null }).assigned_operator ?? "");
+  if (owner.toLowerCase() !== displayName.toLowerCase()) {
+    throw new Response("Forbidden", { status: 403 });
+  }
+  return data as {
+    id: string;
+    assigned_operator: string | null;
+    specific_date: string;
+    start_time: string;
+    end_time: string;
+  };
+}
+
+async function assertClassOwnedBy(displayName: string, id: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("calendar_classes")
+    .select("id, operator, scheduled_shift_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Response("Class not found", { status: 404 });
+  if ((data.operator as string).toLowerCase() !== displayName.toLowerCase()) {
+    throw new Response("Forbidden", { status: 403 });
+  }
+  return data as { id: string; operator: string; scheduled_shift_id: string | null };
+}
+
+/** Classes belonging to one scheduled shift — the same rows the dashboard uses. */
+export async function listClassesForShift(
+  displayName: string,
+  shiftId: string,
+): Promise<CalendarClassRow[]> {
+  await assertShiftOwnedBy(displayName, shiftId);
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("calendar_classes")
+    .select(CLASS_COLUMNS)
+    .ilike("operator", displayName)
+    .eq("scheduled_shift_id", shiftId)
+    .order("specific_date")
+    .order("start_time");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CalendarClassRow[];
+}
+
+/**
+ * Resolves a typed teacher name against the existing teacher directory. A new
+ * name is recorded in that same directory so there is never a second list.
+ */
+async function resolveTeacher(name: string): Promise<{ id: string | null; name: string }> {
+  const clean = name.trim().slice(0, 200);
+  if (!clean) return { id: null, name: "—" };
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("teachers")
+    .select("id,name")
+    .ilike("name", clean)
+    .maybeSingle();
+  if (data) return { id: data.id as string, name: data.name as string };
+  await supabaseAdmin.rpc("bump_directory_usage", { p_table: "teachers", p_names: [clean] });
+  const { data: created } = await supabaseAdmin
+    .from("teachers")
+    .select("id,name")
+    .ilike("name", clean)
+    .maybeSingle();
+  return created
+    ? { id: created.id as string, name: created.name as string }
+    : { id: null, name: clean };
+}
+
+async function resolveClassName(name: string): Promise<{ id: string | null; name: string }> {
+  const clean = name.trim().slice(0, 200);
+  if (!clean) throw new Error("Class name is required");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("classes")
+    .select("id,name")
+    .ilike("name", clean)
+    .maybeSingle();
+  if (data) return { id: data.id as string, name: data.name as string };
+  await supabaseAdmin.rpc("bump_directory_usage", { p_table: "classes", p_names: [clean] });
+  const { data: created } = await supabaseAdmin
+    .from("classes")
+    .select("id,name")
+    .ilike("name", clean)
+    .maybeSingle();
+  return created
+    ? { id: created.id as string, name: created.name as string }
+    : { id: null, name: clean };
+}
+
+export type ShiftClassInput = {
+  className: string;
+  teacherName: string;
+  specificDate: string;
+  startTime: string;
+  endTime: string;
+};
+
+/** Adds a class to a scheduled shift and refreshes the derived shift label. */
+export async function addClassToShift(
+  displayName: string,
+  shiftId: string,
+  input: ShiftClassInput,
+): Promise<CalendarClassRow> {
+  await assertShiftOwnedBy(displayName, shiftId);
+  const [cls, tea] = await Promise.all([
+    resolveClassName(input.className),
+    resolveTeacher(input.teacherName),
+  ]);
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const uid = `manual:${crypto.randomUUID()}`;
+  const { data, error } = await supabaseAdmin
+    .from("calendar_classes")
+    .insert({
+      operator: displayName,
+      uid,
+      class_id: cls.id,
+      teacher_id: tea.id,
+      class_name: cls.name,
+      teacher_name: tea.name,
+      raw_title: null,
+      specific_date: input.specificDate,
+      start_time: input.startTime,
+      end_time: input.endTime,
+      status: "scheduled",
+      scheduled_shift_id: shiftId,
+    })
+    .select(CLASS_COLUMNS)
+    .single();
+  if (error) throw new Error(error.message);
+  await refreshShiftLabels([shiftId]);
+  return data as CalendarClassRow;
+}
+
+/** Operator edit of an existing class row (teacher, name, times). */
+export async function updateShiftClass(
+  displayName: string,
+  id: string,
+  patch: Partial<ShiftClassInput>,
+): Promise<CalendarClassRow> {
+  const existing = await assertClassOwnedBy(displayName, id);
+  const update: Record<string, unknown> = {};
+  if (patch.teacherName !== undefined) {
+    const tea = await resolveTeacher(patch.teacherName);
+    update.teacher_id = tea.id;
+    update.teacher_name = tea.name;
+  }
+  if (patch.className !== undefined) {
+    const cls = await resolveClassName(patch.className);
+    update.class_id = cls.id;
+    update.class_name = cls.name;
+  }
+  if (patch.specificDate !== undefined) update.specific_date = patch.specificDate;
+  if (patch.startTime !== undefined) update.start_time = patch.startTime;
+  if (patch.endTime !== undefined) update.end_time = patch.endTime;
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("calendar_classes")
+    .update(update as never)
+    .eq("id", id)
+    .select(CLASS_COLUMNS)
+    .single();
+  if (error) throw new Error(error.message);
+  if (existing.scheduled_shift_id) await refreshShiftLabels([existing.scheduled_shift_id]);
+  return data as CalendarClassRow;
+}
+
+/**
+ * Removes a class from the scheduled shift. Only the app's own row is deleted —
+ * the Google Calendar event itself is never touched.
+ */
+export async function removeShiftClass(displayName: string, id: string): Promise<void> {
+  const existing = await assertClassOwnedBy(displayName, id);
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error } = await supabaseAdmin.from("calendar_classes").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  if (existing.scheduled_shift_id) await refreshShiftLabels([existing.scheduled_shift_id]);
 }
