@@ -548,12 +548,19 @@ async function syncDetailed(
     .ilike("operator", displayName)
     .gte("specific_date", todayStr)
     .lte("specific_date", window.to);
+  // Manually added classes (uid prefix `manual:`) never came from the feed, so
+  // they are not "disappeared" calendar events and must survive a resync.
   const staleClassIds = (futureRows ?? [])
-    .filter((r) => !keepUids.has(r.uid as string))
+    .filter((r) => !keepUids.has(r.uid as string) && !String(r.uid).startsWith("manual:"))
     .map((r) => r.id as string);
   if (staleClassIds.length) {
     await supabaseAdmin.from("calendar_classes").delete().in("id", staleClassIds);
   }
+
+  // The shift label is derived from the current valid class count, including
+  // any manually added classes, so it can never go stale after a sync.
+  await refreshShiftLabels([...idByUid.values()]);
+
 
   return {
     ok: true,
