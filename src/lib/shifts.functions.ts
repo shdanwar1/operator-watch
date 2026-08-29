@@ -316,7 +316,7 @@ export const checkOutShift = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing, error: loadError } = await supabaseAdmin
       .from("shifts")
-      .select("id, operator_name, check_in_at, check_out_at")
+      .select("id, operator_name, check_in_at, check_out_at, scheduled_shift_id")
       .eq("id", data.id)
       .maybeSingle();
     if (loadError) throw new Error(loadError.message);
@@ -351,6 +351,19 @@ export const checkOutShift = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!closed) throw new Error("This shift is already checked out");
+
+    // Checkout is the authoritative completion event for a scheduled shift.
+    // Class rows stay untouched so admins keep full history.
+    const scheduledId = existing.scheduled_shift_id
+      ? String(existing.scheduled_shift_id)
+      : null;
+    if (scheduledId) {
+      await supabaseAdmin
+        .from("scheduled_shifts")
+        .update({ status: "completed" } as never)
+        .eq("id", scheduledId)
+        .neq("status", "cancelled");
+    }
 
     return { ok: true as const, check_out_at: now.toISOString() };
   });
