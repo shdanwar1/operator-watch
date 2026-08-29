@@ -352,6 +352,19 @@ export const checkOutShift = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!closed) throw new Error("This shift is already checked out");
 
+    // Checkout is the authoritative completion event for a scheduled shift.
+    // Class rows stay untouched so admins keep full history.
+    const scheduledId = existing.scheduled_shift_id
+      ? String(existing.scheduled_shift_id)
+      : null;
+    if (scheduledId) {
+      await supabaseAdmin
+        .from("scheduled_shifts")
+        .update({ status: "completed" } as never)
+        .eq("id", scheduledId)
+        .neq("status", "cancelled");
+    }
+
     return { ok: true as const, check_out_at: now.toISOString() };
   });
 
