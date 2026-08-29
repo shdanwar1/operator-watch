@@ -69,6 +69,9 @@ export function ShiftCard({ shift, onClick }: { shift: Assignment; onClick: () =
       <div className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
         {fmtTime12(shift.start_time)} – {fmtTime12(shift.end_time)}
       </div>
+      {completed && (
+        <div className="mt-0.5 truncate text-[10px] font-medium text-emerald-500">✓ Completed</div>
+      )}
       {shift.label && (
         <div className="mt-0.5 truncate text-[10px] text-muted-foreground">{shift.label}</div>
       )}
