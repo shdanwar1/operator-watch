@@ -316,7 +316,7 @@ export const checkOutShift = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing, error: loadError } = await supabaseAdmin
       .from("shifts")
-      .select("id, operator_name, check_in_at, check_out_at")
+      .select("id, operator_name, check_in_at, check_out_at, scheduled_shift_id")
       .eq("id", data.id)
       .maybeSingle();
     if (loadError) throw new Error(loadError.message);
