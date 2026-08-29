@@ -607,20 +607,20 @@ function CalendarPage() {
                             const hasLog = dayLogged.some(
                               (l) => l.scheduled_shift_id === inst.shift.id,
                             );
+                            // Completion is written on checkout; operators see
+                            // completed shifts as read-only history.
+                            const completed =
+                              (inst.shift.status ?? "").toLowerCase() === "completed";
                             const n = classCount(inst.shift.label);
-                            const tone = hasLog
-                              ? "border-done/40 bg-done/10"
-                              : past
-                                ? "border-border/60 bg-muted/50 text-muted-foreground"
-                                : "border-live/40 bg-live/10 hover:bg-live/20";
-                            return (
-                              <button
-                                key={`${inst.shift.id}-${i}`}
-                                type="button"
-                                onClick={() => setOverview(inst.shift)}
-                                className={`press w-full rounded-lg border px-2 py-1 text-left text-[11px] leading-tight transition max-lg:rounded-[6px] max-lg:px-[2px] max-lg:py-[3px] ${tone}`}
-                                title={inst.shift.label ?? ""}
-                              >
+                            const tone = completed
+                              ? "border-border/50 bg-muted/40 text-muted-foreground opacity-60"
+                              : hasLog
+                                ? "border-done/40 bg-done/10"
+                                : past
+                                  ? "border-border/60 bg-muted/50 text-muted-foreground"
+                                  : "border-live/40 bg-live/10 hover:bg-live/20";
+                            const body = (
+                              <>
                                 {/* Desktop: 12-hour range + class count/label */}
                                 <div className="hidden lg:block">
                                   <div className="truncate font-medium tabular-nums">
@@ -629,17 +629,41 @@ function CalendarPage() {
                                     {inst.shift.end_time <= inst.shift.start_time ? " (+1)" : ""}
                                   </div>
                                   <div className="truncate text-muted-foreground">
-                                    {n
-                                      ? `${n} ${n === 1 ? "class" : "classes"}`
-                                      : (inst.shift.label ?? "Shift")}
+                                    {completed
+                                      ? "✓ Completed"
+                                      : n
+                                        ? `${n} ${n === 1 ? "class" : "classes"}`
+                                        : (inst.shift.label ?? "Shift")}
                                   </div>
                                 </div>
 
                                 {/* Mobile: single-line 24-hour range only */}
                                 <div className="whitespace-nowrap text-center text-[7px] font-medium tabular-nums tracking-tight leading-none lg:hidden">
+                                  {completed ? "✓ " : ""}
                                   {formatTime24(inst.shift.start_time)}-
                                   {formatTime24(inst.shift.end_time)}
                                 </div>
+                              </>
+                            );
+                            const cls = `w-full rounded-lg border px-2 py-1 text-left text-[11px] leading-tight transition max-lg:rounded-[6px] max-lg:px-[2px] max-lg:py-[3px] ${tone}`;
+                            return completed ? (
+                              <div
+                                key={`${inst.shift.id}-${i}`}
+                                className={cls}
+                                aria-label="Completed shift"
+                                title="Completed"
+                              >
+                                {body}
+                              </div>
+                            ) : (
+                              <button
+                                key={`${inst.shift.id}-${i}`}
+                                type="button"
+                                onClick={() => setOverview(inst.shift)}
+                                className={`press ${cls}`}
+                                title={inst.shift.label ?? ""}
+                              >
+                                {body}
                               </button>
                             );
                           })}
