@@ -173,6 +173,15 @@ function dateKey(d: Date) {
   return `${y}-${m}-${day}`;
 }
 
+/** True when two timestamps fall on the same calendar day. */
+function sameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 function overrideDates(all: { specific_date: string | null }[]) {
   return new Set(all.map((s) => s.specific_date).filter((v): v is string => !!v));
 }
