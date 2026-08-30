@@ -448,18 +448,18 @@ function Index() {
   const openTarget = resolveCheckInTarget(scheduled, now);
   const openScheduled = openTarget?.segments[0] ?? null;
 
-  // Time to Leave shows for the entire runway up to the shift starting —
-  // not just the last hour — since sign-in itself is no longer gated to a
-  // narrow window either. It's still tied to having an actual upcoming
-  // scheduled shift; once that shift starts, there's nothing left to count
-  // down to and Check In (always available below) takes over.
-  // One state machine drives the Shift Card: travel from six hours out,
-  // check-in from one hour out, on-air once an attendance record is open.
-  const phase = shiftPhase({ now, next: nextDisplay, active: !!active });
-  const showTravel =
-    (phase === "leave" || phase === "check-in") &&
-    nextDisplay !== null &&
-    nextDisplay.startAt.getTime() > now.getTime();
+  // Daily-view priority: today's shift comes first, then tomorrow, then the
+  // next known shift. Time to Leave and the check-in fingerprint only surface
+  // for a shift that is today; everything else is read-only context.
+  const todayShift =
+    upcomingDisplay.find((s) => sameDay(s.startAt, now)) ?? null;
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowShift = todayShift
+    ? null
+    : (upcomingDisplay.find((s) => sameDay(s.startAt, tomorrow)) ?? null);
+  const nextShift = upcomingDisplay[0] ?? null;
+  const hasAnyScheduled = scheduled.length > 0;
 
   // Reminders are delivered by the server as background Web Push (see
   // /api/public/hooks/push-dispatch), so nothing fires from this page.
