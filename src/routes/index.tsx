@@ -57,7 +57,7 @@ import {
 } from "@/lib/gcal.functions";
 import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
-import { shiftPhase, phaseLabel, type ShiftPhase } from "@/lib/shift-phase";
+import { CHECK_IN_WINDOW_MS, LEAVE_WINDOW_MS } from "@/lib/shift-phase";
 import { StudioActivation } from "@/components/StudioActivation";
 import {
   buildDisplayShifts,
