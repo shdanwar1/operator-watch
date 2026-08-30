@@ -650,43 +650,28 @@ function Index() {
             reason="Complete your profile to enable Check In and Time to Leave."
             hero
           />
-        ) : (
-          <ShiftCard
-            phase={phase}
-            next={nextDisplay}
+        ) : todayShift ? (
+          <TodayShiftCard
+            shift={todayShift}
             now={now}
-            action={
-              <CheckInPanel
-                openScheduled={openScheduled}
-                openShift={openTarget}
-                nextShift={nextDisplay}
-                now={now}
-                onCheckIn={checkIn}
-                checkingIn={checkingIn}
-              />
-            }
-            detail={
-              showTravel && prefs.showTimeToLeave ? (
-                <TimeToLeaveCard
-                  username={username}
-                  scheduled={scheduled}
-                  now={now}
-                  homeLat={profileStatus?.home_lat ?? null}
-                  homeLng={profileStatus?.home_lng ?? null}
-                  variant="embedded"
-                  onDeparture={setDepartureIso}
-                />
-              ) : (
-                <UpcomingShifts
-                  shifts={upcomingDisplay}
-                  now={now}
-                  calendarClasses={calendarClasses}
-                  embedded
-                  limit={3}
-                />
-              )
-            }
+            openScheduled={openScheduled}
+            openShift={openTarget}
+            nextShift={nextDisplay}
+            checkingIn={checkingIn}
+            onCheckIn={checkIn}
+            showTravel={prefs.showTimeToLeave && !needsHome}
+            username={username}
+            scheduled={scheduled}
+            homeLat={profileStatus?.home_lat ?? null}
+            homeLng={profileStatus?.home_lng ?? null}
+            calendarClasses={calendarClasses}
           />
+        ) : tomorrowShift ? (
+          <NoShiftTodayCard shift={tomorrowShift} now={now} />
+        ) : nextShift ? (
+          <NoShiftSoonCard shift={nextShift} now={now} />
+        ) : (
+          <NoShiftsBookedCard hasScheduled={hasAnyScheduled} />
         )}
       </div>
 
