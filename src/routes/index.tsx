@@ -691,109 +691,147 @@ function Index() {
 
 
 /**
- * The Shift Card — the dashboard's single operational surface.
+ * Today's shift — the dashboard's primary card when a shift runs today.
  *
- * Fixed anatomy in every phase: a status strip, one primary action, and a
- * detail region. Only the content changes as the clock moves, so the operator
- * never has to re-orient.
+ * Shows the shift time and class count once, the Time to Leave plan (for every
+ * today shift, not just the leave window), and the check-in fingerprint.
  */
-function ShiftCard({
-  phase,
-  next,
+function TodayShiftCard({
+  shift,
   now,
-  action,
-  detail,
+  openScheduled,
+  openShift,
+  nextShift,
+  checkingIn,
+  onCheckIn,
+  showTravel,
+  username,
+  scheduled,
+  homeLat,
+  homeLng,
+  calendarClasses,
 }: {
-  phase: ShiftPhase;
-  next: DisplayShift | null;
+  shift: DisplayShift;
   now: Date;
-  action: React.ReactNode;
-  detail?: React.ReactNode;
+  openScheduled: ScheduledShift | null;
+  openShift: DisplayShift | null;
+  nextShift: DisplayShift | null;
+  checkingIn: boolean;
+  onCheckIn: () => void;
+  showTravel: boolean;
+  username: string | null;
+  scheduled: ScheduledShift[];
+  homeLat?: number | null;
+  homeLng?: number | null;
+  calendarClasses: CalendarClassRow[];
 }) {
-  const range = next ? formatShiftRange(next, now) : null;
-  const dot =
-    phase === "on-air" ? "bg-live" : phase === "check-in" ? "bg-primary" : "bg-muted-foreground";
+  const range = formatShiftRange(shift, now);
+  const classCount = classesForShift(calendarClasses, shift).length;
+  const untilStart = shift.startAt.getTime() - now.getTime();
+  const ongoing = untilStart <= 0;
+  const label =
+    ongoing || untilStart <= CHECK_IN_WINDOW_MS
+      ? "Ready to check in"
+      : untilStart <= LEAVE_WINDOW_MS
+        ? "Travel"
+        : "Today";
+  const dot = ongoing || untilStart <= CHECK_IN_WINDOW_MS ? "bg-primary" : "bg-muted-foreground";
   return (
     <Card className="rise-in overflow-hidden max-lg:glass max-lg:rounded-[22px]">
       <CardContent className="p-0">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
           <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             <span className={`status-dot ${dot}`} />
-            {phaseLabel(phase)}
+            {label}
           </span>
-          {range && (
-            <span className="text-[13px] tabular-nums text-muted-foreground">
-              {range.dayLabel} · {range.range}
-            </span>
-          )}
+          <span className="text-[13px] tabular-nums text-muted-foreground">
+            {range.dayLabel} · {range.range}
+            {classCount
+              ? ` · ${classCount} ${classCount === 1 ? "class" : "classes"}`
+              : ""}
+          </span>
         </div>
 
-        {action}
+        <CheckInPanel
+          openScheduled={openScheduled}
+          openShift={openShift}
+          nextShift={nextShift}
+          now={now}
+          onCheckIn={onCheckIn}
+          checkingIn={checkingIn}
+          hideShiftInfo
+        />
 
-        {detail && <div className="border-t border-border">{detail}</div>}
+        {showTravel ? (
+          <div className="border-t border-border">
+            <TimeToLeaveCard
+              username={username}
+              scheduled={scheduled}
+              now={now}
+              homeLat={homeLat}
+              homeLng={homeLng}
+              variant="embedded"
+            />
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
 }
 
-function UpcomingShifts({
-  shifts,
-  now,
-  calendarClasses = [],
-  embedded = false,
-  limit = 6,
-}: {
-  /** Rendered without its own card shell (inside the Shift Card). */
-  embedded?: boolean;
-  limit?: number;
-  /** Continuous (midnight-merged) shifts, already filtered to the future. */
-  shifts: DisplayShift[];
-  now: Date;
-  /** Used to show how many classes a continuous shift contains. */
-  calendarClasses?: CalendarClassRow[];
-}) {
-  const instances = shifts.slice(0, limit);
-  const body = (
-    <>
-
-        <SectionTitle title="Upcoming shifts" />
-        {instances.length === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">No upcoming shifts scheduled.</p>
-        ) : (
-          <ul className="mt-4 divide-y divide-border">
-            {instances.map((shift, i) => {
-              const { dayLabel, range } = formatShiftRange(shift, now);
-              const classCount = classesForShift(calendarClasses, shift).length;
-              const live =
-                now.getTime() >= shift.startAt.getTime() && now.getTime() < shift.endAt.getTime();
-              return (
-                <li
-                  key={`${shift.id}-${i}`}
-                  className="flex items-baseline justify-between gap-3 py-3 first:pt-0 last:pb-0"
-                >
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-medium">
-                      {dayLabel}
-                      {live && <span className="ml-2 text-[11px] text-live">In progress</span>}
-                    </div>
-                    <div className="mt-0.5 text-xs tabular-nums text-muted-foreground">{range}</div>
-                    {classCount > 0 && (
-                      <div className="mt-0.5 text-[11px] text-muted-foreground">
-                        {classCount} {classCount === 1 ? "class" : "classes"}
-                      </div>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-    </>
-  );
-  if (embedded) return <div className="px-5 py-5">{body}</div>;
+/** No shift today, but one tomorrow — show tomorrow's day + start/end only. */
+function NoShiftTodayCard({ shift, now }: { shift: DisplayShift; now: Date }) {
+  const range = formatShiftRange(shift, now);
   return (
     <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
-      <CardContent className="p-5">{body}</CardContent>
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          <span className="status-dot bg-muted-foreground" />
+          No shift today
+        </div>
+        <p className="mt-2 text-sm">
+          <span className="font-medium">{range.dayLabel}</span>
+          <span className="text-muted-foreground"> · {range.range}</span>
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** No shift today/tomorrow — show only the next shift's day or date. */
+function NoShiftSoonCard({ shift, now }: { shift: DisplayShift; now: Date }) {
+  const days = Math.round(
+    (startOfDay(shift.startAt).getTime() - startOfDay(now).getTime()) / 86_400_000,
+  );
+  const label =
+    days <= 7
+      ? shift.startAt.toLocaleDateString(undefined, { weekday: "long" })
+      : shift.startAt.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+  return (
+    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          <span className="status-dot bg-muted-foreground" />
+          No shift soon
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Next shift · <span className="font-medium text-foreground">{label}</span>
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** No shifts scheduled at all. */
+function NoShiftsBookedCard({ hasScheduled }: { hasScheduled: boolean }) {
+  return (
+    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
+      <CardContent className="flex flex-col items-center gap-2 px-5 py-10 text-center">
+        <Clock className="h-5 w-5 text-muted-foreground" />
+        <h2 className="text-sm font-medium tracking-tight">
+          {hasScheduled ? "No upcoming shifts" : "No shifts booked"}
+        </h2>
+      </CardContent>
     </Card>
   );
 }
