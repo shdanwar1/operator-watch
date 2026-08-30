@@ -311,7 +311,6 @@ function Index() {
   const [prefsLoaded, setPrefsLoaded] = useState(
     () => !!(prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)),
   );
-  const [departureIso, setDepartureIso] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     loadPrefs()
