@@ -809,6 +809,7 @@ function CheckInPanel({
   now,
   onCheckIn,
   checkingIn,
+  hideShiftInfo = false,
 }: {
   openScheduled: ScheduledShift | null;
   /** The resolved check-in target as a continuous (midnight-merged) shift. */
@@ -818,6 +819,8 @@ function CheckInPanel({
   now: Date;
   onCheckIn: () => void;
   checkingIn: boolean;
+  /** Hide the shift-context block — the parent card already shows it. */
+  hideShiftInfo?: boolean;
 }) {
   // Sign-in is available any time — an unexpected shift or covering for
   // someone shouldn't require a scheduled shift to exist first. When a
