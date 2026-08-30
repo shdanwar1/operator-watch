@@ -3,6 +3,8 @@ import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
 import { getGateStatus, signOutUser } from "@/lib/gate.functions";
+import { releasePushEndpoint } from "@/lib/push.functions";
+import { unsubscribeFromPush } from "@/lib/push-client";
 import { clearAllCaches } from "@/lib/local-cache";
 import {
   updateMyProfile,
@@ -288,6 +290,7 @@ function ChangeHomeDialog({
 function ProfilePage() {
   const router = useRouter();
   const signOut = useServerFn(signOutUser);
+  const releaseEndpoint = useServerFn(releasePushEndpoint);
 
   const {
     profile: initialProfile,
@@ -484,7 +487,15 @@ function ProfilePage() {
         type="button"
         onClick={async () => {
           clearAllCaches();
-    await signOut();
+          // Release the push endpoint so the next operator on this device
+          // doesn't inherit this session's reminders (matches sidebar logout).
+          try {
+            const endpoint = await unsubscribeFromPush();
+            if (endpoint) await releaseEndpoint({ data: { endpoint } });
+          } catch {
+            /* ignore — sign-out must proceed regardless */
+          }
+          await signOut();
           await router.navigate({ to: "/unlock" });
         }}
         className="press mt-4 w-full rounded-[18px] border border-border py-3.5 text-[15px] font-medium text-destructive glass lg:hidden"
