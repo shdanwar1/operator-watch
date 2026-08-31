@@ -145,9 +145,6 @@ function SitePasswordSection() {
       <CardContent className="flex items-center justify-between gap-4 p-5">
         <div>
           <div className="text-sm">Site password</div>
-          <p className="text-xs text-muted-foreground">
-            Unlocks the application. Separate from the admin PIN.
-          </p>
         </div>
         <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
           Change
