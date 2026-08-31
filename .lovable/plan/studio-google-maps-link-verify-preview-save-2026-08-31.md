@@ -6,10 +6,10 @@ Scope: only the Studio address card in Settings and the studio setting it writes
 
 1. Admin pastes a Google Maps link (short link, /place/ link, @lat,lng, ?q=lat,lng).
 2. Clicking **Verify** checks the link server-side. Nothing is saved yet.
-   - Invalid or unresolvable link: a small inline error under the input ("Could not verify that link…"), no write, existing studio address untouched.
-   - Success: a preview block appears — "Verified location" plus the resolved address (street + number, and postcode/city when the link carries it) and the place name.
+  - Invalid or unresolvable link: a small inline error under the input ("Could not verify that link…"), no write, existing studio address untouched.
+  - Success: a preview block appears — "Verified location" plus the resolved address (street + number, and postcode/city when the link carries it) and the place name.
 3. **Save studio** is enabled only after a successful verification and saves the verified result together with the original link. Editing the link again clears the preview and re-requires verification.
-4. The saved studio address is shown in the card next to the heading, so the admin sees what the current link resolves to.
+4. The saved studio address is shown in the card next to the heading, so the admin sees what the current link resolves to. Show the simplified address only, street name and street number, no need to show complete address with Post code and Berlin..
 
 ## Technical notes
 
@@ -23,4 +23,6 @@ Scope: only the Studio address card in Settings and the studio setting it writes
 ## Verification
 
 - Typecheck + build clean.
-- Manual: bad link shows inline error and leaves the saved studio untouched; a valid share link previews the address and saves it.
+- Manual: bad link shows inline error and leaves the saved studio untouched; a valid share link previews the address and saves it.  
+  
+  
