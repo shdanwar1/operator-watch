@@ -241,13 +241,8 @@ function StudioSection() {
   const fetchSettings = useServerFn(getAppSettings);
   const saveFn = useServerFn(adminUpdateStudioSetting);
   const { data } = useQuery({ queryKey: ["app-settings"], queryFn: () => fetchSettings() });
-  const [draft, setDraft] = useState<{ label: string; lat: string; lng: string } | null>(null);
-
-  const current = draft ?? {
-    label: data?.studio.label ?? "",
-    lat: String(data?.studio.lat ?? ""),
-    lng: String(data?.studio.lng ?? ""),
-  };
+  const [mapsUrl, setMapsUrl] = useState("");
+  const [saving, setSaving] = useState(false);
 
   return (
     <Card>
@@ -258,49 +253,45 @@ function StudioSection() {
             Used as the destination for every operator's “Time to leave” estimate.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
-          <div className="space-y-1.5">
-            <Label>Address</Label>
-            <Input
-              value={current.label}
-              onChange={(e) => setDraft({ ...current, label: e.target.value })}
-            />
+        {data && (
+          <div className="rounded-md border bg-muted/40 px-3 py-2">
+            <p className="text-sm font-medium">{data.studio.label}</p>
+            <p className="text-xs text-muted-foreground">
+              {data.studio.address ?? "No street address resolved yet"}
+            </p>
           </div>
-          <div className="space-y-1.5">
-            <Label>Latitude</Label>
-            <Input
-              value={current.lat}
-              onChange={(e) => setDraft({ ...current, lat: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Longitude</Label>
-            <Input
-              value={current.lng}
-              onChange={(e) => setDraft({ ...current, lng: e.target.value })}
-            />
-          </div>
+        )}
+        <div className="space-y-1.5">
+          <Label htmlFor="studio-maps-url">Google Maps link</Label>
+          <Input
+            id="studio-maps-url"
+            value={mapsUrl}
+            onChange={(e) => setMapsUrl(e.target.value)}
+            placeholder="https://maps.app.goo.gl/…"
+          />
+          <p className="text-xs text-muted-foreground">
+            Open the studio in Google Maps, tap Share, and paste the link. The address is
+            verified before anything is saved.
+          </p>
         </div>
         <Button
           size="sm"
+          disabled={saving || !mapsUrl.trim()}
           onClick={async () => {
+            setSaving(true);
             try {
-              await saveFn({
-                data: {
-                  label: current.label,
-                  lat: Number(current.lat),
-                  lng: Number(current.lng),
-                },
-              });
-              setDraft(null);
+              await saveFn({ data: { maps_url: mapsUrl } });
+              setMapsUrl("");
               qc.invalidateQueries({ queryKey: ["app-settings"] });
               toast.success("Studio address saved");
             } catch (e) {
               toast.error(e instanceof Error ? e.message : "Failed to save");
+            } finally {
+              setSaving(false);
             }
           }}
         >
-          Save studio
+          {saving ? "Verifying…" : "Save studio"}
         </Button>
       </CardContent>
     </Card>
