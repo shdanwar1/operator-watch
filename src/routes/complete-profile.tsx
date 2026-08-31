@@ -208,10 +208,6 @@ function CompleteProfile() {
               )}
             </div>
 
-            <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
-              <ShieldCheck className="h-3 w-3" />
-              Your information is stored securely and only used to power studio features.
-            </div>
           </CardContent>
         </Card>
       </div>
