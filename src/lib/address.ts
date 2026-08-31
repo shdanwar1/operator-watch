@@ -36,3 +36,21 @@ export function streetFromPlaceLabel(label: string): string | null {
   const street = parts.find((p) => /\d/.test(p) && !/^\d{3,6}(\s+\S.*)?$/.test(p));
   return street ?? null;
 }
+
+/**
+ * Full postal address from a Maps /place/ slug: street segment plus the
+ * postcode+city segment when the slug carries one ("Kaiserin-Augusta-Allee 10,
+ * 10553 Berlin"). Returns null when no street segment exists.
+ */
+export function fullAddressFromPlaceLabel(label: string): string | null {
+  const street = streetFromPlaceLabel(label);
+  if (!street) return null;
+  const parts = label
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const idx = parts.indexOf(street);
+  const rest = parts.slice(idx + 1);
+  return [street, ...rest].join(", ");
+}
+

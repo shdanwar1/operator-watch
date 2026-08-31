@@ -25,6 +25,7 @@ import {
   getAppSettings,
   adminUpdateCheckoutSetting,
   adminUpdateStudioSetting,
+  adminVerifyStudioMapsLink,
 } from "@/lib/settings.functions";
 import {
   adminCreateDirectoryItem,
@@ -233,48 +234,110 @@ function SitePasswordSection() {
 
 function StudioSection() {
   const qc = useQueryClient();
+  const fetchSettings = useServerFn(getAppSettings);
+  const verifyFn = useServerFn(adminVerifyStudioMapsLink);
   const saveFn = useServerFn(adminUpdateStudioSetting);
+  const { data } = useQuery({ queryKey: ["app-settings"], queryFn: () => fetchSettings() });
   const [mapsUrl, setMapsUrl] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [verified, setVerified] = useState<{ address: string; label: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const savedAddress = data?.studio.address ?? null;
 
   return (
     <Card>
       <CardContent className="space-y-4 p-5">
-        <div>
+        <div className="flex items-baseline justify-between gap-4">
           <h2 className="text-sm font-semibold tracking-tight">Studio address</h2>
+          {savedAddress && <span className="text-sm text-muted-foreground">{savedAddress}</span>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="studio-maps-url">Google Maps link</Label>
           <Input
             id="studio-maps-url"
             value={mapsUrl}
-            onChange={(e) => setMapsUrl(e.target.value)}
+            onChange={(e) => {
+              setMapsUrl(e.target.value);
+              setVerified(null);
+              setError(null);
+            }}
             placeholder="https://maps.app.goo.gl/…"
           />
+          {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
-        <Button
-          size="sm"
-          disabled={saving || !mapsUrl.trim()}
-          onClick={async () => {
-            setSaving(true);
-            try {
-              await saveFn({ data: { maps_url: mapsUrl } });
-              setMapsUrl("");
-              qc.invalidateQueries({ queryKey: ["app-settings"] });
-              toast.success("Studio address saved");
-            } catch (e) {
-              toast.error(e instanceof Error ? e.message : "Failed to save");
-            } finally {
-              setSaving(false);
-            }
-          }}
-        >
-          {saving ? "Verifying…" : "Save studio"}
-        </Button>
+
+        {verified && (
+          <div className="rounded-md border bg-muted/40 px-3 py-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Verified location
+            </div>
+            <div className="text-sm">{verified.address}</div>
+            {verified.label && verified.label !== verified.address && (
+              <div className="text-xs text-muted-foreground">{verified.label}</div>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy || !mapsUrl.trim() || !!verified}
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              try {
+                const res = await verifyFn({ data: { maps_url: mapsUrl } });
+                if (!res.ok) {
+                  setVerified(null);
+                  setError(res.message || "Could not verify that link");
+                  return;
+                }
+                const addr = res.full_address ?? res.address;
+                if (!addr) {
+                  setVerified(null);
+                  setError("Could not resolve an address from that link");
+                  return;
+                }
+                setVerified({ address: addr, label: res.label });
+              } catch (e) {
+                setVerified(null);
+                setError(e instanceof Error ? e.message : "Could not verify that link");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy && !verified ? "Verifying…" : "Verify"}
+          </Button>
+          <Button
+            size="sm"
+            disabled={busy || !verified}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await saveFn({ data: { maps_url: mapsUrl } });
+                setMapsUrl("");
+                setVerified(null);
+                setError(null);
+                qc.invalidateQueries({ queryKey: ["app-settings"] });
+                toast.success("Studio address saved");
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Failed to save");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Save studio
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
 }
+
 
 function CheckoutSection() {
   const qc = useQueryClient();
