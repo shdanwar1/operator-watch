@@ -233,9 +233,7 @@ function SitePasswordSection() {
 
 function StudioSection() {
   const qc = useQueryClient();
-  const fetchSettings = useServerFn(getAppSettings);
   const saveFn = useServerFn(adminUpdateStudioSetting);
-  const { data } = useQuery({ queryKey: ["app-settings"], queryFn: () => fetchSettings() });
   const [mapsUrl, setMapsUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -244,18 +242,7 @@ function StudioSection() {
       <CardContent className="space-y-4 p-5">
         <div>
           <h2 className="text-sm font-semibold tracking-tight">Studio address</h2>
-          <p className="text-xs text-muted-foreground">
-            Used as the destination for every operator's “Time to leave” estimate.
-          </p>
         </div>
-        {data && (
-          <div className="rounded-md border bg-muted/40 px-3 py-2">
-            <p className="text-sm font-medium">{data.studio.label}</p>
-            <p className="text-xs text-muted-foreground">
-              {data.studio.address ?? "No street address resolved yet"}
-            </p>
-          </div>
-        )}
         <div className="space-y-1.5">
           <Label htmlFor="studio-maps-url">Google Maps link</Label>
           <Input
@@ -264,10 +251,6 @@ function StudioSection() {
             onChange={(e) => setMapsUrl(e.target.value)}
             placeholder="https://maps.app.goo.gl/…"
           />
-          <p className="text-xs text-muted-foreground">
-            Open the studio in Google Maps, tap Share, and paste the link. The address is
-            verified before anything is saved.
-          </p>
         </div>
         <Button
           size="sm"
