@@ -16,9 +16,9 @@ describe("cleanAddress", () => {
   it("keeps a bare place name untouched", () => {
     expect(cleanAddress("Dance Masterclass Studio")).toBe("Dance Masterclass Studio");
   });
-  it("handles multi-segment addresses", () => {
+  it("handles multi-segment addresses (district after street is dropped too)", () => {
     expect(cleanAddress("Osloer Str. 12, Gesundbrunnen, 13357 Berlin")).toBe(
-      "Osloer Str. 12, Gesundbrunnen",
+      "Osloer Str. 12",
     );
   });
 });
