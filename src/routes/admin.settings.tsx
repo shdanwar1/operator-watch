@@ -58,7 +58,6 @@ function SectionLabel({ children }: { children: string }) {
 }
 
 function AdminSettings() {
-  const { username } = Route.useLoaderData();
   return (
     <div className="space-y-8">
       <header>
@@ -67,7 +66,7 @@ function AdminSettings() {
 
       <section className="space-y-2">
         <SectionLabel>Account</SectionLabel>
-        <AccountSection username={username} />
+        <AccountSection />
       </section>
 
       <section className="space-y-2">
@@ -76,8 +75,12 @@ function AdminSettings() {
       </section>
 
       <section className="space-y-2">
-        <SectionLabel>System</SectionLabel>
+        <SectionLabel>Studio</SectionLabel>
         <StudioSection />
+      </section>
+
+      <section className="space-y-2">
+        <SectionLabel>System</SectionLabel>
         <CheckoutSection />
         <div className="grid gap-6 lg:grid-cols-2">
           <DirectorySection table="classes" title="Classes" />
