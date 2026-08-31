@@ -35,6 +35,10 @@ export type StudioSetting = {
   label: string;
   /** Street + house number shown in the journey timeline (no postcode/city). */
   address: string | null;
+  /** Verified full postal address (street, postcode, city) when known. */
+  full_address: string | null;
+  /** Original Google Maps link, kept for navigation. */
+  maps_url: string | null;
   lat: number;
   lng: number;
 };
@@ -45,6 +49,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   studio: {
     label: "Dance Masterclass Studio",
     address: "Kaiserin-Augusta-Allee 10",
+    full_address: "Kaiserin-Augusta-Allee 10, 10553 Berlin",
+    maps_url: null,
     lat: 52.5263162,
     lng: 13.3229399,
   },
@@ -70,6 +76,14 @@ export async function readAppSettings(): Promise<AppSettings> {
             : r.value.address === null
               ? null
               : String(r.value.address),
+        full_address:
+          r.value.full_address === undefined || r.value.full_address === null
+            ? out.studio.full_address
+            : String(r.value.full_address),
+        maps_url:
+          r.value.maps_url === undefined || r.value.maps_url === null
+            ? out.studio.maps_url
+            : String(r.value.maps_url),
         lat: Number(r.value.lat ?? out.studio.lat),
         lng: Number(r.value.lng ?? out.studio.lng),
       };
@@ -123,9 +137,40 @@ export const adminUpdateStudioSetting = createServerFn({ method: "POST" })
     const value = {
       label: place.label,
       address: place.address,
+      full_address: place.fullAddress ?? place.address,
+      maps_url: data.maps_url,
       lat: place.lat,
       lng: place.lng,
     };
     await writeSetting("studio", value);
     return { ok: true as const, ...value };
+  });
+
+/**
+ * Verifies a Google Maps link without writing anything, so the admin can
+ * preview the resolved address before saving.
+ */
+export const adminVerifyStudioMapsLink = createServerFn({ method: "POST" })
+  .inputValidator((data: { maps_url: string }) => ({
+    maps_url: String(data?.maps_url ?? "").trim(),
+  }))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    try {
+      const { resolveGoogleMapsUrl } = await import("./maps-link.server");
+      const place = await resolveGoogleMapsUrl(data.maps_url, "Studio");
+      return {
+        ok: true as const,
+        label: place.label,
+        address: place.address,
+        full_address: place.fullAddress ?? place.address,
+        lat: place.lat,
+        lng: place.lng,
+      };
+    } catch (e) {
+      return {
+        ok: false as const,
+        message: e instanceof Error ? e.message : "Could not verify that link",
+      };
+    }
   });
