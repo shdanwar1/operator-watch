@@ -1,12 +1,14 @@
 import { validateMapsUrl } from "./validation";
 import { followRedirectsSafely } from "./safe-fetch.server";
-import { streetFromPlaceLabel } from "./address";
+import { streetFromPlaceLabel, fullAddressFromPlaceLabel } from "./address";
 
 export type ResolvedMapsPlace = {
   /** Place name from the link's /place/ slug (or the fallback label). */
   label: string;
   /** Street + house number derived from the slug, when present. */
   address: string | null;
+  /** Street + postcode/city when the slug carries them. */
+  fullAddress: string | null;
   lat: number;
   lng: number;
 };
@@ -59,5 +61,11 @@ export async function resolveGoogleMapsUrl(
       /* keep default */
     }
   }
-  return { label, address: streetFromPlaceLabel(label), lat: coords.lat, lng: coords.lng };
+  return {
+    label,
+    address: streetFromPlaceLabel(label),
+    fullAddress: fullAddressFromPlaceLabel(label),
+    lat: coords.lat,
+    lng: coords.lng,
+  };
 }
