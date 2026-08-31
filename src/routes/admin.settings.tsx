@@ -92,20 +92,15 @@ function AdminSettings() {
   );
 }
 
-function AccountSection({ username }: { username: string }) {
+function AccountSection() {
   const changeOwnPin = useServerFn(adminChangeOwnPin);
   const [open, setOpen] = useState(false);
   return (
     <Card>
       <CardContent className="divide-y divide-border p-0">
         <div className="flex items-center justify-between gap-4 px-5 py-4">
-          <span className="text-sm">Username</span>
-          <span className="text-sm text-muted-foreground">{username}</span>
-        </div>
-        <div className="flex items-center justify-between gap-4 px-5 py-4">
           <div>
             <div className="text-sm">Admin PIN</div>
-            <p className="text-xs text-muted-foreground">Never displayed. Stored hashed.</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="tracking-[0.4em] text-muted-foreground">••••</span>
