@@ -58,7 +58,6 @@ function SectionLabel({ children }: { children: string }) {
 }
 
 function AdminSettings() {
-  const { username } = Route.useLoaderData();
   return (
     <div className="space-y-8">
       <header>
@@ -67,7 +66,7 @@ function AdminSettings() {
 
       <section className="space-y-2">
         <SectionLabel>Account</SectionLabel>
-        <AccountSection username={username} />
+        <AccountSection />
       </section>
 
       <section className="space-y-2">
@@ -76,8 +75,12 @@ function AdminSettings() {
       </section>
 
       <section className="space-y-2">
-        <SectionLabel>System</SectionLabel>
+        <SectionLabel>Studio</SectionLabel>
         <StudioSection />
+      </section>
+
+      <section className="space-y-2">
+        <SectionLabel>System</SectionLabel>
         <CheckoutSection />
         <div className="grid gap-6 lg:grid-cols-2">
           <DirectorySection table="classes" title="Classes" />
@@ -89,20 +92,15 @@ function AdminSettings() {
   );
 }
 
-function AccountSection({ username }: { username: string }) {
+function AccountSection() {
   const changeOwnPin = useServerFn(adminChangeOwnPin);
   const [open, setOpen] = useState(false);
   return (
     <Card>
       <CardContent className="divide-y divide-border p-0">
         <div className="flex items-center justify-between gap-4 px-5 py-4">
-          <span className="text-sm">Username</span>
-          <span className="text-sm text-muted-foreground">{username}</span>
-        </div>
-        <div className="flex items-center justify-between gap-4 px-5 py-4">
           <div>
             <div className="text-sm">Admin PIN</div>
-            <p className="text-xs text-muted-foreground">Never displayed. Stored hashed.</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="tracking-[0.4em] text-muted-foreground">••••</span>
@@ -147,9 +145,6 @@ function SitePasswordSection() {
       <CardContent className="flex items-center justify-between gap-4 p-5">
         <div>
           <div className="text-sm">Site password</div>
-          <p className="text-xs text-muted-foreground">
-            Unlocks the application. Separate from the admin PIN.
-          </p>
         </div>
         <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
           Change
@@ -238,9 +233,7 @@ function SitePasswordSection() {
 
 function StudioSection() {
   const qc = useQueryClient();
-  const fetchSettings = useServerFn(getAppSettings);
   const saveFn = useServerFn(adminUpdateStudioSetting);
-  const { data } = useQuery({ queryKey: ["app-settings"], queryFn: () => fetchSettings() });
   const [mapsUrl, setMapsUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -249,18 +242,7 @@ function StudioSection() {
       <CardContent className="space-y-4 p-5">
         <div>
           <h2 className="text-sm font-semibold tracking-tight">Studio address</h2>
-          <p className="text-xs text-muted-foreground">
-            Used as the destination for every operator's “Time to leave” estimate.
-          </p>
         </div>
-        {data && (
-          <div className="rounded-md border bg-muted/40 px-3 py-2">
-            <p className="text-sm font-medium">{data.studio.label}</p>
-            <p className="text-xs text-muted-foreground">
-              {data.studio.address ?? "No street address resolved yet"}
-            </p>
-          </div>
-        )}
         <div className="space-y-1.5">
           <Label htmlFor="studio-maps-url">Google Maps link</Label>
           <Input
@@ -269,10 +251,6 @@ function StudioSection() {
             onChange={(e) => setMapsUrl(e.target.value)}
             placeholder="https://maps.app.goo.gl/…"
           />
-          <p className="text-xs text-muted-foreground">
-            Open the studio in Google Maps, tap Share, and paste the link. The address is
-            verified before anything is saved.
-          </p>
         </div>
         <Button
           size="sm"
