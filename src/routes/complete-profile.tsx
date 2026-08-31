@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
 import { IcsHelpButton } from "@/components/IcsHelpButton";
 
-import { Home, CalendarDays, Info, Save, ArrowRight, ShieldCheck, User } from "lucide-react";
+import { Home, CalendarDays, Save, ArrowRight, User } from "lucide-react";
 
 export const Route = createFileRoute("/complete-profile")({
   beforeLoad: async () => {
@@ -123,21 +123,9 @@ function CompleteProfile() {
                 {allDone ? "You're all set" : "Complete your profile"}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                {allDone
-                  ? "Your profile is complete. Head to the dashboard."
-                  : "We need a few details to unlock travel time, check-in, and calendar features."}
+                {allDone ? "Your profile is complete. Head to the dashboard." : "Set up your details to get started."}
               </p>
             </div>
-
-            {!allDone && (
-              <div className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <div>
-                  You can skip for now and continue with limited access. You'll be
-                  reminded on your dashboard.
-                </div>
-              </div>
-            )}
 
             {needsHome && (
               <div className="space-y-2 rounded-xl border border-border/60 p-4">
@@ -147,20 +135,13 @@ function CompleteProfile() {
                     Home address <span className="text-destructive">*</span>
                   </h2>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Used to calculate your travel time to the studio so we can tell you exactly
-                  when to leave for every shift.
-                </p>
                 <Input
-                  placeholder="https://maps.app.goo.gl/..."
+                  placeholder="Google Maps link"
                   value={mapsUrl}
                   onChange={(e) => setMapsUrl(e.target.value)}
                   autoCapitalize="none"
                   autoCorrect="off"
                 />
-                <p className="text-[11px] text-muted-foreground">
-                  Open your home in Google Maps → Share → Copy link, then paste it here.
-                </p>
               </div>
             )}
 
@@ -173,13 +154,8 @@ function CompleteProfile() {
                   </h2>
                   <IcsHelpButton />
                 </div>
-
-                <p className="text-xs text-muted-foreground">
-                  Used to show your Time to Leave, prevent shift conflicts, and enable Check In
-                  when you're available.
-                </p>
                 <Input
-                  placeholder="https://calendar.google.com/calendar/..."
+                  placeholder="Google Calendar URL"
                   value={calUrl}
                   onChange={(e) => setCalUrl(e.target.value)}
                   autoCapitalize="none"
@@ -232,10 +208,6 @@ function CompleteProfile() {
               )}
             </div>
 
-            <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
-              <ShieldCheck className="h-3 w-3" />
-              Your information is stored securely and only used to power studio features.
-            </div>
           </CardContent>
         </Card>
       </div>
