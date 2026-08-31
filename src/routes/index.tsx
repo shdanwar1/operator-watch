@@ -21,7 +21,8 @@ import {
 import { ARRIVAL_BUFFER_MIN } from "@/lib/travel.functions";
 import { useTravelPlan } from "@/hooks/useTravelPlan";
 import { type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
-import { modeLabel, type DirectPlan, type JourneyPlan } from "@/lib/journey-plan";
+import { type DirectPlan, type JourneyPlan } from "@/lib/journey-plan";
+import { cleanAddress } from "@/lib/address";
 
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { clearAllCaches, operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
@@ -1409,12 +1410,17 @@ function TimeToLeaveCard({
   // the old address must never be reused after it moves, so its coordinates
   // are part of the plan identity.
   const loadSettings = useServerFn(getAppSettings);
-  const [studio, setStudio] = useState<{ lat: number; lng: number } | null>(null);
+  const [studio, setStudio] = useState<{
+    lat: number;
+    lng: number;
+    address: string | null;
+  } | null>(null);
   useEffect(() => {
     let alive = true;
     loadSettings()
       .then((s) => {
-        if (alive) setStudio({ lat: s.studio.lat, lng: s.studio.lng });
+        if (alive)
+          setStudio({ lat: s.studio.lat, lng: s.studio.lng, address: s.studio.address });
       })
       .catch(() => undefined);
     return () => {
@@ -1552,7 +1558,10 @@ function TimeToLeaveCard({
           <div className="overflow-hidden">
             <div className="border-t border-border">
               {snapshot ? (
-                <TimeToLeaveDetails snapshot={snapshot} />
+                <TimeToLeaveDetails
+                  snapshot={snapshot}
+                  studioAddress={studio?.address ?? null}
+                />
               ) : (
                 <div className="space-y-3 px-5 py-5 sm:px-6">
                   {reason === "no_home" ? (
@@ -1635,7 +1644,7 @@ function SectionShell({
   total,
   children,
 }: {
-  title: string;
+  title?: string;
   badge?: string;
   total: number;
   children: React.ReactNode;
@@ -1643,9 +1652,11 @@ function SectionShell({
   return (
     <section className="rounded-2xl border border-border bg-muted/20 p-4">
       <header className="flex items-center gap-2">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          {title}
-        </h3>
+        {title ? (
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            {title}
+          </h3>
+        ) : null}
         {badge ? (
           <span className="rounded-md bg-primary/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
             {badge}
