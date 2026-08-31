@@ -21,7 +21,8 @@ import {
 import { ARRIVAL_BUFFER_MIN } from "@/lib/travel.functions";
 import { useTravelPlan } from "@/hooks/useTravelPlan";
 import { type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
-import { modeLabel, type DirectPlan, type JourneyPlan } from "@/lib/journey-plan";
+import { type DirectPlan, type JourneyPlan } from "@/lib/journey-plan";
+import { cleanAddress } from "@/lib/address";
 
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { clearAllCaches, operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
@@ -1409,12 +1410,17 @@ function TimeToLeaveCard({
   // the old address must never be reused after it moves, so its coordinates
   // are part of the plan identity.
   const loadSettings = useServerFn(getAppSettings);
-  const [studio, setStudio] = useState<{ lat: number; lng: number } | null>(null);
+  const [studio, setStudio] = useState<{
+    lat: number;
+    lng: number;
+    address: string | null;
+  } | null>(null);
   useEffect(() => {
     let alive = true;
     loadSettings()
       .then((s) => {
-        if (alive) setStudio({ lat: s.studio.lat, lng: s.studio.lng });
+        if (alive)
+          setStudio({ lat: s.studio.lat, lng: s.studio.lng, address: s.studio.address });
       })
       .catch(() => undefined);
     return () => {
@@ -1552,7 +1558,10 @@ function TimeToLeaveCard({
           <div className="overflow-hidden">
             <div className="border-t border-border">
               {snapshot ? (
-                <TimeToLeaveDetails snapshot={snapshot} />
+                <TimeToLeaveDetails
+                  snapshot={snapshot}
+                  studioAddress={studio?.address ?? null}
+                />
               ) : (
                 <div className="space-y-3 px-5 py-5 sm:px-6">
                   {reason === "no_home" ? (
@@ -1635,7 +1644,7 @@ function SectionShell({
   total,
   children,
 }: {
-  title: string;
+  title?: string;
   badge?: string;
   total: number;
   children: React.ReactNode;
@@ -1643,9 +1652,11 @@ function SectionShell({
   return (
     <section className="rounded-2xl border border-border bg-muted/20 p-4">
       <header className="flex items-center gap-2">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          {title}
-        </h3>
+        {title ? (
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            {title}
+          </h3>
+        ) : null}
         {badge ? (
           <span className="rounded-md bg-primary/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
             {badge}
@@ -1756,6 +1767,85 @@ function Endpoint({
   );
 }
 
+type TimelineRow = {
+  mode: string;
+  line: string;
+  departure_iso: string;
+  from_stop: string;
+  to_stop: string;
+  minutes: number;
+  note: string | null;
+};
+
+/**
+ * Shared vertical journey timeline — Home → walk → transit legs → Studio.
+ * Used by the Best Option and every Direct Option so they can never drift
+ * apart visually.
+ */
+function JourneyTimeline({
+  leaveIso,
+  arriveIso,
+  homeAddress,
+  studioAddress,
+  leadNote,
+  rows,
+}: {
+  leaveIso: string;
+  arriveIso: string;
+  homeAddress?: string | null;
+  studioAddress?: string | null;
+  leadNote: string | null;
+  rows: TimelineRow[];
+}) {
+  return (
+    <div>
+      <StepRow marker={<EndpointMarker />}>
+        <div className="text-xs text-muted-foreground tabular-nums">
+          {fmtHM(new Date(leaveIso))}
+        </div>
+        <div className="text-sm">
+          <span className="font-semibold">Home</span>
+          {homeAddress ? (
+            <span className="text-muted-foreground"> · {homeAddress}</span>
+          ) : null}
+        </div>
+        {leadNote ? (
+          <div className="mt-0.5 text-sm text-muted-foreground">{leadNote}</div>
+        ) : null}
+      </StepRow>
+
+      {rows.map((row, i) => (
+        <StepRow key={i} marker={<ModeMarker mode={row.mode} />}>
+          <div className="text-xs text-muted-foreground tabular-nums">
+            {fmtHM(new Date(row.departure_iso))}
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <LineLabel line={row.line} />
+              <span className="min-w-0 truncate text-sm font-semibold">
+                {cleanStop(row.from_stop)} → {cleanStop(row.to_stop)}
+              </span>
+            </div>
+            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+              {row.minutes} min
+            </span>
+          </div>
+          {row.note ? (
+            <div className="mt-0.5 text-sm text-muted-foreground">{row.note}</div>
+          ) : null}
+        </StepRow>
+      ))}
+
+      <Endpoint
+        time={fmtHM(new Date(arriveIso))}
+        label="Studio"
+        address={studioAddress}
+        last
+      />
+    </div>
+  );
+}
+
 function BestOptionSection({
   plan,
   alsoDirect,
@@ -1774,80 +1864,74 @@ function BestOptionSection({
       badge={alsoDirect ? "Fastest · direct" : "Fastest"}
       total={plan.total_minutes}
     >
-      <div>
-        <StepRow marker={<EndpointMarker />}>
-          <div className="text-xs text-muted-foreground tabular-nums">
-            {fmtHM(new Date(plan.leave_iso))}
-          </div>
-          <div className="text-sm">
-            <span className="font-semibold">Home</span>
-            {homeAddress ? <span className="text-muted-foreground"> · {homeAddress}</span> : null}
-          </div>
-          {leadNote ? (
-            <div className="mt-0.5 text-sm text-muted-foreground">{leadNote}</div>
-          ) : null}
-        </StepRow>
-
-        {rows.map(({ leg, note }, i) => (
-          <StepRow key={i} marker={<ModeMarker mode={leg.mode} />}>
-            <div className="text-xs text-muted-foreground tabular-nums">
-              {fmtHM(new Date(leg.departure_iso))}
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <LineLabel line={leg.line} />
-                <span className="min-w-0 truncate text-sm font-semibold">
-                  {cleanStop(leg.from_stop)} → {cleanStop(leg.to_stop)}
-                </span>
-              </div>
-              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                {leg.minutes} min
-              </span>
-            </div>
-            {note ? <div className="mt-0.5 text-sm text-muted-foreground">{note}</div> : null}
-          </StepRow>
-        ))}
-
-
-        <Endpoint
-          time={fmtHM(new Date(plan.arrive_iso))}
-          label="Studio"
-          address={studioAddress}
-          last
-        />
-      </div>
+      <JourneyTimeline
+        leaveIso={plan.leave_iso}
+        arriveIso={plan.arrive_iso}
+        homeAddress={homeAddress}
+        studioAddress={studioAddress}
+        leadNote={leadNote}
+        rows={rows.map(({ leg, note }) => ({
+          mode: leg.mode,
+          line: leg.line,
+          departure_iso: leg.departure_iso,
+          from_stop: leg.from_stop,
+          to_stop: leg.to_stop,
+          minutes: leg.minutes,
+          note,
+        }))}
+      />
     </SectionShell>
   );
 }
 
-function DirectOptionSection({ title, route }: { title: string; route: DirectPlan }) {
+function DirectOptionSection({
+  route,
+  homeAddress,
+  studioAddress,
+}: {
+  route: DirectPlan;
+  homeAddress?: string | null;
+  studioAddress?: string | null;
+}) {
   return (
-    <SectionShell title={title} total={route.total_minutes}>
-      <div className="flex items-start gap-3">
-        <ModeMarker mode={route.mode} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-sm">
-            <LineLabel line={route.line} />
-            <span className="min-w-0 truncate font-medium">
-              {cleanStop(route.from_stop)} → {cleanStop(route.to_stop)}
-            </span>
-          </div>
-          <div className="text-sm text-muted-foreground tabular-nums">
-            {fmtHM(new Date(route.departure_iso))}–{fmtHM(new Date(route.arrival_iso))}
-          </div>
-
-          <div className="mt-0.5 text-sm text-muted-foreground tabular-nums">
-            {route.walk_to_minutes} min walk · {modeLabel(route.mode).toLowerCase()}{" "}
-            {route.ride_minutes} min · {route.walk_from_minutes} min walk — leave{" "}
-            {fmtHM(new Date(route.leave_iso))}, arrive {fmtHM(new Date(route.arrive_iso))}
-          </div>
-        </div>
-      </div>
+    <SectionShell total={route.total_minutes}>
+      <JourneyTimeline
+        leaveIso={route.leave_iso}
+        arriveIso={route.arrive_iso}
+        homeAddress={homeAddress}
+        studioAddress={studioAddress}
+        leadNote={
+          route.walk_to_minutes > 0
+            ? `${route.walk_to_minutes} min walk to ${cleanStop(route.from_stop)}`
+            : null
+        }
+        rows={[
+          {
+            mode: route.mode,
+            line: route.line,
+            departure_iso: route.departure_iso,
+            from_stop: route.from_stop,
+            to_stop: route.to_stop,
+            minutes: route.ride_minutes,
+            note:
+              route.walk_from_minutes > 0
+                ? `${route.walk_from_minutes} min walk to studio`
+                : null,
+          },
+        ]}
+      />
     </SectionShell>
   );
 }
 
-function TimeToLeaveDetails({ snapshot }: { snapshot: TimeToLeaveSnapshot }) {
+function TimeToLeaveDetails({
+  snapshot,
+  studioAddress,
+}: {
+  snapshot: TimeToLeaveSnapshot;
+  /** Resolved street address from the studio settings (street + number only). */
+  studioAddress?: string | null;
+}) {
   const best = snapshot.best;
   const bestLine = best.legs.find((l): l is TransitLeg => l.kind === "transit") ?? null;
 
@@ -1859,12 +1943,10 @@ function TimeToLeaveDetails({ snapshot }: { snapshot: TimeToLeaveSnapshot }) {
 
   const homeAddress =
     snapshot.home_label && snapshot.home_label.trim().toLowerCase() !== "home"
-      ? snapshot.home_label.trim()
+      ? cleanAddress(snapshot.home_label.trim())
       : null;
-  const studioAddress =
-    snapshot.office_label && snapshot.office_label.trim().toLowerCase() !== "studio"
-      ? snapshot.office_label.trim()
-      : null;
+  // Never the studio name or postcode/city — only a verified street address.
+  const studioAddr = studioAddress ?? null;
 
   return (
     <div className="space-y-3 px-4 py-4 sm:px-6 sm:py-5">
@@ -1872,10 +1954,23 @@ function TimeToLeaveDetails({ snapshot }: { snapshot: TimeToLeaveSnapshot }) {
         plan={best}
         alsoDirect={alsoDirect}
         homeAddress={homeAddress}
-        studioAddress={studioAddress}
+        studioAddress={studioAddr}
       />
-      {directs[0] ? <DirectOptionSection title="Direct option 1" route={directs[0]} /> : null}
-      {directs[1] ? <DirectOptionSection title="Direct option 2" route={directs[1]} /> : null}
+      {directs.length > 0 ? (
+        <div className="space-y-3">
+          <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Direct options
+          </h3>
+          {directs.map((r) => (
+            <DirectOptionSection
+              key={`${r.line}-${r.departure_iso}`}
+              route={r}
+              homeAddress={homeAddress}
+              studioAddress={studioAddr}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

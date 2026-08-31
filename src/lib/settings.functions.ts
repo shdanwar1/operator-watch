@@ -31,12 +31,23 @@ async function requireAdmin() {
   return s;
 }
 
-export type StudioSetting = { label: string; lat: number; lng: number };
+export type StudioSetting = {
+  label: string;
+  /** Street + house number shown in the journey timeline (no postcode/city). */
+  address: string | null;
+  lat: number;
+  lng: number;
+};
 export type CheckoutSetting = { message: string; enabled: boolean };
 export type AppSettings = { studio: StudioSetting; checkout: CheckoutSetting };
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  studio: { label: "Dance Masterclass Studio", lat: 52.5263162, lng: 13.3229399 },
+  studio: {
+    label: "Dance Masterclass Studio",
+    address: "Kaiserin-Augusta-Allee 10",
+    lat: 52.5263162,
+    lng: 13.3229399,
+  },
   checkout: { message: "Did you turn the security camera back ON?", enabled: true },
 };
 
@@ -53,6 +64,12 @@ export async function readAppSettings(): Promise<AppSettings> {
     if (r.key === "studio" && r.value) {
       out.studio = {
         label: String(r.value.label ?? out.studio.label),
+        address:
+          r.value.address === undefined
+            ? out.studio.address
+            : r.value.address === null
+              ? null
+              : String(r.value.address),
         lat: Number(r.value.lat ?? out.studio.lat),
         lng: Number(r.value.lng ?? out.studio.lng),
       };
@@ -94,15 +111,21 @@ export const adminUpdateCheckoutSetting = createServerFn({ method: "POST" })
   });
 
 export const adminUpdateStudioSetting = createServerFn({ method: "POST" })
-  .inputValidator((data: { label: string; lat: number; lng: number }) => {
-    const lat = Number(data?.lat);
-    const lng = Number(data?.lng);
-    if (!Number.isFinite(lat) || lat < -90 || lat > 90) throw new Error("Invalid latitude");
-    if (!Number.isFinite(lng) || lng < -180 || lng > 180) throw new Error("Invalid longitude");
-    return { label: String(data?.label ?? "").trim().slice(0, 200) || "Studio", lat, lng };
-  })
+  .inputValidator((data: { maps_url: string }) => ({
+    maps_url: String(data?.maps_url ?? "").trim(),
+  }))
   .handler(async ({ data }) => {
     await requireAdmin();
-    await writeSetting("studio", data);
-    return { ok: true as const };
+    // Verify + resolve the link before anything is written — an
+    // unverifiable link throws here and the stored studio stays untouched.
+    const { resolveGoogleMapsUrl } = await import("./maps-link.server");
+    const place = await resolveGoogleMapsUrl(data.maps_url, "Studio");
+    const value = {
+      label: place.label,
+      address: place.address,
+      lat: place.lat,
+      lng: place.lng,
+    };
+    await writeSetting("studio", value);
+    return { ok: true as const, ...value };
   });
