@@ -164,21 +164,8 @@ export function StudioDisplayPanel({
 
   if (!ready) return null;
 
-  const tempDuration = tempActive ? temporaryClassDurationMin(tempActive) : 0;
-  const tempDefault = tempActive ? defaultPresetIdFor(tempDuration) : "custom";
-  const tempInterval = tempActive ? temporaryClassInterval(tempActive) : null;
 
-  const classOpts = tempActive
-    ? {
-        className: tempActive.className,
-        teacherName: tempActive.teacherName,
-        classId: tempActive.classId,
-        startTime: tempActive.startTime,
-        description: `${tempActive.className}${
-          tempActive.teacherName ? ` — ${tempActive.teacherName}` : ""
-        }`,
-      }
-    : {};
+
 
   return (
     <div className="space-y-6">
