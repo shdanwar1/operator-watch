@@ -37,6 +37,9 @@ export const DEFAULT_STUDIO_DISPLAY_STATE: StudioDisplayState = {
   timerMode: "next",
   className: "",
   teacherName: "",
+  presetLabel: "",
+  active: false,
+  classId: "",
   updatedAt: 0,
 };
 
