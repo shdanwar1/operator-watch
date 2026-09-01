@@ -29,7 +29,7 @@ const NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: bo
 /** Desktop sidebar: the four primary destinations plus Studio Display. */
 const SIDEBAR_NAV = [
   ...NAV,
-  { label: "Studio Display", to: "/studio-display", icon: Monitor },
+  { label: "Display", to: "/studio-display", icon: Monitor },
 ];
 
 /** Mobile tab bar: the four primary destinations plus Profile. Studio Display
