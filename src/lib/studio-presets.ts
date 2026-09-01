@@ -14,43 +14,12 @@ export type StudioConfig = {
   teacherName?: string;
   /** calendar_classes row id, when launched from a specific class. */
   classId?: string;
-};
-
-export type StudioPreset = {
-  id: string;
-  name: string;
-  durationMin: number;
-  notes?: string;
+  /** "Workout" / "Ballet" — shown on the active display control card. */
+  presetLabel?: string;
 };
 
 export const WORKOUT_MIN = 45;
 export const BALLET_MIN = 60;
-
-export const BUILTIN_PRESETS: StudioPreset[] = [
-  { id: "workout", name: "Workout", durationMin: WORKOUT_MIN },
-  { id: "ballet", name: "Ballet", durationMin: BALLET_MIN },
-];
-
-export function coercePresets(value: unknown): StudioPreset[] {
-  if (!Array.isArray(value)) return [];
-  const out: StudioPreset[] = [];
-  for (const raw of value) {
-    if (!raw || typeof raw !== "object") continue;
-    const p = raw as Record<string, unknown>;
-    const name = typeof p.name === "string" ? p.name.trim() : "";
-    if (!name) continue;
-    const dur = Number(p.durationMin);
-    out.push({
-      id: typeof p.id === "string" && p.id ? p.id : `${name}-${out.length}`,
-      name: name.slice(0, 40),
-      durationMin: Number.isFinite(dur)
-        ? Math.max(MIN_DURATION_MIN, Math.round(dur))
-        : BALLET_MIN,
-      notes: typeof p.notes === "string" ? p.notes.slice(0, 500) : "",
-    });
-  }
-  return out.slice(0, 30);
-}
 
 /** Round-trip a class from Shift Overview into the Studio Display page URL. */
 export type TemporaryClass = {
