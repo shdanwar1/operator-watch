@@ -294,6 +294,42 @@ function DisplayScreen() {
 }
 
 /**
+ * Only rendered when the display was opened inside the app (no popup window to
+ * close). Fades out so the teacher-facing screen stays clean, and comes back on
+ * any tap.
+ */
+function ExitDisplayControl() {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    let t = window.setTimeout(() => setVisible(false), 4000);
+    const wake = () => {
+      setVisible(true);
+      window.clearTimeout(t);
+      t = window.setTimeout(() => setVisible(false), 4000);
+    };
+    window.addEventListener("pointerdown", wake);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("pointerdown", wake);
+    };
+  }, []);
+
+  return (
+    <Link
+      to="/studio-display"
+      search={{}}
+      aria-label="Back to Studio Display"
+      className={`absolute left-3 top-3 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-black/25 backdrop-blur-sm transition-opacity duration-500 ${
+        visible ? "opacity-100" : "opacity-0"
+      }`}
+      style={{ marginTop: "env(safe-area-inset-top)" }}
+    >
+      <ChevronLeft className="h-5 w-5" />
+    </Link>
+  );
+}
+
+/**
  * Paints the browser chrome (title bar / status bar / overscroll) with the
  * current stage colour so the window frame never lags behind the screen.
  */
