@@ -141,7 +141,9 @@ export function resolveClassStart(
 
 /** Full start/end datetimes of the resolved class occurrence. */
 export function resolveClassInterval(
-  state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode">,
+  state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode"> & {
+    classDate?: string;
+  },
   ref: Date = new Date(),
 ) {
   const startAt = resolveClassStart(state, ref);
@@ -151,7 +153,9 @@ export function resolveClassInterval(
 
 /** Notes are editable only while the class is actually running. */
 export function notesEditable(
-  state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode">,
+  state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode"> & {
+    classDate?: string;
+  },
   ref: Date = new Date(),
 ): boolean {
   const { startAt, endAt } = resolveClassInterval(state, ref);
