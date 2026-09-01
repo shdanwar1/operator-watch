@@ -56,6 +56,29 @@ export function StudioDisplayPanel({
     if (temporaryClass && !tempActive) onDismissTemporary?.();
   }, [temporaryClass, tempActive, onDismissTemporary]);
 
+  // A class arriving from Shift Overview becomes the one active session right
+  // away — no popup, no re-entering class data. Adopted once per class id so
+  // ending the session doesn't immediately restart it.
+  const adoptedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ready || !tempActive) return;
+    if (adoptedRef.current === tempActive.classId) return;
+    adoptedRef.current = tempActive.classId;
+    update({
+      startTime: tempActive.startTime,
+      durationMin: temporaryClassDurationMin(tempActive),
+      notes: "",
+      className: tempActive.className,
+      teacherName: tempActive.teacherName,
+      classId: tempActive.classId,
+      classDate: tempActive.date,
+      endTime: tempActive.endTime,
+      presetLabel: "",
+      active: true,
+      timerMode: "next",
+    });
+  }, [ready, tempActive, update]);
+
   /** Focuses the one display window, or opens it when it isn't there. */
   const focusOrOpen = useCallback(
     (config: {
@@ -99,6 +122,8 @@ export function StudioDisplayPanel({
         className: config.className ?? "",
         teacherName: config.teacherName ?? "",
         classId: config.classId ?? "",
+        classDate: "",
+        endTime: "",
         presetLabel: config.presetLabel ?? "",
         active: true,
         timerMode: "next",
@@ -172,71 +197,6 @@ export function StudioDisplayPanel({
           }
           onEndSession={() => update({ active: false })}
         />
-      )}
-
-      {tempActive && tempInterval && (
-        <Card className="border-2 border-dashed border-primary/40 bg-primary/[0.03]">
-          <CardContent className="space-y-3 p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-base font-semibold tracking-tight">
-                  {tempActive.className || "Class"}
-                  {tempActive.teacherName ? ` — ${tempActive.teacherName}` : ""}
-                </h3>
-                <p className="mt-1 text-sm tabular-nums text-muted-foreground">
-                  {fmtClock(tempActive.startTime)} – {fmtClock(tempActive.endTime)} ·{" "}
-                  {tempDuration} min
-                </p>
-              </div>
-              {onDismissTemporary && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground"
-                  aria-label="Dismiss temporary class"
-                  onClick={onDismissTemporary}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={tempDefault === "workout" ? "default" : "outline"}
-                size="sm"
-                className="rounded-full"
-                onClick={() =>
-                  openPresetDialog({
-                    title: "Workout",
-                    durationMin: WORKOUT_MIN,
-                    ...classOpts,
-                  })
-                }
-              >
-                Workout
-              </Button>
-              <Button
-                variant={tempDefault === "ballet" ? "default" : "outline"}
-                size="sm"
-                className="rounded-full"
-                onClick={() =>
-                  openPresetDialog({
-                    title: "Ballet",
-                    durationMin: BALLET_MIN,
-                    ...classOpts,
-                  })
-                }
-              >
-                Ballet
-              </Button>
-            </div>
-
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              Temporary class · expires after {fmtClock(tempActive.endTime)}
-            </p>
-          </CardContent>
-        </Card>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
