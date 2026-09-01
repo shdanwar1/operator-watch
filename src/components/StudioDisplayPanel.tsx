@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dumbbell, Monitor, Settings2, Sparkles, Trash2, X } from "lucide-react";
+import { Dumbbell, Sparkles, X } from "lucide-react";
 import { useStudioDisplay } from "@/hooks/useStudioDisplay";
 import { buildClassDisplayUrl } from "@/lib/studio-display";
 import {
@@ -14,18 +12,15 @@ import {
   temporaryClassExpired,
   temporaryClassInterval,
   type StudioConfig,
-  type StudioPreset,
   type TemporaryClass,
 } from "@/lib/studio-presets";
 import { StudioConfigDialog } from "@/components/studio/StudioConfigDialog";
-import { getMyPrefs, setMyPrefs, type OperatorPrefs } from "@/lib/prefs.functions";
+import { ActiveDisplayCard } from "@/components/studio/ActiveDisplayCard";
 import { fmtClock } from "@/lib/class-interval";
 
 type DialogState = {
   title: string;
   description?: string;
-  editableDuration: boolean;
-  allowSavePreset: boolean;
   initial: StudioConfig;
 } | null;
 
@@ -42,26 +37,15 @@ export function StudioDisplayPanel({
   onDismissTemporary?: () => void;
 }) {
   const { state, update, ready } = useStudioDisplay("control");
-  const fetchPrefs = useServerFn(getMyPrefs);
-  const savePrefs = useServerFn(setMyPrefs);
-  const [prefs, setPrefs] = useState<OperatorPrefs | null>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [, force] = useState(0);
   const displayWinRef = useRef<Window | null>(null);
-
-  useEffect(() => {
-    fetchPrefs()
-      .then(setPrefs)
-      .catch(() => setPrefs(null));
-  }, [fetchPrefs]);
 
   // Drives temporary-card expiry without a second timer engine.
   useEffect(() => {
     const t = setInterval(() => force((n) => n + 1), 15_000);
     return () => clearInterval(t);
   }, []);
-
-  const presets = prefs?.studioPresets ?? [];
 
   const tempActive = useMemo(() => {
     if (!temporaryClass) return null;
@@ -72,6 +56,40 @@ export function StudioDisplayPanel({
     if (temporaryClass && !tempActive) onDismissTemporary?.();
   }, [temporaryClass, tempActive, onDismissTemporary]);
 
+  /** Focuses the one display window, or opens it when it isn't there. */
+  const focusOrOpen = useCallback(
+    (config: {
+      startTime: string;
+      durationMin: number;
+      className?: string;
+      teacherName?: string;
+      classId?: string;
+    }) => {
+      const existing = displayWinRef.current;
+      if (existing && !existing.closed) {
+        existing.focus();
+        return;
+      }
+      const url =
+        config.className || config.teacherName
+          ? buildClassDisplayUrl({
+              id: config.classId || undefined,
+              className: config.className ?? "",
+              teacherName: config.teacherName ?? "",
+              startTime: config.startTime,
+              durationMin: config.durationMin,
+            })
+          : "/display";
+      // One physical display → one named window, reused on every launch.
+      const win = window.open(url, "studio-display", "popup,width=1280,height=800");
+      if (win) {
+        displayWinRef.current = win;
+        win.focus();
+      }
+    },
+    [],
+  );
+
   const openDisplay = useCallback(
     (config: StudioConfig) => {
       update({
@@ -80,78 +98,31 @@ export function StudioDisplayPanel({
         notes: config.notes,
         className: config.className ?? "",
         teacherName: config.teacherName ?? "",
+        classId: config.classId ?? "",
+        presetLabel: config.presetLabel ?? "",
+        active: true,
         timerMode: "next",
       });
-      const url =
-        config.className || config.teacherName
-          ? buildClassDisplayUrl({
-              id: config.classId,
-              className: config.className ?? "",
-              teacherName: config.teacherName ?? "",
-              startTime: config.startTime,
-              durationMin: config.durationMin,
-            })
-          : "/display";
-      const name = config.classId ? `studio-display-${config.classId}` : "studio-display";
-      const win = window.open(url, name, "popup,width=1280,height=800");
-      if (win) displayWinRef.current = win;
+      focusOrOpen(config);
       setDialog(null);
     },
-    [update],
-  );
-
-  const persistPresets = useCallback(
-    async (next: StudioPreset[]) => {
-      const base: OperatorPrefs = { ...(prefs as OperatorPrefs), studioPresets: next };
-      setPrefs(base);
-      try {
-        const saved = await savePrefs({ data: base });
-        setPrefs(saved);
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not save preset");
-      }
-    },
-    [prefs, savePrefs],
-  );
-
-  const savePreset = useCallback(
-    async (name: string, config: StudioConfig) => {
-      if (!prefs) return;
-      const next: StudioPreset[] = [
-        ...presets,
-        {
-          id: `p-${Date.now()}`,
-          name,
-          durationMin: config.durationMin,
-          notes: config.notes,
-        },
-      ];
-      await persistPresets(next);
-      toast.success(`Preset "${name}" saved`);
-    },
-    [prefs, presets, persistPresets],
+    [update, focusOrOpen],
   );
 
   const openPresetDialog = useCallback(
-    (
-      opts: {
-        title: string;
-        durationMin: number;
-        editableDuration: boolean;
-        allowSavePreset?: boolean;
-        notes?: string;
-        startTime?: string;
-        className?: string;
-        teacherName?: string;
-        classId?: string;
-        description?: string;
-      },
-    ) => {
+    (opts: {
+      title: string;
+      durationMin: number;
+      notes?: string;
+      startTime?: string;
+      className?: string;
+      teacherName?: string;
+      classId?: string;
+      description?: string;
+    }) => {
       setDialog({
         title: opts.title,
         description: opts.description,
-        editableDuration: opts.editableDuration,
-        allowSavePreset: opts.allowSavePreset ?? false,
         initial: {
           startTime: opts.startTime ?? state.startTime ?? nowClock(),
           durationMin: opts.durationMin,
@@ -159,6 +130,7 @@ export function StudioDisplayPanel({
           className: opts.className,
           teacherName: opts.teacherName,
           classId: opts.classId,
+          presetLabel: opts.title,
         },
       });
     },
@@ -185,6 +157,23 @@ export function StudioDisplayPanel({
 
   return (
     <div className="space-y-6">
+      {state.active && (
+        <ActiveDisplayCard
+          state={state}
+          onNotesChange={(notes) => update({ notes })}
+          onOpenDisplay={() =>
+            focusOrOpen({
+              startTime: state.startTime,
+              durationMin: state.durationMin,
+              className: state.className,
+              teacherName: state.teacherName,
+              classId: state.classId,
+            })
+          }
+          onEndSession={() => update({ active: false })}
+        />
+      )}
+
       {tempActive && tempInterval && (
         <Card className="border-2 border-dashed border-primary/40 bg-primary/[0.03]">
           <CardContent className="space-y-3 p-5">
@@ -221,7 +210,6 @@ export function StudioDisplayPanel({
                   openPresetDialog({
                     title: "Workout",
                     durationMin: WORKOUT_MIN,
-                    editableDuration: false,
                     ...classOpts,
                   })
                 }
@@ -236,28 +224,11 @@ export function StudioDisplayPanel({
                   openPresetDialog({
                     title: "Ballet",
                     durationMin: BALLET_MIN,
-                    editableDuration: false,
                     ...classOpts,
                   })
                 }
               >
                 Ballet
-              </Button>
-              <Button
-                variant={tempDefault === "custom" ? "default" : "outline"}
-                size="sm"
-                className="rounded-full"
-                onClick={() =>
-                  openPresetDialog({
-                    title: "Customize",
-                    durationMin: tempDuration,
-                    editableDuration: true,
-                    allowSavePreset: true,
-                    ...classOpts,
-                  })
-                }
-              >
-                Customize
               </Button>
             </div>
 
@@ -268,76 +239,19 @@ export function StudioDisplayPanel({
         </Card>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <PresetCard
           icon={<Dumbbell className="h-5 w-5" />}
           title="Workout"
           subtitle="45 minutes"
-          onClick={() =>
-            openPresetDialog({ title: "Workout", durationMin: WORKOUT_MIN, editableDuration: false })
-          }
+          onClick={() => openPresetDialog({ title: "Workout", durationMin: WORKOUT_MIN })}
         />
         <PresetCard
           icon={<Sparkles className="h-5 w-5" />}
           title="Ballet"
           subtitle="60 minutes"
-          onClick={() =>
-            openPresetDialog({ title: "Ballet", durationMin: BALLET_MIN, editableDuration: false })
-          }
+          onClick={() => openPresetDialog({ title: "Ballet", durationMin: BALLET_MIN })}
         />
-        <PresetCard
-          icon={<Settings2 className="h-5 w-5" />}
-          title="Customize"
-          subtitle="Choose duration"
-          onClick={() =>
-            openPresetDialog({
-              title: "Customize",
-              durationMin: state.durationMin || BALLET_MIN,
-              editableDuration: true,
-              allowSavePreset: true,
-              notes: "",
-            })
-          }
-        />
-      </div>
-
-      <div className="space-y-3">
-        <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          My presets
-        </h2>
-        {presets.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Saved presets from Customize appear here.
-          </p>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
-            {presets.map((p) => (
-              <div key={p.id} className="group relative">
-                <PresetCard
-                  icon={<Monitor className="h-5 w-5" />}
-                  title={p.name}
-                  subtitle={`${p.durationMin} minutes`}
-                  onClick={() =>
-                    openPresetDialog({
-                      title: p.name,
-                      durationMin: p.durationMin,
-                      editableDuration: true,
-                      notes: p.notes ?? "",
-                    })
-                  }
-                />
-                <button
-                  type="button"
-                  aria-label={`Delete preset ${p.name}`}
-                  className="absolute right-2 top-2 rounded-full p-1.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
-                  onClick={() => persistPresets(presets.filter((x) => x.id !== p.id))}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {dialog && (
@@ -346,11 +260,8 @@ export function StudioDisplayPanel({
           onOpenChange={(o) => !o && setDialog(null)}
           title={dialog.title}
           description={dialog.description}
-          editableDuration={dialog.editableDuration}
-          allowSavePreset={dialog.allowSavePreset}
           initial={dialog.initial}
           onOpenDisplay={openDisplay}
-          onSavePreset={savePreset}
         />
       )}
     </div>

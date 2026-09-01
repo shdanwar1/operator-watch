@@ -13,6 +13,12 @@ export type StudioDisplayState = {
   /** Optional class context (Detailed calendar mode). */
   className?: string;
   teacherName?: string;
+  /** Which preset launched the session ("Workout" / "Ballet"). */
+  presetLabel?: string;
+  /** True while a Studio Display session is live — drives the control card. */
+  active?: boolean;
+  /** calendar_classes row id when launched from a specific class. */
+  classId?: string;
   updatedAt: number;
 };
 
@@ -31,6 +37,9 @@ export const DEFAULT_STUDIO_DISPLAY_STATE: StudioDisplayState = {
   timerMode: "next",
   className: "",
   teacherName: "",
+  presetLabel: "",
+  active: false,
+  classId: "",
   updatedAt: 0,
 };
 

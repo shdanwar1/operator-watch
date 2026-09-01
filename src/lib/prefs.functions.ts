@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
-import { coercePresets, type StudioPreset } from "@/lib/studio-presets";
 
 /**
  * Per-operator preferences. These live on the operator row so they follow the
@@ -40,8 +39,6 @@ export type OperatorPrefs = {
   notifyShiftStart: boolean;
   /** Show the "Time to leave" card on the dashboard. */
   showTimeToLeave: boolean;
-  /** Operator-specific saved Studio Display presets. */
-  studioPresets: StudioPreset[];
 };
 
 export const DEFAULT_PREFS: OperatorPrefs = {
@@ -50,7 +47,6 @@ export const DEFAULT_PREFS: OperatorPrefs = {
   notifyTimeToLeave: true,
   notifyShiftStart: true,
   showTimeToLeave: true,
-  studioPresets: [],
 };
 
 function coerce(value: unknown): OperatorPrefs {
@@ -66,7 +62,6 @@ function coerce(value: unknown): OperatorPrefs {
     notifyTimeToLeave: pick("notifyTimeToLeave"),
     notifyShiftStart: pick("notifyShiftStart"),
     showTimeToLeave: pick("showTimeToLeave"),
-    studioPresets: coercePresets(v.studioPresets),
   };
 }
 
