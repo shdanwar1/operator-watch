@@ -69,6 +69,20 @@ export function buildClassDisplayUrl(input: {
 }
 
 
+/**
+ * True when a popup window would leave the app (installed web app on iOS) or
+ * simply isn't a usable surface (touch devices). In those cases the display is
+ * opened in the same window instead of a second browser window.
+ */
+export function prefersInAppDisplay(): boolean {
+  if (typeof window === "undefined") return false;
+  const standalone =
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+  const coarse = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+  return Boolean(standalone || coarse);
+}
+
 export function readStudioDisplayState(): StudioDisplayState {
   if (typeof window === "undefined") return DEFAULT_STUDIO_DISPLAY_STATE;
   try {
