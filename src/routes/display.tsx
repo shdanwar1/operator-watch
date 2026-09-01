@@ -234,6 +234,7 @@ function DisplayScreen() {
     <>
       <SurfaceChrome color={stage.bgColor} />
     <div ref={ref} className={`fixed inset-0 overflow-hidden ${textClass}`}>
+      {showBack && <ExitDisplayControl />}
 
       <div
         aria-hidden
