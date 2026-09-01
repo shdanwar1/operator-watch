@@ -19,6 +19,10 @@ export type StudioDisplayState = {
   active?: boolean;
   /** calendar_classes row id when launched from a specific class. */
   classId?: string;
+  /** Real class date "YYYY-MM-DD" — pins overnight classes to the exact day. */
+  classDate?: string;
+  /** Class end clock time "HH:MM", shown on the control card. */
+  endTime?: string;
   updatedAt: number;
 };
 
@@ -40,6 +44,8 @@ export const DEFAULT_STUDIO_DISPLAY_STATE: StudioDisplayState = {
   presetLabel: "",
   active: false,
   classId: "",
+  classDate: "",
+  endTime: "",
   updatedAt: 0,
 };
 
