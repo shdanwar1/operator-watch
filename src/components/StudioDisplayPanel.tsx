@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dumbbell, Sparkles } from "lucide-react";
 import { useStudioDisplay } from "@/hooks/useStudioDisplay";
-import { buildClassDisplayUrl } from "@/lib/studio-display";
+import { buildClassDisplayUrl, prefersInAppDisplay } from "@/lib/studio-display";
 import {
   BALLET_MIN,
   WORKOUT_MIN,
