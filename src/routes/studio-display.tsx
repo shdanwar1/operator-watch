@@ -65,7 +65,7 @@ function StudioDisplaySettingsPage() {
     <AppShell>
       {supported ? (
         <div>
-          <PageHeader eyebrow="Teacher-facing screen" title="Studio Display" />
+          <PageHeader title="Studio Display" />
           <StudioDisplayPanel
             temporaryClass={temporaryClass}
             onDismissTemporary={() =>

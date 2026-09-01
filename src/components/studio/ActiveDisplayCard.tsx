@@ -65,9 +65,7 @@ export function ActiveDisplayCard({
             className="w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
           />
           <p className="text-[11px] text-muted-foreground">
-            {canEditNotes
-              ? "Changes appear on the display instantly."
-              : "Notes can be edited while the class is running."}
+            {canEditNotes ? "" : "Notes can be edited while the class is running."}
           </p>
         </div>
 
