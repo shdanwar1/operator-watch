@@ -19,6 +19,10 @@ export type StudioDisplayState = {
   active?: boolean;
   /** calendar_classes row id when launched from a specific class. */
   classId?: string;
+  /** Real class date "YYYY-MM-DD" — pins overnight classes to the exact day. */
+  classDate?: string;
+  /** Class end clock time "HH:MM", shown on the control card. */
+  endTime?: string;
   updatedAt: number;
 };
 
@@ -40,6 +44,8 @@ export const DEFAULT_STUDIO_DISPLAY_STATE: StudioDisplayState = {
   presetLabel: "",
   active: false,
   classId: "",
+  classDate: "",
+  endTime: "",
   updatedAt: 0,
 };
 
@@ -100,11 +106,22 @@ export function resolveStartAt(startTime: string, ref: Date = new Date()): Date 
  * "running" (legacy timerMode) still pins the class to today's occurrence.
  */
 export function resolveClassStart(
-  state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode">,
+  state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode"> & {
+    classDate?: string;
+  },
   ref: Date = new Date(),
 ): Date {
+  // A class launched from the calendar carries its real date, so the exact
+  // occurrence is known and no clock-only guessing is needed.
+  if (state.classDate && /^\d{4}-\d{2}-\d{2}$/.test(state.classDate)) {
+    const [y, m, d] = state.classDate.split("-").map(Number);
+    const [h, mi] = state.startTime.split(":").map((n) => parseInt(n, 10));
+    return new Date(y, (m || 1) - 1, d || 1, isNaN(h) ? 0 : h, isNaN(mi) ? 0 : mi, 0, 0);
+  }
   const base = resolveStartAt(state.startTime, ref);
   if (state.timerMode === "running") return base;
+
+
 
   const now = ref.getTime();
   const spanMs = Math.max(0, state.durationMin) * 60_000 + QA_MS;
@@ -130,7 +147,9 @@ export function resolveClassStart(
 
 /** Full start/end datetimes of the resolved class occurrence. */
 export function resolveClassInterval(
-  state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode">,
+  state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode"> & {
+    classDate?: string;
+  },
   ref: Date = new Date(),
 ) {
   const startAt = resolveClassStart(state, ref);
@@ -140,7 +159,9 @@ export function resolveClassInterval(
 
 /** Notes are editable only while the class is actually running. */
 export function notesEditable(
-  state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode">,
+  state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode"> & {
+    classDate?: string;
+  },
   ref: Date = new Date(),
 ): boolean {
   const { startAt, endAt } = resolveClassInterval(state, ref);
