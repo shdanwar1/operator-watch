@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ArrowUpRight } from "lucide-react";
-import { MIN_DURATION_MIN, notesEditable } from "@/lib/studio-display";
+import { notesEditable } from "@/lib/studio-display";
 import type { StudioConfig } from "@/lib/studio-presets";
 
 export type StudioConfigDialogProps = {
@@ -20,13 +20,8 @@ export type StudioConfigDialogProps = {
   title: string;
   /** Subtitle line, e.g. the class + teacher for a temporary class. */
   description?: string;
-  /** Workout/Ballet lock the duration; Customize lets the operator edit it. */
-  editableDuration: boolean;
-  /** Only Customize offers saving the configuration as a reusable preset. */
-  allowSavePreset?: boolean;
   initial: StudioConfig;
   onOpenDisplay: (config: StudioConfig) => void;
-  onSavePreset?: (name: string, config: StudioConfig) => Promise<void> | void;
 };
 
 export function StudioConfigDialog({
@@ -34,29 +29,19 @@ export function StudioConfigDialog({
   onOpenChange,
   title,
   description,
-  editableDuration,
-  allowSavePreset = false,
   initial,
   onOpenDisplay,
-  onSavePreset,
 }: StudioConfigDialogProps) {
   const [startTime, setStartTime] = useState(initial.startTime);
-  const [durationMin, setDurationMin] = useState(initial.durationMin);
   const [notes, setNotes] = useState(initial.notes);
-  const [presetName, setPresetName] = useState("");
-  const [savingPreset, setSavingPreset] = useState(false);
-  const [showSave, setShowSave] = useState(false);
   const [, force] = useState(0);
+  const durationMin = initial.durationMin;
 
   useEffect(() => {
     if (!open) return;
     setStartTime(initial.startTime);
-    setDurationMin(initial.durationMin);
     setNotes(initial.notes);
-    setPresetName("");
-    setShowSave(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initial.startTime, initial.durationMin, initial.notes]);
+  }, [open, initial.startTime, initial.notes]);
 
   // Keeps the notes lock in sync with the class interval while the popup is up.
   useEffect(() => {
@@ -65,12 +50,7 @@ export function StudioConfigDialog({
     return () => clearInterval(t);
   }, [open]);
 
-  const config: StudioConfig = {
-    ...initial,
-    startTime,
-    durationMin,
-    notes,
-  };
+  const config: StudioConfig = { ...initial, startTime, durationMin, notes };
   const canEditNotes = notesEditable(
     { startTime, durationMin, timerMode: "next" },
     new Date(),
@@ -100,26 +80,6 @@ export function StudioConfigDialog({
             />
           </div>
 
-          {editableDuration && (
-            <div className="space-y-1.5">
-              <Label htmlFor="sd-dur" className="text-xs">
-                Class duration (min)
-              </Label>
-              <Input
-                id="sd-dur"
-                type="number"
-                className="h-10"
-                min={MIN_DURATION_MIN}
-                value={durationMin}
-                onChange={(e) =>
-                  setDurationMin(
-                    Math.max(MIN_DURATION_MIN, parseInt(e.target.value) || MIN_DURATION_MIN),
-                  )
-                }
-              />
-            </div>
-          )}
-
           <div className="space-y-1.5">
             <Label htmlFor="sd-notes" className="text-xs">
               Notes for display
@@ -139,53 +99,6 @@ export function StudioConfigDialog({
               </p>
             )}
           </div>
-
-          {allowSavePreset && (
-            <div className="rounded-xl border border-dashed p-3">
-              {!showSave ? (
-                <button
-                  type="button"
-                  className="text-xs font-medium text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowSave(true)}
-                >
-                  Save as preset
-                </button>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="sd-preset" className="text-xs">
-                    Preset name
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="sd-preset"
-                      className="h-9"
-                      value={presetName}
-                      placeholder="Evening Setup"
-                      onChange={(e) => setPresetName(e.target.value)}
-                    />
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={!presetName.trim() || savingPreset}
-                      onClick={async () => {
-                        if (!onSavePreset) return;
-                        setSavingPreset(true);
-                        try {
-                          await onSavePreset(presetName.trim(), config);
-                          setShowSave(false);
-                          setPresetName("");
-                        } finally {
-                          setSavingPreset(false);
-                        }
-                      }}
-                    >
-                      {savingPreset ? "Saving…" : "Save"}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         <DialogFooter>
