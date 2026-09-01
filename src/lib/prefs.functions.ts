@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
+import { coercePresets, type StudioPreset } from "@/lib/studio-presets";
 
 /**
  * Per-operator preferences. These live on the operator row so they follow the
@@ -39,6 +40,8 @@ export type OperatorPrefs = {
   notifyShiftStart: boolean;
   /** Show the "Time to leave" card on the dashboard. */
   showTimeToLeave: boolean;
+  /** Operator-specific saved Studio Display presets. */
+  studioPresets: StudioPreset[];
 };
 
 export const DEFAULT_PREFS: OperatorPrefs = {
@@ -47,18 +50,23 @@ export const DEFAULT_PREFS: OperatorPrefs = {
   notifyTimeToLeave: true,
   notifyShiftStart: true,
   showTimeToLeave: true,
+  studioPresets: [],
 };
 
 function coerce(value: unknown): OperatorPrefs {
   const v = (value ?? {}) as Partial<Record<keyof OperatorPrefs, unknown>>;
-  const pick = (k: keyof OperatorPrefs) =>
-    v[k] === undefined ? DEFAULT_PREFS[k] : Boolean(v[k]);
+  type BoolKey = {
+    [K in keyof OperatorPrefs]: OperatorPrefs[K] extends boolean ? K : never;
+  }[keyof OperatorPrefs];
+  const pick = (k: BoolKey): boolean =>
+    v[k] === undefined ? (DEFAULT_PREFS[k] as boolean) : Boolean(v[k]);
   return {
     autoSync: pick("autoSync"),
     syncNextMonth: pick("syncNextMonth"),
     notifyTimeToLeave: pick("notifyTimeToLeave"),
     notifyShiftStart: pick("notifyShiftStart"),
     showTimeToLeave: pick("showTimeToLeave"),
+    studioPresets: coercePresets(v.studioPresets),
   };
 }
 

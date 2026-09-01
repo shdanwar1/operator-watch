@@ -80,23 +80,65 @@ export function resolveStartAt(startTime: string, ref: Date = new Date()): Date 
 }
 
 /**
- * Resolves the class start datetime.
- * - "next" (default): today's occurrence, rolled forward one day once that
- *   occurrence's class has fully elapsed. Fixes midnight/overnight classes.
- * - "running": always today's occurrence, so an operator can join a class
- *   that already started.
+ * Resolves the class start datetime from a clock time, using full date+time
+ * values so midnight/overnight classes need no manual mode switching.
+ *
+ * Rule: consider yesterday's, today's and tomorrow's occurrence of the entered
+ * clock time. If one of them is currently running (start .. end + Q&A window),
+ * that is the class. Otherwise pick the occurrence nearest to now, preferring
+ * the upcoming one on a tie.
+ *
+ * "running" (legacy timerMode) still pins the class to today's occurrence.
  */
 export function resolveClassStart(
   state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode">,
   ref: Date = new Date(),
 ): Date {
-  const candidate = resolveStartAt(state.startTime, ref);
-  if (state.timerMode === "running") return candidate;
-  // Keep the class (and its Q&A window) on screen; only then look ahead.
-  const end = candidate.getTime() + Math.max(0, state.durationMin) * 60_000 + QA_MS;
-  if (end <= ref.getTime()) candidate.setDate(candidate.getDate() + 1);
-  return candidate;
+  const base = resolveStartAt(state.startTime, ref);
+  if (state.timerMode === "running") return base;
+
+  const now = ref.getTime();
+  const spanMs = Math.max(0, state.durationMin) * 60_000 + QA_MS;
+  const candidates = [-1, 0, 1].map((offset) => {
+    const d = new Date(base);
+    d.setDate(d.getDate() + offset);
+    return d;
+  });
+
+  const active = candidates.find(
+    (c) => now >= c.getTime() && now < c.getTime() + spanMs,
+  );
+  if (active) return active;
+
+  let best = candidates[0]!;
+  for (const c of candidates) {
+    const dc = Math.abs(c.getTime() - now);
+    const db = Math.abs(best.getTime() - now);
+    if (dc < db || (dc === db && c.getTime() > now)) best = c;
+  }
+  return best;
 }
+
+/** Full start/end datetimes of the resolved class occurrence. */
+export function resolveClassInterval(
+  state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode">,
+  ref: Date = new Date(),
+) {
+  const startAt = resolveClassStart(state, ref);
+  const endAt = new Date(startAt.getTime() + Math.max(0, state.durationMin) * 60_000);
+  return { startAt, endAt };
+}
+
+/** Notes are editable only while the class is actually running. */
+export function notesEditable(
+  state: Pick<StudioDisplayState, "startTime" | "durationMin" | "timerMode">,
+  ref: Date = new Date(),
+): boolean {
+  const { startAt, endAt } = resolveClassInterval(state, ref);
+  const now = ref.getTime();
+  return now >= startAt.getTime() && now < endAt.getTime();
+}
+
 
 
 export type StagePhase =
