@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dumbbell, Sparkles } from "lucide-react";
 import { useStudioDisplay } from "@/hooks/useStudioDisplay";
-import { buildClassDisplayUrl } from "@/lib/studio-display";
+import { buildClassDisplayUrl, prefersInAppDisplay } from "@/lib/studio-display";
 import {
   BALLET_MIN,
   WORKOUT_MIN,
@@ -98,6 +98,12 @@ export function StudioDisplayPanel({
               durationMin: config.durationMin,
             })
           : "/display";
+      // Installed web app / touch device: a popup would be handed to the
+      // system browser, breaking out of the app. Stay in this window instead.
+      if (prefersInAppDisplay()) {
+        window.location.assign(url + (url.includes("?") ? "&" : "?") + "back=1");
+        return;
+      }
       // One physical display → one named window, reused on every launch.
       const win = window.open(url, "studio-display", "popup,width=1280,height=800");
       if (win) {

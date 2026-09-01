@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ChevronLeft } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStudioDisplay } from "@/hooks/useStudioDisplay";
 import {
@@ -168,10 +169,12 @@ function DisplayScreen() {
     durationMin: number;
   } | null>(null);
   const [classId, setClassId] = useState<string | null>(null);
+  const [showBack, setShowBack] = useState(false);
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const s = p.get("s");
     setClassId(p.get("id"));
+    setShowBack(p.get("back") === "1");
     if (!s) return;
     setOverride({
       className: p.get("c") ?? "",
@@ -232,6 +235,7 @@ function DisplayScreen() {
     <>
       <SurfaceChrome color={stage.bgColor} />
     <div ref={ref} className={`fixed inset-0 overflow-hidden ${textClass}`}>
+      {showBack && <ExitDisplayControl />}
 
       <div
         aria-hidden
@@ -287,6 +291,42 @@ function DisplayScreen() {
       </div>
     </div>
     </>
+  );
+}
+
+/**
+ * Only rendered when the display was opened inside the app (no popup window to
+ * close). Fades out so the teacher-facing screen stays clean, and comes back on
+ * any tap.
+ */
+function ExitDisplayControl() {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    let t = window.setTimeout(() => setVisible(false), 4000);
+    const wake = () => {
+      setVisible(true);
+      window.clearTimeout(t);
+      t = window.setTimeout(() => setVisible(false), 4000);
+    };
+    window.addEventListener("pointerdown", wake);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("pointerdown", wake);
+    };
+  }, []);
+
+  return (
+    <Link
+      to="/studio-display"
+      search={{}}
+      aria-label="Back to Studio Display"
+      className={`absolute left-3 top-3 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-black/25 backdrop-blur-sm transition-opacity duration-500 ${
+        visible ? "opacity-100" : "opacity-0"
+      }`}
+      style={{ marginTop: "env(safe-area-inset-top)" }}
+    >
+      <ChevronLeft className="h-5 w-5" />
+    </Link>
   );
 }
 
