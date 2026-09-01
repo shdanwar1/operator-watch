@@ -1,14 +1,22 @@
 import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useRef } from "react";
-import { ArrowUpRight, Monitor } from "lucide-react";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { Monitor } from "lucide-react";
 import { getGateStatus } from "@/lib/gate.functions";
 import { AppShell, PageHeader } from "@/components/AppShell";
-import { Button } from "@/components/ui/button";
 import { StudioDisplayPanel } from "@/components/StudioDisplayPanel";
+import { parseTemporaryClass, type TemporaryClassSearch } from "@/lib/studio-presets";
 
+const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 
 export const Route = createFileRoute("/studio-display")({
+  validateSearch: (search: Record<string, unknown>): TemporaryClassSearch => ({
+    cid: str(search.cid),
+    cn: str(search.cn),
+    tn: str(search.tn),
+    cd: str(search.cd),
+    cs: str(search.cs),
+    ce: str(search.ce),
+  }),
   beforeLoad: async () => {
     const status = await getGateStatus();
     if (!status.unlocked) throw redirect({ to: "/unlock" });
@@ -16,30 +24,29 @@ export const Route = createFileRoute("/studio-display")({
   },
   head: () => ({
     meta: pageMeta(
-      PAGE_TITLES.studioDisplayConfig,
-      "Configure the custom studio display timer and teacher notes, then open the display window.",
+      PAGE_TITLES.studioDisplay,
+      "Launch the teacher-facing studio display from a preset, a saved setup, or a scheduled class.",
     ),
   }),
   component: StudioDisplaySettingsPage,
 });
 
 function StudioDisplaySettingsPage() {
-  const openRef = useRef<(() => void) | null>(null);
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+  const temporaryClass = parseTemporaryClass(search);
+
   return (
     <AppShell>
-      {/* Desktop: full configuration panel. */}
+      {/* Desktop: preset launcher. */}
       <div className="max-lg:hidden">
-        <PageHeader
-          eyebrow="Teacher-facing screen"
-          title="Custom Studio Display"
-          action={
-            <Button onClick={() => openRef.current?.()} className="rounded-full">
-              Open display
-              <ArrowUpRight className="ml-1.5 h-4 w-4" />
-            </Button>
+        <PageHeader eyebrow="Teacher-facing screen" title="Studio Display" />
+        <StudioDisplayPanel
+          temporaryClass={temporaryClass}
+          onDismissTemporary={() =>
+            navigate({ to: "/studio-display", search: {}, replace: true })
           }
         />
-        <StudioDisplayPanel openRef={openRef} />
       </div>
 
       {/* Mobile: the display is a desktop-only surface. */}
@@ -55,5 +62,4 @@ function StudioDisplaySettingsPage() {
       </div>
     </AppShell>
   );
-
 }
