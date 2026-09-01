@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { Monitor } from "lucide-react";
