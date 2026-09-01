@@ -168,10 +168,12 @@ function DisplayScreen() {
     durationMin: number;
   } | null>(null);
   const [classId, setClassId] = useState<string | null>(null);
+  const [showBack, setShowBack] = useState(false);
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const s = p.get("s");
     setClassId(p.get("id"));
+    setShowBack(p.get("back") === "1");
     if (!s) return;
     setOverride({
       className: p.get("c") ?? "",
