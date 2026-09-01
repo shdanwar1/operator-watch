@@ -17,7 +17,7 @@ export const PAGE_TITLES = {
   adminShifts: "Shifts - Admin",
   operators: "Operators",
   settings: "Settings",
-  studioDisplayConfig: "Custom Studio Display",
+  studioDisplay: "Studio Display",
 } as const;
 
 export type PageTitle = (typeof PAGE_TITLES)[keyof typeof PAGE_TITLES];
