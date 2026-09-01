@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/dialog";
 import { DirectoryCombobox } from "@/components/DirectoryCombobox";
 import type { DirectoryItem } from "@/lib/directories.functions";
-import { buildClassDisplayUrl } from "@/lib/studio-display";
+import { Link } from "@tanstack/react-router";
+import { temporaryClassSearch } from "@/lib/studio-presets";
 import { cn } from "@/lib/utils";
 import type { CalendarClassRow } from "@/lib/gcal.functions";
 
@@ -114,20 +115,6 @@ export function ClassScheduleCard({
     (knownTeacher.size > 0 && !knownTeacher.has(c.teacher_name.trim().toLowerCase()));
 
 
-
-  const openDisplay = (c: CalendarClassRow) => {
-    window.open(
-      buildClassDisplayUrl({
-        id: c.id,
-        className: c.class_name,
-        teacherName: c.teacher_name,
-        startTime: c.start_time,
-        durationMin: durationOf(c) || 60,
-      }),
-      `studio-display-${c.id}`,
-      "popup,width=1280,height=800",
-    );
-  };
 
   return (
     <Card className="max-lg:glass max-lg:rounded-[22px]">
@@ -248,11 +235,25 @@ export function ClassScheduleCard({
                     <Button
                       size="sm"
                       variant={st === "live" ? "default" : "outline"}
-                      onClick={() => openDisplay(c)}
                       className="max-lg:hidden"
+                      asChild
                     >
-                      Studio Display
-                      <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                      {/* The class is handed to the Studio Display control page,
+                          which owns the live session and its notes. */}
+                      <Link
+                        to="/studio-display"
+                        search={temporaryClassSearch({
+                          classId: c.id,
+                          className: c.class_name,
+                          teacherName: c.teacher_name,
+                          date: c.specific_date,
+                          startTime: c.start_time,
+                          endTime: c.end_time,
+                        })}
+                      >
+                        Studio Display
+                        <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                      </Link>
                     </Button>
                   )}
 
