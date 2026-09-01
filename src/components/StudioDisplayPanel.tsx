@@ -1,22 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Dumbbell, Sparkles, X } from "lucide-react";
+import { Dumbbell, Sparkles } from "lucide-react";
 import { useStudioDisplay } from "@/hooks/useStudioDisplay";
 import { buildClassDisplayUrl } from "@/lib/studio-display";
 import {
   BALLET_MIN,
   WORKOUT_MIN,
-  defaultPresetIdFor,
   temporaryClassDurationMin,
   temporaryClassExpired,
-  temporaryClassInterval,
   type StudioConfig,
   type TemporaryClass,
 } from "@/lib/studio-presets";
 import { StudioConfigDialog } from "@/components/studio/StudioConfigDialog";
 import { ActiveDisplayCard } from "@/components/studio/ActiveDisplayCard";
-import { fmtClock } from "@/lib/class-interval";
 
 type DialogState = {
   title: string;

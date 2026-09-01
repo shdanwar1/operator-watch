@@ -33,12 +33,9 @@ export function ActiveDisplayCard({
   const canEditNotes = notesEditable(state, new Date());
   const title =
     state.className || state.presetLabel || "Studio Display";
-  const subtitle = [
-    `${fmtClock(state.startTime)} · ${state.durationMin} min`,
-    state.teacherName || null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const timeLine = state.endTime
+    ? `${fmtClock(state.startTime)} – ${fmtClock(state.endTime)} · ${state.durationMin} min`
+    : `${fmtClock(state.startTime)} · ${state.durationMin} min`;
 
   return (
     <Card className="border-2 border-primary/40">
@@ -48,12 +45,15 @@ export function ActiveDisplayCard({
             Active display
           </p>
           <h2 className="mt-2 text-base font-semibold tracking-tight">{title}</h2>
-          <p className="text-sm tabular-nums text-muted-foreground">{subtitle}</p>
+          {state.teacherName ? (
+            <p className="text-sm text-muted-foreground">{state.teacherName}</p>
+          ) : null}
+          <p className="text-sm tabular-nums text-muted-foreground">{timeLine}</p>
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="active-notes" className="text-xs">
-            Notes
+            Notes for display
           </Label>
           <textarea
             id="active-notes"
