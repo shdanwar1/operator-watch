@@ -231,11 +231,37 @@ function DisplayScreen() {
 
   const textClass = stage.fg === "dark" ? "text-neutral-900" : "text-white";
 
+  // Live Notes are a temporary high-priority layer over the existing state:
+  // nothing about the class timer changes, only what the screen shows.
+  const noteText = (state.notes ?? "").trim();
+  if (noteText) {
+    return (
+      <>
+        <SurfaceChrome color={STAGE_COLORS.red} />
+        <div
+          ref={ref}
+          className="fixed inset-0 overflow-hidden text-white"
+          style={{ backgroundColor: STAGE_COLORS.red }}
+        >
+          {showBack && <ExitDisplayControl />}
+          <AutoFitNote text={state.notes} />
+        </div>
+      </>
+    );
+  }
+
+  // First minute of class: ring derived from the real class start timestamp.
+  const waitProgress =
+    stage.phase === "joining"
+      ? Math.max(0, Math.min(1, 1 - (now.getTime() - startAt.getTime()) / 60_000))
+      : null;
+
   return (
     <>
       <SurfaceChrome color={stage.bgColor} />
     <div ref={ref} className={`fixed inset-0 overflow-hidden ${textClass}`}>
       {showBack && <ExitDisplayControl />}
+
 
       <div
         aria-hidden
