@@ -302,6 +302,8 @@ function DisplayScreen() {
           <CountdownCinematic n={stage.bigNumber ?? 1} />
         ) : stage.phase === "qa" ? (
           <QAStage stage={stage} />
+        ) : waitProgress !== null ? (
+          <WaitingStage progress={waitProgress} label={stage.label} />
         ) : showPreClass ? (
           <PreClassStage
             stage={stage}
@@ -312,7 +314,8 @@ function DisplayScreen() {
 
 
         ) : (
-          <MainStage stage={stage} notes={state.notes} isLandscape={isLandscape} />
+          <MainStage stage={stage} notes="" isLandscape={isLandscape} />
+
         )}
       </div>
     </div>
