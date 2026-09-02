@@ -427,3 +427,12 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+
+/* Studio Display — first-minute "waiting for participants" text breath */
+@keyframes sd-wait-pulse {
+  0%, 100% { opacity: 0.72; }
+  50%      { opacity: 1; }
+}
+.sd-wait-pulse {
+  animation: sd-wait-pulse 3.2s ease-in-out infinite;
+}
