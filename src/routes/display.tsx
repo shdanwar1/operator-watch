@@ -8,8 +8,10 @@ import {
   resolveClassStart,
   QA_MS,
   CLASS_INFO_CUTOFF_MS,
+  STAGE_COLORS,
   type StageInfo,
 } from "@/lib/studio-display";
+
 
 import { pickIcebreaker } from "@/lib/icebreakers";
 import { subscribeSync } from "@/lib/sync-bus";
