@@ -8,8 +8,10 @@ import {
   resolveClassStart,
   QA_MS,
   CLASS_INFO_CUTOFF_MS,
+  STAGE_COLORS,
   type StageInfo,
 } from "@/lib/studio-display";
+
 
 import { pickIcebreaker } from "@/lib/icebreakers";
 import { subscribeSync } from "@/lib/sync-bus";
@@ -231,11 +233,37 @@ function DisplayScreen() {
 
   const textClass = stage.fg === "dark" ? "text-neutral-900" : "text-white";
 
+  // Live Notes are a temporary high-priority layer over the existing state:
+  // nothing about the class timer changes, only what the screen shows.
+  const noteText = (state.notes ?? "").trim();
+  if (noteText) {
+    return (
+      <>
+        <SurfaceChrome color={STAGE_COLORS.red} />
+        <div
+          ref={ref}
+          className="fixed inset-0 overflow-hidden text-white"
+          style={{ backgroundColor: STAGE_COLORS.red }}
+        >
+          {showBack && <ExitDisplayControl />}
+          <AutoFitNote text={state.notes} />
+        </div>
+      </>
+    );
+  }
+
+  // First minute of class: ring derived from the real class start timestamp.
+  const waitProgress =
+    stage.phase === "joining"
+      ? Math.max(0, Math.min(1, 1 - (now.getTime() - startAt.getTime()) / 60_000))
+      : null;
+
   return (
     <>
       <SurfaceChrome color={stage.bgColor} />
     <div ref={ref} className={`fixed inset-0 overflow-hidden ${textClass}`}>
       {showBack && <ExitDisplayControl />}
+
 
       <div
         aria-hidden
@@ -276,6 +304,8 @@ function DisplayScreen() {
           <CountdownCinematic n={stage.bigNumber ?? 1} />
         ) : stage.phase === "qa" ? (
           <QAStage stage={stage} />
+        ) : waitProgress !== null ? (
+          <WaitingStage progress={waitProgress} label={stage.label} />
         ) : showPreClass ? (
           <PreClassStage
             stage={stage}
@@ -286,7 +316,8 @@ function DisplayScreen() {
 
 
         ) : (
-          <MainStage stage={stage} notes={state.notes} isLandscape={isLandscape} />
+          <MainStage stage={stage} notes="" isLandscape={isLandscape} />
+
         )}
       </div>
     </div>
@@ -945,3 +976,116 @@ function NotesPanel({ notes }: { notes: string }) {
   );
 }
 
+
+/* --------------------------- First-minute waiting ring --------------------------- */
+
+/**
+ * The existing blue "waiting for participants" state with a ring derived from
+ * the real class start timestamp (100% at start → 0% at start + 60s).
+ * No second timer: the surrounding display ticker drives the re-render.
+ */
+function WaitingStage({ progress, label }: { progress: number; label: string }) {
+  const R = 46;
+  const C = 2 * Math.PI * R;
+  const dash = C * Math.max(0, Math.min(1, progress));
+
+  return (
+    <div className="relative flex h-full w-full items-center justify-center">
+      <div
+        className="relative aspect-square"
+        style={{
+          containerType: "inline-size",
+          width: "min(72vmin, 92vw)",
+          maxWidth: "100%",
+          maxHeight: "100%",
+        }}
+      >
+        <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90">
+          <circle cx="50" cy="50" r={R} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth={0.5} />
+          <circle
+            cx="50"
+            cy="50"
+            r={R}
+            fill="none"
+            stroke="rgba(255,255,255,0.95)"
+            strokeWidth={1}
+            strokeLinecap="round"
+            strokeDasharray={`${dash} ${C - dash}`}
+            style={{ transition: "stroke-dasharray 300ms linear" }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center px-[10cqi] text-center">
+          <div
+            className="sd-wait-pulse font-medium uppercase leading-tight"
+            style={{ fontSize: "clamp(0.7rem, 6cqi, 2.4rem)", letterSpacing: "0.22em" }}
+          >
+            {label || "Waiting for Participants"}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------- Full-screen live note --------------------------- */
+
+/**
+ * Renders the operator's note as the only content on screen, at the largest
+ * font size that still fits the available area (binary search on real layout).
+ */
+function AutoFitNote({ text }: { text: string }) {
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const textRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    const el = textRef.current;
+    if (!box || !el) return;
+
+    const fit = () => {
+      const maxW = box.clientWidth;
+      const maxH = box.clientHeight;
+      if (!maxW || !maxH) return;
+      let lo = 8;
+      let hi = Math.max(16, Math.floor(maxH));
+      let best = lo;
+      while (hi - lo > 0.5) {
+        const mid = (lo + hi) / 2;
+        el.style.fontSize = `${mid}px`;
+        if (el.scrollWidth <= maxW + 0.5 && el.scrollHeight <= maxH + 0.5) {
+          best = mid;
+          lo = mid;
+        } else {
+          hi = mid;
+        }
+      }
+      el.style.fontSize = `${best}px`;
+    };
+
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, [text]);
+
+  return (
+    <div
+      ref={boxRef}
+      className="absolute inset-0 flex items-center justify-center"
+      style={{ padding: "clamp(1rem, 5vmin, 4rem)" }}
+    >
+      <div
+        ref={textRef}
+        className="w-full whitespace-pre-wrap text-center font-semibold"
+        style={{
+          lineHeight: 1.08,
+          letterSpacing: "-0.02em",
+          overflowWrap: "anywhere",
+          fontSize: "16px",
+        }}
+      >
+        {text}
+      </div>
+    </div>
+  );
+}
