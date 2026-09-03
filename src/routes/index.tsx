@@ -676,13 +676,33 @@ function Index() {
             homeLng={profileStatus?.home_lng ?? null}
             calendarClasses={calendarClasses}
           />
-        ) : tomorrowShift ? (
-          <NoShiftTodayCard shift={tomorrowShift} now={now} />
-        ) : nextShift ? (
-          <NoShiftSoonCard shift={nextShift} now={now} />
         ) : (
-          <NoShiftsBookedCard hasScheduled={hasAnyScheduled} />
+          <>
+            {tomorrowShift ? (
+              <NoShiftTodayCard shift={tomorrowShift} now={now} />
+            ) : nextShift ? (
+              <NoShiftSoonCard shift={nextShift} now={now} />
+            ) : (
+              <NoShiftsBookedCard hasScheduled={hasAnyScheduled} />
+            )}
+            {/* Covering a colleague or an unplanned shift: check-in is always
+                reachable, even on days with nothing scheduled. */}
+            <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
+              <CardContent className="p-0">
+                <CheckInPanel
+                  openScheduled={openScheduled}
+                  openShift={openTarget}
+                  nextShift={nextDisplay}
+                  now={now}
+                  checkingIn={checkingIn}
+                  onCheckIn={checkIn}
+                  hideShiftInfo
+                />
+              </CardContent>
+            </Card>
+          </>
         )}
+
       </div>
 
     </AppShell>
@@ -1240,59 +1260,49 @@ function ActiveShiftPanel({
         </Card>
       )}
 
-      <AlertDialog open={confirm === "incomplete"} onOpenChange={(o) => !o && closeConfirm()}>
+      {/* One dialog instance for every confirmation step. Swapping between
+          separate mounted dialogs (early → camera) left the modal layer in a
+          non-interactive state, so a confirmed early check-out never ran. */}
+      <AlertDialog open={confirm !== null} onOpenChange={(o) => !o && closeConfirm()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Incomplete Shift</AlertDialogTitle>
+            <AlertDialogTitle>
+              {confirm === "incomplete"
+                ? "Incomplete Shift"
+                : confirm === "early"
+                  ? "Early Check-Out"
+                  : "Before you go"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Some scheduled classes have not been marked as Completed or Cancelled. What would you
-              like to do?
+              {confirm === "incomplete"
+                ? "Some scheduled classes have not been marked as Completed or Cancelled. What would you like to do?"
+                : confirm === "early"
+                  ? `You are checking out before your scheduled shift has ended${
+                      scheduledShift ? ` (ends ${fmtTime(scheduledShift.end_time)})` : ""
+                    }. Your actual check-out time is recorded.`
+                  : (checkoutPrompt?.message ?? "Did you turn the security camera back ON?")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={closeConfirm}>Continue Working</AlertDialogCancel>
-            <AlertDialogAction onClick={proceedCheckOut}>Check Out Anyway</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={confirm === "early"} onOpenChange={(o) => !o && closeConfirm()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Early Check-Out</AlertDialogTitle>
-            <AlertDialogDescription>
-              You are checking out before your scheduled shift has ended. Are you sure you want to
-              check out early?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={closeConfirm}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={proceedCheckOut}>Check Out Anyway</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={confirm === "camera"} onOpenChange={(o) => !o && closeConfirm()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Before you go</AlertDialogTitle>
-            <AlertDialogDescription>
-              {checkoutPrompt?.message ?? "Did you turn the security camera back ON?"}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={closeConfirm}>Not yet</AlertDialogCancel>
+            <AlertDialogCancel onClick={closeConfirm}>
+              {confirm === "incomplete" ? "Continue Working" : confirm === "early" ? "Cancel" : "Not yet"}
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                setConfirm(null);
-                onCheckOut();
+                if (confirm === "camera") {
+                  setConfirm(null);
+                  onCheckOut();
+                  return;
+                }
+                proceedCheckOut();
               }}
             >
-              Yes, camera is ON
+              {confirm === "camera" ? "Yes, camera is ON" : "Check Out Anyway"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
 
     </div>
   );
