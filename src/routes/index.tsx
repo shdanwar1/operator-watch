@@ -676,13 +676,33 @@ function Index() {
             homeLng={profileStatus?.home_lng ?? null}
             calendarClasses={calendarClasses}
           />
-        ) : tomorrowShift ? (
-          <NoShiftTodayCard shift={tomorrowShift} now={now} />
-        ) : nextShift ? (
-          <NoShiftSoonCard shift={nextShift} now={now} />
         ) : (
-          <NoShiftsBookedCard hasScheduled={hasAnyScheduled} />
+          <>
+            {tomorrowShift ? (
+              <NoShiftTodayCard shift={tomorrowShift} now={now} />
+            ) : nextShift ? (
+              <NoShiftSoonCard shift={nextShift} now={now} />
+            ) : (
+              <NoShiftsBookedCard hasScheduled={hasAnyScheduled} />
+            )}
+            {/* Covering a colleague or an unplanned shift: check-in is always
+                reachable, even on days with nothing scheduled. */}
+            <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
+              <CardContent className="p-0">
+                <CheckInPanel
+                  openScheduled={openScheduled}
+                  openShift={openTarget}
+                  nextShift={nextDisplay}
+                  now={now}
+                  checkingIn={checkingIn}
+                  onCheckIn={checkIn}
+                  hideShiftInfo
+                />
+              </CardContent>
+            </Card>
+          </>
         )}
+
       </div>
 
     </AppShell>
