@@ -1287,18 +1287,18 @@ function ActiveShiftPanel({
             <AlertDialogCancel onClick={closeConfirm}>
               {confirm === "incomplete" ? "Continue Working" : confirm === "early" ? "Cancel" : "Not yet"}
             </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (confirm === "camera") {
+            {confirm === "camera" ? (
+              <AlertDialogAction
+                onClick={() => {
                   setConfirm(null);
                   onCheckOut();
-                  return;
-                }
-                proceedCheckOut();
-              }}
-            >
-              {confirm === "camera" ? "Yes, camera is ON" : "Check Out Anyway"}
-            </AlertDialogAction>
+                }}
+              >
+                Yes, camera is ON
+              </AlertDialogAction>
+            ) : (
+              <Button onClick={proceedCheckOut}>Check Out Anyway</Button>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
