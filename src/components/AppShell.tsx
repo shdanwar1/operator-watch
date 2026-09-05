@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   ListChecks,
   LogOut,
-  MessageSquare,
   Monitor,
   PanelLeft,
   User,
@@ -23,7 +22,6 @@ const NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: bo
   { label: "Dashboard", to: "/", icon: LayoutDashboard, exact: true },
   { label: "Calendar", to: "/calendar", icon: CalendarDays },
   { label: "Record", to: "/record", icon: ListChecks },
-  { label: "Chat", to: "/chat", icon: MessageSquare },
 ];
 
 /** Desktop sidebar: the four primary destinations plus Studio Display. */

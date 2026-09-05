@@ -18,7 +18,6 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as EarningsRouteImport } from './routes/earnings'
 import { Route as DisplayRouteImport } from './routes/display'
 import { Route as CompleteProfileRouteImport } from './routes/complete-profile'
-import { Route as ChatRouteImport } from './routes/chat'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -74,11 +73,6 @@ const CompleteProfileRoute = CompleteProfileRouteImport.update({
   path: '/complete-profile',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ChatRoute = ChatRouteImport.update({
-  id: '/chat',
-  path: '/chat',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CalendarRoute = CalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
@@ -130,7 +124,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/calendar': typeof CalendarRoute
-  '/chat': typeof ChatRoute
   '/complete-profile': typeof CompleteProfileRoute
   '/display': typeof DisplayRoute
   '/earnings': typeof EarningsRoute
@@ -150,7 +143,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
-  '/chat': typeof ChatRoute
   '/complete-profile': typeof CompleteProfileRoute
   '/display': typeof DisplayRoute
   '/earnings': typeof EarningsRoute
@@ -172,7 +164,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/calendar': typeof CalendarRoute
-  '/chat': typeof ChatRoute
   '/complete-profile': typeof CompleteProfileRoute
   '/display': typeof DisplayRoute
   '/earnings': typeof EarningsRoute
@@ -195,7 +186,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/calendar'
-    | '/chat'
     | '/complete-profile'
     | '/display'
     | '/earnings'
@@ -215,7 +205,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/calendar'
-    | '/chat'
     | '/complete-profile'
     | '/display'
     | '/earnings'
@@ -236,7 +225,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/calendar'
-    | '/chat'
     | '/complete-profile'
     | '/display'
     | '/earnings'
@@ -258,7 +246,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   CalendarRoute: typeof CalendarRoute
-  ChatRoute: typeof ChatRoute
   CompleteProfileRoute: typeof CompleteProfileRoute
   DisplayRoute: typeof DisplayRoute
   EarningsRoute: typeof EarningsRoute
@@ -334,13 +321,6 @@ declare module '@tanstack/react-router' {
       path: '/complete-profile'
       fullPath: '/complete-profile'
       preLoaderRoute: typeof CompleteProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/chat': {
-      id: '/chat'
-      path: '/chat'
-      fullPath: '/chat'
-      preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calendar': {
@@ -431,7 +411,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   CalendarRoute: CalendarRoute,
-  ChatRoute: ChatRoute,
   CompleteProfileRoute: CompleteProfileRoute,
   DisplayRoute: DisplayRoute,
   EarningsRoute: EarningsRoute,
