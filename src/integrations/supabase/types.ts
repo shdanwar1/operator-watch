@@ -177,42 +177,6 @@ export type Database = {
         }
         Relationships: []
       }
-      operator_chat_messages: {
-        Row: {
-          created_at: string
-          id: string
-          message_text: string
-          operator_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          message_text: string
-          operator_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          message_text?: string
-          operator_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "operator_chat_messages_operator_id_fkey"
-            columns: ["operator_id"]
-            isOneToOne: false
-            referencedRelation: "operators"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "operator_chat_messages_operator_id_fkey"
-            columns: ["operator_id"]
-            isOneToOne: false
-            referencedRelation: "operators_public"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       operator_travel_plans: {
         Row: {
           algorithm_version: number
