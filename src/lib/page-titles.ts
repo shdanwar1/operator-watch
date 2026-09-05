@@ -12,7 +12,6 @@ export const PAGE_TITLES = {
   attendance: "Attendance",
   record: "Record",
   profile: "Profile",
-  chat: "Chat",
   adminCalendar: "Calendar - Admin",
   adminShifts: "Shifts - Admin",
   operators: "Operators",
