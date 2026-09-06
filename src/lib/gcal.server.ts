@@ -268,7 +268,24 @@ async function writeShifts(
     (r) => !workedIds.has(r.id as string) && r.status !== "completed",
   );
 
-  const desired = new Map(plans.filter((p) => p.date >= todayStr).map((p) => [p.uid, p]));
+  // Shifts the operator deleted on purpose stay deleted: their calendar event
+  // id is tombstoned and skipped until the event itself changes identity.
+  const wantedUids = plans.filter((p) => p.date >= todayStr).map((p) => p.uid);
+  const tombstoned = new Set<string>();
+  if (wantedUids.length) {
+    const { data: deletedRows } = await supabaseAdmin
+      .from("deleted_shift_events")
+      .select("external_event_id")
+      .ilike("operator_name", displayName)
+      .in("external_event_id", wantedUids);
+    for (const r of deletedRows ?? []) tombstoned.add(r.external_event_id as string);
+  }
+
+  const desired = new Map(
+    plans
+      .filter((p) => p.date >= todayStr && !tombstoned.has(p.uid))
+      .map((p) => [p.uid, p]),
+  );
 
   const staleIds = mutable
     .filter((r) => !r.external_event_id || !desired.has(r.external_event_id as string))

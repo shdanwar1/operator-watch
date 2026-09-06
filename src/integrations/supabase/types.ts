@@ -177,6 +177,30 @@ export type Database = {
         }
         Relationships: []
       }
+      deleted_shift_events: {
+        Row: {
+          created_at: string
+          external_event_id: string
+          id: string
+          operator_name: string
+          specific_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          external_event_id: string
+          id?: string
+          operator_name: string
+          specific_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          external_event_id?: string
+          id?: string
+          operator_name?: string
+          specific_date?: string | null
+        }
+        Relationships: []
+      }
       operator_travel_plans: {
         Row: {
           algorithm_version: number

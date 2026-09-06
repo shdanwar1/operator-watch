@@ -602,3 +602,98 @@ export const deleteScheduledShift = createServerFn({ method: "POST" })
   });
 
 
+
+/**
+ * Operator-facing deletion of a *future* scheduled shift.
+ *
+ * Single authoritative cleanup path: the shift row, its calendar classes,
+ * its travel plan (Time to Leave) and any pending push deliveries go away
+ * together, and Google-imported shifts get a tombstone so the next sync does
+ * not recreate the very shift the operator just removed.
+ */
+export const deleteMyScheduledShift = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string }) => {
+    if (!data?.id) throw new Error("id required");
+    return { id: String(data.id) };
+  })
+  .handler(async ({ data }) => {
+    const { username, isAdmin } = await requireGate();
+    await assertScheduledOwnership(data.id, username, isAdmin);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error: loadErr } = await supabaseAdmin
+      .from("scheduled_shifts")
+      .select("id, assigned_operator, specific_date, start_time, end_time, status, external_event_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (loadErr) throw new Error(loadErr.message);
+    if (!row) throw new Response("Scheduled shift not found", { status: 404 });
+    const shift = row as {
+      id: string;
+      assigned_operator: string | null;
+      specific_date: string;
+      start_time: string;
+      end_time: string;
+      status: string;
+      external_event_id: string | null;
+    };
+
+    if ((shift.status ?? "").toLowerCase() === "completed") {
+      throw new Response("Completed shifts cannot be deleted", { status: 409 });
+    }
+
+    // Future-only. The full interval matters for overnight shifts, but a shift
+    // is only "future" while it has not started yet.
+    const { berlinInstant } = await import("./push-time");
+    const start = berlinInstant(shift.specific_date, shift.start_time);
+    if (!start) throw new Error("Shift has an invalid start time");
+    if (start.getTime() <= Date.now()) {
+      throw new Response("Only future shifts can be deleted", { status: 409 });
+    }
+
+    // Attendance already recorded → not a future shift in practice.
+    const { data: worked } = await supabaseAdmin
+      .from("shifts")
+      .select("id")
+      .eq("scheduled_shift_id", shift.id)
+      .limit(1);
+    if ((worked ?? []).length) {
+      throw new Response("This shift already has attendance recorded", { status: 409 });
+    }
+
+    // Tombstone Google-imported shifts (uid identity, never fuzzy matching).
+    const uid = shift.external_event_id;
+    if (uid && uid.startsWith("op:") && shift.assigned_operator) {
+      const { error: tombErr } = await supabaseAdmin
+        .from("deleted_shift_events")
+        .insert({
+          operator_name: shift.assigned_operator,
+          external_event_id: uid,
+          specific_date: shift.specific_date,
+        } as never);
+      // A pre-existing tombstone is fine; anything else must abort the delete
+      // so sync can never resurrect the shift behind the operator's back.
+      if (tombErr && !/duplicate key|unique/i.test(tombErr.message)) {
+        throw new Error(tombErr.message);
+      }
+    }
+
+    // Classes that exist only because of this shift.
+    await supabaseAdmin.from("calendar_classes").delete().eq("scheduled_shift_id", shift.id);
+
+    const { error: delErr } = await supabaseAdmin
+      .from("scheduled_shifts")
+      .delete()
+      .eq("id", shift.id);
+    if (delErr) throw new Error(delErr.message);
+
+    // Travel plan + pending notification state for this exact start instant.
+    try {
+      const { reconcileShiftNotifications } = await import("./notifications.server");
+      await reconcileShiftNotifications();
+    } catch (err) {
+      console.error("[shifts] notification reconciliation failed", err);
+    }
+
+    return { ok: true as const };
+  });
