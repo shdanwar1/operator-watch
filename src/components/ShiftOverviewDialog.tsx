@@ -24,6 +24,17 @@ import {
 import type { ScheduledShiftRow } from "@/lib/shifts.functions";
 import { addDayKey, crossesMidnight, fmtClock, fmtDayShort, validateInterval } from "@/lib/class-interval";
 import { Monitor, Pencil, Plus, Trash2, X } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { deleteMyScheduledShift } from "@/lib/shifts.functions";
 import { Link } from "@tanstack/react-router";
 import { temporaryClassSearch } from "@/lib/studio-presets";
 import { toast } from "sonner";
@@ -74,6 +85,7 @@ export function ShiftOverviewDialog({
   const addClass = useServerFn(addMyShiftClass);
   const updateClass = useServerFn(updateMyShiftClass);
   const removeClass = useServerFn(removeMyShiftClass);
+  const deleteShiftFn = useServerFn(deleteMyScheduledShift);
   const fetchTeachers = useServerFn(listTeachers);
   const fetchClassNames = useServerFn(listClasses);
 
@@ -84,12 +96,15 @@ export function ShiftOverviewDialog({
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [teacherOptions, setTeacherOptions] = useState<DirectoryItem[]>([]);
   const [classOptions, setClassOptions] = useState<DirectoryItem[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const shiftId = shift?.id ?? null;
 
   useEffect(() => {
     if (!shiftId) return;
     setEditing(false);
+    setConfirmDelete(false);
     setLoading(true);
     fetchClasses({ data: { shiftId } })
       .then((rows) => setClasses(rows))
@@ -205,6 +220,35 @@ export function ShiftOverviewDialog({
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // A shift can only be removed before it starts; in-progress, completed and
+  // past shifts stay untouched (attendance history is permanent).
+  const startAt = useMemo(() => {
+    if (!shift?.specific_date) return null;
+    const [y, m, d] = shift.specific_date.split("-").map(Number);
+    const [hh, mm] = shift.start_time.split(":").map(Number);
+    return new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0, 0);
+  }, [shift?.specific_date, shift?.start_time]);
+  const deletable =
+    !!startAt &&
+    startAt.getTime() > Date.now() &&
+    (shift?.status ?? "").toLowerCase() !== "completed";
+
+  async function confirmDeleteShift() {
+    if (!shift) return;
+    setDeleting(true);
+    try {
+      await deleteShiftFn({ data: { id: shift.id } });
+      setConfirmDelete(false);
+      toast.success("Shift deleted.");
+      onClose();
+      await onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not delete this shift");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -389,6 +433,16 @@ export function ShiftOverviewDialog({
             </>
           ) : (
             <>
+              {deletable && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={deleting}
+                  className="mr-auto"
+                >
+                  <Trash2 className="mr-1 h-4 w-4" /> Delete Shift
+                </Button>
+              )}
               <Button variant="outline" onClick={onClose}>
                 <X className="mr-1 h-4 w-4" /> Close
               </Button>
@@ -399,6 +453,36 @@ export function ShiftOverviewDialog({
           )}
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this shift?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {dayLabel} · {fmtClock(shift.start_time)} –{" "}
+              {overnightShift ? `${fmtDayShort(endDate)} · ` : ""}
+              {fmtClock(shift.end_time)}
+              {classCount
+                ? ` · ${classCount} ${classCount === 1 ? "class" : "classes"}`
+                : shift.label
+                  ? ` · ${shift.label}`
+                  : ""}
+              . This removes the shift from the app and it will no longer appear in your
+              schedule. It will not come back on the next calendar sync.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteShift}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting…" : "Delete Shift"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
