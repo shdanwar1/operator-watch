@@ -666,17 +666,16 @@ export const deleteMyScheduledShift = createServerFn({ method: "POST" })
     if (uid && uid.startsWith("op:") && shift.assigned_operator) {
       const { error: tombErr } = await supabaseAdmin
         .from("deleted_shift_events")
-        .upsert(
-          {
-            operator_name: shift.assigned_operator,
-            external_event_id: uid,
-            specific_date: shift.specific_date,
-          } as never,
-          { onConflict: "operator_name,external_event_id", ignoreDuplicates: true },
-        );
+        .insert({
+          operator_name: shift.assigned_operator,
+          external_event_id: uid,
+          specific_date: shift.specific_date,
+        } as never);
       // A pre-existing tombstone is fine; anything else must abort the delete
       // so sync can never resurrect the shift behind the operator's back.
-      if (tombErr && !/duplicate key/i.test(tombErr.message)) throw new Error(tombErr.message);
+      if (tombErr && !/duplicate key|unique/i.test(tombErr.message)) {
+        throw new Error(tombErr.message);
+      }
     }
 
     // Classes that exist only because of this shift.
