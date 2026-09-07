@@ -430,7 +430,6 @@ function CalendarPage() {
       <Toaster richColors position="top-center" />
 
       <PageHeader
-        eyebrow="Schedule"
         title="Calendar"
         action={
           <div className="flex items-center gap-1.5">
