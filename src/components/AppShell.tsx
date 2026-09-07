@@ -147,7 +147,7 @@ export function AppShell({
           })}
         </nav>
 
-        <div className="space-y-0.5 border-t border-sidebar-border px-2 py-3">
+        <div className="space-y-0.5 px-2 py-3">
           <Link
             to="/profile"
             title={collapsed ? "Profile" : undefined}
@@ -162,9 +162,6 @@ export function AppShell({
             <User className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Profile</span>}
           </Link>
-        </div>
-
-        <div className="border-t border-sidebar-border px-2 py-3">
           <button
             type="button"
             onClick={handleSignOut}
@@ -190,8 +187,8 @@ export function AppShell({
           >
             <PanelLeft className="h-4 w-4" />
           </button>
-          <span className="flex items-center gap-2 text-sm font-medium tracking-tight">
-            <span className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-muted/60 lg:hidden">
+          <span className="flex items-center gap-2 text-sm font-medium tracking-tight lg:hidden">
+            <span className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-muted/60">
               <Monitor className="h-3.5 w-3.5" />
             </span>
             {STUDIO_NAME}

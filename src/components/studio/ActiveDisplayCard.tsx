@@ -64,11 +64,6 @@ export function ActiveDisplayCard({
             placeholder={canEditNotes ? "Welcome everyone…" : "Available during class"}
             className="w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
           />
-          {!canEditNotes && (
-            <p className="text-[11px] text-muted-foreground">
-              Notes can be edited while the class is running.
-            </p>
-          )}
         </div>
 
         <div className="flex flex-wrap gap-2">

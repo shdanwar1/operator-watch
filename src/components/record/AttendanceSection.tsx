@@ -283,8 +283,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-[15px] font-medium tracking-tight">Attendance</h2>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" onClick={() => shiftMonth(-1)} aria-label="Previous month">
             <ChevronLeft className="h-4 w-4" />
@@ -317,10 +316,6 @@ export function AttendanceSection({ username }: { username: string | null }) {
                   <StatBlock label="Scheduled hours" value={formatHM(summary.scheduledMin)} />
                 </div>
                 <div className="mt-6 max-lg:mt-4">
-                  <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>Progress against schedule</span>
-                    <span className="tabular-nums">{Math.round(progressPct)}%</span>
-                  </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-muted max-lg:h-1">
                     <div
                       className="h-full rounded-full bg-primary transition-all duration-700"
