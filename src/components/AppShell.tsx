@@ -216,7 +216,7 @@ export function AppShell({
 
         {/* Mobile tab bar — flush with the bottom edge, thin top border. */}
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border glass-bar pb-safe lg:hidden">
-          <div className="mx-auto grid max-w-[430px] grid-cols-4 px-1.5 pb-1.5 pt-1">
+          <div className="mx-auto grid max-w-[430px] grid-cols-5 px-1.5 pb-1.5 pt-1">
             {MOBILE_NAV.map((item) => {
               const active = item.exact
                 ? pathname === item.to
