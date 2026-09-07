@@ -30,9 +30,12 @@ const SIDEBAR_NAV = [
   { label: "Display", to: "/studio-display", icon: Monitor },
 ];
 
-/** Mobile tab bar: the four primary destinations plus Profile. Studio Display
- *  is desktop-only, so it never appears here. */
-const MOBILE_NAV = [...NAV, { label: "Profile", to: "/profile", icon: User }];
+/** Mobile tab bar: the three primary destinations plus Display and Profile. */
+const MOBILE_NAV = [
+  ...NAV,
+  { label: "Display", to: "/studio-display", icon: Monitor },
+  { label: "Profile", to: "/profile", icon: User },
+];
 
 const COLLAPSE_KEY = "so.sidebar.collapsed";
 
