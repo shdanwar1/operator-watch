@@ -7,22 +7,13 @@ import { publishSync, subscribeSync, type SyncMessage } from "@/lib/sync-bus";
 import { coordinatedSync } from "@/lib/gcal-sync-coordinator";
 import { readCache, writeCache } from "@/lib/local-cache";
 
-// Background cadence. Kept deliberately loose: the single-flight/cooldown
-// coordinator, the cross-tab broadcast, and realtime DB listeners already
-// cover the gaps in between, so this interval only needs to catch changes
-// made directly in Google Calendar since the last sync.
-const AUTO_SYNC_MS = 10 * 60 * 1000;
-
 /**
  * Shared Google Calendar synchronization.
  *
- * Manual, automatic and first-import syncs all run through here, so every
- * trigger produces the same pipeline: import → refresh the caller's data →
- * broadcast so every other open view refreshes too. Automatic triggers
- * (mount, interval, tab refocus) go through the shared coordinator, which
- * skips the network entirely if a sync completed very recently — no matter
- * how many components ask. Manual triggers (buttons, saving a calendar link)
- * always go through immediately.
+ * Google Calendar import is MANUAL ONLY: nothing here syncs on mount, on a
+ * timer, on refocus or on tab visibility changes. A sync only happens when
+ * something calls `runSync()` in response to a user action. The scope is
+ * always the current calendar month.
  */
 export function useCalendarSync(options: {
   /** Only sync when the operator actually has a linked calendar. */
@@ -31,20 +22,10 @@ export function useCalendarSync(options: {
   onSynced: () => void | Promise<void>;
   /** Announce results with toasts (the page that owns the sync button). */
   announce?: boolean;
-  /** Include next month in the sync window. */
-  includeNextMonth?: boolean;
-  /** Background (mount/interval/refocus) syncing. Manual syncs always work. */
-  auto?: boolean;
   /** Persist the last successful sync time locally under this key. */
   cacheKey?: string | null;
 }) {
-  const {
-    enabled,
-    announce = false,
-    includeNextMonth = false,
-    auto: autoEnabled = true,
-    cacheKey = null,
-  } = options;
+  const { enabled, announce = false, cacheKey = null } = options;
   const syncFn = useServerFn(syncGoogleCalendar);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(() => {
