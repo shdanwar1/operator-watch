@@ -100,7 +100,7 @@ describe("buildTimetableWeek", () => {
     expect(mk("workout")).toBe("Workout");
     expect(mk("stretching")).toBe("Workout");
     expect(mk("ballet class")).toBe("Ballet");
-    expect(mk(null)).toBeNull();
+    expect(toDisplayCategory(null)).toBeNull();
   });
 
   it("sorts a day's classes by start time", () => {
