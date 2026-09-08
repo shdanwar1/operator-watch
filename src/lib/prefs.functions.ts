@@ -29,10 +29,6 @@ async function requireOperator() {
 }
 
 export type OperatorPrefs = {
-  /** Sync Google Calendar automatically in the background. */
-  autoSync: boolean;
-  /** Extend the sync window to cover next month as well. */
-  syncNextMonth: boolean;
   /** Browser reminder when it is time to leave home. */
   notifyTimeToLeave: boolean;
   /** Browser reminder shortly before the shift starts. */
@@ -41,9 +37,10 @@ export type OperatorPrefs = {
   showTimeToLeave: boolean;
 };
 
+// Google Calendar sync is manual-only and current-month-only. The legacy
+// `autoSync` / `syncNextMonth` keys may still sit in stored JSON; they are
+// intentionally ignored here and never influence runtime behaviour.
 export const DEFAULT_PREFS: OperatorPrefs = {
-  autoSync: true,
-  syncNextMonth: false,
   notifyTimeToLeave: true,
   notifyShiftStart: true,
   showTimeToLeave: true,
