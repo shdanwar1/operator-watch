@@ -11,9 +11,7 @@
  * caller in this tab agrees on it.
  */
 
-export type CoordinatedSyncFn<T> = (args: {
-  data: { includeNextMonth: boolean };
-}) => Promise<T>;
+export type CoordinatedSyncFn<T> = (args: { data: Record<string, never> }) => Promise<T>;
 
 /** Don't repeat an *automatic* sync within this long of the last completed one. */
 const MIN_AUTO_INTERVAL_MS = 90_000;
@@ -38,7 +36,6 @@ export function msSinceLastSync(): number {
 export async function coordinatedSync<T>(
   syncFn: CoordinatedSyncFn<T>,
   opts: {
-    includeNextMonth: boolean;
     force: boolean;
     /** Only a result that passes this counts as a completed sync. */
     isSuccess?: (result: T) => boolean;
@@ -56,7 +53,7 @@ export async function coordinatedSync<T>(
   if (!opts.force && msSinceLastSync() < MIN_AUTO_INTERVAL_MS) {
     return { result: null, skipped: true };
   }
-  const run = syncFn({ data: { includeNextMonth: opts.includeNextMonth } });
+  const run = syncFn({ data: {} });
   inFlight = run;
   try {
     const result = await run;
@@ -66,4 +63,3 @@ export async function coordinatedSync<T>(
     inFlight = null;
   }
 }
-

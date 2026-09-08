@@ -51,8 +51,7 @@ export function useCalendarSync(options: {
       setSyncing(true);
       try {
         const { result: res, skipped } = await coordinatedSync(syncFn, {
-          // Manual sync is always current-month-only.
-          includeNextMonth: false,
+          // Scope is fixed server-side: current calendar month only.
           force,
           isSuccess: (r) => r?.ok === true,
         });
@@ -75,7 +74,6 @@ export function useCalendarSync(options: {
         publishSync({ type: "data-synced", at: Date.now() });
         if (!silent) toast.success("Google Calendar synchronized successfully.");
         return res;
-
       } catch (e) {
         if (!silent) toast.error(e instanceof Error ? e.message : "Sync failed");
         return undefined;

@@ -56,14 +56,17 @@ export const setMyCalendarUrl = createServerFn({ method: "POST" })
     return { ok: true, icsUrl: normalized };
   });
 
+/**
+ * Operator manual sync. The scope is fixed by product contract: the current
+ * calendar month only. Any client-supplied options are ignored on purpose so
+ * stale preferences or an obsolete caller can never widen the window.
+ */
 export const syncGoogleCalendar = createServerFn({ method: "POST" })
-  .inputValidator((data?: { includeNextMonth?: boolean }) => ({
-    includeNextMonth: data?.includeNextMonth === true,
-  }))
-  .handler(async ({ data }): Promise<GcalSyncResult> => {
+  .inputValidator(() => ({}) as Record<string, never>)
+  .handler(async (): Promise<GcalSyncResult> => {
     const { username } = await requireOperator();
     const { runCalendarSync } = await import("./gcal.server");
-    return runCalendarSync(username, { includeNextMonth: data.includeNextMonth });
+    return runCalendarSync(username, { includeNextMonth: false });
   });
 
 /** Server-authoritative last successful sync time (no calendar fetch). */
