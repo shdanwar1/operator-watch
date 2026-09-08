@@ -10,19 +10,26 @@
  */
 import {
   detectCalendarMode,
-  groupClassesIntoShifts,
   minToTime,
-  parseIcs,
-  safeRemoteUrl,
   syncWindow,
   toMin,
   berlinDateKey,
   type CalendarMode,
-  type ClassEvent,
   type ParsedEvent,
 } from "./gcal-core";
 import { aliasKeyFor, matchEvent, type AliasEntry, type MatchLog } from "./gcal-match";
 import { isValidDanceMasterclassClass } from "./class-eligibility";
+import { groupClassesIntoShifts, type ClassEvent } from "@/domain/shift-planning";
+import {
+  googleShiftIdentity,
+  googleShiftPrefix,
+  manualClassUid,
+  operatorKey,
+  isManualIdentity,
+} from "@/domain/shift-identity";
+import { googleIcsCalendarProvider } from "@/domain/calendar-provider.server";
+import * as shiftRepo from "@/domain/shift-repository.server";
+
 
 export type GcalSyncResult = {
   ok: boolean;
