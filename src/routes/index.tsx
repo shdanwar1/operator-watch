@@ -350,13 +350,10 @@ function Index() {
     load();
   }, []);
 
-  // Google Calendar stays in sync from the dashboard too, so the operator
-  // never has to open the calendar page (or refresh) to see new classes.
+  // Google Calendar import is manual-only; the dashboard never triggers it.
   const { syncing } = useCalendarSync({
     enabled: !!profileStatus && !needsCal,
     onSynced: () => load(),
-    auto: prefsLoaded && prefs.autoSync,
-    includeNextMonth: prefs.syncNextMonth,
   });
 
   // A sync that finished in another view (or another tab) refreshes us too.
