@@ -35,11 +35,9 @@ export function useCalendarSync(options: {
   });
   const [logs, setLogs] = useState<MatchLog[]>([]);
 
-  // Kept in refs so the auto-sync interval never restarts on every render.
+  // Kept in refs so callbacks stay stable across renders.
   const onSyncedRef = useRef(options.onSynced);
   onSyncedRef.current = options.onSynced;
-  const nextMonthRef = useRef(includeNextMonth);
-  nextMonthRef.current = includeNextMonth;
   const cacheKeyRef = useRef(cacheKey);
   cacheKeyRef.current = cacheKey;
 
