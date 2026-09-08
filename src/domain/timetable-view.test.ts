@@ -3,6 +3,7 @@ import {
   addMinutesLocal,
   buildTimetableWeek,
   resumesOnLabel,
+  toDisplayCategory,
   WEEK_ORDER,
 } from "./timetable-view";
 import type { DmcTimetableSlot } from "./timetable";
@@ -80,12 +81,26 @@ describe("buildTimetableWeek", () => {
     expect(card).toMatchObject({
       className: "Ballet Basics",
       category: "ballet class",
+      displayCategory: "Ballet",
       instructorName: "Alice Heyward",
       instructorInitials: "AH",
       startTime: "19:30",
       endTime: "20:30",
       endsNextDay: false,
     });
+  });
+
+  it("normalizes workout and stretching to Workout, ballet to Ballet", () => {
+    const mk = (cat: string) =>
+      buildTimetableWeek({
+        slots: [slot()],
+        classes: [{ ...classes[0], sourceClassId: "c1", category: cat }],
+        instructors,
+      })[0].cards[0].displayCategory;
+    expect(mk("workout")).toBe("Workout");
+    expect(mk("stretching")).toBe("Workout");
+    expect(mk("ballet class")).toBe("Ballet");
+    expect(toDisplayCategory(null)).toBeNull();
   });
 
   it("sorts a day's classes by start time", () => {
@@ -131,5 +146,15 @@ describe("resumesOnLabel", () => {
     expect(resumesOnLabel("2026-09-20")).toBe("Back on 20 September");
     expect(resumesOnLabel("2026-01-05")).toBe("Back on 5 January");
     expect(resumesOnLabel(null)).toBeNull();
+  });
+});
+
+describe("toDisplayCategory", () => {
+  it("maps the raw API categories to the two operational classes", () => {
+    expect(toDisplayCategory("workout")).toBe("Workout");
+    expect(toDisplayCategory("stretching")).toBe("Workout");
+    expect(toDisplayCategory("ballet class")).toBe("Ballet");
+    expect(toDisplayCategory("Ballet Class")).toBe("Ballet");
+    expect(toDisplayCategory(null)).toBeNull();
   });
 });

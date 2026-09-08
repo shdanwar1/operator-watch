@@ -42,22 +42,24 @@ function SlotCard({ card }: { card: TimetableCard }) {
         !card.active && "border-dashed bg-muted/40",
       )}
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <span
-          className={cn(
-            "text-[13px] font-semibold tabular-nums",
-            !card.active && "text-muted-foreground",
-          )}
-        >
-          {card.startTime}–{card.endTime}
-          {card.endsNextDay && (
-            <span className="ml-1 text-[10px] font-normal text-muted-foreground">next day</span>
-          )}
-        </span>
-        <span className="text-[11px] text-muted-foreground">{card.durationMinutes} min</span>
-      </div>
+      <span
+        className={cn(
+          "text-[13px] font-semibold tabular-nums",
+          !card.active && "text-muted-foreground",
+        )}
+      >
+        {card.startTime}–{card.endTime}
+        {card.endsNextDay && (
+          <span className="ml-1 text-[10px] font-normal text-muted-foreground">next day</span>
+        )}
+      </span>
 
-      <p className={cn("mt-1 text-sm font-medium", !card.active && "text-muted-foreground")}>
+      <p
+        className={cn(
+          "mt-1 text-sm font-medium leading-snug",
+          !card.active && "text-muted-foreground",
+        )}
+      >
         {card.className}
       </p>
 
@@ -66,18 +68,14 @@ function SlotCard({ card }: { card: TimetableCard }) {
         <span className="truncate text-xs text-muted-foreground">{card.instructorName}</span>
       </div>
 
-      {(card.category || card.level) && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {card.category && (
-            <Badge variant="secondary" className="text-[10px] font-normal capitalize">
-              {card.category}
-            </Badge>
-          )}
-          {card.level && (
-            <Badge variant="outline" className="text-[10px] font-normal capitalize">
-              {card.level}
-            </Badge>
-          )}
+      {card.displayCategory && (
+        <div className="mt-2">
+          <Badge
+            variant={card.displayCategory === "Ballet" ? "outline" : "secondary"}
+            className="text-[10px] font-normal"
+          >
+            {card.displayCategory}
+          </Badge>
         </div>
       )}
 
