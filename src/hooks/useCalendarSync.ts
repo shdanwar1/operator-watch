@@ -51,8 +51,7 @@ export function useCalendarSync(options: {
       setSyncing(true);
       try {
         const { result: res, skipped } = await coordinatedSync(syncFn, {
-          // Manual sync is always current-month-only.
-          includeNextMonth: false,
+          // Scope is fixed server-side: current calendar month only.
           force,
           isSuccess: (r) => r?.ok === true,
         });

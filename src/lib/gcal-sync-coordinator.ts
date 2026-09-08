@@ -36,7 +36,6 @@ export function msSinceLastSync(): number {
 export async function coordinatedSync<T>(
   syncFn: CoordinatedSyncFn<T>,
   opts: {
-    includeNextMonth: boolean;
     force: boolean;
     /** Only a result that passes this counts as a completed sync. */
     isSuccess?: (result: T) => boolean;
@@ -54,7 +53,7 @@ export async function coordinatedSync<T>(
   if (!opts.force && msSinceLastSync() < MIN_AUTO_INTERVAL_MS) {
     return { result: null, skipped: true };
   }
-  const run = syncFn({ data: { includeNextMonth: opts.includeNextMonth } });
+  const run = syncFn({ data: {} });
   inFlight = run;
   try {
     const result = await run;
