@@ -45,16 +45,15 @@ export function useCalendarSync(options: {
     async (opts?: { silent?: boolean; force?: boolean }) => {
       if (!enabled) return;
       const silent = opts?.silent ?? !announce;
-      // Any explicit call (button click, saving a new link) is real user
-      // intent and should never be silently dropped by the cooldown — only
-      // the mount/interval/refocus triggers pass force:false.
+      // Every sync is user-initiated now, so it always goes through; the
+      // coordinator still de-duplicates concurrent clicks.
       const force = opts?.force ?? true;
       setSyncing(true);
       try {
         const { result: res, skipped } = await coordinatedSync(syncFn, {
-          includeNextMonth: nextMonthRef.current,
+          // Manual sync is always current-month-only.
+          includeNextMonth: false,
           force,
-          // A failed sync must not start the automatic-sync cooldown.
           isSuccess: (r) => r?.ok === true,
         });
         if (skipped || !res) return undefined;
