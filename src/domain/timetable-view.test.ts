@@ -3,6 +3,7 @@ import {
   addMinutesLocal,
   buildTimetableWeek,
   resumesOnLabel,
+  toDisplayCategory,
   WEEK_ORDER,
 } from "./timetable-view";
 import type { DmcTimetableSlot } from "./timetable";
