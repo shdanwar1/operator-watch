@@ -121,6 +121,7 @@ export function buildTimetableWeek(input: {
       sourceSlotId: slot.sourceSlotId,
       className: cls?.className ?? "Unknown class",
       category: cls?.category ?? null,
+      displayCategory: toDisplayCategory(cls?.category ?? null),
       level: cls?.level ?? null,
       instructorName: name,
       instructorInitials: initialsOf(
