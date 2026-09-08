@@ -187,11 +187,10 @@ export function AppShell({
           >
             <PanelLeft className="h-4 w-4" />
           </button>
-          <span className="flex items-center gap-2 text-sm font-medium tracking-tight lg:hidden">
+          <span className="flex items-center gap-2 lg:hidden">
             <span className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-muted/60">
               <Monitor className="h-3.5 w-3.5" />
             </span>
-            {STUDIO_NAME}
           </span>
 
           <div className="ml-auto flex items-center gap-4 max-lg:gap-1.5">
