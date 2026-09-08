@@ -51,6 +51,8 @@ export type TimetableCard = {
   sourceSlotId: string;
   className: string;
   category: string | null;
+  /** Presentation-only operational classification: Workout, Ballet, or the raw category. */
+  displayCategory: string | null;
   level: string | null;
   instructorName: string;
   instructorInitials: string;
@@ -62,6 +64,21 @@ export type TimetableCard = {
   active: boolean;
   resumesOn: string | null;
 };
+
+/**
+ * Map the raw DMC API category to the two operational classes the Studio
+ * Operator Suite cares about: Workout and Ballet. Stretching folds into
+ * Workout. This is a display classification only — the stored category is
+ * untouched.
+ */
+export function toDisplayCategory(category: string | null): string | null {
+  if (!category) return null;
+  const c = category.toLowerCase().trim();
+  if (c === "workout" || c === "stretching") return "Workout";
+  if (c === "ballet class" || c === "ballet") return "Ballet";
+  // Unknown future categories render as-is rather than being hidden.
+  return category;
+}
 
 export type TimetableDay = {
   dayLocal: DmcWeekday;
