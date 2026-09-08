@@ -86,39 +86,8 @@ export function useCalendarSync(options: {
     [enabled, announce, syncFn],
   );
 
-  // Automatic sync: on mount, then on a background cadence — paused while
-  // the tab is hidden (no point polling a calendar nobody is looking at),
-  // with an immediate catch-up check when it becomes visible again.
-  useEffect(() => {
-    if (!enabled || !autoEnabled) return;
-    const auto = () => runSync({ silent: true, force: false });
-    auto();
-
-    let interval: ReturnType<typeof setInterval> | null = null;
-    const start = () => {
-      if (interval) return;
-      interval = setInterval(auto, AUTO_SYNC_MS);
-    };
-    const stop = () => {
-      if (interval) clearInterval(interval);
-      interval = null;
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        auto();
-        start();
-      } else {
-        stop();
-      }
-    };
-
-    if (typeof document !== "undefined" && document.visibilityState === "visible") start();
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      stop();
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [enabled, autoEnabled, runSync]);
+  // No automatic sync: no mount trigger, no interval, no visibility/focus
+  // catch-up. Google Calendar is only imported when the operator asks for it.
 
   return { syncing, lastSync, setLastSync, logs, setLogs, runSync };
 }
