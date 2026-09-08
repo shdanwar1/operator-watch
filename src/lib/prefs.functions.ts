@@ -54,8 +54,6 @@ function coerce(value: unknown): OperatorPrefs {
   const pick = (k: BoolKey): boolean =>
     v[k] === undefined ? (DEFAULT_PREFS[k] as boolean) : Boolean(v[k]);
   return {
-    autoSync: pick("autoSync"),
-    syncNextMonth: pick("syncNextMonth"),
     notifyTimeToLeave: pick("notifyTimeToLeave"),
     notifyShiftStart: pick("notifyShiftStart"),
     showTimeToLeave: pick("showTimeToLeave"),
