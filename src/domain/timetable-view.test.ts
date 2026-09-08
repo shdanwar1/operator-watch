@@ -81,12 +81,26 @@ describe("buildTimetableWeek", () => {
     expect(card).toMatchObject({
       className: "Ballet Basics",
       category: "ballet class",
+      displayCategory: "Ballet",
       instructorName: "Alice Heyward",
       instructorInitials: "AH",
       startTime: "19:30",
       endTime: "20:30",
       endsNextDay: false,
     });
+  });
+
+  it("normalizes workout and stretching to Workout, ballet to Ballet", () => {
+    const mk = (cat: string) =>
+      buildTimetableWeek({
+        slots: [slot()],
+        classes: [{ ...classes[0], sourceClassId: "c1", category: cat }],
+        instructors,
+      })[0].cards[0].displayCategory;
+    expect(mk("workout")).toBe("Workout");
+    expect(mk("stretching")).toBe("Workout");
+    expect(mk("ballet class")).toBe("Ballet");
+    expect(mk(null)).toBeNull();
   });
 
   it("sorts a day's classes by start time", () => {
