@@ -432,18 +432,7 @@ function ProfilePage() {
             </span>
           }
         >
-          <ToggleRow
-            label="Automatic sync"
-            checked={prefs.autoSync}
-            onChange={(v) => setPref({ autoSync: v })}
-          />
-          <ToggleRow
-            label="Next month"
-            checked={prefs.syncNextMonth}
-            onChange={(v) => setPref({ syncNextMonth: v })}
-            last
-          />
-          <div className="mt-3">
+          <div>
             <Field label="Public iCal URL">
               <Input
                 className="h-10"
