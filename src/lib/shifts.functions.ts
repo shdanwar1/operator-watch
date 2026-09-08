@@ -397,6 +397,39 @@ function manualEventId(date: string, startTime: string, operator: string | null)
   return `manual:${op}:shift:${date}:${hhmm}:${rand}`;
 }
 
+/** A non-admin may only touch scheduled shifts assigned to themselves. */
+function assertAssignedToSelf(
+  assigned: string | null | undefined,
+  username: string | null,
+  isAdmin: boolean,
+) {
+  if (isAdmin) return;
+  const owner = String(assigned ?? "");
+  if (!username || owner.toLowerCase() !== username.toLowerCase()) {
+    throw new Response("Forbidden", { status: 403 });
+  }
+}
+
+/** Load a scheduled shift and enforce that the caller owns it or is an admin. */
+async function assertScheduledOwnership(id: string, username: string | null, isAdmin: boolean) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: existing, error } = await supabaseAdmin
+    .from("scheduled_shifts")
+    .select("id, assigned_operator")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!existing) throw new Response("Scheduled shift not found", { status: 404 });
+  assertAssignedToSelf(
+    (existing as { assigned_operator: string | null }).assigned_operator,
+    username,
+    isAdmin,
+  );
+  return existing as { id: string; assigned_operator: string | null };
+}
+
+
+
 type ScheduledPatch = {
   start_time?: string;
   end_time?: string;
