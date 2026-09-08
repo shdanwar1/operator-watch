@@ -310,16 +310,12 @@ function Index() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [, setTick] = useState(0);
 
-  // Personal preferences (calendar sync, notifications, dashboard cards),
-  // cached so a returning device knows the real saved autoSync value
-  // immediately instead of assuming the default.
+  // Personal preferences (notifications, dashboard cards), cached so a
+  // returning device paints the real saved values immediately.
   const prefsCacheKey = username ? `${operatorNamespace(username)}prefs` : null;
   const loadPrefs = useServerFn(getMyPrefs);
   const [prefs, setPrefs] = useState<OperatorPrefs>(
     () => (prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)) || DEFAULT_PREFS,
-  );
-  const [prefsLoaded, setPrefsLoaded] = useState(
-    () => !!(prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)),
   );
   useEffect(() => {
     let cancelled = false;
@@ -327,12 +323,10 @@ function Index() {
       .then((p) => {
         if (cancelled) return;
         setPrefs(p);
-        setPrefsLoaded(true);
         if (prefsCacheKey) writeCache(prefsCacheKey, p);
       })
       .catch(() => {
-        /* defaults are fine, but don't block auto-sync forever */
-        if (!cancelled) setPrefsLoaded(true);
+        /* defaults are fine */
       });
     return () => {
       cancelled = true;
@@ -350,13 +344,10 @@ function Index() {
     load();
   }, []);
 
-  // Google Calendar stays in sync from the dashboard too, so the operator
-  // never has to open the calendar page (or refresh) to see new classes.
+  // Google Calendar import is manual-only; the dashboard never triggers it.
   const { syncing } = useCalendarSync({
     enabled: !!profileStatus && !needsCal,
     onSynced: () => load(),
-    auto: prefsLoaded && prefs.autoSync,
-    includeNextMonth: prefs.syncNextMonth,
   });
 
   // A sync that finished in another view (or another tab) refreshes us too.
