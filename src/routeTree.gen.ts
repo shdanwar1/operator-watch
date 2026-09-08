@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UnlockRouteImport } from './routes/unlock'
-import { Route as TransitIconsRouteImport } from './routes/transit-icons'
 import { Route as StudioDisplayRouteImport } from './routes/studio-display'
 import { Route as ShiftsRouteImport } from './routes/shifts'
 import { Route as RecordRouteImport } from './routes/record'
@@ -31,11 +30,6 @@ import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/pub
 const UnlockRoute = UnlockRouteImport.update({
   id: '/unlock',
   path: '/unlock',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TransitIconsRoute = TransitIconsRouteImport.update({
-  id: '/transit-icons',
-  path: '/transit-icons',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudioDisplayRoute = StudioDisplayRouteImport.update({
@@ -131,7 +125,6 @@ export interface FileRoutesByFullPath {
   '/record': typeof RecordRoute
   '/shifts': typeof ShiftsRoute
   '/studio-display': typeof StudioDisplayRoute
-  '/transit-icons': typeof TransitIconsRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
   '/admin/operators': typeof AdminOperatorsRoute
@@ -150,7 +143,6 @@ export interface FileRoutesByTo {
   '/record': typeof RecordRoute
   '/shifts': typeof ShiftsRoute
   '/studio-display': typeof StudioDisplayRoute
-  '/transit-icons': typeof TransitIconsRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
   '/admin/operators': typeof AdminOperatorsRoute
@@ -171,7 +163,6 @@ export interface FileRoutesById {
   '/record': typeof RecordRoute
   '/shifts': typeof ShiftsRoute
   '/studio-display': typeof StudioDisplayRoute
-  '/transit-icons': typeof TransitIconsRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
   '/admin/operators': typeof AdminOperatorsRoute
@@ -193,7 +184,6 @@ export interface FileRouteTypes {
     | '/record'
     | '/shifts'
     | '/studio-display'
-    | '/transit-icons'
     | '/unlock'
     | '/admin/calendar'
     | '/admin/operators'
@@ -212,7 +202,6 @@ export interface FileRouteTypes {
     | '/record'
     | '/shifts'
     | '/studio-display'
-    | '/transit-icons'
     | '/unlock'
     | '/admin/calendar'
     | '/admin/operators'
@@ -232,7 +221,6 @@ export interface FileRouteTypes {
     | '/record'
     | '/shifts'
     | '/studio-display'
-    | '/transit-icons'
     | '/unlock'
     | '/admin/calendar'
     | '/admin/operators'
@@ -253,7 +241,6 @@ export interface RootRouteChildren {
   RecordRoute: typeof RecordRoute
   ShiftsRoute: typeof ShiftsRoute
   StudioDisplayRoute: typeof StudioDisplayRoute
-  TransitIconsRoute: typeof TransitIconsRoute
   UnlockRoute: typeof UnlockRoute
   ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
 }
@@ -265,13 +252,6 @@ declare module '@tanstack/react-router' {
       path: '/unlock'
       fullPath: '/unlock'
       preLoaderRoute: typeof UnlockRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/transit-icons': {
-      id: '/transit-icons'
-      path: '/transit-icons'
-      fullPath: '/transit-icons'
-      preLoaderRoute: typeof TransitIconsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio-display': {
@@ -418,7 +398,6 @@ const rootRouteChildren: RootRouteChildren = {
   RecordRoute: RecordRoute,
   ShiftsRoute: ShiftsRoute,
   StudioDisplayRoute: StudioDisplayRoute,
-  TransitIconsRoute: TransitIconsRoute,
   UnlockRoute: UnlockRoute,
   ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
 }
