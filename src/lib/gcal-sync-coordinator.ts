@@ -11,9 +11,7 @@
  * caller in this tab agrees on it.
  */
 
-export type CoordinatedSyncFn<T> = (args: {
-  data: { includeNextMonth: boolean };
-}) => Promise<T>;
+export type CoordinatedSyncFn<T> = (args: { data: Record<string, never> }) => Promise<T>;
 
 /** Don't repeat an *automatic* sync within this long of the last completed one. */
 const MIN_AUTO_INTERVAL_MS = 90_000;
