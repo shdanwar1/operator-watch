@@ -17,7 +17,7 @@ import {
   checkMyCalendarHealth,
   getMyCalendarSyncStatus,
 } from "@/lib/gcal.functions";
-import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
+
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 import { AppShell, PageHeader } from "@/components/AppShell";
@@ -158,35 +158,8 @@ function CalendarPage() {
   const [icsUrl, setIcsUrl] = useState<string | null>(null);
   const [debug, setDebug] = useState(false);
 
-  // Sync preferences live on the operator account so they follow the person,
-  // and are cached locally so a returning device shows the real saved choice
-  // immediately. Auto-sync gates on `prefsLoaded`, never the raw default.
-  const prefsCacheKey = username ? `${operatorNamespace(username)}prefs` : null;
-  const loadPrefs = useServerFn(getMyPrefs);
-  const [cachedPrefs] = useState<OperatorPrefs | null>(() =>
-    prefsCacheKey ? readCache<OperatorPrefs>(prefsCacheKey) : null,
-  );
-  const [syncNextMonth, setSyncNextMonth] = useState((cachedPrefs ?? DEFAULT_PREFS).syncNextMonth);
-  const [autoSync, setAutoSync] = useState((cachedPrefs ?? DEFAULT_PREFS).autoSync);
-  const [prefsLoaded, setPrefsLoaded] = useState(!!cachedPrefs);
-  useEffect(() => {
-    let cancelled = false;
-    loadPrefs()
-      .then((p) => {
-        if (cancelled) return;
-        setSyncNextMonth(p.syncNextMonth);
-        setAutoSync(p.autoSync);
-        setPrefsLoaded(true);
-        if (prefsCacheKey) writeCache(prefsCacheKey, p);
-      })
-      .catch(() => {
-        /* fall back to defaults, but don't block auto-sync forever */
-        if (!cancelled) setPrefsLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [loadPrefs, prefsCacheKey]);
+  // Google Calendar import is manual-only and current-month-only; there are
+  // no operator sync preferences to load here anymore.
 
   // Match trace is a debug-only surface: opt in with ?debug=1.
   useEffect(() => {
@@ -263,8 +236,6 @@ function CalendarPage() {
     enabled: hasGoogleCalendar,
     onSynced: load,
     announce: true,
-    includeNextMonth: syncNextMonth,
-    auto: prefsLoaded && autoSync,
     cacheKey: username ? `${operatorNamespace(username)}calendar-sync` : null,
   });
 
@@ -327,16 +298,16 @@ function CalendarPage() {
 
   const now = new Date();
   const confirmedError = health !== null && !health.ok;
-  const showSyncStatus = prefsLoaded && (!autoSync || confirmedError);
-  const syncStatusLabel = !autoSync
-    ? lastSync
+  const showSyncStatus = true;
+  const syncStatusLabel = confirmedError
+    ? health?.connected
+      ? "Link error"
+      : "Not connected"
+    : lastSync
       ? `Last synced ${formatLastSynced(lastSync, now)}`
       : health === null
         ? "Checking…"
-        : "Not synced yet"
-    : health?.connected
-      ? "Link error"
-      : "Not connected";
+        : "Not synced yet";
 
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
@@ -456,7 +427,7 @@ function CalendarPage() {
                         : "bg-emerald-500",
                   )}
                 />
-                {autoSync ? null : syncStatusLabel}
+                {syncStatusLabel}
               </span>
             )}
 
