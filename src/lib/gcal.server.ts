@@ -11,6 +11,7 @@
 import {
   detectCalendarMode,
   minToTime,
+  safeRemoteUrl,
   syncWindow,
   toMin,
   berlinDateKey,
@@ -338,7 +339,7 @@ async function syncBusy(
     classKeys: g.classKeys,
   }));
 
-  const { removed } = await writeShifts(displayName, `op:${opKey}:shift:`, window, plans);
+  const { removed } = await writeShifts(displayName, googleShiftPrefix(opKey), window, plans);
 
   return {
     ok: true,
@@ -451,7 +452,7 @@ async function syncDetailed(
 
   const { removed, idByUid } = await writeShifts(
     displayName,
-    `op:${opKey}:shift:`,
+    googleShiftPrefix(opKey),
     window,
     plans,
   );
@@ -514,7 +515,7 @@ async function syncDetailed(
   // Manually added classes (uid prefix `manual:`) never came from the feed, so
   // they are not "disappeared" calendar events and must survive a resync.
   const staleClassIds = (futureRows ?? [])
-    .filter((r) => !keepUids.has(r.uid as string) && !String(r.uid).startsWith("manual:"))
+    .filter((r) => !keepUids.has(r.uid as string) && !isManualIdentity(String(r.uid)))
     .map((r) => r.id as string);
   if (staleClassIds.length) {
     await supabaseAdmin.from("calendar_classes").delete().in("id", staleClassIds);
@@ -856,7 +857,7 @@ export async function addClassToShift(
     resolveTeacher(input.teacherName),
   ]);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const uid = `manual:${crypto.randomUUID()}`;
+  const uid = manualClassUid();
   const { data, error } = await supabaseAdmin
     .from("calendar_classes")
     .insert({
