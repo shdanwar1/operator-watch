@@ -105,3 +105,28 @@ export async function removeMany(ids: string[]): Promise<number> {
   if (error) throw new Error(error.message);
   return ids.length;
 }
+
+/**
+ * Shifts carrying a given identity prefix (see domain/shift-identity) whose
+ * date falls inside [from, to]. Used by calendar sync to find the rows it owns.
+ */
+export async function listByIdentityPrefix(
+  prefix: string,
+  from: string,
+  to: string,
+): Promise<{ id: string; external_event_id: string | null; specific_date: string; status: string }[]> {
+  const db = await admin();
+  const { data, error } = await db
+    .from("scheduled_shifts")
+    .select("id, external_event_id, specific_date, status")
+    .like("external_event_id", `${prefix}%`)
+    .gte("specific_date", from)
+    .lte("specific_date", to);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as {
+    id: string;
+    external_event_id: string | null;
+    specific_date: string;
+    status: string;
+  }[];
+}
