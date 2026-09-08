@@ -74,7 +74,6 @@ export function useCalendarSync(options: {
         publishSync({ type: "data-synced", at: Date.now() });
         if (!silent) toast.success("Google Calendar synchronized successfully.");
         return res;
-
       } catch (e) {
         if (!silent) toast.error(e instanceof Error ? e.message : "Sync failed");
         return undefined;
