@@ -148,3 +148,13 @@ describe("resumesOnLabel", () => {
     expect(resumesOnLabel(null)).toBeNull();
   });
 });
+
+describe("toDisplayCategory", () => {
+  it("maps the raw API categories to the two operational classes", () => {
+    expect(toDisplayCategory("workout")).toBe("Workout");
+    expect(toDisplayCategory("stretching")).toBe("Workout");
+    expect(toDisplayCategory("ballet class")).toBe("Ballet");
+    expect(toDisplayCategory("Ballet Class")).toBe("Ballet");
+    expect(toDisplayCategory(null)).toBeNull();
+  });
+});
