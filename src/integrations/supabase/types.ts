@@ -201,6 +201,123 @@ export type Database = {
         }
         Relationships: []
       }
+      dmc_classes: {
+        Row: {
+          category: string | null
+          class_name: string
+          created_at: string
+          description: string | null
+          id: string
+          level: string | null
+          source_class_id: string
+          trailer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          class_name: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          level?: string | null
+          source_class_id: string
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          class_name?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          level?: string | null
+          source_class_id?: string
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dmc_instructors: {
+        Row: {
+          bio_info: string | null
+          created_at: string
+          first_name: string | null
+          id: string
+          image_url: string | null
+          last_name: string | null
+          source_instructor_id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          bio_info?: string | null
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          image_url?: string | null
+          last_name?: string | null
+          source_instructor_id: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bio_info?: string | null
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          image_url?: string | null
+          last_name?: string | null
+          source_instructor_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dmc_timetable_slots: {
+        Row: {
+          active: boolean
+          created_at: string
+          day_local: number
+          duration_minutes: number
+          id: string
+          resumes_on: string | null
+          schedule_key: string
+          source_class_id: string
+          source_instructor_id: string
+          source_slot_id: string
+          start_time_local: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          day_local: number
+          duration_minutes: number
+          id?: string
+          resumes_on?: string | null
+          schedule_key: string
+          source_class_id: string
+          source_instructor_id: string
+          source_slot_id: string
+          start_time_local: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          day_local?: number
+          duration_minutes?: number
+          id?: string
+          resumes_on?: string | null
+          schedule_key?: string
+          source_class_id?: string
+          source_instructor_id?: string
+          source_slot_id?: string
+          start_time_local?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       operator_travel_plans: {
         Row: {
           algorithm_version: number
