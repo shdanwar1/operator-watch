@@ -157,63 +157,21 @@ async function runCalendarImport(
     );
   }
 
-  const safeUrl = safeRemoteUrl(icsUrl);
-  if (!safeUrl) {
-    return fail("busy", "That calendar link is not an allowed public https address.");
-  }
-
-  let icsText: string;
-  try {
-    // The edge runtime does not support redirect: "error"; follow redirects
-    // manually so every hop can be re-validated against the SSRF guard.
-    let target = safeUrl;
-    let res: Response | null = null;
-    for (let hop = 0; hop < 5; hop++) {
-      res = await fetch(target, {
-        headers: { Accept: "text/calendar, text/plain;q=0.9, */*;q=0.8" },
-        redirect: "manual",
-      });
-      if (res.status >= 300 && res.status < 400) {
-        const loc = res.headers.get("location");
-        if (!loc) break;
-        const next = safeRemoteUrl(new URL(loc, target).toString());
-        if (!next) return fail("busy", "That calendar link redirects to a blocked address.");
-        target = next;
-        continue;
-      }
-      break;
-    }
-    if (!res || !res.ok) {
-      return fail(
-        "busy",
-        `Calendar link returned HTTP ${res ? res.status : "error"}. In Google Calendar → Settings → "Access permissions", enable "Make available to public" and copy the "Public address in iCal format".`,
-      );
-    }
-    icsText = await res.text();
-  } catch (e) {
-    return fail("busy", e instanceof Error ? e.message : "Failed to fetch calendar");
-  }
-
-  if (!/BEGIN:VCALENDAR/i.test(icsText)) {
-    return fail(
-      "busy",
-      "That link did not return calendar data. Use the \"Public address in iCal format\" (ends in .ics) from Google Calendar settings.",
-    );
-  }
-
   const nowDate = new Date();
   const window = syncWindow(nowDate, includeNextMonth);
-  const [fy, fm, fd] = window.from.split("-").map(Number);
-  const [ty, tm, td] = window.to.split("-").map(Number);
-  const events = parseIcs(icsText, {
-    from: new Date(fy, fm - 1, fd),
-    to: new Date(ty, tm - 1, td, 23, 59, 59),
-  });
+
+  // Everything ICS-specific (fetch, redirect guard, parsing) lives in the
+  // calendar provider adapter; from here on the engine works on commitments.
+  const fetched = await googleIcsCalendarProvider.fetchCommitments(icsUrl, window);
+  if (!fetched.ok) return fail("busy", fetched.error);
+
+  const events = fetched.commitments.map((c) => c.raw);
   const mode = detectCalendarMode(events);
   return mode === "detailed"
     ? syncDetailed(displayName, events, window)
     : syncBusy(displayName, events, window);
 }
+
 
 /* ───────────────────────── shared shift writing ───────────────────────── */
 
