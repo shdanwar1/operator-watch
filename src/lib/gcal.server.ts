@@ -208,13 +208,8 @@ async function writeShifts(
   const todayStr = berlinDateKey();
   const from = window.from < todayStr ? todayStr : window.from;
 
-  const { data: existingRows, error: exErr } = await supabaseAdmin
-    .from("scheduled_shifts")
-    .select("id, external_event_id, specific_date, status")
-    .like("external_event_id", `${prefix}%`)
-    .gte("specific_date", from)
-    .lte("specific_date", window.to);
-  if (exErr) throw new Error(exErr.message);
+  const existingRows = await shiftRepo.listByIdentityPrefix(prefix, from, window.to);
+
 
   // Never rebuild a shift the operator already worked (attendance recorded).
   const existingIds = (existingRows ?? []).map((r) => r.id as string);
