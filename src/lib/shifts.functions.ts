@@ -397,28 +397,6 @@ function manualEventId(date: string, startTime: string, operator: string | null)
   return `manual:${op}:shift:${date}:${hhmm}:${rand}`;
 }
 
-type ScheduledInsert = {
-  specific_date: string;
-  start_time: string;
-  end_time: string;
-  label: string;
-};
-
-function sanitizeScheduled(rows: unknown): ScheduledInsert[] {
-  if (!Array.isArray(rows)) throw new Error("rows must be an array");
-  if (rows.length > 500) throw new Error("Too many rows");
-  return rows.map((r) => {
-    const row = r as Partial<ScheduledInsert>;
-    const date = String(row.specific_date ?? "");
-    if (!DATE_RE.test(date)) throw new Error("Invalid specific_date");
-    const st = String(row.start_time ?? "");
-    const et = String(row.end_time ?? "");
-    if (!TIME_RE.test(st) || !TIME_RE.test(et)) throw new Error("Invalid time format");
-    const label = String(row.label ?? "").slice(0, 200);
-    return { specific_date: date, start_time: st, end_time: et, label };
-  });
-}
-
 /** A non-admin may only touch scheduled shifts assigned to themselves. */
 function assertAssignedToSelf(
   assigned: string | null | undefined,
@@ -450,22 +428,6 @@ async function assertScheduledOwnership(id: string, username: string | null, isA
   return existing as { id: string; assigned_operator: string | null };
 }
 
-export const insertScheduledShifts = createServerFn({ method: "POST" })
-  .inputValidator((data: { rows: unknown }) => ({ rows: sanitizeScheduled(data?.rows) }))
-  .handler(async ({ data }) => {
-    const { username, isAdmin } = await requireGate();
-    if (!isAdmin && !username) throw new Response("Forbidden", { status: 403 });
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const rows = data.rows.map((r) => ({
-      ...r,
-      // Non-admins can only create shifts for themselves.
-      ...(isAdmin ? {} : { assigned_operator: username, status: "assigned" }),
-      external_event_id: manualEventId(r.specific_date, r.start_time, isAdmin ? null : username),
-    }));
-    const { error } = await supabaseAdmin.from("scheduled_shifts").insert(rows);
-    if (error) throw new Error(error.message);
-    return { inserted: rows.length };
-  });
 
 
 type ScheduledPatch = {
