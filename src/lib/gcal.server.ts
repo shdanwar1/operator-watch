@@ -252,12 +252,7 @@ async function writeShifts(
     .map((r) => r.id as string);
   let removed = 0;
   if (staleIds.length) {
-    const { error: delErr } = await supabaseAdmin
-      .from("scheduled_shifts")
-      .delete()
-      .in("id", staleIds);
-    if (delErr) throw new Error(delErr.message);
-    removed = staleIds.length;
+    removed = await shiftRepo.removeMany(staleIds);
   }
 
   const keptById = new Map<string, string>(); // uid → row id
@@ -283,31 +278,22 @@ async function writeShifts(
         idByUid.set(plan.uid, existingId);
         continue; // worked shift — leave untouched
       }
-      const { error } = await supabaseAdmin
-        .from("scheduled_shifts")
-        .update(payload)
-        .eq("id", existingId);
-      if (error) throw new Error(error.message);
+      await shiftRepo.patch(existingId, payload);
       idByUid.set(plan.uid, existingId);
     } else {
-      const { data: inserted, error } = await supabaseAdmin
-        .from("scheduled_shifts")
-        .insert(payload)
-        .select("id")
-        .single();
-      if (error) throw new Error(error.message);
-      idByUid.set(plan.uid, (inserted as { id: string }).id);
+      const inserted = await shiftRepo.insertOne({ ...payload, notes: null });
+      idByUid.set(plan.uid, inserted.id);
     }
   }
 
   return { removed, idByUid };
 }
 
+/** Identity of a calendar-generated shift. Format owned by domain/shift-identity. */
 function shiftUid(opKey: string, date: string, startMin: number) {
-  const hh = String(Math.floor(startMin / 60)).padStart(2, "0");
-  const mm = String(startMin % 60).padStart(2, "0");
-  return `op:${opKey}:shift:${date}:${hh}${mm}`;
+  return googleShiftIdentity(opKey, date, startMin);
 }
+
 
 /* ───────────────────────── Busy mode ───────────────────────── */
 
