@@ -87,13 +87,10 @@ export const completeMyProfile = createServerFn({ method: "POST" })
     const { username } = await requireSignedIn();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: op, error: e0 } = await supabaseAdmin
-      .from("operators")
-      .select("id")
-      .ilike("username", username)
-      .maybeSingle();
-    if (e0 || !op) throw new Error("Operator not found");
-    const id = (op as { id: string }).id;
+    const { resolveByUsername } = await import("@/domain/operator-resolver.server");
+    const op = await resolveByUsername(username);
+    if (!op) throw new Error("Operator not found");
+    const id = op.id;
 
     const patch: {
       home_label?: string;

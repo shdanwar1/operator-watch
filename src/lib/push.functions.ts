@@ -27,15 +27,10 @@ async function requireOperatorId() {
   if (!session.data.siteUnlocked || !username) {
     throw new Response("Unauthorized", { status: 401 });
   }
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
-    .from("operators")
-    .select("id")
-    .ilike("username", username)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) throw new Response("Unauthorized", { status: 401 });
-  return { operatorId: (data as { id: string }).id, username };
+  const { resolveByUsername } = await import("@/domain/operator-resolver.server");
+  const operator = await resolveByUsername(username);
+  if (!operator) throw new Response("Unauthorized", { status: 401 });
+  return { operatorId: operator.id, username };
 }
 
 /** The VAPID public key the browser needs to create a subscription. */

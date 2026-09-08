@@ -10,19 +10,27 @@
  */
 import {
   detectCalendarMode,
-  groupClassesIntoShifts,
   minToTime,
-  parseIcs,
   safeRemoteUrl,
   syncWindow,
   toMin,
   berlinDateKey,
   type CalendarMode,
-  type ClassEvent,
   type ParsedEvent,
 } from "./gcal-core";
 import { aliasKeyFor, matchEvent, type AliasEntry, type MatchLog } from "./gcal-match";
 import { isValidDanceMasterclassClass } from "./class-eligibility";
+import { groupClassesIntoShifts, type ClassEvent } from "@/domain/shift-planning";
+import {
+  googleShiftIdentity,
+  googleShiftPrefix,
+  manualClassUid,
+  operatorKey,
+  isManualIdentity,
+} from "@/domain/shift-identity";
+import { googleIcsCalendarProvider } from "@/domain/calendar-provider.server";
+import * as shiftRepo from "@/domain/shift-repository.server";
+
 
 export type GcalSyncResult = {
   ok: boolean;
@@ -157,63 +165,21 @@ async function runCalendarImport(
     );
   }
 
-  const safeUrl = safeRemoteUrl(icsUrl);
-  if (!safeUrl) {
-    return fail("busy", "That calendar link is not an allowed public https address.");
-  }
-
-  let icsText: string;
-  try {
-    // The edge runtime does not support redirect: "error"; follow redirects
-    // manually so every hop can be re-validated against the SSRF guard.
-    let target = safeUrl;
-    let res: Response | null = null;
-    for (let hop = 0; hop < 5; hop++) {
-      res = await fetch(target, {
-        headers: { Accept: "text/calendar, text/plain;q=0.9, */*;q=0.8" },
-        redirect: "manual",
-      });
-      if (res.status >= 300 && res.status < 400) {
-        const loc = res.headers.get("location");
-        if (!loc) break;
-        const next = safeRemoteUrl(new URL(loc, target).toString());
-        if (!next) return fail("busy", "That calendar link redirects to a blocked address.");
-        target = next;
-        continue;
-      }
-      break;
-    }
-    if (!res || !res.ok) {
-      return fail(
-        "busy",
-        `Calendar link returned HTTP ${res ? res.status : "error"}. In Google Calendar → Settings → "Access permissions", enable "Make available to public" and copy the "Public address in iCal format".`,
-      );
-    }
-    icsText = await res.text();
-  } catch (e) {
-    return fail("busy", e instanceof Error ? e.message : "Failed to fetch calendar");
-  }
-
-  if (!/BEGIN:VCALENDAR/i.test(icsText)) {
-    return fail(
-      "busy",
-      "That link did not return calendar data. Use the \"Public address in iCal format\" (ends in .ics) from Google Calendar settings.",
-    );
-  }
-
   const nowDate = new Date();
   const window = syncWindow(nowDate, includeNextMonth);
-  const [fy, fm, fd] = window.from.split("-").map(Number);
-  const [ty, tm, td] = window.to.split("-").map(Number);
-  const events = parseIcs(icsText, {
-    from: new Date(fy, fm - 1, fd),
-    to: new Date(ty, tm - 1, td, 23, 59, 59),
-  });
+
+  // Everything ICS-specific (fetch, redirect guard, parsing) lives in the
+  // calendar provider adapter; from here on the engine works on commitments.
+  const fetched = await googleIcsCalendarProvider.fetchCommitments(icsUrl, window);
+  if (!fetched.ok) return fail("busy", fetched.error);
+
+  const events = fetched.commitments.map((c) => c.raw);
   const mode = detectCalendarMode(events);
   return mode === "detailed"
     ? syncDetailed(displayName, events, window)
     : syncBusy(displayName, events, window);
 }
+
 
 /* ───────────────────────── shared shift writing ───────────────────────── */
 
@@ -243,13 +209,8 @@ async function writeShifts(
   const todayStr = berlinDateKey();
   const from = window.from < todayStr ? todayStr : window.from;
 
-  const { data: existingRows, error: exErr } = await supabaseAdmin
-    .from("scheduled_shifts")
-    .select("id, external_event_id, specific_date, status")
-    .like("external_event_id", `${prefix}%`)
-    .gte("specific_date", from)
-    .lte("specific_date", window.to);
-  if (exErr) throw new Error(exErr.message);
+  const existingRows = await shiftRepo.listByIdentityPrefix(prefix, from, window.to);
+
 
   // Never rebuild a shift the operator already worked (attendance recorded).
   const existingIds = (existingRows ?? []).map((r) => r.id as string);
@@ -292,12 +253,7 @@ async function writeShifts(
     .map((r) => r.id as string);
   let removed = 0;
   if (staleIds.length) {
-    const { error: delErr } = await supabaseAdmin
-      .from("scheduled_shifts")
-      .delete()
-      .in("id", staleIds);
-    if (delErr) throw new Error(delErr.message);
-    removed = staleIds.length;
+    removed = await shiftRepo.removeMany(staleIds);
   }
 
   const keptById = new Map<string, string>(); // uid → row id
@@ -323,31 +279,22 @@ async function writeShifts(
         idByUid.set(plan.uid, existingId);
         continue; // worked shift — leave untouched
       }
-      const { error } = await supabaseAdmin
-        .from("scheduled_shifts")
-        .update(payload)
-        .eq("id", existingId);
-      if (error) throw new Error(error.message);
+      await shiftRepo.patch(existingId, payload);
       idByUid.set(plan.uid, existingId);
     } else {
-      const { data: inserted, error } = await supabaseAdmin
-        .from("scheduled_shifts")
-        .insert(payload)
-        .select("id")
-        .single();
-      if (error) throw new Error(error.message);
-      idByUid.set(plan.uid, (inserted as { id: string }).id);
+      const inserted = await shiftRepo.insertOne({ ...payload, notes: null });
+      idByUid.set(plan.uid, inserted.id);
     }
   }
 
   return { removed, idByUid };
 }
 
+/** Identity of a calendar-generated shift. Format owned by domain/shift-identity. */
 function shiftUid(opKey: string, date: string, startMin: number) {
-  const hh = String(Math.floor(startMin / 60)).padStart(2, "0");
-  const mm = String(startMin % 60).padStart(2, "0");
-  return `op:${opKey}:shift:${date}:${hh}${mm}`;
+  return googleShiftIdentity(opKey, date, startMin);
 }
+
 
 /* ───────────────────────── Busy mode ───────────────────────── */
 
@@ -356,7 +303,7 @@ async function syncBusy(
   events: ParsedEvent[],
   window: SyncWindow,
 ): Promise<GcalSyncResult> {
-  const opKey = displayName.toLowerCase();
+  const opKey = operatorKey(displayName);
 
   let ignoredBusy = 0;
   const blocks: ClassEvent[] = events
@@ -392,7 +339,7 @@ async function syncBusy(
     classKeys: g.classKeys,
   }));
 
-  const { removed } = await writeShifts(displayName, `op:${opKey}:shift:`, window, plans);
+  const { removed } = await writeShifts(displayName, googleShiftPrefix(opKey), window, plans);
 
   return {
     ok: true,
@@ -416,7 +363,7 @@ async function syncDetailed(
 ): Promise<GcalSyncResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const now = new Date();
-  const opKey = displayName.toLowerCase();
+  const opKey = operatorKey(displayName);
 
   const [{ data: classRows }, { data: teacherRows }, { data: aliasRows }] = await Promise.all([
     supabaseAdmin.from("classes").select("id,name").limit(2000),
@@ -505,7 +452,7 @@ async function syncDetailed(
 
   const { removed, idByUid } = await writeShifts(
     displayName,
-    `op:${opKey}:shift:`,
+    googleShiftPrefix(opKey),
     window,
     plans,
   );
@@ -568,7 +515,7 @@ async function syncDetailed(
   // Manually added classes (uid prefix `manual:`) never came from the feed, so
   // they are not "disappeared" calendar events and must survive a resync.
   const staleClassIds = (futureRows ?? [])
-    .filter((r) => !keepUids.has(r.uid as string) && !String(r.uid).startsWith("manual:"))
+    .filter((r) => !keepUids.has(r.uid as string) && !isManualIdentity(String(r.uid)))
     .map((r) => r.id as string);
   if (staleClassIds.length) {
     await supabaseAdmin.from("calendar_classes").delete().in("id", staleClassIds);
@@ -910,7 +857,7 @@ export async function addClassToShift(
     resolveTeacher(input.teacherName),
   ]);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const uid = `manual:${crypto.randomUUID()}`;
+  const uid = manualClassUid();
   const { data, error } = await supabaseAdmin
     .from("calendar_classes")
     .insert({
