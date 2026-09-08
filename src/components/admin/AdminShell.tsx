@@ -3,6 +3,8 @@ import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarDays,
+  CalendarRange,
+
   ListChecks,
   LogOut,
   PanelLeft,
@@ -21,10 +23,12 @@ import { cn } from "@/lib/utils";
  */
 const ADMIN_NAV: { label: string; to: string; icon: typeof CalendarDays; exact?: boolean }[] = [
   { label: "Calendar", to: "/admin/calendar", icon: CalendarDays },
+  { label: "Live Timetable", to: "/admin/live-timetable", icon: CalendarRange },
   { label: "Shifts", to: "/admin/shifts", icon: ListChecks },
   { label: "Operators", to: "/admin/operators", icon: Users },
   { label: "Settings", to: "/admin/settings", icon: Settings },
 ];
+
 
 const COLLAPSE_KEY = "so.admin.sidebar.collapsed";
 

@@ -129,18 +129,37 @@ export async function commitSnapshot(snapshot: DmcTimetableSnapshot): Promise<Co
   await up("dmc_timetable_slots", snapshot.slots.map(slotRow), "source_slot_id");
 
   // Drop what the source no longer publishes — timetable tables only.
-  const { data: storedSlots, error: slotErr } = await db
-    .from("dmc_timetable_slots")
-    .select("source_slot_id");
-  if (slotErr) throw new Error(slotErr.message);
-  const stale = staleSourceIds(
-    (storedSlots ?? []).map((r) => r.source_slot_id as string),
+  const prune = async (table: string, column: string, current: string[]) => {
+    const { data, error } = await db.from(table as never).select(column);
+    if (error) throw new Error(error.message);
+    const stored = ((data ?? []) as Record<string, string>[]).map((r) => r[column]);
+    const stale = staleSourceIds(stored, current);
+    if (stale.length > 0) {
+      const { error: delErr } = await db
+        .from(table as never)
+        .delete()
+        .in(column, stale);
+      if (delErr) throw new Error(delErr.message);
+    }
+    return stale.length;
+  };
+
+  // Slots first: they reference classes and instructors.
+  const removedSlots = await prune(
+    "dmc_timetable_slots",
+    "source_slot_id",
     snapshot.slots.map((s) => s.sourceSlotId),
   );
-  if (stale.length > 0) {
-    const { error } = await db.from("dmc_timetable_slots").delete().in("source_slot_id", stale);
-    if (error) throw new Error(error.message);
-  }
+  await prune(
+    "dmc_classes",
+    "source_class_id",
+    snapshot.classes.map((c) => c.sourceClassId),
+  );
+  await prune(
+    "dmc_instructors",
+    "source_instructor_id",
+    snapshot.instructors.map((i) => i.sourceInstructorId),
+  );
 
   const { error: metaErr } = await db.from("app_settings").upsert(
     {
@@ -160,7 +179,7 @@ export async function commitSnapshot(snapshot: DmcTimetableSnapshot): Promise<Co
     classes: snapshot.classes.length,
     instructors: snapshot.instructors.length,
     slots: snapshot.slots.length,
-    removedSlots: stale.length,
+    removedSlots,
   };
 }
 

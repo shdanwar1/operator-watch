@@ -30,11 +30,6 @@ async function requireAdmin() {
   }
 }
 
-async function requireGate() {
-  const session = await useSession<GateSession>(getSessionConfig());
-  if (!session.data.siteUnlocked) throw new Response("Unauthorized", { status: 401 });
-}
-
 export type TimetableRefreshResult =
   | {
       ok: true;
@@ -72,7 +67,7 @@ export const refreshLiveTimetable = createServerFn({ method: "POST" }).handler(
 /** Read-only view of the stored timetable (no external call). */
 export const getLiveTimetable = createServerFn({ method: "GET" }).handler(
   async (): Promise<StoredTimetable> => {
-    await requireGate();
+    await requireAdmin();
     const { loadStoredTimetable } = await import("@/domain/timetable-repository.server");
     return loadStoredTimetable();
   },
