@@ -303,7 +303,7 @@ async function syncBusy(
   events: ParsedEvent[],
   window: SyncWindow,
 ): Promise<GcalSyncResult> {
-  const opKey = displayName.toLowerCase();
+  const opKey = operatorKey(displayName);
 
   let ignoredBusy = 0;
   const blocks: ClassEvent[] = events
@@ -363,7 +363,7 @@ async function syncDetailed(
 ): Promise<GcalSyncResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const now = new Date();
-  const opKey = displayName.toLowerCase();
+  const opKey = operatorKey(displayName);
 
   const [{ data: classRows }, { data: teacherRows }, { data: aliasRows }] = await Promise.all([
     supabaseAdmin.from("classes").select("id,name").limit(2000),
