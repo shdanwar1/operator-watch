@@ -13,7 +13,9 @@ export const PAGE_TITLES = {
   record: "Record",
   profile: "Profile",
   adminCalendar: "Calendar - Admin",
+  liveTimetable: "Live Timetable",
   adminShifts: "Shifts - Admin",
+
   operators: "Operators",
   settings: "Settings",
   studioDisplay: "Studio Display",
