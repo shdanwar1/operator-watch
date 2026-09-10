@@ -200,10 +200,11 @@ async function runCalendarImport(
     );
   }
 
+  // Mode is reported for diagnostics only: both visibilities are imported the
+  // same way, because the timetable — not the title — decides validity.
   const mode = detectCalendarMode(events);
-  return mode === "detailed"
-    ? syncDetailed(displayName, events, window, index)
-    : syncBusy(displayName, events, window, index);
+  return syncFromTimetable(displayName, events, window, index, mode);
+
 }
 
 
