@@ -392,24 +392,11 @@ async function syncDetailed(
   displayName: string,
   events: ParsedEvent[],
   window: SyncWindow,
+  index: TimetableIndex,
 ): Promise<GcalSyncResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const now = new Date();
   const opKey = operatorKey(displayName);
-
-  const [{ data: classRows }, { data: teacherRows }, { data: aliasRows }] = await Promise.all([
-    supabaseAdmin.from("classes").select("id,name").limit(2000),
-    supabaseAdmin.from("teachers").select("id,name").limit(2000),
-    supabaseAdmin.from("class_aliases").select("alias_key,class_id,teacher_id").limit(5000),
-  ]);
-  const classDir = (classRows ?? []) as { id: string; name: string }[];
-  const teacherDir = (teacherRows ?? []) as { id: string; name: string }[];
-  const aliases: AliasEntry[] = (aliasRows ?? []).map((a) => ({
-    aliasKey: a.alias_key as string,
-    classId: (a.class_id ?? null) as string | null,
-    teacherId: (a.teacher_id ?? null) as string | null,
-  }));
-
 
   const inWindow = events.filter(
     (e) => e.specific_date >= window.from && e.specific_date <= window.to,
@@ -427,37 +414,32 @@ async function syncDetailed(
   const logs: MatchLog[] = [];
   let ignored = 0;
   for (const e of inWindow) {
-    // Title matching only supplies *evidence*; eligibility is decided by the
-    // single central gate so nothing else in the pipeline can widen it.
-    const matched =
-      e.status === "cancelled"
-        ? null
-        : matchEvent(e.summary, classDir, teacherDir, aliases);
-    const verdict = isValidDanceMasterclassClass(e, {
-      classId: matched?.result.classId ?? null,
-      teacherId: matched?.result.teacherId ?? null,
+    // The DMC Live Timetable decides, on time alone. The Google title is kept
+    // for reference only and plays no part in this decision.
+    const verdict = resolveDmcTimetableSlot(index, {
+      date: e.specific_date,
+      startTime: e.start_time,
+      endTime: e.end_time,
+      status: e.status,
     });
 
-    if (!verdict.valid) {
+    if (verdict.status !== "matched") {
       ignored++;
       console.warn(`[gcal] Ignored event: "${e.summary}" — reason: ${verdict.reason}`);
-      logs.push({
-        title: e.summary,
-        accepted: false,
-        confidence: matched?.log.confidence ?? 0,
-        reason: verdict.reason,
-      });
+      logs.push({ title: e.summary, accepted: false, confidence: 0, reason: verdict.reason });
       continue;
     }
 
-    const result = matched!.result;
-    logs.push({ ...matched!.log, accepted: true, reason: `${matched!.log.reason} · ${verdict.reason}` });
+    logs.push({ title: e.summary, accepted: true, confidence: 1, reason: verdict.reason });
     imported.push({
       event: e,
-      className: result.className ?? result.fallbackClassName,
-      teacherName: result.teacherName ?? result.fallbackTeacherName,
-      classId: result.classId,
-      teacherId: result.teacherId,
+      // Identity comes from the timetable, never from the Google title.
+      className: verdict.classDef?.className ?? "Class",
+      teacherName: instructorDisplayName(verdict.instructor),
+      // The legacy id columns reference the old directory tables, which are no
+      // longer an authority; timetable ids are a different namespace.
+      classId: null,
+      teacherId: null,
     });
   }
 
