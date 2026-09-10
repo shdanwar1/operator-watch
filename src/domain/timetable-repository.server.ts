@@ -183,6 +183,21 @@ export async function commitSnapshot(snapshot: DmcTimetableSnapshot): Promise<Co
   };
 }
 
+/**
+ * Timetable data for Google validation (Operation 6). Read once per sync — a
+ * fixed three queries, never one per event — and never from the DMC API.
+ * Suspended slots are included so a suspended class is reported as suspended
+ * rather than silently unknown.
+ */
+export async function loadTimetableForMatching(): Promise<{
+  slots: DmcTimetableSlot[];
+  classes: DmcClassDefinition[];
+  instructors: DmcInstructorDefinition[];
+}> {
+  const { classes, instructors, slots } = await loadStoredTimetable();
+  return { classes, instructors, slots };
+}
+
 /** Read the stored timetable back in domain shape. */
 export async function loadStoredTimetable(): Promise<StoredTimetable> {
   const db = await admin();
