@@ -115,3 +115,59 @@ export async function findDmcInstructor(id: string): Promise<DmcOption | null> {
     }),
   };
 }
+
+/**
+ * Resolves display names for a batch of rows carrying DMC references
+ * (Operation 10). `calendar_classes` no longer stores any class or teacher
+ * text: the directory is the only authority. One query per table, never per
+ * row; a missing reference resolves to the neutral placeholder.
+ */
+export async function resolveClassIdentities<
+  T extends { dmc_class_id: string | null; dmc_instructor_id: string | null },
+>(rows: T[]): Promise<(T & { className: string; teacherName: string })[]> {
+  const classIds = [...new Set(rows.map((r) => r.dmc_class_id).filter(Boolean))] as string[];
+  const instructorIds = [
+    ...new Set(rows.map((r) => r.dmc_instructor_id).filter(Boolean)),
+  ] as string[];
+
+  const db = await admin();
+  const [classesRes, instructorsRes] = await Promise.all([
+    classIds.length
+      ? db.from("dmc_classes").select("id, class_name").in("id", classIds)
+      : Promise.resolve({ data: [], error: null }),
+    instructorIds.length
+      ? db
+          .from("dmc_instructors")
+          .select("id, first_name, last_name, title")
+          .in("id", instructorIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (classesRes.error) throw new Error(classesRes.error.message);
+  if (instructorsRes.error) throw new Error(instructorsRes.error.message);
+
+  const classById = new Map(
+    ((classesRes.data ?? []) as { id: string; class_name: string }[]).map((r) => [
+      r.id,
+      r.class_name,
+    ]),
+  );
+  const instructorById = new Map(
+    (
+      (instructorsRes.data ?? []) as {
+        id: string;
+        first_name: string | null;
+        last_name: string | null;
+        title: string | null;
+      }[]
+    ).map((r) => [
+      r.id,
+      dmcInstructorLabel({ firstName: r.first_name, lastName: r.last_name, title: r.title }),
+    ]),
+  );
+
+  return rows.map((r) => ({
+    ...r,
+    className: (r.dmc_class_id && classById.get(r.dmc_class_id)) || "—",
+    teacherName: (r.dmc_instructor_id && instructorById.get(r.dmc_instructor_id)) || "—",
+  }));
+}
