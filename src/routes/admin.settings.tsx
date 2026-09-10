@@ -37,7 +37,6 @@ import {
   type DirectoryItem,
   type DuplicatePair,
 } from "@/lib/directories.functions";
-import { backfillClassMatches } from "@/lib/gcal.functions";
 
 export const Route = createFileRoute("/admin/settings")({
   head: () => ({
@@ -485,10 +484,8 @@ function DirectorySection({ table, title }: { table: "classes" | "teachers"; tit
 }
 
 function MaintenanceSection() {
-  const backfillFn = useServerFn(backfillClassMatches);
   const dupFn = useServerFn(findPossibleDuplicates);
-  const [busy, setBusy] = useState(false);
-  const { data: dups, refetch } = useQuery({
+  const { data: dups } = useQuery({
     queryKey: ["admin", "duplicates"],
     queryFn: () => dupFn(),
   });
@@ -497,34 +494,11 @@ function MaintenanceSection() {
     ...(dups && !Array.isArray(dups) ? dups.teachers : []),
   ];
 
-
-
   return (
     <Card>
       <CardContent className="space-y-4 p-5">
         <div>
           <h2 className="text-sm font-semibold tracking-tight">Data maintenance</h2>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                const res = await backfillFn();
-                toast.success(`Re-checked ${res.updated ?? 0} classes`);
-                refetch();
-              } catch (e) {
-                toast.error(e instanceof Error ? e.message : "Failed");
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            {busy ? "Re-checking…" : "Re-check class & teacher matches"}
-          </Button>
         </div>
         {dupPairs.length > 0 && (
           <div className="space-y-1 rounded-lg border border-border p-3 text-xs">
@@ -536,7 +510,6 @@ function MaintenanceSection() {
             ))}
           </div>
         )}
-
       </CardContent>
     </Card>
   );

@@ -139,97 +139,11 @@ async function requireAdmin() {
   }
 }
 
-export type BackfillResult = { scanned: number; updated: number; unchanged: number };
-
-/**
- * Re-runs the current class/teacher matching logic against every existing
- * calendar_classes row (all operators) and patches class_id / teacher_id /
- * class_name / teacher_name wherever the matcher now resolves the raw_title
- * differently than what's stored. Only those four classification columns are
- * touched — status, scheduling, and raw_title are never modified. Safe to
- * run repeatedly; rows that already match the current logic are skipped.
+/*
+ * `backfillClassMatches` was removed in Operation 6. It re-applied Google title
+ * matching to stored calendar_classes rows, which is no longer the authority:
+ * DMC validity is decided solely by the stored DMC Live Timetable during sync.
  */
-export const backfillClassMatches = createServerFn({ method: "POST" }).handler(
-  async (): Promise<BackfillResult> => {
-    await requireAdmin();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { matchEvent } = await import("./gcal-match");
-
-    const [{ data: classRows }, { data: teacherRows }, { data: aliasRows }] = await Promise.all([
-      supabaseAdmin.from("classes").select("id,name").limit(2000),
-      supabaseAdmin.from("teachers").select("id,name").limit(2000),
-      supabaseAdmin.from("class_aliases").select("alias_key,class_id,teacher_id").limit(5000),
-    ]);
-    const classDir = (classRows ?? []) as { id: string; name: string }[];
-    const teacherDir = (teacherRows ?? []) as { id: string; name: string }[];
-    const aliases = (aliasRows ?? []).map((a) => ({
-      aliasKey: a.alias_key as string,
-      classId: (a.class_id ?? null) as string | null,
-      teacherId: (a.teacher_id ?? null) as string | null,
-    }));
-
-    let scanned = 0;
-    let updated = 0;
-    const pageSize = 500;
-
-    for (let from = 0; ; from += pageSize) {
-      const { data: rows, error } = await supabaseAdmin
-        .from("calendar_classes")
-        .select("id,raw_title,class_id,teacher_id,class_name,teacher_name")
-        .order("id", { ascending: true })
-        .range(from, from + pageSize - 1);
-      if (error) throw new Error(error.message);
-      if (!rows || rows.length === 0) break;
-
-      const patches: {
-        id: string;
-        class_id: string | null;
-        teacher_id: string | null;
-        class_name: string;
-        teacher_name: string;
-      }[] = [];
-
-      for (const row of rows) {
-        scanned++;
-        const { result } = matchEvent(row.raw_title ?? "", classDir, teacherDir, aliases);
-        const className = result.className ?? result.fallbackClassName;
-        const teacherName = result.teacherName ?? result.fallbackTeacherName;
-        const changed =
-          className !== row.class_name ||
-          teacherName !== row.teacher_name ||
-          result.classId !== row.class_id ||
-          result.teacherId !== row.teacher_id;
-        if (changed) {
-          patches.push({
-            id: row.id as string,
-            class_id: result.classId,
-            teacher_id: result.teacherId,
-            class_name: className,
-            teacher_name: teacherName,
-          });
-        }
-      }
-
-      for (const p of patches) {
-        const { error: updErr } = await supabaseAdmin
-          .from("calendar_classes")
-          .update({
-            class_id: p.class_id,
-            teacher_id: p.teacher_id,
-            class_name: p.class_name,
-            teacher_name: p.teacher_name,
-          })
-          .eq("id", p.id);
-        if (updErr) throw new Error(updErr.message);
-      }
-      updated += patches.length;
-
-      if (rows.length < pageSize) break;
-    }
-
-    return { scanned, updated, unchanged: scanned - updated };
-  },
-);
 
 /** Green/red status for the operator's calendar link (independent of sync). */
 export const checkMyCalendarHealth = createServerFn({ method: "GET" }).handler(
