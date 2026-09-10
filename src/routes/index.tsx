@@ -88,7 +88,8 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-export type ShiftClass = { class: string; teacher: string };
+export type { ShiftClass } from "@/lib/shifts.functions";
+import type { ShiftClass } from "@/lib/shifts.functions";
 
 type Shift = ShiftRow;
 type ScheduledShift = ScheduledShiftRow;
