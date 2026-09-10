@@ -471,9 +471,8 @@ async function syncFromTimetable(
       uid: i.event.uid,
       dmc_class_id: i.dmcClassId,
       dmc_instructor_id: i.dmcInstructorId,
-      class_name: i.className,
-      teacher_name: i.teacherName,
-      raw_title: (i.event.summary ?? "").slice(0, 500),
+      // No class/teacher text is stored: identity is the DMC reference above.
+
       specific_date: i.event.specific_date,
       start_time: i.event.start_time,
       end_time: i.event.end_time,
