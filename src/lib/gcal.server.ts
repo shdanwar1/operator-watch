@@ -616,7 +616,7 @@ export async function listClassesForOperator(
   const { data, error } = await supabaseAdmin
     .from("calendar_classes")
     .select(
-      "id, uid, dmc_class_id, dmc_instructor_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id",
+      "id, uid, dmc_class_id, dmc_instructor_id, specific_date, start_time, end_time, status, scheduled_shift_id",
     )
     .ilike("operator", displayName)
     .gte("specific_date", fromDate)
@@ -624,7 +624,7 @@ export async function listClassesForOperator(
     .order("specific_date")
     .order("start_time");
   if (error) throw new Error(error.message);
-  return (data ?? []) as CalendarClassRow[];
+  return withIdentities(data);
 }
 
 /** Operator-driven class lifecycle state (dashboard cancel / complete). */
@@ -649,11 +649,11 @@ export async function setClassStatus(
     .update({ status })
     .eq("id", id)
     .select(
-      "id, uid, dmc_class_id, dmc_instructor_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id",
+      "id, uid, dmc_class_id, dmc_instructor_id, specific_date, start_time, end_time, status, scheduled_shift_id",
     )
     .single();
   if (error) throw new Error(error.message);
-  return data as CalendarClassRow;
+  return (await withIdentities([data]))[0];
 }
 
 export type CalendarHealth = { connected: boolean; ok: boolean; error?: string };
@@ -701,7 +701,7 @@ export async function checkOperatorCalendar(username: string): Promise<CalendarH
 /* ─────────────── Operator shift overview: class management ─────────────── */
 
 const CLASS_COLUMNS =
-  "id, uid, dmc_class_id, dmc_instructor_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id";
+  "id, uid, dmc_class_id, dmc_instructor_id, specific_date, start_time, end_time, status, scheduled_shift_id";
 
 /**
  * The shift label is derived data: it always states how many valid (non
@@ -785,7 +785,7 @@ export async function listClassesForShift(
     .order("specific_date")
     .order("start_time");
   if (error) throw new Error(error.message);
-  return (data ?? []) as CalendarClassRow[];
+  return withIdentities(data);
 }
 
 /**
@@ -836,9 +836,6 @@ export async function addClassToShift(
       uid,
       dmc_class_id: input.dmcClassId,
       dmc_instructor_id: selection.instructorId,
-      class_name: selection.className,
-      teacher_name: selection.teacherName,
-      raw_title: null,
       specific_date: input.specificDate,
       start_time: input.startTime,
       end_time: input.endTime,
@@ -849,7 +846,7 @@ export async function addClassToShift(
     .single();
   if (error) throw new Error(error.message);
   await refreshShiftLabels([shiftId]);
-  return data as CalendarClassRow;
+  return (await withIdentities([data]))[0];
 }
 
 /** Operator edit of an existing class row (DMC class / instructor, times). */
@@ -866,10 +863,8 @@ export async function updateShiftClass(
       patch.dmcInstructorId ?? null,
     );
     update.dmc_class_id = patch.dmcClassId;
-    update.class_name = selection.className;
     if (patch.dmcInstructorId !== undefined) {
       update.dmc_instructor_id = selection.instructorId;
-      update.teacher_name = selection.teacherName;
     }
   } else if (patch.dmcInstructorId !== undefined) {
     const { findDmcInstructor } = await import("@/domain/dmc-directory.server");
@@ -878,7 +873,6 @@ export async function updateShiftClass(
       : null;
     if (patch.dmcInstructorId && !instructor) throw new Error("Select a DMC instructor");
     update.dmc_instructor_id = instructor?.id ?? null;
-    update.teacher_name = instructor?.name ?? "—";
   }
   if (patch.specificDate !== undefined) update.specific_date = patch.specificDate;
   if (patch.startTime !== undefined) update.start_time = patch.startTime;
@@ -893,7 +887,7 @@ export async function updateShiftClass(
     .single();
   if (error) throw new Error(error.message);
   if (existing.scheduled_shift_id) await refreshShiftLabels([existing.scheduled_shift_id]);
-  return data as CalendarClassRow;
+  return (await withIdentities([data]))[0];
 }
 
 /**
