@@ -95,7 +95,7 @@ export type DuplicatePair = { a: DirectoryItem; b: DirectoryItem; score: number 
 export const findPossibleDuplicates = createServerFn({ method: "GET" }).handler(async () => {
   await requireGate();
   const [classes, teachers] = await Promise.all([listAll("classes"), listAll("teachers")]);
-  const { similarity } = await import("./gcal-match");
+  const { similarity } = await import("./name-similarity");
 
   function pairs(rows: DirectoryItem[]): DuplicatePair[] {
     const out: DuplicatePair[] = [];

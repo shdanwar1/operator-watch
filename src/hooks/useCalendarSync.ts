@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { syncGoogleCalendar } from "@/lib/gcal.functions";
-import type { MatchLog } from "@/lib/gcal-match";
+import type { MatchLog } from "@/lib/gcal-core";
 import { publishSync, subscribeSync, type SyncMessage } from "@/lib/sync-bus";
 import { coordinatedSync } from "@/lib/gcal-sync-coordinator";
 import { readCache, writeCache } from "@/lib/local-cache";
