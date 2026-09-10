@@ -322,78 +322,28 @@ function shiftUid(opKey: string, date: string, startMin: number) {
 }
 
 
-/* ───────────────────────── Busy mode ───────────────────────── */
+/* ───────────────── Timetable-driven import (busy + detailed) ───────────────── */
 
-async function syncBusy(
+/*
+ * Both calendar visibilities take the same route.
+ *
+ * Since Operation 6 the DMC Live Timetable — not the Google title — decides
+ * whether an event is a DMC class, so a Free/Busy calendar carries exactly the
+ * information the resolver needs (Berlin date, start, end). The only thing
+ * "busy" mode used to do differently was skipping the class rows entirely,
+ * which left the operator's class overview empty even though the shift was
+ * created. One shared importer removes that difference: class name, teacher
+ * and timing always come from the matched timetable slot.
+ */
+
+async function syncFromTimetable(
   displayName: string,
   events: ParsedEvent[],
   window: SyncWindow,
   index: TimetableIndex,
+  mode: CalendarMode,
 ): Promise<GcalSyncResult> {
-  const opKey = operatorKey(displayName);
 
-  let ignoredBusy = 0;
-  const blocks: ClassEvent[] = events
-    .filter((e) => e.specific_date >= window.from && e.specific_date <= window.to)
-    .filter((e) => {
-      // A busy block counts only if an active DMC timetable slot sits at exactly
-      // this Berlin weekday, start time and duration. Titles are irrelevant.
-      const verdict = resolveDmcTimetableSlot(index, {
-        date: e.specific_date,
-        startTime: e.start_time,
-        endTime: e.end_time,
-        status: e.status,
-      });
-      if (verdict.status !== "matched") {
-        ignoredBusy++;
-        console.warn(`[gcal] Ignored event: "${e.summary || "(busy)"}" — reason: ${verdict.reason}`);
-      }
-      return verdict.status === "matched";
-    })
-    .map((e) => ({
-      key: e.uid,
-      date: e.specific_date,
-      startMin: toMin(e.start_time),
-      endMin: toMin(e.end_time),
-    }));
-
-  // The scope boundary is the *shift start*, so a shift beginning on the last
-  // day of the scope is kept whole even when it runs into the next month.
-  const grouped = groupClassesIntoShifts(blocks).filter(
-    (g) => g.date >= window.from && g.date <= window.scopeEnd,
-  );
-  const plans: ShiftPlan[] = grouped.map((g) => ({
-    uid: shiftUid(opKey, g.date, g.startMin),
-    date: g.date,
-    startTime: minToTime(g.startMin),
-    endTime: minToTime(g.endMin),
-    label: g.classCount === 1 ? "1 class" : `${g.classCount} classes`,
-    classKeys: g.classKeys,
-  }));
-
-  const { removed } = await writeShifts(displayName, googleShiftPrefix(opKey), window, plans);
-
-  return {
-    ok: true,
-    mode: "busy",
-    fetched: grouped.reduce((n, g) => n + g.classCount, 0),
-    ignored: ignoredBusy,
-    shifts: plans.length,
-    removed,
-  };
-}
-
-/* ───────────────────────── Detailed mode ───────────────────────── */
-
-
-
-
-async function syncDetailed(
-  displayName: string,
-  events: ParsedEvent[],
-  window: SyncWindow,
-  index: TimetableIndex,
-): Promise<GcalSyncResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const now = new Date();
   const opKey = operatorKey(displayName);
