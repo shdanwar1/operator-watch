@@ -383,7 +383,7 @@ async function syncFromTimetable(
       continue;
     }
 
-    logs.push({ title: e.summary, accepted: true, confidence: 1, reason: verdict.reason });
+    logs.push({ title, accepted: true, confidence: 1, reason: verdict.reason });
     imported.push({
       event: e,
       // Identity comes from the timetable, never from the Google title.
