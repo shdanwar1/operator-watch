@@ -235,61 +235,6 @@ export function ClassScheduleCard({
           <div className="border-t border-border pt-4">{footer}</div>
         ) : null}
       </CardContent>
-
-      <Dialog open={!!fixing} onOpenChange={(o) => !o && setFixing(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Fix class match</DialogTitle>
-            <DialogDescription>
-              {fixing?.raw_title
-                ? `Calendar title: "${fixing.raw_title}"`
-                : "Pick the correct class and teacher."}{" "}
-              This correction is remembered for future calendar syncs.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground">Class</p>
-              <DirectoryCombobox
-                value={fixClass}
-                onChange={setFixClass}
-                options={classOptions}
-                placeholder="Select class"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground">Teacher (optional)</p>
-              <DirectoryCombobox
-                value={fixTeacher}
-                onChange={setFixTeacher}
-                options={teacherOptions}
-                placeholder="Select teacher"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFixing(null)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={!fixClass}
-              onClick={() => {
-                const cls = classOptions.find(
-                  (o) => o.name.toLowerCase() === fixClass.trim().toLowerCase(),
-                );
-                if (!cls || !fixing || !onCorrect) return;
-                const tea = teacherOptions.find(
-                  (o) => o.name.toLowerCase() === fixTeacher.trim().toLowerCase(),
-                );
-                onCorrect(fixing.id, cls.id, tea?.id ?? null);
-                setFixing(null);
-              }}
-            >
-              Save match
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 }
