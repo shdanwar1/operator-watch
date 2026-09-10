@@ -55,7 +55,9 @@ Add `loadActiveTimetableForMatching()` returning slots plus class and instructor
 
 ### 5. Tests — `src/domain/timetable-resolver.test.ts`
 
-Exact active match; suspended slot rejected; no match; empty title accepted; unrelated title accepted; correct-looking title with wrong time rejected; duration mismatch (45 vs 60) rejected; one-minute start mismatch rejected; weekday mismatch rejected; midnight slot `tue0000` resolving to Tuesday; free/busy block with no title accepted; ambiguous duplicate slots rejected; empty timetable index matching nothing. Existing `gcal-core` grouping tests stay untouched to prove grouping is unchanged.
+Exact active match; suspended slot rejected; no match; empty title accepted; unrelated title accepted; correct-looking title with wrong time rejected; duration mismatch (45 vs 60) rejected; one-minute start mismatch rejected; weekday mismatch rejected; midnight slot `tue0000` resolving to Tuesday; free/busy block with no title accepted; ambiguous duplicate slots rejected; empty timetable index matching nothing. Existing `gcal-core` grouping tests stay untouched to prove grouping is unchanged.  
+  
+site password "dancemasterclass" and use Shad username and PIN 2024 for testing
 
 ## Verification
 
