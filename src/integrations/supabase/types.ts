@@ -34,53 +34,44 @@ export type Database = {
       }
       calendar_classes: {
         Row: {
-          class_name: string
           created_at: string
           dmc_class_id: string | null
           dmc_instructor_id: string | null
           end_time: string
           id: string
           operator: string
-          raw_title: string | null
           scheduled_shift_id: string | null
           specific_date: string
           start_time: string
           status: string
-          teacher_name: string
           uid: string
           updated_at: string
         }
         Insert: {
-          class_name: string
           created_at?: string
           dmc_class_id?: string | null
           dmc_instructor_id?: string | null
           end_time: string
           id?: string
           operator: string
-          raw_title?: string | null
           scheduled_shift_id?: string | null
           specific_date: string
           start_time: string
           status?: string
-          teacher_name: string
           uid: string
           updated_at?: string
         }
         Update: {
-          class_name?: string
           created_at?: string
           dmc_class_id?: string | null
           dmc_instructor_id?: string | null
           end_time?: string
           id?: string
           operator?: string
-          raw_title?: string | null
           scheduled_shift_id?: string | null
           specific_date?: string
           start_time?: string
           status?: string
-          teacher_name?: string
           uid?: string
           updated_at?: string
         }
