@@ -37,6 +37,7 @@ import {
 } from "@/domain/shift-identity";
 import { googleIcsCalendarProvider } from "@/domain/calendar-provider.server";
 import * as shiftRepo from "@/domain/shift-repository.server";
+import { classifyClassRows, retentionCutoff } from "@/domain/class-retention";
 
 
 export type GcalSyncResult = {
@@ -46,6 +47,8 @@ export type GcalSyncResult = {
   ignored: number; // events skipped (personal / unknown class or teacher)
   shifts: number;
   removed: number;
+  /** Obsolete past class rows pruned during this sync (Operation 9). */
+  pruned?: number;
   error?: string;
   /** Per-event accept/reject trace (admin/debug view only). */
   logs?: MatchLog[];
@@ -498,6 +501,9 @@ async function syncFromTimetable(
   // any manually added classes, so it can never go stale after a sync.
   await refreshShiftLabels([...idByUid.values()]);
 
+  // `calendar_classes` is a rolling operational table: past rows whose history
+  // already lives in a completed Record are pruned here (Operation 9).
+  const pruned = await pruneObsoleteClasses(displayName, todayStr);
 
   return {
     ok: true,
@@ -506,8 +512,87 @@ async function syncFromTimetable(
     ignored,
     shifts: plans.length,
     removed,
+    pruned,
     logs,
   };
+}
+
+/**
+ * Removes the operator's obsolete past class rows.
+ *
+ * Only rows that are provably finished are dropped: older than the grace
+ * window, and either detached from any shift or belonging to a shift whose
+ * Record is checked out with a non-empty class snapshot. Anything that cannot
+ * be resolved with certainty is kept.
+ *
+ * Studio Display sessions live in the browser (localStorage/BroadcastChannel)
+ * and can only reference a class within a day of now, which the grace window
+ * already protects, so no deletable row can be in use by a display.
+ */
+export async function pruneObsoleteClasses(
+  displayName: string,
+  today: string,
+): Promise<number> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const cutoff = retentionCutoff(today);
+
+  const { data: pastRows, error } = await supabaseAdmin
+    .from("calendar_classes")
+    .select("id, specific_date, scheduled_shift_id")
+    .ilike("operator", displayName)
+    .lt("specific_date", cutoff);
+  if (error) throw new Error(error.message);
+  const rows = (pastRows ?? []).map((r) => ({
+    id: r.id as string,
+    specificDate: r.specific_date as string,
+    scheduledShiftId: (r.scheduled_shift_id as string | null) ?? null,
+  }));
+  if (!rows.length) return 0;
+
+  const shiftIds = [...new Set(rows.map((r) => r.scheduledShiftId).filter(Boolean))] as string[];
+  const knownShiftIds = new Set<string>();
+  const recordsByShiftId = new Map<
+    string,
+    { checkedOut: boolean; snapshotCount: number }
+  >();
+
+  if (shiftIds.length) {
+    const { data: shiftRows, error: shiftErr } = await supabaseAdmin
+      .from("scheduled_shifts")
+      .select("id")
+      .in("id", shiftIds);
+    if (shiftErr) throw new Error(shiftErr.message);
+    for (const s of shiftRows ?? []) knownShiftIds.add(s.id as string);
+
+    const { data: recordRows, error: recErr } = await supabaseAdmin
+      .from("shifts")
+      .select("scheduled_shift_id, check_out_at, classes")
+      .in("scheduled_shift_id", shiftIds);
+    if (recErr) throw new Error(recErr.message);
+    for (const r of recordRows ?? []) {
+      const sid = r.scheduled_shift_id as string | null;
+      if (!sid) continue;
+      const snapshot = Array.isArray(r.classes) ? r.classes.length : 0;
+      const prev = recordsByShiftId.get(sid);
+      const next = { checkedOut: !!r.check_out_at, snapshotCount: snapshot };
+      // Several Records can share a shift; the completed one with data wins.
+      if (!prev || (next.checkedOut && next.snapshotCount > prev.snapshotCount)) {
+        recordsByShiftId.set(sid, next);
+      }
+    }
+  }
+
+  const report = classifyClassRows(rows, { today, knownShiftIds, recordsByShiftId });
+  if (!report.deletableIds.length) return 0;
+
+  for (let i = 0; i < report.deletableIds.length; i += 200) {
+    const { error: delErr } = await supabaseAdmin
+      .from("calendar_classes")
+      .delete()
+      .in("id", report.deletableIds.slice(i, i + 200));
+    if (delErr) throw new Error(delErr.message);
+  }
+  return report.deletableIds.length;
 }
 
 /* ───────────────────────── Reads ───────────────────────── */
