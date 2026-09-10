@@ -84,6 +84,26 @@ function fmtTime(d: Date) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
+/**
+ * Selecting from the DMC directory stores the canonical id and keeps the name
+ * alongside it purely as a display snapshot.
+ */
+const pickDmcClass = (o: DmcOption | null): Partial<ShiftClass> => ({
+  dmcClassId: o?.id ?? null,
+  class: o?.name ?? "",
+});
+const pickDmcInstructor = (o: DmcOption | null): Partial<ShiftClass> => ({
+  dmcInstructorId: o?.id ?? null,
+  teacher: o?.name ?? "",
+});
+
+const emptyClass = (): ShiftClass => ({
+  class: "",
+  teacher: "",
+  dmcClassId: null,
+  dmcInstructorId: null,
+});
+
 export function AttendanceSection({ username }: { username: string | null }) {
 
   const fetchShifts = useServerFn(listShifts);
