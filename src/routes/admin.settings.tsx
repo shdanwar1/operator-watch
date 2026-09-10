@@ -27,16 +27,6 @@ import {
   adminUpdateStudioSetting,
   adminVerifyStudioMapsLink,
 } from "@/lib/settings.functions";
-import {
-  adminCreateDirectoryItem,
-  adminDeleteDirectoryItem,
-  adminRenameDirectoryItem,
-  findPossibleDuplicates,
-  listClasses,
-  listTeachers,
-  type DirectoryItem,
-  type DuplicatePair,
-} from "@/lib/directories.functions";
 
 export const Route = createFileRoute("/admin/settings")({
   head: () => ({
