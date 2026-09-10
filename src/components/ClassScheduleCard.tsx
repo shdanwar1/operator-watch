@@ -200,7 +200,7 @@ export function ClassScheduleCard({
                     </Button>
                   )}
 
-                  {(onSetStatus || onCorrect) && (
+                  {onSetStatus && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Class actions">
@@ -208,18 +208,7 @@ export function ClassScheduleCard({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {onCorrect && (
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setFixing(c);
-                              setFixClass(classUnmatched(c) ? "" : c.class_name);
-                              setFixTeacher(teacherUnmatched(c) ? "" : c.teacher_name);
-                            }}
-                          >
-                            <Wand2 className="mr-2 h-4 w-4" /> Fix class match
-                          </DropdownMenuItem>
-                        )}
-                        {!onSetStatus ? null : isCancelled ? (
+                        {isCancelled ? (
                           <DropdownMenuItem onClick={() => onSetStatus(c.id, "scheduled")}>
                             Restore class
                           </DropdownMenuItem>
