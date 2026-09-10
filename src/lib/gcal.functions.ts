@@ -158,19 +158,19 @@ export const addMyShiftClass = createServerFn({ method: "POST" })
   .inputValidator(
     (data: {
       shiftId: string;
-      className: string;
-      teacherName?: string;
+      dmcClassId: string;
+      dmcInstructorId?: string | null;
       specificDate: string;
       startTime: string;
       endTime: string;
     }) => {
       if (!data?.shiftId) throw new Error("shiftId required");
-      const className = String(data.className ?? "").trim().slice(0, 200);
-      if (!className) throw new Error("Class name is required");
+      const dmcClassId = String(data.dmcClassId ?? "").trim();
+      if (!dmcClassId) throw new Error("Select a DMC class");
       return {
         shiftId: String(data.shiftId),
-        className,
-        teacherName: String(data.teacherName ?? "").trim().slice(0, 200),
+        dmcClassId,
+        dmcInstructorId: data.dmcInstructorId ? String(data.dmcInstructorId) : null,
         specificDate: normDate(data.specificDate),
         startTime: normTime(data.startTime),
         endTime: normTime(data.endTime),
@@ -189,27 +189,27 @@ export const updateMyShiftClass = createServerFn({ method: "POST" })
   .inputValidator(
     (data: {
       id: string;
-      className?: string;
-      teacherName?: string;
+      dmcClassId?: string;
+      dmcInstructorId?: string | null;
       specificDate?: string;
       startTime?: string;
       endTime?: string;
     }) => {
       if (!data?.id) throw new Error("id required");
       const patch: {
-        className?: string;
-        teacherName?: string;
+        dmcClassId?: string;
+        dmcInstructorId?: string | null;
         specificDate?: string;
         startTime?: string;
         endTime?: string;
       } = {};
-      if (data.className !== undefined) {
-        const c = String(data.className).trim().slice(0, 200);
-        if (!c) throw new Error("Class name is required");
-        patch.className = c;
+      if (data.dmcClassId !== undefined) {
+        const c = String(data.dmcClassId).trim();
+        if (!c) throw new Error("Select a DMC class");
+        patch.dmcClassId = c;
       }
-      if (data.teacherName !== undefined) {
-        patch.teacherName = String(data.teacherName).trim().slice(0, 200);
+      if (data.dmcInstructorId !== undefined) {
+        patch.dmcInstructorId = data.dmcInstructorId ? String(data.dmcInstructorId) : null;
       }
       if (data.specificDate !== undefined) patch.specificDate = normDate(data.specificDate);
       if (data.startTime !== undefined) patch.startTime = normTime(data.startTime);
