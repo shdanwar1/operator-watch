@@ -371,12 +371,15 @@ async function syncFromTimetable(
       startTime: e.start_time,
       endTime: e.end_time,
       status: e.status,
+      allDay: e.allDay,
     });
 
+    const title = e.summary || "(no title)";
     if (verdict.status !== "matched") {
       ignored++;
-      console.warn(`[gcal] Ignored event: "${e.summary}" — reason: ${verdict.reason}`);
-      logs.push({ title: e.summary, accepted: false, confidence: 0, reason: verdict.reason });
+      console.warn(`[gcal] Ignored event: "${title}" — reason: ${verdict.reason}`);
+      logs.push({ title, accepted: false, confidence: 0, reason: verdict.reason });
+
       continue;
     }
 
