@@ -12,8 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { DirectoryCombobox } from "@/components/DirectoryCombobox";
-import { listTeachers, listClasses, type DirectoryItem } from "@/lib/directories.functions";
+import { DmcPicker } from "@/components/DmcPicker";
+import { listDmcDirectory, type DmcOption } from "@/lib/dmc-directory.functions";
 import {
   listMyShiftClasses,
   addMyShiftClass,
@@ -41,8 +41,12 @@ import { toast } from "sonner";
 
 type Draft = {
   id: string;
-  className: string;
-  teacherName: string;
+  /** Canonical DMC references — the only class/teacher identity a row can have. */
+  dmcClassId: string | null;
+  dmcInstructorId: string | null;
+  /** Historical text of rows recorded before the DMC references existed. */
+  legacyClassName: string;
+  legacyTeacherName: string;
   startTime: string;
   endTime: string;
   overnight: boolean;
@@ -56,8 +60,10 @@ const hhmm = (t: string) => t.slice(0, 5);
 function toDraft(c: CalendarClassRow): Draft {
   return {
     id: c.id,
-    className: c.class_name,
-    teacherName: c.teacher_name === "—" ? "" : c.teacher_name,
+    dmcClassId: c.dmc_class_id,
+    dmcInstructorId: c.dmc_instructor_id,
+    legacyClassName: c.class_name,
+    legacyTeacherName: c.teacher_name === "—" ? "" : c.teacher_name,
     startTime: hhmm(c.start_time),
     endTime: hhmm(c.end_time),
     overnight: crossesMidnight(c.start_time, c.end_time),
@@ -86,16 +92,15 @@ export function ShiftOverviewDialog({
   const updateClass = useServerFn(updateMyShiftClass);
   const removeClass = useServerFn(removeMyShiftClass);
   const deleteShiftFn = useServerFn(deleteMyScheduledShift);
-  const fetchTeachers = useServerFn(listTeachers);
-  const fetchClassNames = useServerFn(listClasses);
+  const fetchDmcDirectory = useServerFn(listDmcDirectory);
 
   const [classes, setClasses] = useState<CalendarClassRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [teacherOptions, setTeacherOptions] = useState<DirectoryItem[]>([]);
-  const [classOptions, setClassOptions] = useState<DirectoryItem[]>([]);
+  const [teacherOptions, setTeacherOptions] = useState<DmcOption[]>([]);
+  const [classOptions, setClassOptions] = useState<DmcOption[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -114,15 +119,15 @@ export function ShiftOverviewDialog({
 
   useEffect(() => {
     if (!shiftId) return;
-    Promise.all([fetchTeachers(), fetchClassNames()])
-      .then(([t, c]) => {
-        setTeacherOptions(t);
-        setClassOptions(c);
+    fetchDmcDirectory()
+      .then((d) => {
+        setClassOptions(d.classes);
+        setTeacherOptions(d.instructors);
       })
       .catch(() => {
-        /* autocomplete falls back to free text */
+        /* pickers stay empty; saving requires a DMC class anyway */
       });
-  }, [shiftId, fetchTeachers, fetchClassNames]);
+  }, [shiftId, fetchDmcDirectory]);
 
   const startDate = shift?.specific_date ?? "";
   const overnightShift = shift ? crossesMidnight(shift.start_time, shift.end_time) : false;
