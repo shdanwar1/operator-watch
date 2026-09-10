@@ -64,19 +64,30 @@ export type GcalSyncResult = {
 export type CalendarClassRow = {
   id: string;
   uid: string;
-  /** Display snapshot. Identity lives in the DMC references below. */
-  class_name: string;
-  teacher_name: string;
   specific_date: string;
   start_time: string;
   end_time: string;
   status: string;
-  /** Canonical DMC directory references (Operation 8). */
+  /** Canonical DMC directory references (Operation 8) — the only identity. */
   dmc_class_id: string | null;
   dmc_instructor_id: string | null;
-  raw_title: string | null;
+  /** Resolved from the DMC directory at read time (Operation 10). */
+  className: string;
+  teacherName: string;
   scheduled_shift_id: string | null;
 };
+
+/** One batched DMC lookup for the rows just read from `calendar_classes`. */
+async function withIdentities(rows: unknown): Promise<CalendarClassRow[]> {
+  const { resolveClassIdentities } = await import("@/domain/dmc-directory.server");
+  return resolveClassIdentities(
+    (rows ?? []) as {
+      dmc_class_id: string | null;
+      dmc_instructor_id: string | null;
+    }[],
+  ) as Promise<CalendarClassRow[]>;
+}
+
 
 export async function loadOperatorCalendar(username: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
