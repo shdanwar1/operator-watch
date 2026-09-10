@@ -5,6 +5,7 @@ import {
   instructorDisplayName,
   localDurationMinutes,
   resolveDmcTimetableSlot,
+  type DatedCommitment,
 } from "./timetable-resolver";
 import type { DmcTimetableSlot, DmcWeekday } from "./timetable";
 
@@ -185,5 +186,97 @@ describe("resolveDmcTimetableSlot", () => {
     });
     expect(r.status).toBe("no-match");
     expect(index([]).activeSlots).toBe(0);
+  });
+});
+
+/*
+ * Free/Busy regression: a Google calendar set to "See only free/busy
+ * information" exposes no title, no description and no instructor. Such a
+ * block must still resolve to its DMC class purely on Berlin date + time.
+ */
+describe("free/busy blocks (no title, no teacher, no class name)", () => {
+  const timetable = buildTimetableIndex({
+    slots: [slot({ sourceSlotId: "slot-bi", sourceClassId: "class-bi", sourceInstructorId: "inst-mp" })],
+    classes: [
+      {
+        sourceClassId: "class-bi",
+        className: "Beginner-Intermediate",
+        category: "ballet",
+        level: null,
+        description: null,
+        trailerId: null,
+      },
+    ],
+    instructors: [
+      {
+        sourceInstructorId: "inst-mp",
+        firstName: "Marco",
+        lastName: "Palamone",
+        title: null,
+        bioInfo: null,
+        imageUrl: null,
+      },
+    ],
+  });
+
+  // 2026-09-16 is a Wednesday.
+  const busy = (over: Partial<DatedCommitment> = {}): DatedCommitment => ({
+    date: "2026-09-16",
+    startTime: "21:30:00",
+    endTime: "22:30:00",
+    status: "confirmed",
+    ...over,
+  });
+
+  it("E/F/G: resolves a titleless busy block with full timetable metadata", () => {
+    const r = resolveDmcTimetableSlot(timetable, busy());
+    expect(r.status).toBe("matched");
+    if (r.status !== "matched") return;
+    expect(r.classDef?.className).toBe("Beginner-Intermediate");
+    expect(instructorDisplayName(r.instructor)).toBe("Marco Palamone");
+    expect(r.classDef?.category).toBe("ballet");
+  });
+
+  it("A: rejects a busy block with no timetable slot at that time", () => {
+    expect(resolveDmcTimetableSlot(timetable, busy({ startTime: "10:00:00", endTime: "11:00:00" })).status).toBe(
+      "no-match",
+    );
+  });
+
+  it("B: rejects a one-minute start offset", () => {
+    expect(
+      resolveDmcTimetableSlot(timetable, busy({ startTime: "21:31:00", endTime: "22:31:00" })).status,
+    ).toBe("no-match");
+  });
+
+  it("C: rejects a wrong duration on the right start", () => {
+    expect(resolveDmcTimetableSlot(timetable, busy({ endTime: "22:15:00" })).status).toBe("no-match");
+  });
+
+  it("D: rejects a suspended matching slot", () => {
+    const suspended = buildTimetableIndex({
+      slots: [slot({ active: false, resumesOn: "2026-10-01" })],
+      classes: CLASSES,
+      instructors: INSTRUCTORS,
+    });
+    expect(resolveDmcTimetableSlot(suspended, busy()).status).toBe("suspended");
+  });
+
+  it("H: rejects an unrelated all-day busy block", () => {
+    expect(
+      resolveDmcTimetableSlot(timetable, busy({ startTime: "00:00:00", endTime: "00:00:00", allDay: true })).status,
+    ).toBe("rejected");
+  });
+
+  it("resolves a midnight busy block on the Berlin weekday, not UTC", () => {
+    const midnight = buildTimetableIndex({
+      slots: [slot({ dayLocal: 2 as DmcWeekday, scheduleKey: "tue0000", startTimeLocal: "00:00", durationMinutes: 45 })],
+      classes: CLASSES,
+      instructors: INSTRUCTORS,
+    });
+    expect(
+      resolveDmcTimetableSlot(midnight, busy({ date: "2026-09-15", startTime: "00:00:00", endTime: "00:45:00" }))
+        .status,
+    ).toBe("matched");
   });
 });
