@@ -495,7 +495,7 @@ async function syncFromTimetable(
 
   return {
     ok: true,
-    mode: "detailed",
+    mode,
     fetched: rows.length,
     ignored,
     shifts: plans.length,
