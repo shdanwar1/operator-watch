@@ -96,8 +96,8 @@ export function AttendanceSection({ username }: { username: string | null }) {
   type EarningsSnapshot = {
     shifts: ShiftRow[];
     scheduled: ScheduledShiftRow[];
-    teachers: DirectoryItem[];
-    classDir: DirectoryItem[];
+    teachers: DmcOption[];
+    classDir: DmcOption[];
   };
   const earningsCacheKey = username ? `${operatorNamespace(username)}earnings` : null;
   const [cachedEarnings] = useState<EarningsSnapshot | null>(() =>
@@ -106,8 +106,8 @@ export function AttendanceSection({ username }: { username: string | null }) {
 
   const [shifts, setShifts] = useState<ShiftRow[]>(cachedEarnings?.shifts ?? []);
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>(cachedEarnings?.scheduled ?? []);
-  const [teachers, setTeachers] = useState<DirectoryItem[]>(cachedEarnings?.teachers ?? []);
-  const [classDir, setClassDir] = useState<DirectoryItem[]>(cachedEarnings?.classDir ?? []);
+  const [teachers, setTeachers] = useState<DmcOption[]>(cachedEarnings?.teachers ?? []);
+  const [classDir, setClassDir] = useState<DmcOption[]>(cachedEarnings?.classDir ?? []);
   const [loading, setLoading] = useState(!cachedEarnings);
   const [editing, setEditing] = useState<Shift | null>(null);
   const [addingPast, setAddingPast] = useState(false);
@@ -120,22 +120,21 @@ export function AttendanceSection({ username }: { username: string | null }) {
   async function load() {
     if (!hasLoadedOnce.current) setLoading(true);
     try {
-      const [s, sc, tRows, cRows] = await Promise.all([
+      const [s, sc, dmc] = await Promise.all([
         fetchShifts(),
         fetchScheduled(),
-        fetchTeachers(),
-        fetchClasses(),
+        fetchDmcDirectory(),
       ]);
       setShifts(s);
       setScheduled(sc);
-      setTeachers(tRows);
-      setClassDir(cRows);
+      setTeachers(dmc.instructors);
+      setClassDir(dmc.classes);
       if (earningsCacheKey)
         writeCache<EarningsSnapshot>(earningsCacheKey, {
           shifts: s,
           scheduled: sc,
-          teachers: tRows,
-          classDir: cRows,
+          teachers: dmc.instructors,
+          classDir: dmc.classes,
         });
     } finally {
       setLoading(false);
