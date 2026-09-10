@@ -67,9 +67,6 @@ export function ClassScheduleCard({
   now,
   title = "Shift Overview",
   onSetStatus,
-  onCorrect,
-  classOptions = [],
-  teacherOptions = [],
   footer,
 }: {
   classes: CalendarClassRow[];
@@ -77,31 +74,13 @@ export function ClassScheduleCard({
   title?: string;
   /** When provided, each row exposes Mark as Completed / Cancel Class. */
   onSetStatus?: (id: string, status: "scheduled" | "completed" | "cancelled") => void;
-  /** When provided, each row exposes "Fix class match" (saved as an alias). */
-  onCorrect?: (id: string, classId: string, teacherId: string | null) => void;
-  classOptions?: DirectoryItem[];
-  teacherOptions?: DirectoryItem[];
   /** Optional action area rendered at the bottom of the card, e.g. a check-out control. */
   footer?: React.ReactNode;
 }) {
-  const [fixing, setFixing] = useState<CalendarClassRow | null>(null);
-  const [fixClass, setFixClass] = useState("");
-  const [fixTeacher, setFixTeacher] = useState("");
-
   if (classes.length === 0) return null;
 
   const states = classes.map((c) => classStatusOf(c, now));
 
-  // A class is "unmatched" when it has no link to the class/teacher directory.
-  // The name check is a safety net: a stale row can still carry an id that no
-  // longer exists in the directory, and that is just as broken as a null id.
-  const knownClass = new Set(classOptions.map((o) => o.name.trim().toLowerCase()));
-  const knownTeacher = new Set(teacherOptions.map((o) => o.name.trim().toLowerCase()));
-  const classUnmatched = (c: CalendarClassRow) =>
-    !c.class_id || (knownClass.size > 0 && !knownClass.has(c.class_name.trim().toLowerCase()));
-  const teacherUnmatched = (c: CalendarClassRow) =>
-    !c.teacher_id ||
-    (knownTeacher.size > 0 && !knownTeacher.has(c.teacher_name.trim().toLowerCase()));
 
 
 
