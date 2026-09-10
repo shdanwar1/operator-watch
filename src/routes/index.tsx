@@ -411,8 +411,8 @@ function Index() {
       type: "class-display",
       classes: calendarClasses.map((c) => ({
         id: c.id,
-        className: c.class_name,
-        teacherName: c.teacher_name,
+        className: c.className,
+        teacherName: c.teacherName,
         startTime: c.start_time.slice(0, 5),
         durationMin: durationOf(c) || 60,
         status: c.status,
@@ -559,8 +559,8 @@ function Index() {
       const completed = activeShiftClasses
         .filter((c) => classStatusOf(c, new Date()) === "completed")
         .map((c) => ({
-          class: c.class_name,
-          teacher: c.teacher_name,
+          class: c.className,
+          teacher: c.teacherName,
           dmcClassId: c.dmc_class_id,
           dmcInstructorId: c.dmc_instructor_id,
         }));

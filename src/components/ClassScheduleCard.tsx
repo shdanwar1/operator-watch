@@ -155,9 +155,9 @@ export function ClassScheduleCard({
                         isCancelled && "line-through",
                       )}
                     >
-                      {c.class_name}
+                      {c.className}
                     </div>
-                    <div className="truncate text-xs text-muted-foreground">{c.teacher_name}</div>
+                    <div className="truncate text-xs text-muted-foreground">{c.teacherName}</div>
                   </div>
                   <div className="hidden text-xs text-muted-foreground sm:block">
                     {durationOf(c)} min
@@ -187,8 +187,8 @@ export function ClassScheduleCard({
                         to="/studio-display"
                         search={temporaryClassSearch({
                           classId: c.id,
-                          className: c.class_name,
-                          teacherName: c.teacher_name,
+                          className: c.className,
+                          teacherName: c.teacherName,
                           date: c.specific_date,
                           startTime: c.start_time,
                           endTime: c.end_time,
