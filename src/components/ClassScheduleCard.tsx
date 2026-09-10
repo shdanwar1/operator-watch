@@ -7,18 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ExternalLink, CalendarDays, MoreHorizontal, Check, X, Wand2, AlertTriangle } from "lucide-react";
-import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { DirectoryCombobox } from "@/components/DirectoryCombobox";
-import type { DirectoryItem } from "@/lib/directories.functions";
+import { ExternalLink, CalendarDays, MoreHorizontal, Check, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { temporaryClassSearch } from "@/lib/studio-presets";
 import { cn } from "@/lib/utils";
