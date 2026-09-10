@@ -158,8 +158,10 @@ export function ShiftOverviewDialog({
       ...rows,
       {
         id: `new-${Date.now()}-${rows.length}`,
-        className: "",
-        teacherName: "",
+        dmcClassId: null,
+        dmcInstructorId: null,
+        legacyClassName: "",
+        legacyTeacherName: "",
         startTime: hhmm(shift?.start_time ?? "18:00"),
         endTime: hhmm(shift?.end_time ?? "19:00"),
         overnight: false,
@@ -169,18 +171,22 @@ export function ShiftOverviewDialog({
     ]);
   }
 
+  const labelOf = (d: Draft) =>
+    classOptions.find((o) => o.id === d.dmcClassId)?.name || d.legacyClassName || "New class";
+
   async function save() {
     if (!shift) return;
     const active = drafts.filter((d) => !d.removed);
     for (const d of active) {
-      if (!d.className.trim()) return toast.error("Class name is required");
+      // A class row must point at a real DMC class; free text is not an option.
+      if (!d.dmcClassId) return toast.error("Select a DMC class for every row");
       const err = validateInterval(d.startTime, d.endTime, d.overnight);
-      if (err) return toast.error(`${d.className || "New class"}: ${err}`);
+      if (err) return toast.error(`${labelOf(d)}: ${err}`);
     }
     setSaving(true);
     try {
       for (const d of drafts) {
-        const classDate = d.overnight ? startDate : startDate;
+        const classDate = startDate;
         if (d.removed) {
           if (!d.isNew) await removeClass({ data: { id: d.id } });
           continue;
@@ -189,8 +195,8 @@ export function ShiftOverviewDialog({
           await addClass({
             data: {
               shiftId: shift.id,
-              className: d.className.trim(),
-              teacherName: d.teacherName.trim(),
+              dmcClassId: d.dmcClassId!,
+              dmcInstructorId: d.dmcInstructorId,
               specificDate: classDate,
               startTime: d.startTime,
               endTime: d.endTime,
@@ -200,16 +206,16 @@ export function ShiftOverviewDialog({
         }
         const o = d.original!;
         const changed =
-          d.className !== o.class_name ||
-          d.teacherName !== (o.teacher_name === "—" ? "" : o.teacher_name) ||
+          d.dmcClassId !== o.dmc_class_id ||
+          d.dmcInstructorId !== o.dmc_instructor_id ||
           d.startTime !== hhmm(o.start_time) ||
           d.endTime !== hhmm(o.end_time);
         if (changed) {
           await updateClass({
             data: {
               id: d.id,
-              className: d.className.trim(),
-              teacherName: d.teacherName.trim(),
+              dmcClassId: d.dmcClassId!,
+              dmcInstructorId: d.dmcInstructorId,
               startTime: d.startTime,
               endTime: d.endTime,
             },
