@@ -743,19 +743,19 @@ function AddPastDialog({
     classes: ShiftClass[];
     notes: string | null;
   }) => void;
-  teachers: DirectoryItem[];
-  classDir: DirectoryItem[];
+  teachers: DmcOption[];
+  classDir: DmcOption[];
 }) {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
-  const [classes, setClasses] = useState<ShiftClass[]>([{ class: "", teacher: "" }]);
+  const [classes, setClasses] = useState<ShiftClass[]>([emptyClass()]);
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
     if (open) {
       setCheckIn("");
       setCheckOut("");
-      setClasses([{ class: "", teacher: "" }]);
+      setClasses([emptyClass()]);
       setNotes("");
     }
   }, [open]);
@@ -764,7 +764,7 @@ function AddPastDialog({
     setClasses((cs) => cs.map((c, idx) => (idx === i ? { ...c, ...p } : c)));
   }
   function addClass() {
-    setClasses((cs) => [...cs, { class: "", teacher: "" }]);
+    setClasses((cs) => [...cs, emptyClass()]);
   }
   function removeClass(i: number) {
     setClasses((cs) => cs.filter((_, idx) => idx !== i));
@@ -778,9 +778,7 @@ function AddPastDialog({
     if (new Date(co).getTime() <= new Date(ci).getTime()) {
       return toast.error("Check-out must be after check-in");
     }
-    const cleanedClasses = classes
-      .map((c) => ({ class: c.class.trim(), teacher: c.teacher.trim() }))
-      .filter((c) => c.class || c.teacher);
+    const cleanedClasses = classes.filter((c) => c.dmcClassId || c.dmcInstructorId);
     onSave({
       check_in_at: ci,
       check_out_at: co,
