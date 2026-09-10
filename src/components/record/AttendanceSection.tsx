@@ -26,12 +26,7 @@ import {
   type ScheduledShiftRow,
   type ShiftClass,
 } from "@/lib/shifts.functions";
-import {
-  listTeachers,
-  listClasses,
-  recordDirectoryUsage,
-  type DirectoryItem,
-} from "@/lib/directories.functions";
+import { listDmcDirectory, type DmcOption } from "@/lib/dmc-directory.functions";
 import {
   summarizeMonth,
   formatHM,
@@ -57,7 +52,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { downloadAttendancePdf } from "@/lib/attendance-pdf";
-import { DirectoryCombobox } from "@/components/DirectoryCombobox";
+import { DmcPicker } from "@/components/DmcPicker";
 
 /** A worked shift, as needed by the Edit/Add dialogs. */
 type Shift = {
@@ -89,13 +84,31 @@ function fmtTime(d: Date) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
+/**
+ * Selecting from the DMC directory stores the canonical id and keeps the name
+ * alongside it purely as a display snapshot.
+ */
+const pickDmcClass = (o: DmcOption | null): Partial<ShiftClass> => ({
+  dmcClassId: o?.id ?? null,
+  class: o?.name ?? "",
+});
+const pickDmcInstructor = (o: DmcOption | null): Partial<ShiftClass> => ({
+  dmcInstructorId: o?.id ?? null,
+  teacher: o?.name ?? "",
+});
+
+const emptyClass = (): ShiftClass => ({
+  class: "",
+  teacher: "",
+  dmcClassId: null,
+  dmcInstructorId: null,
+});
+
 export function AttendanceSection({ username }: { username: string | null }) {
 
   const fetchShifts = useServerFn(listShifts);
   const fetchScheduled = useServerFn(listScheduledShifts);
-  const fetchTeachers = useServerFn(listTeachers);
-  const fetchClasses = useServerFn(listClasses);
-  const recordUsage = useServerFn(recordDirectoryUsage);
+  const fetchDmcDirectory = useServerFn(listDmcDirectory);
   const updateShiftServer = useServerFn(updateShiftFn);
   const deleteShiftServer = useServerFn(deleteShiftFn);
   const createPastServer = useServerFn(createPastShiftFn);
@@ -103,8 +116,8 @@ export function AttendanceSection({ username }: { username: string | null }) {
   type EarningsSnapshot = {
     shifts: ShiftRow[];
     scheduled: ScheduledShiftRow[];
-    teachers: DirectoryItem[];
-    classDir: DirectoryItem[];
+    teachers: DmcOption[];
+    classDir: DmcOption[];
   };
   const earningsCacheKey = username ? `${operatorNamespace(username)}earnings` : null;
   const [cachedEarnings] = useState<EarningsSnapshot | null>(() =>
@@ -113,8 +126,8 @@ export function AttendanceSection({ username }: { username: string | null }) {
 
   const [shifts, setShifts] = useState<ShiftRow[]>(cachedEarnings?.shifts ?? []);
   const [scheduled, setScheduled] = useState<ScheduledShiftRow[]>(cachedEarnings?.scheduled ?? []);
-  const [teachers, setTeachers] = useState<DirectoryItem[]>(cachedEarnings?.teachers ?? []);
-  const [classDir, setClassDir] = useState<DirectoryItem[]>(cachedEarnings?.classDir ?? []);
+  const [teachers, setTeachers] = useState<DmcOption[]>(cachedEarnings?.teachers ?? []);
+  const [classDir, setClassDir] = useState<DmcOption[]>(cachedEarnings?.classDir ?? []);
   const [loading, setLoading] = useState(!cachedEarnings);
   const [editing, setEditing] = useState<Shift | null>(null);
   const [addingPast, setAddingPast] = useState(false);
@@ -127,22 +140,21 @@ export function AttendanceSection({ username }: { username: string | null }) {
   async function load() {
     if (!hasLoadedOnce.current) setLoading(true);
     try {
-      const [s, sc, tRows, cRows] = await Promise.all([
+      const [s, sc, dmc] = await Promise.all([
         fetchShifts(),
         fetchScheduled(),
-        fetchTeachers(),
-        fetchClasses(),
+        fetchDmcDirectory(),
       ]);
       setShifts(s);
       setScheduled(sc);
-      setTeachers(tRows);
-      setClassDir(cRows);
+      setTeachers(dmc.instructors);
+      setClassDir(dmc.classes);
       if (earningsCacheKey)
         writeCache<EarningsSnapshot>(earningsCacheKey, {
           shifts: s,
           scheduled: sc,
-          teachers: tRows,
-          classDir: cRows,
+          teachers: dmc.instructors,
+          classDir: dmc.classes,
         });
     } finally {
       setLoading(false);
@@ -198,16 +210,9 @@ export function AttendanceSection({ username }: { username: string | null }) {
     return m;
   }, [shifts]);
 
-  async function recordShiftUsage(cs: ShiftClass[]) {
-    try {
-      await recordUsage({
-        data: {
-          teachers: cs.map((c) => c.teacher).filter(Boolean),
-          classes: cs.map((c) => c.class).filter(Boolean),
-        },
-      });
-    } catch { /* non-fatal */ }
-  }
+  // Class and teacher identity now comes from the DMC directory, so there is no
+  // separate usage directory to keep warm any more.
+
 
   async function saveEdit(next: Shift) {
     try {
@@ -222,7 +227,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
           },
         },
       });
-      await recordShiftUsage(next.classes);
+      
       toast.success("Shift updated");
       setEditing(null);
       load();
@@ -254,7 +259,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
   }) {
     try {
       await createPastServer({ data: payload });
-      await recordShiftUsage(payload.classes);
+      
       toast.success("Past shift added");
       setAddingPast(false);
       load();
@@ -738,19 +743,19 @@ function AddPastDialog({
     classes: ShiftClass[];
     notes: string | null;
   }) => void;
-  teachers: DirectoryItem[];
-  classDir: DirectoryItem[];
+  teachers: DmcOption[];
+  classDir: DmcOption[];
 }) {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
-  const [classes, setClasses] = useState<ShiftClass[]>([{ class: "", teacher: "" }]);
+  const [classes, setClasses] = useState<ShiftClass[]>([emptyClass()]);
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
     if (open) {
       setCheckIn("");
       setCheckOut("");
-      setClasses([{ class: "", teacher: "" }]);
+      setClasses([emptyClass()]);
       setNotes("");
     }
   }, [open]);
@@ -759,7 +764,7 @@ function AddPastDialog({
     setClasses((cs) => cs.map((c, idx) => (idx === i ? { ...c, ...p } : c)));
   }
   function addClass() {
-    setClasses((cs) => [...cs, { class: "", teacher: "" }]);
+    setClasses((cs) => [...cs, emptyClass()]);
   }
   function removeClass(i: number) {
     setClasses((cs) => cs.filter((_, idx) => idx !== i));
@@ -773,9 +778,7 @@ function AddPastDialog({
     if (new Date(co).getTime() <= new Date(ci).getTime()) {
       return toast.error("Check-out must be after check-in");
     }
-    const cleanedClasses = classes
-      .map((c) => ({ class: c.class.trim(), teacher: c.teacher.trim() }))
-      .filter((c) => c.class || c.teacher);
+    const cleanedClasses = classes.filter((c) => c.dmcClassId || c.dmcInstructorId);
     onSave({
       check_in_at: ci,
       check_out_at: co,
@@ -829,17 +832,19 @@ function AddPastDialog({
               </div>
               {classes.map((c, i) => (
                 <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                  <DirectoryCombobox
-                    value={c.class}
-                    onChange={(v) => updateClass(i, { class: v })}
+                  <DmcPicker
+                    value={c.dmcClassId}
+                    onChange={(o) => updateClass(i, pickDmcClass(o))}
                     options={classDir}
                     placeholder={`Class ${i + 1}`}
+                    fallbackLabel={c.class}
                   />
-                  <DirectoryCombobox
-                    value={c.teacher}
-                    onChange={(v) => updateClass(i, { teacher: v })}
+                  <DmcPicker
+                    value={c.dmcInstructorId}
+                    onChange={(o) => updateClass(i, pickDmcInstructor(o))}
                     options={teachers}
                     placeholder="Teacher"
+                    fallbackLabel={c.teacher}
                   />
                   <Button
                     type="button"
@@ -882,8 +887,8 @@ function EditDialog({
   shift: Shift | null;
   onClose: () => void;
   onSave: (s: Shift) => void;
-  teachers: DirectoryItem[];
-  classDir: DirectoryItem[];
+  teachers: DmcOption[];
+  classDir: DmcOption[];
 }) {
   const [draft, setDraft] = useState<Shift | null>(shift);
 
@@ -900,7 +905,7 @@ function EditDialog({
     setDraft((d) => (d ? { ...d, classes: d.classes.map((c, idx) => (idx === i ? { ...c, ...p } : c)) } : d));
   }
   function addClass() {
-    setDraft((d) => (d ? { ...d, classes: [...d.classes, { class: "", teacher: "" }] } : d));
+    setDraft((d) => (d ? { ...d, classes: [...d.classes, emptyClass()] } : d));
   }
   function removeClass(i: number) {
     setDraft((d) => (d ? { ...d, classes: d.classes.filter((_, idx) => idx !== i) } : d));
@@ -961,17 +966,19 @@ function EditDialog({
                 </div>
                 {draft.classes.map((c, i) => (
                   <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                    <DirectoryCombobox
-                      value={c.class}
-                      onChange={(v) => updateClass(i, { class: v })}
+                    <DmcPicker
+                      value={c.dmcClassId}
+                      onChange={(o) => updateClass(i, pickDmcClass(o))}
                       options={classDir}
                       placeholder={`Class ${i + 1}`}
+                      fallbackLabel={c.class}
                     />
-                    <DirectoryCombobox
-                      value={c.teacher}
-                      onChange={(v) => updateClass(i, { teacher: v })}
+                    <DmcPicker
+                      value={c.dmcInstructorId}
+                      onChange={(o) => updateClass(i, pickDmcInstructor(o))}
                       options={teachers}
                       placeholder="Teacher"
+                      fallbackLabel={c.teacher}
                     />
                     <Button
                       type="button"

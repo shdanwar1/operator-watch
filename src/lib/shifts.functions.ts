@@ -31,7 +31,19 @@ async function requireGate() {
   };
 }
 
-export type ShiftClass = { class: string; teacher: string };
+/**
+ * A class recorded on a shift.
+ *
+ * `dmcClassId` / `dmcInstructorId` are the canonical references into the DMC
+ * directory (Operation 8). `class` / `teacher` are the display snapshot and are
+ * all that historical records which could not be linked still carry.
+ */
+export type ShiftClass = {
+  class: string;
+  teacher: string;
+  dmcClassId?: string | null;
+  dmcInstructorId?: string | null;
+};
 
 export type ShiftRow = {
   id: string;
@@ -164,6 +176,8 @@ export const createPastShift = createServerFn({ method: "POST" })
         ? data.classes.slice(0, 100).map((c) => ({
             class: String(c?.class ?? "").slice(0, 200),
             teacher: String(c?.teacher ?? "").slice(0, 200),
+            dmcClassId: c?.dmcClassId ? String(c.dmcClassId) : null,
+            dmcInstructorId: c?.dmcInstructorId ? String(c.dmcInstructorId) : null,
           }))
         : [];
       const notes =
@@ -247,6 +261,8 @@ function sanitizeShiftPatch(patch: ShiftPatch): ShiftPatch {
     out.classes = patch.classes.slice(0, 100).map((c) => ({
       class: String(c?.class ?? "").slice(0, 200),
       teacher: String(c?.teacher ?? "").slice(0, 200),
+      dmcClassId: c?.dmcClassId ? String(c.dmcClassId) : null,
+      dmcInstructorId: c?.dmcInstructorId ? String(c.dmcInstructorId) : null,
     }));
     // Streams count is always the number of classes.
     out.live_streams_count = out.classes.length;

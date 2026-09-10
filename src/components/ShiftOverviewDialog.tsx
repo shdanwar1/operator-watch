@@ -12,8 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { DirectoryCombobox } from "@/components/DirectoryCombobox";
-import { listTeachers, listClasses, type DirectoryItem } from "@/lib/directories.functions";
+import { DmcPicker } from "@/components/DmcPicker";
+import { listDmcDirectory, type DmcOption } from "@/lib/dmc-directory.functions";
 import {
   listMyShiftClasses,
   addMyShiftClass,
@@ -41,8 +41,12 @@ import { toast } from "sonner";
 
 type Draft = {
   id: string;
-  className: string;
-  teacherName: string;
+  /** Canonical DMC references — the only class/teacher identity a row can have. */
+  dmcClassId: string | null;
+  dmcInstructorId: string | null;
+  /** Historical text of rows recorded before the DMC references existed. */
+  legacyClassName: string;
+  legacyTeacherName: string;
   startTime: string;
   endTime: string;
   overnight: boolean;
@@ -56,8 +60,10 @@ const hhmm = (t: string) => t.slice(0, 5);
 function toDraft(c: CalendarClassRow): Draft {
   return {
     id: c.id,
-    className: c.class_name,
-    teacherName: c.teacher_name === "—" ? "" : c.teacher_name,
+    dmcClassId: c.dmc_class_id,
+    dmcInstructorId: c.dmc_instructor_id,
+    legacyClassName: c.class_name,
+    legacyTeacherName: c.teacher_name === "—" ? "" : c.teacher_name,
     startTime: hhmm(c.start_time),
     endTime: hhmm(c.end_time),
     overnight: crossesMidnight(c.start_time, c.end_time),
@@ -86,16 +92,15 @@ export function ShiftOverviewDialog({
   const updateClass = useServerFn(updateMyShiftClass);
   const removeClass = useServerFn(removeMyShiftClass);
   const deleteShiftFn = useServerFn(deleteMyScheduledShift);
-  const fetchTeachers = useServerFn(listTeachers);
-  const fetchClassNames = useServerFn(listClasses);
+  const fetchDmcDirectory = useServerFn(listDmcDirectory);
 
   const [classes, setClasses] = useState<CalendarClassRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [teacherOptions, setTeacherOptions] = useState<DirectoryItem[]>([]);
-  const [classOptions, setClassOptions] = useState<DirectoryItem[]>([]);
+  const [teacherOptions, setTeacherOptions] = useState<DmcOption[]>([]);
+  const [classOptions, setClassOptions] = useState<DmcOption[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -114,15 +119,15 @@ export function ShiftOverviewDialog({
 
   useEffect(() => {
     if (!shiftId) return;
-    Promise.all([fetchTeachers(), fetchClassNames()])
-      .then(([t, c]) => {
-        setTeacherOptions(t);
-        setClassOptions(c);
+    fetchDmcDirectory()
+      .then((d) => {
+        setClassOptions(d.classes);
+        setTeacherOptions(d.instructors);
       })
       .catch(() => {
-        /* autocomplete falls back to free text */
+        /* pickers stay empty; saving requires a DMC class anyway */
       });
-  }, [shiftId, fetchTeachers, fetchClassNames]);
+  }, [shiftId, fetchDmcDirectory]);
 
   const startDate = shift?.specific_date ?? "";
   const overnightShift = shift ? crossesMidnight(shift.start_time, shift.end_time) : false;
@@ -153,8 +158,10 @@ export function ShiftOverviewDialog({
       ...rows,
       {
         id: `new-${Date.now()}-${rows.length}`,
-        className: "",
-        teacherName: "",
+        dmcClassId: null,
+        dmcInstructorId: null,
+        legacyClassName: "",
+        legacyTeacherName: "",
         startTime: hhmm(shift?.start_time ?? "18:00"),
         endTime: hhmm(shift?.end_time ?? "19:00"),
         overnight: false,
@@ -164,18 +171,22 @@ export function ShiftOverviewDialog({
     ]);
   }
 
+  const labelOf = (d: Draft) =>
+    classOptions.find((o) => o.id === d.dmcClassId)?.name || d.legacyClassName || "New class";
+
   async function save() {
     if (!shift) return;
     const active = drafts.filter((d) => !d.removed);
     for (const d of active) {
-      if (!d.className.trim()) return toast.error("Class name is required");
+      // A class row must point at a real DMC class; free text is not an option.
+      if (!d.dmcClassId) return toast.error("Select a DMC class for every row");
       const err = validateInterval(d.startTime, d.endTime, d.overnight);
-      if (err) return toast.error(`${d.className || "New class"}: ${err}`);
+      if (err) return toast.error(`${labelOf(d)}: ${err}`);
     }
     setSaving(true);
     try {
       for (const d of drafts) {
-        const classDate = d.overnight ? startDate : startDate;
+        const classDate = startDate;
         if (d.removed) {
           if (!d.isNew) await removeClass({ data: { id: d.id } });
           continue;
@@ -184,8 +195,8 @@ export function ShiftOverviewDialog({
           await addClass({
             data: {
               shiftId: shift.id,
-              className: d.className.trim(),
-              teacherName: d.teacherName.trim(),
+              dmcClassId: d.dmcClassId!,
+              dmcInstructorId: d.dmcInstructorId,
               specificDate: classDate,
               startTime: d.startTime,
               endTime: d.endTime,
@@ -195,16 +206,16 @@ export function ShiftOverviewDialog({
         }
         const o = d.original!;
         const changed =
-          d.className !== o.class_name ||
-          d.teacherName !== (o.teacher_name === "—" ? "" : o.teacher_name) ||
+          d.dmcClassId !== o.dmc_class_id ||
+          d.dmcInstructorId !== o.dmc_instructor_id ||
           d.startTime !== hhmm(o.start_time) ||
           d.endTime !== hhmm(o.end_time);
         if (changed) {
           await updateClass({
             data: {
               id: d.id,
-              className: d.className.trim(),
-              teacherName: d.teacherName.trim(),
+              dmcClassId: d.dmcClassId!,
+              dmcInstructorId: d.dmcInstructorId,
               startTime: d.startTime,
               endTime: d.endTime,
             },
@@ -360,22 +371,24 @@ export function ShiftOverviewDialog({
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Class name</Label>
-                    <DirectoryCombobox
-                      value={d.className}
-                      onChange={(name) => patchDraft(d.id, { className: name })}
+                    <Label className="text-xs">Class</Label>
+                    <DmcPicker
+                      value={d.dmcClassId}
+                      onChange={(o) => patchDraft(d.id, { dmcClassId: o?.id ?? null })}
                       options={classOptions}
-                      placeholder="Select or type a class"
+                      placeholder="Select a DMC class"
+                      fallbackLabel={d.legacyClassName}
                     />
                   </div>
 
                   <div className="space-y-1.5">
                     <Label className="text-xs">Teacher</Label>
-                    <DirectoryCombobox
-                      value={d.teacherName}
-                      onChange={(name) => patchDraft(d.id, { teacherName: name })}
+                    <DmcPicker
+                      value={d.dmcInstructorId}
+                      onChange={(o) => patchDraft(d.id, { dmcInstructorId: o?.id ?? null })}
                       options={teacherOptions}
-                      placeholder="Select or type teacher"
+                      placeholder="Select a DMC instructor"
+                      fallbackLabel={d.legacyTeacherName}
                     />
                   </div>
 

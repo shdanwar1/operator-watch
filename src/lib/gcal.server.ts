@@ -61,14 +61,16 @@ export type GcalSyncResult = {
 export type CalendarClassRow = {
   id: string;
   uid: string;
+  /** Display snapshot. Identity lives in the DMC references below. */
   class_name: string;
   teacher_name: string;
   specific_date: string;
   start_time: string;
   end_time: string;
   status: string;
-  class_id: string | null;
-  teacher_id: string | null;
+  /** Canonical DMC directory references (Operation 8). */
+  dmc_class_id: string | null;
+  dmc_instructor_id: string | null;
   raw_title: string | null;
   scheduled_shift_id: string | null;
 };
@@ -349,6 +351,10 @@ async function syncFromTimetable(
   const now = new Date();
   const opKey = operatorKey(displayName);
 
+  // Canonical DMC directory ids, read once per sync (Operation 8).
+  const { loadDmcIdsBySourceId } = await import("@/domain/dmc-directory.server");
+  const { classIdBySource, instructorIdBySource } = await loadDmcIdsBySourceId();
+
   const inWindow = events.filter(
     (e) => e.specific_date >= window.from && e.specific_date <= window.to,
   );
@@ -357,8 +363,8 @@ async function syncFromTimetable(
     event: ParsedEvent;
     className: string;
     teacherName: string;
-    classId: string | null;
-    teacherId: string | null;
+    dmcClassId: string | null;
+    dmcInstructorId: string | null;
   };
 
   const imported: Imported[] = [];
@@ -390,10 +396,9 @@ async function syncFromTimetable(
       // Identity comes from the timetable, never from the Google title.
       className: verdict.classDef?.className ?? "Class",
       teacherName: instructorDisplayName(verdict.instructor),
-      // The legacy id columns reference the old directory tables, which are no
-      // longer an authority; timetable ids are a different namespace.
-      classId: null,
-      teacherId: null,
+      // Canonical directory references for the matched slot.
+      dmcClassId: classIdBySource.get(verdict.slot.sourceClassId) ?? null,
+      dmcInstructorId: instructorIdBySource.get(verdict.slot.sourceInstructorId) ?? null,
     });
   }
 
@@ -450,8 +455,8 @@ async function syncFromTimetable(
     .map((i) => ({
       operator: displayName,
       uid: i.event.uid,
-      class_id: i.classId,
-      teacher_id: i.teacherId,
+      dmc_class_id: i.dmcClassId,
+      dmc_instructor_id: i.dmcInstructorId,
       class_name: i.className,
       teacher_name: i.teacherName,
       raw_title: (i.event.summary ?? "").slice(0, 500),
@@ -516,7 +521,7 @@ export async function listClassesForOperator(
   const { data, error } = await supabaseAdmin
     .from("calendar_classes")
     .select(
-      "id, uid, class_id, teacher_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id",
+      "id, uid, dmc_class_id, dmc_instructor_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id",
     )
     .ilike("operator", displayName)
     .gte("specific_date", fromDate)
@@ -549,7 +554,7 @@ export async function setClassStatus(
     .update({ status })
     .eq("id", id)
     .select(
-      "id, uid, class_id, teacher_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id",
+      "id, uid, dmc_class_id, dmc_instructor_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id",
     )
     .single();
   if (error) throw new Error(error.message);
@@ -601,7 +606,7 @@ export async function checkOperatorCalendar(username: string): Promise<CalendarH
 /* ─────────────── Operator shift overview: class management ─────────────── */
 
 const CLASS_COLUMNS =
-  "id, uid, class_id, teacher_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id";
+  "id, uid, dmc_class_id, dmc_instructor_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id";
 
 /**
  * The shift label is derived data: it always states how many valid (non
@@ -689,58 +694,35 @@ export async function listClassesForShift(
 }
 
 /**
- * Resolves a typed teacher name against the existing teacher directory. A new
- * name is recorded in that same directory so there is never a second list.
+ * A class on a shift is identified by the canonical DMC directory (Operation
+ * 8). Names are a display snapshot taken from the selected DMC entries; no
+ * free-text class or teacher is created anywhere.
  */
-async function resolveTeacher(name: string): Promise<{ id: string | null; name: string }> {
-  const clean = name.trim().slice(0, 200);
-  if (!clean) return { id: null, name: "—" };
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin
-    .from("teachers")
-    .select("id,name")
-    .ilike("name", clean)
-    .maybeSingle();
-  if (data) return { id: data.id as string, name: data.name as string };
-  await supabaseAdmin.rpc("bump_directory_usage", { p_table: "teachers", p_names: [clean] });
-  const { data: created } = await supabaseAdmin
-    .from("teachers")
-    .select("id,name")
-    .ilike("name", clean)
-    .maybeSingle();
-  return created
-    ? { id: created.id as string, name: created.name as string }
-    : { id: null, name: clean };
-}
-
-async function resolveClassName(name: string): Promise<{ id: string | null; name: string }> {
-  const clean = name.trim().slice(0, 200);
-  if (!clean) throw new Error("Class name is required");
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin
-    .from("classes")
-    .select("id,name")
-    .ilike("name", clean)
-    .maybeSingle();
-  if (data) return { id: data.id as string, name: data.name as string };
-  await supabaseAdmin.rpc("bump_directory_usage", { p_table: "classes", p_names: [clean] });
-  const { data: created } = await supabaseAdmin
-    .from("classes")
-    .select("id,name")
-    .ilike("name", clean)
-    .maybeSingle();
-  return created
-    ? { id: created.id as string, name: created.name as string }
-    : { id: null, name: clean };
-}
-
 export type ShiftClassInput = {
-  className: string;
-  teacherName: string;
+  dmcClassId: string;
+  dmcInstructorId: string | null;
   specificDate: string;
   startTime: string;
   endTime: string;
 };
+
+async function resolveDmcSelection(
+  dmcClassId: string,
+  dmcInstructorId: string | null,
+): Promise<{ className: string; teacherName: string; instructorId: string | null }> {
+  const { findDmcClass, findDmcInstructor } = await import("@/domain/dmc-directory.server");
+  const [cls, instructor] = await Promise.all([
+    findDmcClass(dmcClassId),
+    dmcInstructorId ? findDmcInstructor(dmcInstructorId) : Promise.resolve(null),
+  ]);
+  if (!cls) throw new Error("Select a DMC class");
+  if (dmcInstructorId && !instructor) throw new Error("Select a DMC instructor");
+  return {
+    className: cls.name,
+    teacherName: instructor?.name ?? "—",
+    instructorId: instructor?.id ?? null,
+  };
+}
 
 /** Adds a class to a scheduled shift and refreshes the derived shift label. */
 export async function addClassToShift(
@@ -749,10 +731,7 @@ export async function addClassToShift(
   input: ShiftClassInput,
 ): Promise<CalendarClassRow> {
   await assertShiftOwnedBy(displayName, shiftId);
-  const [cls, tea] = await Promise.all([
-    resolveClassName(input.className),
-    resolveTeacher(input.teacherName),
-  ]);
+  const selection = await resolveDmcSelection(input.dmcClassId, input.dmcInstructorId);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const uid = manualClassUid();
   const { data, error } = await supabaseAdmin
@@ -760,10 +739,10 @@ export async function addClassToShift(
     .insert({
       operator: displayName,
       uid,
-      class_id: cls.id,
-      teacher_id: tea.id,
-      class_name: cls.name,
-      teacher_name: tea.name,
+      dmc_class_id: input.dmcClassId,
+      dmc_instructor_id: selection.instructorId,
+      class_name: selection.className,
+      teacher_name: selection.teacherName,
       raw_title: null,
       specific_date: input.specificDate,
       start_time: input.startTime,
@@ -778,7 +757,7 @@ export async function addClassToShift(
   return data as CalendarClassRow;
 }
 
-/** Operator edit of an existing class row (teacher, name, times). */
+/** Operator edit of an existing class row (DMC class / instructor, times). */
 export async function updateShiftClass(
   displayName: string,
   id: string,
@@ -786,15 +765,25 @@ export async function updateShiftClass(
 ): Promise<CalendarClassRow> {
   const existing = await assertClassOwnedBy(displayName, id);
   const update: Record<string, unknown> = {};
-  if (patch.teacherName !== undefined) {
-    const tea = await resolveTeacher(patch.teacherName);
-    update.teacher_id = tea.id;
-    update.teacher_name = tea.name;
-  }
-  if (patch.className !== undefined) {
-    const cls = await resolveClassName(patch.className);
-    update.class_id = cls.id;
-    update.class_name = cls.name;
+  if (patch.dmcClassId !== undefined) {
+    const selection = await resolveDmcSelection(
+      patch.dmcClassId,
+      patch.dmcInstructorId ?? null,
+    );
+    update.dmc_class_id = patch.dmcClassId;
+    update.class_name = selection.className;
+    if (patch.dmcInstructorId !== undefined) {
+      update.dmc_instructor_id = selection.instructorId;
+      update.teacher_name = selection.teacherName;
+    }
+  } else if (patch.dmcInstructorId !== undefined) {
+    const { findDmcInstructor } = await import("@/domain/dmc-directory.server");
+    const instructor = patch.dmcInstructorId
+      ? await findDmcInstructor(patch.dmcInstructorId)
+      : null;
+    if (patch.dmcInstructorId && !instructor) throw new Error("Select a DMC instructor");
+    update.dmc_instructor_id = instructor?.id ?? null;
+    update.teacher_name = instructor?.name ?? "—";
   }
   if (patch.specificDate !== undefined) update.specific_date = patch.specificDate;
   if (patch.startTime !== undefined) update.start_time = patch.startTime;

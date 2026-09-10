@@ -12,12 +12,7 @@ import {
   type ShiftRow,
   type ScheduledShiftRow,
 } from "@/lib/shifts.functions";
-import {
-  listTeachers,
-  listClasses,
-  recordDirectoryUsage,
-  type DirectoryItem,
-} from "@/lib/directories.functions";
+import { listDmcDirectory, type DmcOption } from "@/lib/dmc-directory.functions";
 import { ARRIVAL_BUFFER_MIN } from "@/lib/travel.functions";
 import { useTravelPlan } from "@/hooks/useTravelPlan";
 import { type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
@@ -44,7 +39,7 @@ import {
 import { toast, Toaster } from "sonner";
 import { Plus, X, Clock, LogIn, CalendarDays, Ship, Footprints, Home, MapPin, AlertTriangle, Lock, ArrowRight, Briefcase, ChevronDown, Building2 } from "lucide-react";
 import { transitIconFor } from "@/components/TransitIcons";
-import { DirectoryCombobox } from "@/components/DirectoryCombobox";
+import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
@@ -93,7 +88,8 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-export type ShiftClass = { class: string; teacher: string };
+export type { ShiftClass } from "@/lib/shifts.functions";
+import type { ShiftClass } from "@/lib/shifts.functions";
 
 type Shift = ShiftRow;
 type ScheduledShift = ScheduledShiftRow;
@@ -265,10 +261,8 @@ function Index() {
 
   const fetchShifts = useServerFn(listShifts);
   const fetchScheduled = useServerFn(listScheduledShifts);
-  const fetchTeachers = useServerFn(listTeachers);
-  const fetchClasses = useServerFn(listClasses);
+  const fetchDmcDirectory = useServerFn(listDmcDirectory);
   const fetchCalendarClasses = useServerFn(listMyCalendarClasses);
-  const recordUsage = useServerFn(recordDirectoryUsage);
   const createShiftFn = useServerFn(createShift);
   const checkOutShiftServer = useServerFn(checkOutShift);
   const updateShiftServer = useServerFn(updateShiftFn);
@@ -277,8 +271,8 @@ function Index() {
   type DashboardSnapshot = {
     shifts: Shift[];
     scheduled: ScheduledShift[];
-    teachers: DirectoryItem[];
-    classes: DirectoryItem[];
+    teachers: DmcOption[];
+    classes: DmcOption[];
     calendarClasses: CalendarClassRow[];
   };
   const dashboardCacheKey = username ? `${operatorNamespace(username)}dashboard` : null;
@@ -296,8 +290,8 @@ function Index() {
     cachedDashboard?.shifts.filter((r) => r.check_out_at) ?? [],
   );
   const [scheduled, setScheduled] = useState<ScheduledShift[]>(cachedDashboard?.scheduled ?? []);
-  const [teachers, setTeachers] = useState<DirectoryItem[]>(cachedDashboard?.teachers ?? []);
-  const [classes, setClasses] = useState<DirectoryItem[]>(cachedDashboard?.classes ?? []);
+  const [teachers, setTeachers] = useState<DmcOption[]>(cachedDashboard?.teachers ?? []);
+  const [classes, setClasses] = useState<DmcOption[]>(cachedDashboard?.classes ?? []);
   const [calendarClasses, setCalendarClasses] = useState<CalendarClassRow[]>(
     cachedDashboard?.calendarClasses ?? [],
   );
@@ -376,13 +370,14 @@ function Index() {
   async function load() {
     if (!hasLoadedOnce.current) setLoading(true);
     try {
-      const [rows, sched, tRows, cRows, calRows] = await Promise.all([
+      const [rows, sched, dmc, calRows] = await Promise.all([
         fetchShifts(),
         fetchScheduled(),
-        fetchTeachers(),
-        fetchClasses(),
+        fetchDmcDirectory(),
         fetchCalendarClasses().catch(() => [] as CalendarClassRow[]),
       ]);
+      const tRows = dmc.instructors;
+      const cRows = dmc.classes;
       setActive(rows.find((r) => !r.check_out_at) ?? null);
       setHistory(rows.filter((r) => r.check_out_at));
       setScheduled(sched);
@@ -526,7 +521,12 @@ function Index() {
 
   function addClassRow() {
     if (!active) return;
-    updateActive({ classes: [...(active.classes ?? []), { class: "", teacher: "" }] });
+    updateActive({
+      classes: [
+        ...(active.classes ?? []),
+        { class: "", teacher: "", dmcClassId: null, dmcInstructorId: null },
+      ],
+    });
   }
   function updateClassRow(idx: number, patch: Partial<ShiftClass>) {
     if (!active) return;
@@ -554,10 +554,16 @@ function Index() {
     if (!active) return;
     setCheckingOut(true);
     try {
-      // Only classes that were actually taught go into permanent shift history.
+      // Only classes that were actually taught go into permanent shift history,
+      // carrying their canonical DMC references with them.
       const completed = activeShiftClasses
         .filter((c) => classStatusOf(c, new Date()) === "completed")
-        .map((c) => ({ class: c.class_name, teacher: c.teacher_name }));
+        .map((c) => ({
+          class: c.class_name,
+          teacher: c.teacher_name,
+          dmcClassId: c.dmc_class_id,
+          dmcInstructorId: c.dmc_instructor_id,
+        }));
       await checkOutShiftServer({
         data: {
           id: active.id,
@@ -565,15 +571,6 @@ function Index() {
         },
       });
 
-      // Best-effort: record used teachers/classes in the directories.
-      try {
-        await recordUsage({
-          data: {
-            teachers: active.classes.map((c) => c.teacher).filter(Boolean),
-            classes: active.classes.map((c) => c.class).filter(Boolean),
-          },
-        });
-      } catch { /* non-fatal */ }
       toast.success("Checked out");
       setActive(null);
       load();
@@ -985,8 +982,8 @@ function ActiveShiftPanel({
   onUpdateClass: (i: number, patch: Partial<ShiftClass>) => void;
   onRemoveClass: (i: number) => void;
   checkingOut: boolean;
-  teachers: DirectoryItem[];
-  classes: DirectoryItem[];
+  teachers: DmcOption[];
+  classes: DmcOption[];
   importedClasses: CalendarClassRow[];
   onSetClassStatus: (id: string, status: "scheduled" | "completed" | "cancelled") => void;
 }) {
@@ -1188,17 +1185,26 @@ function ActiveShiftPanel({
                     <span className="w-5 text-center text-xs tabular-nums text-muted-foreground">
                       {i + 1}
                     </span>
-                    <DirectoryCombobox
-                      value={c.class}
-                      onChange={(v) => onUpdateClass(i, { class: v })}
+                    <DmcPicker
+                      value={c.dmcClassId}
+                      onChange={(o) =>
+                        onUpdateClass(i, { dmcClassId: o?.id ?? null, class: o?.name ?? "" })
+                      }
                       options={classes}
                       placeholder="Class"
+                      fallbackLabel={c.class}
                     />
-                    <DirectoryCombobox
-                      value={c.teacher}
-                      onChange={(v) => onUpdateClass(i, { teacher: v })}
+                    <DmcPicker
+                      value={c.dmcInstructorId}
+                      onChange={(o) =>
+                        onUpdateClass(i, {
+                          dmcInstructorId: o?.id ?? null,
+                          teacher: o?.name ?? "",
+                        })
+                      }
                       options={teachers}
                       placeholder="Teacher"
+                      fallbackLabel={c.teacher}
                     />
                     <Button
                       variant="ghost"

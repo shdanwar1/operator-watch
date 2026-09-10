@@ -37,6 +37,8 @@ export type Database = {
           class_id: string | null
           class_name: string
           created_at: string
+          dmc_class_id: string | null
+          dmc_instructor_id: string | null
           end_time: string
           id: string
           operator: string
@@ -54,6 +56,8 @@ export type Database = {
           class_id?: string | null
           class_name: string
           created_at?: string
+          dmc_class_id?: string | null
+          dmc_instructor_id?: string | null
           end_time: string
           id?: string
           operator: string
@@ -71,6 +75,8 @@ export type Database = {
           class_id?: string | null
           class_name?: string
           created_at?: string
+          dmc_class_id?: string | null
+          dmc_instructor_id?: string | null
           end_time?: string
           id?: string
           operator?: string
@@ -90,6 +96,20 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_classes_dmc_class_id_fkey"
+            columns: ["dmc_class_id"]
+            isOneToOne: false
+            referencedRelation: "dmc_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_classes_dmc_instructor_id_fkey"
+            columns: ["dmc_instructor_id"]
+            isOneToOne: false
+            referencedRelation: "dmc_instructors"
             referencedColumns: ["id"]
           },
           {
