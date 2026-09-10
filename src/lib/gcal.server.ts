@@ -328,6 +328,7 @@ async function syncBusy(
   displayName: string,
   events: ParsedEvent[],
   window: SyncWindow,
+  index: TimetableIndex,
 ): Promise<GcalSyncResult> {
   const opKey = operatorKey(displayName);
 
@@ -335,14 +336,19 @@ async function syncBusy(
   const blocks: ClassEvent[] = events
     .filter((e) => e.specific_date >= window.from && e.specific_date <= window.to)
     .filter((e) => {
-      // Untitled busy blocks still have to look like a live class: no all-day
-      // blocks, and an exact 45 / 60 minute duration.
-      const verdict = isValidDanceMasterclassClass(e);
-      if (!verdict.valid) {
+      // A busy block counts only if an active DMC timetable slot sits at exactly
+      // this Berlin weekday, start time and duration. Titles are irrelevant.
+      const verdict = resolveDmcTimetableSlot(index, {
+        date: e.specific_date,
+        startTime: e.start_time,
+        endTime: e.end_time,
+        status: e.status,
+      });
+      if (verdict.status !== "matched") {
         ignoredBusy++;
         console.warn(`[gcal] Ignored event: "${e.summary || "(busy)"}" — reason: ${verdict.reason}`);
       }
-      return verdict.valid;
+      return verdict.status === "matched";
     })
     .map((e) => ({
       key: e.uid,
