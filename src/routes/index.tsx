@@ -520,7 +520,12 @@ function Index() {
 
   function addClassRow() {
     if (!active) return;
-    updateActive({ classes: [...(active.classes ?? []), { class: "", teacher: "" }] });
+    updateActive({
+      classes: [
+        ...(active.classes ?? []),
+        { class: "", teacher: "", dmcClassId: null, dmcInstructorId: null },
+      ],
+    });
   }
   function updateClassRow(idx: number, patch: Partial<ShiftClass>) {
     if (!active) return;
@@ -548,10 +553,16 @@ function Index() {
     if (!active) return;
     setCheckingOut(true);
     try {
-      // Only classes that were actually taught go into permanent shift history.
+      // Only classes that were actually taught go into permanent shift history,
+      // carrying their canonical DMC references with them.
       const completed = activeShiftClasses
         .filter((c) => classStatusOf(c, new Date()) === "completed")
-        .map((c) => ({ class: c.class_name, teacher: c.teacher_name }));
+        .map((c) => ({
+          class: c.class_name,
+          teacher: c.teacher_name,
+          dmcClassId: c.dmc_class_id,
+          dmcInstructorId: c.dmc_instructor_id,
+        }));
       await checkOutShiftServer({
         data: {
           id: active.id,
@@ -559,15 +570,6 @@ function Index() {
         },
       });
 
-      // Best-effort: record used teachers/classes in the directories.
-      try {
-        await recordUsage({
-          data: {
-            teachers: active.classes.map((c) => c.teacher).filter(Boolean),
-            classes: active.classes.map((c) => c.class).filter(Boolean),
-          },
-        });
-      } catch { /* non-fatal */ }
       toast.success("Checked out");
       setActive(null);
       load();
