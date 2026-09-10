@@ -132,12 +132,7 @@ export const correctMyClassMatch = createServerFn({ method: "POST" })
   });
 
 
-async function requireAdmin() {
-  const session = await useSession<GateSession>(getSessionConfig());
-  if (!session.data.siteUnlocked || !session.data.isAdmin) {
-    throw new Response("Admin access required", { status: 403 });
-  }
-}
+
 
 /*
  * `backfillClassMatches` was removed in Operation 6. It re-applied Google title
