@@ -190,16 +190,9 @@ export function AttendanceSection({ username }: { username: string | null }) {
     return m;
   }, [shifts]);
 
-  async function recordShiftUsage(cs: ShiftClass[]) {
-    try {
-      await recordUsage({
-        data: {
-          teachers: cs.map((c) => c.teacher).filter(Boolean),
-          classes: cs.map((c) => c.class).filter(Boolean),
-        },
-      });
-    } catch { /* non-fatal */ }
-  }
+  // Class and teacher identity now comes from the DMC directory, so there is no
+  // separate usage directory to keep warm any more.
+
 
   async function saveEdit(next: Shift) {
     try {
@@ -214,7 +207,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
           },
         },
       });
-      await recordShiftUsage(next.classes);
+      
       toast.success("Shift updated");
       setEditing(null);
       load();
@@ -246,7 +239,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
   }) {
     try {
       await createPastServer({ data: payload });
-      await recordShiftUsage(payload.classes);
+      
       toast.success("Past shift added");
       setAddingPast(false);
       load();
