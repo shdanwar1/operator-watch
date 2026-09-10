@@ -18,8 +18,15 @@ import {
   type CalendarMode,
   type ParsedEvent,
 } from "./gcal-core";
-import { aliasKeyFor, matchEvent, type AliasEntry, type MatchLog } from "./gcal-match";
-import { isValidDanceMasterclassClass } from "./class-eligibility";
+import { aliasKeyFor, type MatchLog } from "./gcal-match";
+// Validation authority (Operation 6): the stored DMC Live Timetable. Google
+// titles, teacher names, aliases and fuzzy matching no longer decide anything.
+import {
+  buildTimetableIndex,
+  instructorDisplayName,
+  resolveDmcTimetableSlot,
+  type TimetableIndex,
+} from "@/domain/timetable-resolver";
 import { groupClassesIntoShifts, type ClassEvent } from "@/domain/shift-planning";
 import {
   googleShiftIdentity,
