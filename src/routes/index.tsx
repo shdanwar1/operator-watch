@@ -981,8 +981,8 @@ function ActiveShiftPanel({
   onUpdateClass: (i: number, patch: Partial<ShiftClass>) => void;
   onRemoveClass: (i: number) => void;
   checkingOut: boolean;
-  teachers: DirectoryItem[];
-  classes: DirectoryItem[];
+  teachers: DmcOption[];
+  classes: DmcOption[];
   importedClasses: CalendarClassRow[];
   onSetClassStatus: (id: string, status: "scheduled" | "completed" | "cancelled") => void;
 }) {
@@ -1184,17 +1184,26 @@ function ActiveShiftPanel({
                     <span className="w-5 text-center text-xs tabular-nums text-muted-foreground">
                       {i + 1}
                     </span>
-                    <DirectoryCombobox
-                      value={c.class}
-                      onChange={(v) => onUpdateClass(i, { class: v })}
+                    <DmcPicker
+                      value={c.dmcClassId}
+                      onChange={(o) =>
+                        onUpdateClass(i, { dmcClassId: o?.id ?? null, class: o?.name ?? "" })
+                      }
                       options={classes}
                       placeholder="Class"
+                      fallbackLabel={c.class}
                     />
-                    <DirectoryCombobox
-                      value={c.teacher}
-                      onChange={(v) => onUpdateClass(i, { teacher: v })}
+                    <DmcPicker
+                      value={c.dmcInstructorId}
+                      onChange={(o) =>
+                        onUpdateClass(i, {
+                          dmcInstructorId: o?.id ?? null,
+                          teacher: o?.name ?? "",
+                        })
+                      }
                       options={teachers}
                       placeholder="Teacher"
+                      fallbackLabel={c.teacher}
                     />
                     <Button
                       variant="ghost"
