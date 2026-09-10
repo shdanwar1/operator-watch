@@ -62,8 +62,8 @@ function toDraft(c: CalendarClassRow): Draft {
     id: c.id,
     dmcClassId: c.dmc_class_id,
     dmcInstructorId: c.dmc_instructor_id,
-    legacyClassName: c.class_name,
-    legacyTeacherName: c.teacher_name === "—" ? "" : c.teacher_name,
+    legacyClassName: c.className === "—" ? "" : c.className,
+    legacyTeacherName: c.teacherName === "—" ? "" : c.teacherName,
     startTime: hhmm(c.start_time),
     endTime: hhmm(c.end_time),
     overnight: crossesMidnight(c.start_time, c.end_time),
@@ -305,8 +305,8 @@ export function ShiftOverviewDialog({
                         {overnightClass ? `${fmtDayShort(addDayKey(c.specific_date, 1))} · ` : ""}
                         {fmtClock(c.end_time)}
                       </div>
-                      <div className="text-sm font-medium">{c.class_name}</div>
-                      <div className="text-sm text-muted-foreground">{c.teacher_name}</div>
+                      <div className="text-sm font-medium">{c.className}</div>
+                      <div className="text-sm text-muted-foreground">{c.teacherName}</div>
                       {c.status === "cancelled" ? (
                         <Badge variant="outline" className="mt-1 text-[10px]">
                           Cancelled
@@ -316,8 +316,8 @@ export function ShiftOverviewDialog({
                           to="/studio-display"
                           search={temporaryClassSearch({
                             classId: c.id,
-                            className: c.class_name,
-                            teacherName: c.teacher_name === "—" ? "" : c.teacher_name,
+                            className: c.className,
+                            teacherName: c.teacherName === "—" ? "" : c.teacherName,
                             date: c.specific_date,
                             startTime: hhmm(c.start_time),
                             endTime: hhmm(c.end_time),
