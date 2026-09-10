@@ -18,8 +18,15 @@ import {
   type CalendarMode,
   type ParsedEvent,
 } from "./gcal-core";
-import { aliasKeyFor, matchEvent, type AliasEntry, type MatchLog } from "./gcal-match";
-import { isValidDanceMasterclassClass } from "./class-eligibility";
+import { aliasKeyFor, type MatchLog } from "./gcal-match";
+// Validation authority (Operation 6): the stored DMC Live Timetable. Google
+// titles, teacher names, aliases and fuzzy matching no longer decide anything.
+import {
+  buildTimetableIndex,
+  instructorDisplayName,
+  resolveDmcTimetableSlot,
+  type TimetableIndex,
+} from "@/domain/timetable-resolver";
 import { groupClassesIntoShifts, type ClassEvent } from "@/domain/shift-planning";
 import {
   googleShiftIdentity,
@@ -174,10 +181,29 @@ async function runCalendarImport(
   if (!fetched.ok) return fail("busy", fetched.error);
 
   const events = fetched.commitments.map((c) => c.raw);
+
+  // The timetable is loaded once per sync and validates every event. Without
+  // it nothing can be validated, so the sync fails and writes nothing — the
+  // gate is never widened when the authority is unavailable.
+  let index: TimetableIndex;
+  try {
+    const { loadTimetableForMatching } = await import("@/domain/timetable-repository.server");
+    index = buildTimetableIndex(await loadTimetableForMatching());
+  } catch (err) {
+    console.error("[gcal] timetable load failed", err);
+    return fail("busy", "The DMC Live Timetable could not be loaded, so no classes were imported.");
+  }
+  if (index.activeSlots === 0) {
+    return fail(
+      "busy",
+      "The DMC Live Timetable is empty. Refresh it in Admin → Live Timetable, then sync again.",
+    );
+  }
+
   const mode = detectCalendarMode(events);
   return mode === "detailed"
-    ? syncDetailed(displayName, events, window)
-    : syncBusy(displayName, events, window);
+    ? syncDetailed(displayName, events, window, index)
+    : syncBusy(displayName, events, window, index);
 }
 
 
@@ -302,6 +328,7 @@ async function syncBusy(
   displayName: string,
   events: ParsedEvent[],
   window: SyncWindow,
+  index: TimetableIndex,
 ): Promise<GcalSyncResult> {
   const opKey = operatorKey(displayName);
 
@@ -309,14 +336,19 @@ async function syncBusy(
   const blocks: ClassEvent[] = events
     .filter((e) => e.specific_date >= window.from && e.specific_date <= window.to)
     .filter((e) => {
-      // Untitled busy blocks still have to look like a live class: no all-day
-      // blocks, and an exact 45 / 60 minute duration.
-      const verdict = isValidDanceMasterclassClass(e);
-      if (!verdict.valid) {
+      // A busy block counts only if an active DMC timetable slot sits at exactly
+      // this Berlin weekday, start time and duration. Titles are irrelevant.
+      const verdict = resolveDmcTimetableSlot(index, {
+        date: e.specific_date,
+        startTime: e.start_time,
+        endTime: e.end_time,
+        status: e.status,
+      });
+      if (verdict.status !== "matched") {
         ignoredBusy++;
         console.warn(`[gcal] Ignored event: "${e.summary || "(busy)"}" — reason: ${verdict.reason}`);
       }
-      return verdict.valid;
+      return verdict.status === "matched";
     })
     .map((e) => ({
       key: e.uid,
@@ -360,24 +392,11 @@ async function syncDetailed(
   displayName: string,
   events: ParsedEvent[],
   window: SyncWindow,
+  index: TimetableIndex,
 ): Promise<GcalSyncResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const now = new Date();
   const opKey = operatorKey(displayName);
-
-  const [{ data: classRows }, { data: teacherRows }, { data: aliasRows }] = await Promise.all([
-    supabaseAdmin.from("classes").select("id,name").limit(2000),
-    supabaseAdmin.from("teachers").select("id,name").limit(2000),
-    supabaseAdmin.from("class_aliases").select("alias_key,class_id,teacher_id").limit(5000),
-  ]);
-  const classDir = (classRows ?? []) as { id: string; name: string }[];
-  const teacherDir = (teacherRows ?? []) as { id: string; name: string }[];
-  const aliases: AliasEntry[] = (aliasRows ?? []).map((a) => ({
-    aliasKey: a.alias_key as string,
-    classId: (a.class_id ?? null) as string | null,
-    teacherId: (a.teacher_id ?? null) as string | null,
-  }));
-
 
   const inWindow = events.filter(
     (e) => e.specific_date >= window.from && e.specific_date <= window.to,
@@ -395,37 +414,32 @@ async function syncDetailed(
   const logs: MatchLog[] = [];
   let ignored = 0;
   for (const e of inWindow) {
-    // Title matching only supplies *evidence*; eligibility is decided by the
-    // single central gate so nothing else in the pipeline can widen it.
-    const matched =
-      e.status === "cancelled"
-        ? null
-        : matchEvent(e.summary, classDir, teacherDir, aliases);
-    const verdict = isValidDanceMasterclassClass(e, {
-      classId: matched?.result.classId ?? null,
-      teacherId: matched?.result.teacherId ?? null,
+    // The DMC Live Timetable decides, on time alone. The Google title is kept
+    // for reference only and plays no part in this decision.
+    const verdict = resolveDmcTimetableSlot(index, {
+      date: e.specific_date,
+      startTime: e.start_time,
+      endTime: e.end_time,
+      status: e.status,
     });
 
-    if (!verdict.valid) {
+    if (verdict.status !== "matched") {
       ignored++;
       console.warn(`[gcal] Ignored event: "${e.summary}" — reason: ${verdict.reason}`);
-      logs.push({
-        title: e.summary,
-        accepted: false,
-        confidence: matched?.log.confidence ?? 0,
-        reason: verdict.reason,
-      });
+      logs.push({ title: e.summary, accepted: false, confidence: 0, reason: verdict.reason });
       continue;
     }
 
-    const result = matched!.result;
-    logs.push({ ...matched!.log, accepted: true, reason: `${matched!.log.reason} · ${verdict.reason}` });
+    logs.push({ title: e.summary, accepted: true, confidence: 1, reason: verdict.reason });
     imported.push({
       event: e,
-      className: result.className ?? result.fallbackClassName,
-      teacherName: result.teacherName ?? result.fallbackTeacherName,
-      classId: result.classId,
-      teacherId: result.teacherId,
+      // Identity comes from the timetable, never from the Google title.
+      className: verdict.classDef?.className ?? "Class",
+      teacherName: instructorDisplayName(verdict.instructor),
+      // The legacy id columns reference the old directory tables, which are no
+      // longer an authority; timetable ids are a different namespace.
+      classId: null,
+      teacherId: null,
     });
   }
 
