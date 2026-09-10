@@ -26,12 +26,7 @@ import {
   type ScheduledShiftRow,
   type ShiftClass,
 } from "@/lib/shifts.functions";
-import {
-  listTeachers,
-  listClasses,
-  recordDirectoryUsage,
-  type DirectoryItem,
-} from "@/lib/directories.functions";
+import { listDmcDirectory, type DmcOption } from "@/lib/dmc-directory.functions";
 import {
   summarizeMonth,
   formatHM,
@@ -57,7 +52,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { downloadAttendancePdf } from "@/lib/attendance-pdf";
-import { DirectoryCombobox } from "@/components/DirectoryCombobox";
+import { DmcPicker } from "@/components/DmcPicker";
 
 /** A worked shift, as needed by the Edit/Add dialogs. */
 type Shift = {
@@ -93,9 +88,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
 
   const fetchShifts = useServerFn(listShifts);
   const fetchScheduled = useServerFn(listScheduledShifts);
-  const fetchTeachers = useServerFn(listTeachers);
-  const fetchClasses = useServerFn(listClasses);
-  const recordUsage = useServerFn(recordDirectoryUsage);
+  const fetchDmcDirectory = useServerFn(listDmcDirectory);
   const updateShiftServer = useServerFn(updateShiftFn);
   const deleteShiftServer = useServerFn(deleteShiftFn);
   const createPastServer = useServerFn(createPastShiftFn);
