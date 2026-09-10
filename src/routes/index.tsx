@@ -12,12 +12,7 @@ import {
   type ShiftRow,
   type ScheduledShiftRow,
 } from "@/lib/shifts.functions";
-import {
-  listTeachers,
-  listClasses,
-  recordDirectoryUsage,
-  type DirectoryItem,
-} from "@/lib/directories.functions";
+import { listDmcDirectory, type DmcOption } from "@/lib/dmc-directory.functions";
 import { ARRIVAL_BUFFER_MIN } from "@/lib/travel.functions";
 import { useTravelPlan } from "@/hooks/useTravelPlan";
 import { type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
@@ -44,7 +39,7 @@ import {
 import { toast, Toaster } from "sonner";
 import { Plus, X, Clock, LogIn, CalendarDays, Ship, Footprints, Home, MapPin, AlertTriangle, Lock, ArrowRight, Briefcase, ChevronDown, Building2 } from "lucide-react";
 import { transitIconFor } from "@/components/TransitIcons";
-import { DirectoryCombobox } from "@/components/DirectoryCombobox";
+import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
@@ -265,10 +260,8 @@ function Index() {
 
   const fetchShifts = useServerFn(listShifts);
   const fetchScheduled = useServerFn(listScheduledShifts);
-  const fetchTeachers = useServerFn(listTeachers);
-  const fetchClasses = useServerFn(listClasses);
+  const fetchDmcDirectory = useServerFn(listDmcDirectory);
   const fetchCalendarClasses = useServerFn(listMyCalendarClasses);
-  const recordUsage = useServerFn(recordDirectoryUsage);
   const createShiftFn = useServerFn(createShift);
   const checkOutShiftServer = useServerFn(checkOutShift);
   const updateShiftServer = useServerFn(updateShiftFn);
@@ -277,8 +270,8 @@ function Index() {
   type DashboardSnapshot = {
     shifts: Shift[];
     scheduled: ScheduledShift[];
-    teachers: DirectoryItem[];
-    classes: DirectoryItem[];
+    teachers: DmcOption[];
+    classes: DmcOption[];
     calendarClasses: CalendarClassRow[];
   };
   const dashboardCacheKey = username ? `${operatorNamespace(username)}dashboard` : null;
@@ -296,8 +289,8 @@ function Index() {
     cachedDashboard?.shifts.filter((r) => r.check_out_at) ?? [],
   );
   const [scheduled, setScheduled] = useState<ScheduledShift[]>(cachedDashboard?.scheduled ?? []);
-  const [teachers, setTeachers] = useState<DirectoryItem[]>(cachedDashboard?.teachers ?? []);
-  const [classes, setClasses] = useState<DirectoryItem[]>(cachedDashboard?.classes ?? []);
+  const [teachers, setTeachers] = useState<DmcOption[]>(cachedDashboard?.teachers ?? []);
+  const [classes, setClasses] = useState<DmcOption[]>(cachedDashboard?.classes ?? []);
   const [calendarClasses, setCalendarClasses] = useState<CalendarClassRow[]>(
     cachedDashboard?.calendarClasses ?? [],
   );
