@@ -1,46 +1,63 @@
-# Operation 8 — Records reference the canonical DMC directory
+# Operation 8 — Records reference the canonical DMC directory, then legacy cleanup
 
-## What the audit found
+Target end state:
 
-There are two places a record stores class/teacher identity today, both as free text:
+```text
+Live Timetable  ->  DMC directory (dmc_classes / dmc_instructors)  ->  Records
+```
 
-1. `shifts.classes` — a JSON list of `{ class, teacher }` strings, written by the manual Record flow (add past shift / edit shift) in `AttendanceSection`, chosen from the generic `classes` / `teachers` directories.
-2. `calendar_classes` — one row per class, with `class_name` / `teacher_name` text plus legacy `class_id` / `teacher_id` pointing at the generic `classes` / `teachers` tables. Written by Google sync (names already come from the Live Timetable since Operation 6) and by manual class add/edit on a shift.
+No other class/teacher layer survives unless the audit proves it still has a real job.
 
-The canonical directory is `dmc_classes` (32 rows, key `source_class_id`) and `dmc_instructors` (37 rows, key `source_instructor_id`), both refreshed from the DMC API.
+## What the audit found so far
 
-Name overlap with history is partial: of 31 distinct stored class names, 18 match a DMC class exactly once after case/punctuation folding; the rest are historic or renamed titles ("Absolute Beginners Barre" vs "Absolute Beginner Barre", "Glutes & Legs" vs "Glutes and Legs", "Back to Basics", "Pre-Production Meeting…"). Those will be reported, not guessed.
+Two places store class/teacher identity as free text today:
 
-## 1. Schema (one migration)
+1. `shifts.classes` — a JSON list of `{ class, teacher }` strings, written by the manual Record flow (add past shift / edit shift), chosen from the generic `classes` / `teachers` lists.
+2. `calendar_classes` — one row per class, with `class_name` / `teacher_name` text plus `class_id` / `teacher_id` pointing at `classes` / `teachers`. Written by Google sync (names already come from the Live Timetable since Operation 6) and by manual class add/edit on a shift.
 
-- `calendar_classes`: add `dmc_class_id uuid references public.dmc_classes(id)` and `dmc_instructor_id uuid references public.dmc_instructors(id)`, both nullable, indexed. `class_name`, `teacher_name`, `class_id`, `teacher_id` stay untouched.
-- `shifts.classes` entries gain optional `dmcClassId` / `dmcInstructorId` keys inside the existing JSON — no column change.
-- Nothing dropped: `class_aliases`, `classes`, `teachers` all remain.
+Canonical directory: `dmc_classes` (32 rows) and `dmc_instructors` (37 rows), refreshed from the DMC API.
 
-## 2. One-time data migration (exact matching only)
+Name overlap with history is partial: of 31 distinct stored class names, 18 match a DMC class exactly once after case/punctuation folding. The rest are historic or renamed titles ("Absolute Beginners Barre" vs "Absolute Beginner Barre", "Glutes & Legs" vs "Glutes and Legs", "Back to Basics", "Pre-Production Meeting…"). Those get reported, never guessed.
 
-A single SQL pass, run once:
+## Phase A — schema and data migration
 
-- Class: fold both sides to lowercase alphanumerics; link only when exactly one `dmc_classes` row matches.
-- Instructor: fold `first_name || last_name`; link only when exactly one `dmc_instructors` row matches.
-- Zero matches or more than one match → leave the reference null and keep the original text.
+Migration adds `dmc_class_id` and `dmc_instructor_id` (nullable, foreign keys to the DMC tables, indexed) to `calendar_classes`. Entries inside `shifts.classes` gain optional `dmcClassId` / `dmcInstructorId` keys — no column change. Existing name columns stay for now.
 
-Applies to `calendar_classes` rows and to each entry inside `shifts.classes`. Afterwards I report counts of: migrated, no DMC class found, no DMC instructor found, ambiguous.
+One-time linking pass, exact matching only:
 
-## 3. Going forward
+- Class: fold both sides to lowercase alphanumerics; link only on exactly one match.
+- Instructor: fold `first_name || last_name`; link only on exactly one match.
+- Zero or multiple matches: leave null, keep the original text.
 
-- **Google sync**: the timetable resolver already returns the matched slot, so `gcal.server.ts` writes `dmc_class_id` / `dmc_instructor_id` alongside the existing names. The validation path itself (date + Berlin start + duration → slot) is unchanged.
-- **Manual class on a shift** (`addClassToShift` / `updateShiftClass`): accepts DMC class id + DMC instructor id, stores them and stores the DMC names as the display snapshot. Legacy `class_id` / `teacher_id` keep being filled from the generic directory so existing readers stay intact.
-- **Manual Record entry** (add past shift / edit shift): the two free-text pickers become DMC class and DMC instructor pickers backed by a new read-only `listDmcDirectory` server function. Selecting stores the id plus the name; rows migrated with no id still display their original text and prompt for a DMC selection on edit.
+## Phase B — consumers use the DMC references
 
-## 4. Display
+- **Google sync**: the timetable resolver already produces the matched slot, so its DMC class and instructor ids are written alongside the display names. The validation path (date + Berlin start + duration -> slot) is unchanged.
+- **Manual class on a shift** and **manual Record entry**: the two free-text pickers become DMC class and DMC instructor pickers backed by a new read-only DMC directory server function. The selected ids are stored, with the DMC names kept as the display snapshot.
+- **No new dependency on `classes` / `teachers` is introduced.** New writes stop populating `class_id` / `teacher_id` and stop bumping those usage counters, so the legacy tables can actually become deletable.
 
-Every screen keeps showing the same names it shows today: stored display names remain, so historic records read identically.
+## Phase C — dependency audit of the four legacy tables
 
-## 5. Not in this operation
+For each of `classes`, `teachers`, `class_aliases`, `calendar_classes`, check both levels:
 
-No fuzzy matching, no `gcal-match.ts`, no `class_aliases` writes, no change to Live Timetable resolution, shift generation, grouping, attendance, notifications, or current-month manual sync. No legacy column or table removal.
+- application: every read, write, server function, UI surface, test
+- database: foreign keys, functions (including `bump_directory_usage` and `rename_operator`), triggers, policies
 
-## 6. Verification
+Known starting points to resolve: the Admin Settings "Classes & Teachers" management section and the duplicate-name hygiene report both read `classes` / `teachers`; `calendar_classes` is read widely (shift overview, Studio Display, class lifecycle, shift deletion). The audit decides whether each of those is a genuine remaining responsibility or only leftover plumbing, including whether `calendar_classes` is still an application concept at all or merely old Google-matching storage.
 
-TypeScript, full test suite, production build, plus new tests for the exact-match rule (case/punctuation folding, ambiguity rejection, no-match rejection) and a guard that no alias writing returns. Then a report of every record that could not be safely linked.
+## Phase D — conditional deletion
+
+Each table gets an explicit verdict:
+
+- safe (no application or database dependency, data no longer needed) -> delete it, with its dependent code and UI removed in the same operation
+- not safe -> keep it untouched and state exactly which consumers require it
+
+No table is deleted on assumption, and no table is preserved by default.
+
+## Phase E — verification and reports
+
+Two reports:
+
+1. **Migration report**, row by row, not just totals: record, original class name, matched DMC class, original teacher name, matched DMC instructor, status (Migrated / Partial / Unmatched / Ambiguous). This is what lets historic records be resolved by hand later without any fuzzy matching.
+2. **Table verdict report**: the four tables with DELETE or KEEP and the reason.
+
+Checks: existing records display the same names as before, new records carry DMC ids, editing preserves them, Google sync still resolves through the Live Timetable, current-month manual sync and shift grouping unchanged, no fuzzy matcher and no `class_aliases` writes reintroduced. Then TypeScript, the full test suite (including new tests for the exact-match rule and its ambiguity/no-match rejections) and a production build.
