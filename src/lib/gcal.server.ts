@@ -181,10 +181,29 @@ async function runCalendarImport(
   if (!fetched.ok) return fail("busy", fetched.error);
 
   const events = fetched.commitments.map((c) => c.raw);
+
+  // The timetable is loaded once per sync and validates every event. Without
+  // it nothing can be validated, so the sync fails and writes nothing — the
+  // gate is never widened when the authority is unavailable.
+  let index: TimetableIndex;
+  try {
+    const { loadTimetableForMatching } = await import("@/domain/timetable-repository.server");
+    index = buildTimetableIndex(await loadTimetableForMatching());
+  } catch (err) {
+    console.error("[gcal] timetable load failed", err);
+    return fail("busy", "The DMC Live Timetable could not be loaded, so no classes were imported.");
+  }
+  if (index.activeSlots === 0) {
+    return fail(
+      "busy",
+      "The DMC Live Timetable is empty. Refresh it in Admin → Live Timetable, then sync again.",
+    );
+  }
+
   const mode = detectCalendarMode(events);
   return mode === "detailed"
-    ? syncDetailed(displayName, events, window)
-    : syncBusy(displayName, events, window);
+    ? syncDetailed(displayName, events, window, index)
+    : syncBusy(displayName, events, window, index);
 }
 
 
