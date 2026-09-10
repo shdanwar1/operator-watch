@@ -887,8 +887,8 @@ function EditDialog({
   shift: Shift | null;
   onClose: () => void;
   onSave: (s: Shift) => void;
-  teachers: DirectoryItem[];
-  classDir: DirectoryItem[];
+  teachers: DmcOption[];
+  classDir: DmcOption[];
 }) {
   const [draft, setDraft] = useState<Shift | null>(shift);
 
@@ -905,7 +905,7 @@ function EditDialog({
     setDraft((d) => (d ? { ...d, classes: d.classes.map((c, idx) => (idx === i ? { ...c, ...p } : c)) } : d));
   }
   function addClass() {
-    setDraft((d) => (d ? { ...d, classes: [...d.classes, { class: "", teacher: "" }] } : d));
+    setDraft((d) => (d ? { ...d, classes: [...d.classes, emptyClass()] } : d));
   }
   function removeClass(i: number) {
     setDraft((d) => (d ? { ...d, classes: d.classes.filter((_, idx) => idx !== i) } : d));
@@ -966,17 +966,19 @@ function EditDialog({
                 </div>
                 {draft.classes.map((c, i) => (
                   <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                    <DirectoryCombobox
-                      value={c.class}
-                      onChange={(v) => updateClass(i, { class: v })}
+                    <DmcPicker
+                      value={c.dmcClassId}
+                      onChange={(o) => updateClass(i, pickDmcClass(o))}
                       options={classDir}
                       placeholder={`Class ${i + 1}`}
+                      fallbackLabel={c.class}
                     />
-                    <DirectoryCombobox
-                      value={c.teacher}
-                      onChange={(v) => updateClass(i, { teacher: v })}
+                    <DmcPicker
+                      value={c.dmcInstructorId}
+                      onChange={(o) => updateClass(i, pickDmcInstructor(o))}
                       options={teachers}
                       placeholder="Teacher"
+                      fallbackLabel={c.teacher}
                     />
                     <Button
                       type="button"
