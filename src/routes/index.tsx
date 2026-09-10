@@ -53,7 +53,6 @@ import { publishSync } from "@/lib/sync-bus";
 import {
   listMyCalendarClasses,
   setMyClassStatus,
-  correctMyClassMatch,
   type CalendarClassRow,
 } from "@/lib/gcal.functions";
 import { AppShell, SectionTitle } from "@/components/AppShell";
@@ -274,7 +273,6 @@ function Index() {
   const checkOutShiftServer = useServerFn(checkOutShift);
   const updateShiftServer = useServerFn(updateShiftFn);
   const setClassStatusFn = useServerFn(setMyClassStatus);
-  const correctClassMatchFn = useServerFn(correctMyClassMatch);
 
   type DashboardSnapshot = {
     shifts: Shift[];
@@ -552,21 +550,6 @@ function Index() {
     }
   }
 
-  /** Operator fixes a mis-matched class; the server remembers it as an alias. */
-  async function correctClassMatch(id: string, classId: string, teacherId: string | null) {
-    try {
-      const row = await correctClassMatchFn({ data: { id, classId, teacherId } });
-      setCalendarClasses((prev) => prev.map((c) => (c.id === id ? row : c)));
-      toast.success(
-        row.alias_saved
-          ? "Match saved — future syncs will use it"
-          : "Match saved for this class only",
-      );
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save the match");
-    }
-  }
-
   async function checkOut() {
     if (!active) return;
     setCheckingOut(true);
@@ -642,7 +625,6 @@ function Index() {
             classes={classes}
             importedClasses={activeShiftClasses}
             onSetClassStatus={setClassStatus}
-            onCorrectClassMatch={correctClassMatch}
           />
         ) : checkInLocked ? (
           <LockedFeatureCard
@@ -994,7 +976,6 @@ function ActiveShiftPanel({
   classes,
   importedClasses,
   onSetClassStatus,
-  onCorrectClassMatch,
 }: {
   shift: Shift;
   scheduledShift: ScheduledShift | null;
@@ -1008,7 +989,6 @@ function ActiveShiftPanel({
   classes: DirectoryItem[];
   importedClasses: CalendarClassRow[];
   onSetClassStatus: (id: string, status: "scheduled" | "completed" | "cancelled") => void;
-  onCorrectClassMatch: (id: string, classId: string, teacherId: string | null) => void;
 }) {
   const d = formatDuration(shift.check_in_at, null);
   const checkInAt = new Date(shift.check_in_at);
@@ -1149,9 +1129,6 @@ function ActiveShiftPanel({
           now={now}
           title="Shift Overview"
           onSetStatus={onSetClassStatus}
-          onCorrect={onCorrectClassMatch}
-          classOptions={classes}
-          teacherOptions={teachers}
             footer={
               <div className="flex flex-col items-center gap-2">
                 <HoldButton

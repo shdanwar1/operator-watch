@@ -7,18 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ExternalLink, CalendarDays, MoreHorizontal, Check, X, Wand2, AlertTriangle } from "lucide-react";
-import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { DirectoryCombobox } from "@/components/DirectoryCombobox";
-import type { DirectoryItem } from "@/lib/directories.functions";
+import { ExternalLink, CalendarDays, MoreHorizontal, Check, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { temporaryClassSearch } from "@/lib/studio-presets";
 import { cn } from "@/lib/utils";
@@ -78,9 +67,6 @@ export function ClassScheduleCard({
   now,
   title = "Shift Overview",
   onSetStatus,
-  onCorrect,
-  classOptions = [],
-  teacherOptions = [],
   footer,
 }: {
   classes: CalendarClassRow[];
@@ -88,31 +74,13 @@ export function ClassScheduleCard({
   title?: string;
   /** When provided, each row exposes Mark as Completed / Cancel Class. */
   onSetStatus?: (id: string, status: "scheduled" | "completed" | "cancelled") => void;
-  /** When provided, each row exposes "Fix class match" (saved as an alias). */
-  onCorrect?: (id: string, classId: string, teacherId: string | null) => void;
-  classOptions?: DirectoryItem[];
-  teacherOptions?: DirectoryItem[];
   /** Optional action area rendered at the bottom of the card, e.g. a check-out control. */
   footer?: React.ReactNode;
 }) {
-  const [fixing, setFixing] = useState<CalendarClassRow | null>(null);
-  const [fixClass, setFixClass] = useState("");
-  const [fixTeacher, setFixTeacher] = useState("");
-
   if (classes.length === 0) return null;
 
   const states = classes.map((c) => classStatusOf(c, now));
 
-  // A class is "unmatched" when it has no link to the class/teacher directory.
-  // The name check is a safety net: a stale row can still carry an id that no
-  // longer exists in the directory, and that is just as broken as a null id.
-  const knownClass = new Set(classOptions.map((o) => o.name.trim().toLowerCase()));
-  const knownTeacher = new Set(teacherOptions.map((o) => o.name.trim().toLowerCase()));
-  const classUnmatched = (c: CalendarClassRow) =>
-    !c.class_id || (knownClass.size > 0 && !knownClass.has(c.class_name.trim().toLowerCase()));
-  const teacherUnmatched = (c: CalendarClassRow) =>
-    !c.teacher_id ||
-    (knownTeacher.size > 0 && !knownTeacher.has(c.teacher_name.trim().toLowerCase()));
 
 
 
@@ -188,31 +156,6 @@ export function ClassScheduleCard({
                       )}
                     >
                       {c.class_name}
-                      {!isCancelled && (classUnmatched(c) || teacherUnmatched(c)) && (
-                        <button
-                          type="button"
-                          disabled={!onCorrect}
-                          onClick={() => {
-                            if (!onCorrect) return;
-                            setFixing(c);
-                            setFixClass(classUnmatched(c) ? "" : c.class_name);
-                            setFixTeacher(teacherUnmatched(c) ? "" : c.teacher_name);
-                          }}
-                          className={cn(
-                            "shrink-0 text-warn",
-                            onCorrect && "cursor-pointer hover:text-warn/80",
-                          )}
-                          title={
-                            classUnmatched(c) && teacherUnmatched(c)
-                              ? "Class and teacher couldn't be matched automatically — tap to fix"
-                              : classUnmatched(c)
-                                ? "Class couldn't be matched automatically — tap to fix"
-                                : "Teacher couldn't be matched automatically — tap to fix"
-                          }
-                        >
-                          <AlertTriangle className="h-3.5 w-3.5" />
-                        </button>
-                      )}
                     </div>
                     <div className="truncate text-xs text-muted-foreground">{c.teacher_name}</div>
                   </div>
@@ -257,7 +200,7 @@ export function ClassScheduleCard({
                     </Button>
                   )}
 
-                  {(onSetStatus || onCorrect) && (
+                  {onSetStatus && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Class actions">
@@ -265,18 +208,7 @@ export function ClassScheduleCard({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {onCorrect && (
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setFixing(c);
-                              setFixClass(classUnmatched(c) ? "" : c.class_name);
-                              setFixTeacher(teacherUnmatched(c) ? "" : c.teacher_name);
-                            }}
-                          >
-                            <Wand2 className="mr-2 h-4 w-4" /> Fix class match
-                          </DropdownMenuItem>
-                        )}
-                        {!onSetStatus ? null : isCancelled ? (
+                        {isCancelled ? (
                           <DropdownMenuItem onClick={() => onSetStatus(c.id, "scheduled")}>
                             Restore class
                           </DropdownMenuItem>
@@ -303,61 +235,6 @@ export function ClassScheduleCard({
           <div className="border-t border-border pt-4">{footer}</div>
         ) : null}
       </CardContent>
-
-      <Dialog open={!!fixing} onOpenChange={(o) => !o && setFixing(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Fix class match</DialogTitle>
-            <DialogDescription>
-              {fixing?.raw_title
-                ? `Calendar title: "${fixing.raw_title}"`
-                : "Pick the correct class and teacher."}{" "}
-              This correction is remembered for future calendar syncs.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground">Class</p>
-              <DirectoryCombobox
-                value={fixClass}
-                onChange={setFixClass}
-                options={classOptions}
-                placeholder="Select class"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground">Teacher (optional)</p>
-              <DirectoryCombobox
-                value={fixTeacher}
-                onChange={setFixTeacher}
-                options={teacherOptions}
-                placeholder="Select teacher"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFixing(null)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={!fixClass}
-              onClick={() => {
-                const cls = classOptions.find(
-                  (o) => o.name.toLowerCase() === fixClass.trim().toLowerCase(),
-                );
-                if (!cls || !fixing || !onCorrect) return;
-                const tea = teacherOptions.find(
-                  (o) => o.name.toLowerCase() === fixTeacher.trim().toLowerCase(),
-                );
-                onCorrect(fixing.id, cls.id, tea?.id ?? null);
-                setFixing(null);
-              }}
-            >
-              Save match
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 }

@@ -503,7 +503,20 @@ export function detectCalendarMode(events: ParsedEvent[]): CalendarMode {
     : "busy";
 }
 
-/* Title → class + teacher resolution lives in ./gcal-match (confidence-based). */
+/**
+ * Diagnostic log of one calendar event's validation attempt. DMC validity is
+ * decided solely by the stored DMC Live Timetable (see
+ * `src/domain/timetable-resolver.ts`) — this type only carries the outcome to
+ * the operator-facing debug list.
+ */
+export type MatchLog = {
+  title: string;
+  accepted: boolean;
+  confidence: number;
+  reason: string;
+  className?: string;
+  teacherName?: string;
+};
 
 
 /* ───────────────────────── Shift grouping ───────────────────────── */

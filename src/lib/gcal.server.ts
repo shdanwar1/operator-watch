@@ -16,9 +16,9 @@ import {
   toMin,
   berlinDateKey,
   type CalendarMode,
+  type MatchLog,
   type ParsedEvent,
 } from "./gcal-core";
-import { aliasKeyFor, type MatchLog } from "./gcal-match";
 // Validation authority (Operation 6): the stored DMC Live Timetable. Google
 // titles, teacher names, aliases and fuzzy matching no longer decide anything.
 import {
@@ -554,77 +554,6 @@ export async function setClassStatus(
     .single();
   if (error) throw new Error(error.message);
   return data as CalendarClassRow;
-}
-
-/**
- * Operator correction of a class/teacher mapping.
- *
- * The correction is applied to the row AND remembered as an alias keyed on the
- * raw Google Calendar title, so every future sync resolves it automatically.
- */
-export async function correctClassMapping(
-  displayName: string,
-  id: string,
-  classId: string,
-  teacherId: string | null,
-): Promise<CalendarClassRow & { alias_saved: boolean }> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: row, error: readErr } = await supabaseAdmin
-    .from("calendar_classes")
-    .select("id, operator, raw_title, class_name")
-    .eq("id", id)
-    .maybeSingle();
-  if (readErr) throw new Error(readErr.message);
-  if (!row) throw new Response("Not found", { status: 404 });
-  if ((row.operator as string).toLowerCase() !== displayName.toLowerCase()) {
-    throw new Response("Forbidden", { status: 403 });
-  }
-
-  const [{ data: cls }, teacherRes] = await Promise.all([
-    supabaseAdmin.from("classes").select("id,name").eq("id", classId).maybeSingle(),
-    teacherId
-      ? supabaseAdmin.from("teachers").select("id,name").eq("id", teacherId).maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
-  if (!cls) throw new Error("Unknown class");
-  const tea = (teacherRes as { data: { id: string; name: string } | null }).data;
-
-  const { data, error } = await supabaseAdmin
-    .from("calendar_classes")
-    .update({
-      class_id: cls.id,
-      teacher_id: tea?.id ?? null,
-      class_name: cls.name,
-      teacher_name: tea?.name ?? "—",
-    })
-    .eq("id", id)
-    .select(
-      "id, uid, class_id, teacher_id, class_name, teacher_name, raw_title, specific_date, start_time, end_time, status, scheduled_shift_id",
-    )
-    .single();
-  if (error) throw new Error(error.message);
-
-  // The row itself is already corrected. Remembering it as an alias is a
-  // separate step that can fail on its own; when it does, the caller is told
-  // so it doesn't promise "future syncs will use it".
-  const rawTitle = (row.raw_title as string | null) ?? (row.class_name as string);
-  const aliasKey = aliasKeyFor(rawTitle);
-  let aliasSaved = false;
-  if (aliasKey) {
-    const { error: aliasErr } = await supabaseAdmin.from("class_aliases").upsert(
-      {
-        alias_key: aliasKey,
-        raw_title: rawTitle.slice(0, 500),
-        class_id: cls.id,
-        teacher_id: tea?.id ?? null,
-      },
-      { onConflict: "alias_key" },
-    );
-    if (aliasErr) console.error("[gcal] alias upsert failed", aliasErr.message);
-    else aliasSaved = true;
-  }
-
-  return { ...(data as CalendarClassRow), alias_saved: aliasSaved };
 }
 
 export type CalendarHealth = { connected: boolean; ok: boolean; error?: string };
