@@ -369,13 +369,14 @@ function Index() {
   async function load() {
     if (!hasLoadedOnce.current) setLoading(true);
     try {
-      const [rows, sched, tRows, cRows, calRows] = await Promise.all([
+      const [rows, sched, dmc, calRows] = await Promise.all([
         fetchShifts(),
         fetchScheduled(),
-        fetchTeachers(),
-        fetchClasses(),
+        fetchDmcDirectory(),
         fetchCalendarClasses().catch(() => [] as CalendarClassRow[]),
       ]);
+      const tRows = dmc.instructors;
+      const cRows = dmc.classes;
       setActive(rows.find((r) => !r.check_out_at) ?? null);
       setHistory(rows.filter((r) => r.check_out_at));
       setScheduled(sched);
