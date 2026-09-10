@@ -34,7 +34,6 @@ export type Database = {
       }
       calendar_classes: {
         Row: {
-          class_id: string | null
           class_name: string
           created_at: string
           dmc_class_id: string | null
@@ -47,13 +46,11 @@ export type Database = {
           specific_date: string
           start_time: string
           status: string
-          teacher_id: string | null
           teacher_name: string
           uid: string
           updated_at: string
         }
         Insert: {
-          class_id?: string | null
           class_name: string
           created_at?: string
           dmc_class_id?: string | null
@@ -66,13 +63,11 @@ export type Database = {
           specific_date: string
           start_time: string
           status?: string
-          teacher_id?: string | null
           teacher_name: string
           uid: string
           updated_at?: string
         }
         Update: {
-          class_id?: string | null
           class_name?: string
           created_at?: string
           dmc_class_id?: string | null
@@ -85,19 +80,11 @@ export type Database = {
           specific_date?: string
           start_time?: string
           status?: string
-          teacher_id?: string | null
           teacher_name?: string
           uid?: string
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "calendar_classes_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "calendar_classes_dmc_class_id_fkey"
             columns: ["dmc_class_id"]
@@ -119,83 +106,7 @@ export type Database = {
             referencedRelation: "scheduled_shifts"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "calendar_classes_teacher_id_fkey"
-            columns: ["teacher_id"]
-            isOneToOne: false
-            referencedRelation: "teachers"
-            referencedColumns: ["id"]
-          },
         ]
-      }
-      class_aliases: {
-        Row: {
-          alias_key: string
-          class_id: string | null
-          created_at: string
-          id: string
-          raw_title: string
-          teacher_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          alias_key: string
-          class_id?: string | null
-          created_at?: string
-          id?: string
-          raw_title: string
-          teacher_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          alias_key?: string
-          class_id?: string | null
-          created_at?: string
-          id?: string
-          raw_title?: string
-          teacher_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "class_aliases_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "class_aliases_teacher_id_fkey"
-            columns: ["teacher_id"]
-            isOneToOne: false
-            referencedRelation: "teachers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      classes: {
-        Row: {
-          created_at: string
-          id: string
-          last_used_at: string | null
-          name: string
-          usage_count: number
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          last_used_at?: string | null
-          name: string
-          usage_count?: number
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          last_used_at?: string | null
-          name?: string
-          usage_count?: number
-        }
-        Relationships: []
       }
       deleted_shift_events: {
         Row: {
@@ -658,30 +569,6 @@ export type Database = {
           },
         ]
       }
-      teachers: {
-        Row: {
-          created_at: string
-          id: string
-          last_used_at: string | null
-          name: string
-          usage_count: number
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          last_used_at?: string | null
-          name: string
-          usage_count?: number
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          last_used_at?: string | null
-          name?: string
-          usage_count?: number
-        }
-        Relationships: []
-      }
     }
     Views: {
       operators_public: {
@@ -720,10 +607,6 @@ export type Database = {
       }
       admin_update_operator: {
         Args: { p_id: string; p_pin?: string; p_username?: string }
-        Returns: undefined
-      }
-      bump_directory_usage: {
-        Args: { p_names: string[]; p_table: string }
         Returns: undefined
       }
       claim_push_delivery: {
