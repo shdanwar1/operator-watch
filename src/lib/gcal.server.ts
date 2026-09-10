@@ -37,6 +37,7 @@ import {
 } from "@/domain/shift-identity";
 import { googleIcsCalendarProvider } from "@/domain/calendar-provider.server";
 import * as shiftRepo from "@/domain/shift-repository.server";
+import { classifyClassRows, retentionCutoff } from "@/domain/class-retention";
 
 
 export type GcalSyncResult = {
@@ -46,6 +47,8 @@ export type GcalSyncResult = {
   ignored: number; // events skipped (personal / unknown class or teacher)
   shifts: number;
   removed: number;
+  /** Obsolete past class rows pruned during this sync (Operation 9). */
+  pruned?: number;
   error?: string;
   /** Per-event accept/reject trace (admin/debug view only). */
   logs?: MatchLog[];
