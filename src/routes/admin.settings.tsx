@@ -30,7 +30,7 @@ import {
 
 export const Route = createFileRoute("/admin/settings")({
   head: () => ({
-    meta: pageMeta(PAGE_TITLES.settings, "Manage studio settings and directories."),
+    meta: pageMeta(PAGE_TITLES.settings, "Manage studio settings and system options."),
   }),
   loader: async () => {
     const status = await getGateStatus();
@@ -72,11 +72,6 @@ function AdminSettings() {
       <section className="space-y-2">
         <SectionLabel>System</SectionLabel>
         <CheckoutSection />
-        <div className="grid gap-6 lg:grid-cols-2">
-          <DirectorySection table="classes" title="Classes" />
-          <DirectorySection table="teachers" title="Teachers" />
-        </div>
-        <MaintenanceSection />
       </section>
     </div>
   );
