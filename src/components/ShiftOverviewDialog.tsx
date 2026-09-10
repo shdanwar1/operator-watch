@@ -371,22 +371,24 @@ export function ShiftOverviewDialog({
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Class name</Label>
-                    <DirectoryCombobox
-                      value={d.className}
-                      onChange={(name) => patchDraft(d.id, { className: name })}
+                    <Label className="text-xs">Class</Label>
+                    <DmcPicker
+                      value={d.dmcClassId}
+                      onChange={(o) => patchDraft(d.id, { dmcClassId: o?.id ?? null })}
                       options={classOptions}
-                      placeholder="Select or type a class"
+                      placeholder="Select a DMC class"
+                      fallbackLabel={d.legacyClassName}
                     />
                   </div>
 
                   <div className="space-y-1.5">
                     <Label className="text-xs">Teacher</Label>
-                    <DirectoryCombobox
-                      value={d.teacherName}
-                      onChange={(name) => patchDraft(d.id, { teacherName: name })}
+                    <DmcPicker
+                      value={d.dmcInstructorId}
+                      onChange={(o) => patchDraft(d.id, { dmcInstructorId: o?.id ?? null })}
                       options={teacherOptions}
-                      placeholder="Select or type teacher"
+                      placeholder="Select a DMC instructor"
+                      fallbackLabel={d.legacyTeacherName}
                     />
                   </div>
 
