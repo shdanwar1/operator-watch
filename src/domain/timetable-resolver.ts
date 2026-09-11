@@ -27,6 +27,8 @@ export type TimetableIndex = {
   classes: Map<string, DmcClassDefinition>;
   instructors: Map<string, DmcInstructorDefinition>;
   activeSlots: number;
+  /** Slots that can be operational on some date, including future resumptions. */
+  dateEligibleSlots: number;
 };
 
 export type TimetableInput = {
@@ -70,19 +72,51 @@ export function slotKey(day: DmcWeekday, startTimeLocal: string, durationMinutes
 export function buildTimetableIndex(input: TimetableInput): TimetableIndex {
   const bySlotKey = new Map<string, DmcTimetableSlot[]>();
   let activeSlots = 0;
+  let dateEligibleSlots = 0;
   for (const slot of input.slots) {
     const key = slotKey(slot.dayLocal, slot.startTimeLocal, slot.durationMinutes);
     const list = bySlotKey.get(key);
     if (list) list.push(slot);
     else bySlotKey.set(key, [slot]);
     if (slot.active) activeSlots++;
+    if (slot.active || slot.resumesOn !== null) dateEligibleSlots++;
   }
   return {
     bySlotKey,
     classes: new Map(input.classes.map((c) => [c.sourceClassId, c])),
     instructors: new Map(input.instructors.map((i) => [i.sourceInstructorId, i])),
     activeSlots,
+    dateEligibleSlots,
   };
+}
+
+/**
+ * Whether a recurring source slot participates in scheduling on one Berlin
+ * calendar date. Dates stay as YYYY-MM-DD values; no UTC instant is created.
+ */
+export function isTimetableSlotOperationalOnDate(
+  slot: Pick<DmcTimetableSlot, "active" | "resumesOn">,
+  date: string,
+): boolean {
+  if (slot.active) return true;
+  if (!slot.resumesOn) return false;
+
+  const validDateKey = (value: string) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) return false;
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+    const probe = new Date(Date.UTC(year, month - 1, day));
+    return (
+      probe.getUTCFullYear() === year &&
+      probe.getUTCMonth() === month - 1 &&
+      probe.getUTCDate() === day
+    );
+  };
+
+  return validDateKey(date) && validDateKey(slot.resumesOn) && date >= slot.resumesOn;
 }
 
 /** The dated, Berlin-local time commitment being validated. */
@@ -135,22 +169,24 @@ export function resolveDmcTimetableSlot(
   }
 
   const candidates = index.bySlotKey.get(slotKey(day, start, duration)) ?? [];
-  const active = candidates.filter((s) => s.active);
+  const operational = candidates.filter((s) =>
+    isTimetableSlotOperationalOnDate(s, commitment.date),
+  );
 
-  if (active.length > 1) {
+  if (operational.length > 1) {
     return {
       status: "ambiguous",
-      reason: `Multiple active DMC timetable slots match ${label}`,
+      reason: `Multiple operational DMC timetable slots match ${label}`,
     };
   }
-  if (active.length === 0) {
+  if (operational.length === 0) {
     if (candidates.length > 0) {
       return { status: "suspended", reason: `Matching DMC timetable slot is suspended (${label})` };
     }
     return { status: "no-match", reason: `No active DMC timetable slot for ${label}` };
   }
 
-  const slot = active[0];
+  const slot = operational[0];
   return {
     status: "matched",
     slot,

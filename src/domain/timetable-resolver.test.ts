@@ -3,10 +3,12 @@ import {
   berlinWeekday,
   buildTimetableIndex,
   instructorDisplayName,
+  isTimetableSlotOperationalOnDate,
   localDurationMinutes,
   resolveDmcTimetableSlot,
   type DatedCommitment,
 } from "./timetable-resolver";
+import { groupClassesIntoShifts } from "./shift-planning";
 import type { DmcTimetableSlot, DmcWeekday } from "./timetable";
 
 function slot(over: Partial<DmcTimetableSlot> = {}): DmcTimetableSlot {
@@ -65,6 +67,41 @@ describe("localDurationMinutes", () => {
   it("handles midnight crossings", () => {
     expect(localDurationMinutes("21:30", "22:30")).toBe(60);
     expect(localDurationMinutes("23:30:00", "00:15:00")).toBe(45);
+  });
+});
+
+describe("isTimetableSlotOperationalOnDate", () => {
+  it("keeps active source slots operational with or without a resume date", () => {
+    expect(isTimetableSlotOperationalOnDate(slot(), "2026-09-20")).toBe(true);
+    expect(isTimetableSlotOperationalOnDate(slot({ resumesOn: "2026-09-21" }), "2026-09-20")).toBe(
+      true,
+    );
+  });
+
+  it("keeps suspended slots without a resume date non-operational", () => {
+    expect(isTimetableSlotOperationalOnDate(slot({ active: false }), "2026-09-20")).toBe(false);
+  });
+
+  it("uses an inclusive Berlin calendar-date boundary", () => {
+    const suspended = slot({ active: false, resumesOn: "2026-09-20" });
+    expect(isTimetableSlotOperationalOnDate(suspended, "2026-09-19")).toBe(false);
+    expect(isTimetableSlotOperationalOnDate(suspended, "2026-09-20")).toBe(true);
+    expect(isTimetableSlotOperationalOnDate(suspended, "2026-09-21")).toBe(true);
+  });
+
+  it("compares date-only values without UTC conversion and rejects invalid keys", () => {
+    const suspended = slot({ active: false, resumesOn: "2026-09-20" });
+    expect(isTimetableSlotOperationalOnDate(suspended, "2026-09-20")).toBe(true);
+    expect(isTimetableSlotOperationalOnDate(suspended, "2026-09-20T00:00:00Z")).toBe(false);
+    expect(isTimetableSlotOperationalOnDate(suspended, "2026-02-30")).toBe(false);
+  });
+
+  it("does not mutate the recurring source slot", () => {
+    const suspended = slot({ active: false, resumesOn: "2026-09-20" });
+    const before = { ...suspended };
+    expect(isTimetableSlotOperationalOnDate(suspended, "2026-09-20")).toBe(true);
+    expect(suspended).toEqual(before);
+    expect(suspended.active).toBe(false);
   });
 });
 
@@ -138,6 +175,45 @@ describe("resolveDmcTimetableSlot", () => {
     expect(r.status).toBe("suspended");
   });
 
+  it("matches a suspended Sunday slot on and after its resume date", () => {
+    const resumed = index([
+      slot({
+        dayLocal: 0,
+        scheduleKey: "sun2030",
+        startTimeLocal: "20:30",
+        active: false,
+        resumesOn: "2026-09-20",
+      }),
+    ]);
+    const commitment = { startTime: "20:30:00", endTime: "21:30:00" };
+    expect(resolveDmcTimetableSlot(resumed, { ...commitment, date: "2026-09-13" }).status).toBe(
+      "suspended",
+    );
+    expect(resolveDmcTimetableSlot(resumed, { ...commitment, date: "2026-09-20" }).status).toBe(
+      "matched",
+    );
+  });
+
+  it("matches a suspended midnight slot on its resume date", () => {
+    const resumed = index([
+      slot({
+        dayLocal: 0,
+        scheduleKey: "sun0000",
+        startTimeLocal: "00:00",
+        durationMinutes: 45,
+        active: false,
+        resumesOn: "2026-09-20",
+      }),
+    ]);
+    expect(
+      resolveDmcTimetableSlot(resumed, {
+        date: "2026-09-20",
+        startTime: "00:00:00",
+        endTime: "00:45:00",
+      }).status,
+    ).toBe("matched");
+  });
+
   it("rejects ambiguous duplicate active slots", () => {
     const r = resolveDmcTimetableSlot(index([slot(), slot({ sourceSlotId: "slot-2" })]), {
       date: WED,
@@ -149,7 +225,12 @@ describe("resolveDmcTimetableSlot", () => {
 
   it("matches a midnight slot on the correct weekday", () => {
     const midnight = index([
-      slot({ dayLocal: 2 as DmcWeekday, scheduleKey: "tue0000", startTimeLocal: "00:00", durationMinutes: 45 }),
+      slot({
+        dayLocal: 2 as DmcWeekday,
+        scheduleKey: "tue0000",
+        startTimeLocal: "00:00",
+        durationMinutes: 45,
+      }),
     ]);
     const r = resolveDmcTimetableSlot(midnight, {
       date: "2026-09-08", // Tuesday
@@ -186,6 +267,7 @@ describe("resolveDmcTimetableSlot", () => {
     });
     expect(r.status).toBe("no-match");
     expect(index([]).activeSlots).toBe(0);
+    expect(index([]).dateEligibleSlots).toBe(0);
   });
 });
 
@@ -196,7 +278,9 @@ describe("resolveDmcTimetableSlot", () => {
  */
 describe("free/busy blocks (no title, no teacher, no class name)", () => {
   const timetable = buildTimetableIndex({
-    slots: [slot({ sourceSlotId: "slot-bi", sourceClassId: "class-bi", sourceInstructorId: "inst-mp" })],
+    slots: [
+      slot({ sourceSlotId: "slot-bi", sourceClassId: "class-bi", sourceInstructorId: "inst-mp" }),
+    ],
     classes: [
       {
         sourceClassId: "class-bi",
@@ -238,19 +322,23 @@ describe("free/busy blocks (no title, no teacher, no class name)", () => {
   });
 
   it("A: rejects a busy block with no timetable slot at that time", () => {
-    expect(resolveDmcTimetableSlot(timetable, busy({ startTime: "10:00:00", endTime: "11:00:00" })).status).toBe(
-      "no-match",
-    );
+    expect(
+      resolveDmcTimetableSlot(timetable, busy({ startTime: "10:00:00", endTime: "11:00:00" }))
+        .status,
+    ).toBe("no-match");
   });
 
   it("B: rejects a one-minute start offset", () => {
     expect(
-      resolveDmcTimetableSlot(timetable, busy({ startTime: "21:31:00", endTime: "22:31:00" })).status,
+      resolveDmcTimetableSlot(timetable, busy({ startTime: "21:31:00", endTime: "22:31:00" }))
+        .status,
     ).toBe("no-match");
   });
 
   it("C: rejects a wrong duration on the right start", () => {
-    expect(resolveDmcTimetableSlot(timetable, busy({ endTime: "22:15:00" })).status).toBe("no-match");
+    expect(resolveDmcTimetableSlot(timetable, busy({ endTime: "22:15:00" })).status).toBe(
+      "no-match",
+    );
   });
 
   it("D: rejects a suspended matching slot", () => {
@@ -262,21 +350,110 @@ describe("free/busy blocks (no title, no teacher, no class name)", () => {
     expect(resolveDmcTimetableSlot(suspended, busy()).status).toBe("suspended");
   });
 
+  it("matches titleless Free/Busy and detailed events on, but not before, the resume date", () => {
+    const resumed = buildTimetableIndex({
+      slots: [
+        slot({
+          dayLocal: 0,
+          scheduleKey: "sun2030",
+          startTimeLocal: "20:30",
+          active: false,
+          resumesOn: "2026-09-20",
+        }),
+      ],
+      classes: CLASSES,
+      instructors: INSTRUCTORS,
+    });
+    const timed = { startTime: "20:30:00", endTime: "21:30:00", status: "confirmed" };
+    // Titles are intentionally absent from DatedCommitment, so this assertion
+    // covers Free/Busy and detailed events through their shared resolver path.
+    expect(resolveDmcTimetableSlot(resumed, { ...timed, date: "2026-09-13" }).status).toBe(
+      "suspended",
+    );
+    expect(resolveDmcTimetableSlot(resumed, { ...timed, date: "2026-09-20" }).status).toBe(
+      "matched",
+    );
+  });
+
   it("H: rejects an unrelated all-day busy block", () => {
     expect(
-      resolveDmcTimetableSlot(timetable, busy({ startTime: "00:00:00", endTime: "00:00:00", allDay: true })).status,
+      resolveDmcTimetableSlot(
+        timetable,
+        busy({ startTime: "00:00:00", endTime: "00:00:00", allDay: true }),
+      ).status,
     ).toBe("rejected");
   });
 
   it("resolves a midnight busy block on the Berlin weekday, not UTC", () => {
     const midnight = buildTimetableIndex({
-      slots: [slot({ dayLocal: 2 as DmcWeekday, scheduleKey: "tue0000", startTimeLocal: "00:00", durationMinutes: 45 })],
+      slots: [
+        slot({
+          dayLocal: 2 as DmcWeekday,
+          scheduleKey: "tue0000",
+          startTimeLocal: "00:00",
+          durationMinutes: 45,
+        }),
+      ],
       classes: CLASSES,
       instructors: INSTRUCTORS,
     });
     expect(
-      resolveDmcTimetableSlot(midnight, busy({ date: "2026-09-15", startTime: "00:00:00", endTime: "00:45:00" }))
-        .status,
+      resolveDmcTimetableSlot(
+        midnight,
+        busy({ date: "2026-09-15", startTime: "00:00:00", endTime: "00:45:00" }),
+      ).status,
     ).toBe("matched");
+  });
+});
+
+describe("dated resumed classes feed existing shift grouping", () => {
+  const classes = [
+    ["stretch", "18:30", 45, true, null],
+    ["splits", "19:30", 45, true, null],
+    ["beginner", "20:30", 60, false, "2026-09-20"],
+    ["basics", "21:45", 60, false, "2026-09-20"],
+  ] as const;
+  const timetable = index(
+    classes.map(([id, startTimeLocal, durationMinutes, active, resumesOn]) =>
+      slot({
+        sourceSlotId: id,
+        sourceClassId: "class-1",
+        dayLocal: 0,
+        scheduleKey: `sun${startTimeLocal.replace(":", "")}`,
+        startTimeLocal,
+        durationMinutes,
+        active,
+        resumesOn,
+      }),
+    ),
+  );
+
+  function groupedFor(date: string) {
+    const occurrences = classes.flatMap(([id, start, duration]) => {
+      const startMinutes = Number(start.slice(0, 2)) * 60 + Number(start.slice(3));
+      const endMinutes = startMinutes + duration;
+      const end = `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
+      const result = resolveDmcTimetableSlot(timetable, {
+        date,
+        startTime: start,
+        endTime: end,
+      });
+      return result.status === "matched"
+        ? [{ key: id, date, startMin: startMinutes, endMin: endMinutes }]
+        : [];
+    });
+    return groupClassesIntoShifts(occurrences);
+  }
+
+  it("excludes resumed classes before the resume date", () => {
+    expect(groupedFor("2026-09-13")).toMatchObject([
+      { date: "2026-09-13", startMin: 18 * 60, endMin: 20 * 60 + 30, classCount: 2 },
+    ]);
+  });
+
+  it("includes all four Sunday classes on the resume date and preserves grouping rules", () => {
+    expect(groupedFor("2026-09-20")).toMatchObject([
+      { date: "2026-09-20", startMin: 18 * 60, endMin: 23 * 60, classCount: 4 },
+    ]);
   });
 });
