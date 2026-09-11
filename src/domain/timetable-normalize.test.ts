@@ -172,4 +172,8 @@ describe("staleSourceIds", () => {
   it("reports nothing when the source is unchanged", () => {
     expect(staleSourceIds(["a", "b"], ["a", "b"])).toEqual([]);
   });
+
+  it("keeps vanished directory ids while operational classes still reference them", () => {
+    expect(staleSourceIds(["a", "b", "c"], ["a"], ["b"])).toEqual(["c"]);
+  });
 });
