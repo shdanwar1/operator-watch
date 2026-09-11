@@ -73,9 +73,9 @@ describe("localDurationMinutes", () => {
 describe("isTimetableSlotOperationalOnDate", () => {
   it("keeps active source slots operational with or without a resume date", () => {
     expect(isTimetableSlotOperationalOnDate(slot(), "2026-09-20")).toBe(true);
-    expect(
-      isTimetableSlotOperationalOnDate(slot({ resumesOn: "2026-09-21" }), "2026-09-20"),
-    ).toBe(true);
+    expect(isTimetableSlotOperationalOnDate(slot({ resumesOn: "2026-09-21" }), "2026-09-20")).toBe(
+      true,
+    );
   });
 
   it("keeps suspended slots without a resume date non-operational", () => {
@@ -225,7 +225,12 @@ describe("resolveDmcTimetableSlot", () => {
 
   it("matches a midnight slot on the correct weekday", () => {
     const midnight = index([
-      slot({ dayLocal: 2 as DmcWeekday, scheduleKey: "tue0000", startTimeLocal: "00:00", durationMinutes: 45 }),
+      slot({
+        dayLocal: 2 as DmcWeekday,
+        scheduleKey: "tue0000",
+        startTimeLocal: "00:00",
+        durationMinutes: 45,
+      }),
     ]);
     const r = resolveDmcTimetableSlot(midnight, {
       date: "2026-09-08", // Tuesday
@@ -273,7 +278,9 @@ describe("resolveDmcTimetableSlot", () => {
  */
 describe("free/busy blocks (no title, no teacher, no class name)", () => {
   const timetable = buildTimetableIndex({
-    slots: [slot({ sourceSlotId: "slot-bi", sourceClassId: "class-bi", sourceInstructorId: "inst-mp" })],
+    slots: [
+      slot({ sourceSlotId: "slot-bi", sourceClassId: "class-bi", sourceInstructorId: "inst-mp" }),
+    ],
     classes: [
       {
         sourceClassId: "class-bi",
@@ -315,19 +322,23 @@ describe("free/busy blocks (no title, no teacher, no class name)", () => {
   });
 
   it("A: rejects a busy block with no timetable slot at that time", () => {
-    expect(resolveDmcTimetableSlot(timetable, busy({ startTime: "10:00:00", endTime: "11:00:00" })).status).toBe(
-      "no-match",
-    );
+    expect(
+      resolveDmcTimetableSlot(timetable, busy({ startTime: "10:00:00", endTime: "11:00:00" }))
+        .status,
+    ).toBe("no-match");
   });
 
   it("B: rejects a one-minute start offset", () => {
     expect(
-      resolveDmcTimetableSlot(timetable, busy({ startTime: "21:31:00", endTime: "22:31:00" })).status,
+      resolveDmcTimetableSlot(timetable, busy({ startTime: "21:31:00", endTime: "22:31:00" }))
+        .status,
     ).toBe("no-match");
   });
 
   it("C: rejects a wrong duration on the right start", () => {
-    expect(resolveDmcTimetableSlot(timetable, busy({ endTime: "22:15:00" })).status).toBe("no-match");
+    expect(resolveDmcTimetableSlot(timetable, busy({ endTime: "22:15:00" })).status).toBe(
+      "no-match",
+    );
   });
 
   it("D: rejects a suspended matching slot", () => {
@@ -366,19 +377,31 @@ describe("free/busy blocks (no title, no teacher, no class name)", () => {
 
   it("H: rejects an unrelated all-day busy block", () => {
     expect(
-      resolveDmcTimetableSlot(timetable, busy({ startTime: "00:00:00", endTime: "00:00:00", allDay: true })).status,
+      resolveDmcTimetableSlot(
+        timetable,
+        busy({ startTime: "00:00:00", endTime: "00:00:00", allDay: true }),
+      ).status,
     ).toBe("rejected");
   });
 
   it("resolves a midnight busy block on the Berlin weekday, not UTC", () => {
     const midnight = buildTimetableIndex({
-      slots: [slot({ dayLocal: 2 as DmcWeekday, scheduleKey: "tue0000", startTimeLocal: "00:00", durationMinutes: 45 })],
+      slots: [
+        slot({
+          dayLocal: 2 as DmcWeekday,
+          scheduleKey: "tue0000",
+          startTimeLocal: "00:00",
+          durationMinutes: 45,
+        }),
+      ],
       classes: CLASSES,
       instructors: INSTRUCTORS,
     });
     expect(
-      resolveDmcTimetableSlot(midnight, busy({ date: "2026-09-15", startTime: "00:00:00", endTime: "00:45:00" }))
-        .status,
+      resolveDmcTimetableSlot(
+        midnight,
+        busy({ date: "2026-09-15", startTime: "00:00:00", endTime: "00:45:00" }),
+      ).status,
     ).toBe("matched");
   });
 });
