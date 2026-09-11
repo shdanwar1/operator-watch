@@ -209,7 +209,7 @@ async function runCalendarImport(
     console.error("[gcal] timetable load failed", err);
     return fail("busy", "The DMC Live Timetable could not be loaded, so no classes were imported.");
   }
-  if (index.activeSlots === 0) {
+  if (index.dateEligibleSlots === 0) {
     return fail(
       "busy",
       "The DMC Live Timetable is empty. Refresh it in Admin → Live Timetable, then sync again.",
