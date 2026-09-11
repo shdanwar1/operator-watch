@@ -24,9 +24,13 @@ async function admin() {
   return supabaseAdmin;
 }
 
-/** Stored ids that the freshly fetched source no longer contains. */
-export function staleSourceIds(stored: string[], current: string[]): string[] {
-  const keep = new Set(current);
+/** Stored ids that the source no longer contains and no operational row still needs. */
+export function staleSourceIds(
+  stored: string[],
+  current: string[],
+  referenced: string[] = [],
+): string[] {
+  const keep = new Set([...current, ...referenced]);
   return stored.filter((id) => !keep.has(id));
 }
 
@@ -129,11 +133,16 @@ export async function commitSnapshot(snapshot: DmcTimetableSnapshot): Promise<Co
   await up("dmc_timetable_slots", snapshot.slots.map(slotRow), "source_slot_id");
 
   // Drop what the source no longer publishes — timetable tables only.
-  const prune = async (table: string, column: string, current: string[]) => {
+  const prune = async (
+    table: string,
+    column: string,
+    current: string[],
+    referenced: string[] = [],
+  ) => {
     const { data, error } = await db.from(table as never).select(column);
     if (error) throw new Error(error.message);
     const stored = ((data ?? []) as Record<string, string>[]).map((r) => r[column]);
-    const stale = staleSourceIds(stored, current);
+    const stale = staleSourceIds(stored, current, referenced);
     if (stale.length > 0) {
       const { error: delErr } = await db
         .from(table as never)
@@ -150,15 +159,44 @@ export async function commitSnapshot(snapshot: DmcTimetableSnapshot): Promise<Co
     "source_slot_id",
     snapshot.slots.map((s) => s.sourceSlotId),
   );
+
+  // Directory rows may outlive the current timetable while an operational
+  // calendar row still references them. Preserve those identities so class
+  // and instructor labels cannot disappear after a timetable refresh.
+  const [classRowsRes, instructorRowsRes, calendarRefsRes] = await Promise.all([
+    db.from("dmc_classes").select("id, source_class_id"),
+    db.from("dmc_instructors").select("id, source_instructor_id"),
+    db.from("calendar_classes").select("dmc_class_id, dmc_instructor_id"),
+  ]);
+  for (const res of [classRowsRes, instructorRowsRes, calendarRefsRes]) {
+    if (res.error) throw new Error(res.error.message);
+  }
+  const referencedClassIds = new Set(
+    (calendarRefsRes.data ?? []).flatMap((row) => (row.dmc_class_id ? [row.dmc_class_id] : [])),
+  );
+  const referencedInstructorIds = new Set(
+    (calendarRefsRes.data ?? []).flatMap((row) =>
+      row.dmc_instructor_id ? [row.dmc_instructor_id] : [],
+    ),
+  );
+  const referencedClassSources = (classRowsRes.data ?? []).flatMap((row) =>
+    referencedClassIds.has(row.id) ? [row.source_class_id] : [],
+  );
+  const referencedInstructorSources = (instructorRowsRes.data ?? []).flatMap((row) =>
+    referencedInstructorIds.has(row.id) ? [row.source_instructor_id] : [],
+  );
+
   await prune(
     "dmc_classes",
     "source_class_id",
     snapshot.classes.map((c) => c.sourceClassId),
+    referencedClassSources,
   );
   await prune(
     "dmc_instructors",
     "source_instructor_id",
     snapshot.instructors.map((i) => i.sourceInstructorId),
+    referencedInstructorSources,
   );
 
   const { error: metaErr } = await db.from("app_settings").upsert(
