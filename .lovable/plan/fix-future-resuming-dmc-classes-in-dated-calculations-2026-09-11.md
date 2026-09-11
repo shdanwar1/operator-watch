@@ -15,10 +15,10 @@ Fix only date-aware timetable eligibility. Keep the recurring timetable source u
 ## Implementation
 
 1. Add a pure `isTimetableSlotOperationalOnDate(slot, date)` domain helper.
-   - `active=true` is always operational.
-   - `active=false` without `resumesOn` is never operational.
-   - `active=false` with `resumesOn` is operational when the Berlin-local `YYYY-MM-DD` occurrence date is equal to or later than `resumesOn`.
-   - Compare validated calendar-date strings only; do not create timestamps or mutate the slot.
+  - `active=true` is always operational.
+  - `active=false` without `resumesOn` is never operational.
+  - `active=false` with `resumesOn` is operational when the Berlin-local `YYYY-MM-DD` occurrence date is equal to or later than `resumesOn`.
+  - Compare validated calendar-date strings only; do not create timestamps or mutate the slot.
 2. Use that helper inside `resolveDmcTimetableSlot` after exact weekday/start/duration candidate lookup.
 3. Adjust the sync's empty-timetable guard so a timetable containing only future-resuming slots can still reach dated resolution, while a truly unusable timetable still fails safely.
 4. Keep ambiguity handling based on the slots operational for that specific date.
@@ -31,3 +31,4 @@ Fix only date-aware timetable eligibility. Keep the recurring timetable source u
 - Add the exact 20 September four-class scenario and pass only resolved occurrences into the existing grouping function, verifying `18:00–23:00`; verify pre-resume exclusion.
 - Run TypeScript checks, ESLint, the full Vitest suite, and the production build.
 - Confirm no database migration and no writes to `dmc_timetable_slots.active` are introduced.
+- Make sure it works for both google calendar settings Free/Busy and Full Event details option
