@@ -186,8 +186,8 @@ describe("resolveDmcTimetableSlot", () => {
       }),
     ]);
     const commitment = { startTime: "20:30:00", endTime: "21:30:00" };
-    expect(resolveDmcTimetableSlot(resumed, { ...commitment, date: "2026-09-19" }).status).toBe(
-      "no-match",
+    expect(resolveDmcTimetableSlot(resumed, { ...commitment, date: "2026-09-13" }).status).toBe(
+      "suspended",
     );
     expect(resolveDmcTimetableSlot(resumed, { ...commitment, date: "2026-09-20" }).status).toBe(
       "matched",
@@ -356,8 +356,8 @@ describe("free/busy blocks (no title, no teacher, no class name)", () => {
     const timed = { startTime: "20:30:00", endTime: "21:30:00", status: "confirmed" };
     // Titles are intentionally absent from DatedCommitment, so this assertion
     // covers Free/Busy and detailed events through their shared resolver path.
-    expect(resolveDmcTimetableSlot(resumed, { ...timed, date: "2026-09-19" }).status).toBe(
-      "no-match",
+    expect(resolveDmcTimetableSlot(resumed, { ...timed, date: "2026-09-13" }).status).toBe(
+      "suspended",
     );
     expect(resolveDmcTimetableSlot(resumed, { ...timed, date: "2026-09-20" }).status).toBe(
       "matched",
@@ -423,7 +423,9 @@ describe("dated resumed classes feed existing shift grouping", () => {
   }
 
   it("excludes resumed classes before the resume date", () => {
-    expect(groupedFor("2026-09-19")).toEqual([]);
+    expect(groupedFor("2026-09-13")).toMatchObject([
+      { date: "2026-09-13", startMin: 18 * 60, endMin: 20 * 60 + 30, classCount: 2 },
+    ]);
   });
 
   it("includes all four Sunday classes on the resume date and preserves grouping rules", () => {
