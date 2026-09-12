@@ -128,6 +128,31 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
     let planSaved = false;
     let planError: string | undefined;
     const operatorId = (op as { id?: string }).id;
+    // Direct link to the shift, so deleting a shift takes its travel plan with
+    // it instead of leaving a plan keyed only by a start instant.
+    let shiftId: string | null = null;
+    if (operatorId) {
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Berlin",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).formatToParts(shiftStart);
+      const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+      const localDate = `${get("year")}-${get("month")}-${get("day")}`;
+      const localTime = `${get("hour")}:${get("minute")}`;
+      const { data: match } = await supabaseAdmin
+        .from("scheduled_shifts")
+        .select("id, start_time")
+        .eq("specific_date", localDate)
+        .ilike("assigned_operator", session.data.username)
+        .limit(20);
+      shiftId =
+        (match ?? []).find((r) => String(r.start_time).slice(0, 5) === localTime)?.id ?? null;
+    }
     if (operatorId) {
       for (let attempt = 0; attempt < 3 && !planSaved; attempt += 1) {
         if (attempt > 0) await new Promise((r) => setTimeout(r, 250 * attempt));
@@ -135,6 +160,7 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
           const { error: planErr } = await supabaseAdmin.from("operator_travel_plans").upsert(
             {
               operator_id: operatorId,
+              shift_id: shiftId,
               shift_start_at: shiftStart.toISOString(),
               departure_at: pick.dep,
               arrival_at: pick.arr,

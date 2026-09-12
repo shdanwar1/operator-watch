@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
 import { assertCanCheckOut } from "./checkout-validation";
+import { sameOperator, statusForAssignment } from "@/domain/operator-identity";
+import { isGoogleIdentity, manualShiftIdentity } from "@/domain/shift-identity";
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
@@ -139,12 +141,8 @@ export const createShift = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
 
-    const { data: op } = await supabaseAdmin
-      .from("operators")
-      .select("username")
-      .ilike("username", username)
-      .maybeSingle();
-    const canonical = (op as { username: string } | null)?.username ?? username;
+    const { canonicalUsername } = await import("@/domain/operator-resolver.server");
+    const canonical = await canonicalUsername(username);
 
     const { data: row, error } = await supabaseAdmin
       .from("shifts")
@@ -197,12 +195,8 @@ export const createPastShift = createServerFn({ method: "POST" })
     // Ownership is derived from the session only — never from the request.
     if (!username) throw new Response("Forbidden", { status: 403 });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: op } = await supabaseAdmin
-      .from("operators")
-      .select("username")
-      .ilike("username", username)
-      .maybeSingle();
-    const operator_name = (op as { username: string } | null)?.username ?? username;
+    const { canonicalUsername } = await import("@/domain/operator-resolver.server");
+    const operator_name = await canonicalUsername(username);
     const { data: row, error } = await supabaseAdmin
       .from("shifts")
       .insert({
@@ -286,7 +280,7 @@ async function assertShiftOwnership(
   if (!existing) throw new Response("Shift not found", { status: 404 });
   if (isAdmin) return existing as { id: string; operator_name: string };
   const owner = String((existing as { operator_name: string }).operator_name ?? "");
-  if (!username || owner.toLowerCase() !== username.toLowerCase()) {
+  if (!sameOperator(owner, username)) {
     throw new Response("Forbidden", { status: 403 });
   }
   return existing as { id: string; operator_name: string };
@@ -303,7 +297,7 @@ export const updateShift = createServerFn({ method: "POST" })
     // Non-admins may not reassign a shift to another operator.
     const patch = { ...data.patch };
     if (!isAdmin && patch.operator_name !== undefined) {
-      if (!username || patch.operator_name.toLowerCase() !== username.toLowerCase()) {
+      if (!sameOperator(patch.operator_name, username)) {
         throw new Response("Forbidden", { status: 403 });
       }
       delete patch.operator_name;
@@ -339,7 +333,7 @@ export const checkOutShift = createServerFn({ method: "POST" })
     if (!existing) throw new Response("Shift not found", { status: 404 });
 
     const owner = String(existing.operator_name ?? "");
-    if (owner.toLowerCase() !== username.toLowerCase()) {
+    if (!sameOperator(owner, username)) {
       throw new Response("Forbidden", { status: 403 });
     }
 
@@ -401,18 +395,6 @@ export const deleteShift = createServerFn({ method: "POST" })
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/**
- * Every scheduled shift carries a stable external id. Calendar-generated rows
- * use the `op:` prefix (see gcal.functions.ts); rows created inside the app use
- * `manual:` so the calendar sync never deletes them.
- */
-function manualEventId(date: string, startTime: string, operator: string | null) {
-  const op = (operator ?? "unassigned").trim().toLowerCase() || "unassigned";
-  const hhmm = startTime.slice(0, 5).replace(":", "");
-  const rand = Math.random().toString(36).slice(2, 8);
-  return `manual:${op}:shift:${date}:${hhmm}:${rand}`;
-}
-
 /** A non-admin may only touch scheduled shifts assigned to themselves. */
 function assertAssignedToSelf(
   assigned: string | null | undefined,
@@ -420,28 +402,36 @@ function assertAssignedToSelf(
   isAdmin: boolean,
 ) {
   if (isAdmin) return;
-  const owner = String(assigned ?? "");
-  if (!username || owner.toLowerCase() !== username.toLowerCase()) {
+  if (!sameOperator(assigned, username)) {
     throw new Response("Forbidden", { status: 403 });
   }
 }
 
 /** Load a scheduled shift and enforce that the caller owns it or is an admin. */
 async function assertScheduledOwnership(id: string, username: string | null, isAdmin: boolean) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: existing, error } = await supabaseAdmin
-    .from("scheduled_shifts")
-    .select("id, assigned_operator")
-    .eq("id", id)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
+  const { findOwner } = await import("@/domain/shift-repository.server");
+  const existing = await findOwner(id);
   if (!existing) throw new Response("Scheduled shift not found", { status: 404 });
-  assertAssignedToSelf(
-    (existing as { assigned_operator: string | null }).assigned_operator,
-    username,
-    isAdmin,
-  );
-  return existing as { id: string; assigned_operator: string | null };
+  assertAssignedToSelf(existing.assigned_operator, username, isAdmin);
+  return existing;
+}
+
+/**
+ * The one place a shift's assignment value is decided.
+ *
+ * A non-admin may only ever assign themselves; any named operator must exist,
+ * and the canonical stored spelling is used so `assigned_operator` never
+ * accumulates typo variants that break case-sensitive lookups elsewhere.
+ */
+async function resolveAssignmentValue(
+  requested: string | null | undefined,
+  username: string | null,
+  isAdmin: boolean,
+): Promise<string | null> {
+  assertAssignedToSelf(requested, username, isAdmin);
+  const { resolveAssignmentColumn } = await import("@/domain/operator-resolver.server");
+  const { column } = await resolveAssignmentColumn(requested);
+  return column;
 }
 
 
@@ -514,22 +504,16 @@ export const createScheduledShift = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const { username, isAdmin } = await requireGate();
-    assertAssignedToSelf(data.assigned_operator, username, isAdmin);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row, error } = await supabaseAdmin
-      .from("scheduled_shifts")
-      .insert({
-        ...data,
-        external_event_id: manualEventId(
-          data.specific_date,
-          data.start_time,
-          data.assigned_operator,
-        ),
-      })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    return row as ScheduledShiftRow;
+    // Single assignment boundary: authorization + existence + canonical spelling.
+    const assigned = await resolveAssignmentValue(data.assigned_operator, username, isAdmin);
+    const { insertOne } = await import("@/domain/shift-repository.server");
+    const row = await insertOne({
+      ...data,
+      assigned_operator: assigned,
+      status: statusForAssignment({ operatorName: assigned }, data.status),
+      external_event_id: manualShiftIdentity(data.specific_date, data.start_time, assigned),
+    });
+    return row as unknown as ScheduledShiftRow;
   });
 
 export const updateScheduledShift = createServerFn({ method: "POST" })
@@ -540,16 +524,18 @@ export const updateScheduledShift = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { username, isAdmin } = await requireGate();
     await assertScheduledOwnership(data.id, username, isAdmin);
-    // Non-admins may not reassign a shift to somebody else.
-    if (!isAdmin && data.patch.assigned_operator !== undefined) {
-      assertAssignedToSelf(data.patch.assigned_operator, username, isAdmin);
+    const patch = { ...data.patch };
+    // Assignment always goes through the one boundary (authorization +
+    // existence + canonical spelling), never straight from the request.
+    if (patch.assigned_operator !== undefined) {
+      patch.assigned_operator = await resolveAssignmentValue(
+        patch.assigned_operator,
+        username,
+        isAdmin,
+      );
     }
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("scheduled_shifts")
-      .update(data.patch as never)
-      .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    const { patch: patchShift } = await import("@/domain/shift-repository.server");
+    await patchShift(data.id, patch);
     try {
       const { reconcileShiftNotifications } = await import("./notifications.server");
       await reconcileShiftNotifications();
@@ -567,9 +553,8 @@ export const deleteScheduledShift = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { username, isAdmin } = await requireGate();
     await assertScheduledOwnership(data.id, username, isAdmin);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("scheduled_shifts").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    const { remove } = await import("@/domain/shift-repository.server");
+    await remove(data.id);
     try {
       const { reconcileShiftNotifications } = await import("./notifications.server");
       await reconcileShiftNotifications();
@@ -596,25 +581,13 @@ export const deleteMyScheduledShift = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const { username, isAdmin } = await requireGate();
-    await assertScheduledOwnership(data.id, username, isAdmin);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row, error: loadErr } = await supabaseAdmin
-      .from("scheduled_shifts")
-      .select("id, assigned_operator, specific_date, start_time, end_time, status, external_event_id")
-      .eq("id", data.id)
-      .maybeSingle();
-    if (loadErr) throw new Error(loadErr.message);
-    if (!row) throw new Response("Scheduled shift not found", { status: 404 });
-    const shift = row as {
-      id: string;
-      assigned_operator: string | null;
-      specific_date: string;
-      start_time: string;
-      end_time: string;
-      status: string;
-      external_event_id: string | null;
-    };
+    const { findById } = await import("@/domain/shift-repository.server");
+    const shift = await findById(data.id);
+    // Retry-safe: a second delete of the same shift is a success, not a 404.
+    if (!shift) return { ok: true as const, deleted: false as const };
+    assertAssignedToSelf(shift.assigned_operator, username, isAdmin);
 
     if ((shift.status ?? "").toLowerCase() === "completed") {
       throw new Response("Completed shifts cannot be deleted", { status: 409 });
@@ -641,7 +614,7 @@ export const deleteMyScheduledShift = createServerFn({ method: "POST" })
 
     // Tombstone Google-imported shifts (uid identity, never fuzzy matching).
     const uid = shift.external_event_id;
-    if (uid && uid.startsWith("op:") && shift.assigned_operator) {
+    if (isGoogleIdentity(uid) && shift.assigned_operator) {
       const { error: tombErr } = await supabaseAdmin
         .from("deleted_shift_events")
         .insert({
@@ -656,14 +629,18 @@ export const deleteMyScheduledShift = createServerFn({ method: "POST" })
       }
     }
 
-    // Classes that exist only because of this shift.
-    await supabaseAdmin.from("calendar_classes").delete().eq("scheduled_shift_id", shift.id);
-
-    const { error: delErr } = await supabaseAdmin
-      .from("scheduled_shifts")
+    // Classes that exist only because of this shift. A failure here must not
+    // be swallowed: deleting the shift afterwards would orphan them.
+    const { error: classErr } = await supabaseAdmin
+      .from("calendar_classes")
       .delete()
-      .eq("id", shift.id);
-    if (delErr) throw new Error(delErr.message);
+      .eq("scheduled_shift_id", shift.id);
+    if (classErr) throw new Error(classErr.message);
+
+    // Travel plans linked to this shift go with it (FK cascade); legacy plans
+    // keyed only by start instant are cleared by the reconciliation below.
+    const { remove } = await import("@/domain/shift-repository.server");
+    await remove(shift.id);
 
     // Travel plan + pending notification state for this exact start instant.
     try {
@@ -673,5 +650,5 @@ export const deleteMyScheduledShift = createServerFn({ method: "POST" })
       console.error("[shifts] notification reconciliation failed", err);
     }
 
-    return { ok: true as const };
+    return { ok: true as const, deleted: true as const };
   });

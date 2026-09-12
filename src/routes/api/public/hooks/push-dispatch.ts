@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { berlinClock, berlinInstant } from "@/lib/push-time";
+import { normalizeUsername } from "@/domain/operator-identity";
 
 /**
  * Scheduled push dispatcher.
@@ -56,7 +57,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         const byName = new Map<string, string>();
         for (const row of (operators ?? []) as { id: string; username: string; prefs: Prefs }[]) {
           byId.set(row.id, { username: row.username, prefs: row.prefs ?? {} });
-          byName.set(row.username.toLowerCase(), row.id);
+          byName.set(normalizeUsername(row.username), row.id);
         }
 
         type Job = {
@@ -129,7 +130,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           status: string;
         }[]) {
           if (!shift.assigned_operator || shift.status === "cancelled") continue;
-          const operatorId = byName.get(shift.assigned_operator.toLowerCase());
+          const operatorId = byName.get(normalizeUsername(shift.assigned_operator));
           if (!operatorId) continue;
           const op = byId.get(operatorId);
           if (!op || op.prefs.notifyShiftStart === false) continue;

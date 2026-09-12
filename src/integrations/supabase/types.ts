@@ -251,6 +251,7 @@ export type Database = {
           operator_id: string
           route_label: string | null
           shift_end_at: string | null
+          shift_id: string | null
           shift_start_at: string
           transfers: number
           travel_minutes: number
@@ -266,6 +267,7 @@ export type Database = {
           operator_id: string
           route_label?: string | null
           shift_end_at?: string | null
+          shift_id?: string | null
           shift_start_at: string
           transfers?: number
           travel_minutes: number
@@ -281,6 +283,7 @@ export type Database = {
           operator_id?: string
           route_label?: string | null
           shift_end_at?: string | null
+          shift_id?: string | null
           shift_start_at?: string
           transfers?: number
           travel_minutes?: number
@@ -299,6 +302,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "operators_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_travel_plans_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_shifts"
             referencedColumns: ["id"]
           },
         ]
