@@ -6,7 +6,17 @@
  * case-insensitive lookup lives in exactly one file and a later migration to
  * `operator_id` foreign keys only has to change here. Stored data is untouched.
  */
-import type { OperatorIdentity } from "./types";
+import type { OperatorAssignment, OperatorIdentity } from "./types";
+import {
+  indexOperators,
+  normalizeUsername,
+  resolveAssignment,
+  sameOperator,
+} from "./operator-identity";
+
+// The comparison rules themselves are pure and live in ./operator-identity so
+// they can be used (and tested) without a database.
+export { normalizeUsername, sameOperator };
 
 type OperatorRow = {
   id: string;
@@ -24,16 +34,32 @@ function toIdentity(row: OperatorRow): OperatorIdentity {
   };
 }
 
-/** Canonical comparison key for an operator name. */
-export function normalizeUsername(name: string | null | undefined): string {
-  return (name ?? "").trim().toLowerCase();
+/**
+ * Resolve a requested assignment against the live operator directory.
+ *
+ * Returns the value that may be written to `scheduled_shifts.assigned_operator`
+ * — always the canonical stored spelling, or null for "unassigned". An unknown
+ * operator is rejected instead of being persisted as free text.
+ */
+export async function resolveAssignmentColumn(
+  requested: string | null | undefined,
+): Promise<{ column: string | null; assignment: OperatorAssignment; operator: OperatorIdentity | null }> {
+  const key = normalizeUsername(requested);
+  if (!key) {
+    return { column: null, assignment: { operatorName: null }, operator: null };
+  }
+  const identity = await resolveByUsername(requested);
+  const result = resolveAssignment(requested, identity ? [identity] : []);
+  if (!result.ok) {
+    throw new Response("Unknown operator", { status: 400 });
+  }
+  return {
+    column: result.assignment.operatorName,
+    assignment: result.assignment,
+    operator: result.operator,
+  };
 }
 
-/** True when two operator names refer to the same operator. */
-export function sameOperator(a: string | null | undefined, b: string | null | undefined): boolean {
-  const na = normalizeUsername(a);
-  return na !== "" && na === normalizeUsername(b);
-}
 
 /** Resolve by (case-insensitive) username. Returns null when unknown. */
 export async function resolveByUsername(
@@ -84,7 +110,5 @@ export async function loadOperatorDirectory(): Promise<{
     .select("id, username, is_admin, is_active");
   if (error) throw new Error(error.message);
   const all = ((data ?? []) as OperatorRow[]).map(toIdentity);
-  const byName = new Map<string, OperatorIdentity>();
-  for (const op of all) byName.set(normalizeUsername(op.username), op);
-  return { all, byName };
+  return { all, byName: indexOperators(all) };
 }

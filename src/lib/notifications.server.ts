@@ -10,6 +10,7 @@
  * "notifications match the current shift state" and never creates duplicates.
  */
 import { berlinInstant } from "./push-time";
+import { sameOperator } from "@/domain/operator-identity";
 
 type ShiftRow = {
   id: string;
@@ -49,7 +50,7 @@ export async function activeShiftStartSet(
   const set = new Set<number>();
   for (const s of (shifts ?? []) as ShiftRow[]) {
     if (s.status === "cancelled" || !s.assigned_operator) continue;
-    if (s.assigned_operator.toLowerCase() !== row.username.toLowerCase()) continue;
+    if (!sameOperator(s.assigned_operator, row.username)) continue;
     const start = berlinInstant(s.specific_date, s.start_time);
     if (start) set.add(start.getTime());
   }
