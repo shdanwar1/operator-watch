@@ -41,7 +41,10 @@ function OperatorLine({ card }: { card: BoardCard }) {
     <div className="mt-2 flex items-center gap-1.5">
       <span
         aria-hidden="true"
-        className={cn("h-2 w-2 shrink-0 rounded-full", color ? color.dot : "bg-muted-foreground/40")}
+        className={cn(
+          "h-2 w-2 shrink-0 rounded-full",
+          color ? color.dot : "bg-muted-foreground/40",
+        )}
       />
       <span
         className={cn(
@@ -130,11 +133,7 @@ export function TimetableWeek({ week }: { week: BoardDay[] }) {
   return (
     <div className="grid min-w-[1000px] grid-cols-7 gap-3">
       {week.map((day) => (
-        <section
-          key={day.date}
-          aria-label={`${day.weekday} ${day.dateLabel}`}
-          className="min-w-0"
-        >
+        <section key={day.date} aria-label={`${day.weekday} ${day.dateLabel}`} className="min-w-0">
           <h2 className="mb-2 border-b border-border pb-2 text-[13px] font-semibold tracking-tight">
             {day.weekday}
             <span className="ml-1.5 font-normal text-muted-foreground">{day.dateLabel}</span>
