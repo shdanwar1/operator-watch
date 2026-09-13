@@ -74,31 +74,33 @@ export const getLiveTimetable = createServerFn({ method: "GET" }).handler(
   },
 );
 
-export type LiveTimetableBoard = {
+export type TimetableMonthBoard = {
   timetable: StoredTimetable;
-  weekDates: string[];
+  /** Every Berlin date of the current month, YYYY-MM-DD. */
+  monthDates: string[];
   occurrences: ClassOccurrence[];
   shifts: ShiftAssignmentRow[];
   classIdBySource: Record<string, string>;
 };
 
 /**
- * The current Berlin Monday→Sunday week: the stored DMC timetable plus the
- * dated class rows and their shift assignments. Batched, admin-only, and it
- * always resolves to whatever week "now" falls in.
+ * The whole current Berlin calendar month, loaded once: the stored DMC
+ * timetable plus the dated class rows and their shift assignments. The week
+ * selector slices this in memory — it never refetches.
  */
-export const getLiveTimetableBoard = createServerFn({ method: "GET" }).handler(
-  async (): Promise<LiveTimetableBoard> => {
+export const getTimetableMonthBoard = createServerFn({ method: "GET" }).handler(
+  async (): Promise<TimetableMonthBoard> => {
     await requireAdmin();
     const { loadStoredTimetable } = await import("@/domain/timetable-repository.server");
     const { loadWeekOperations } = await import("@/domain/timetable-board.server");
-    const { currentBerlinWeek } = await import("@/domain/timetable-week");
+    const { currentBerlinMonth, monthDates } = await import("@/domain/timetable-week");
 
-    const weekDates = currentBerlinWeek(new Date());
+    const { year, month } = currentBerlinMonth(new Date());
+    const dates = monthDates(year, month);
     const [timetable, operations] = await Promise.all([
       loadStoredTimetable(),
-      loadWeekOperations(weekDates[0], weekDates[weekDates.length - 1]),
+      loadWeekOperations(dates[0], dates[dates.length - 1]),
     ]);
-    return { timetable, weekDates, ...operations };
+    return { timetable, monthDates: dates, ...operations };
   },
 );

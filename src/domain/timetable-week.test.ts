@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   berlinDate,
   buildOperatorBoard,
+  currentBerlinMonth,
   currentBerlinWeek,
+  monthWeekRanges,
+  weekIndexForDate,
+  weekRangeShortLabel,
   dayDateLabel,
   resolveOperator,
   weekdayOf,
@@ -236,5 +240,95 @@ describe("operator board", () => {
     board({ slots, occurrences });
     expect(slots[0]).toEqual(slot({ active: false, resumesOn: "2026-09-20" }));
     expect(occurrences[0]).toEqual(occurrence());
+  });
+});
+
+describe("current month and its four week views", () => {
+  it("resolves the current Berlin month", () => {
+    expect(currentBerlinMonth(new Date("2026-09-16T10:00:00Z"))).toEqual({ year: 2026, month: 9 });
+    // 22:30 UTC on 30 September is already 1 October in Berlin.
+    expect(currentBerlinMonth(new Date("2026-09-30T22:30:00Z"))).toEqual({ year: 2026, month: 10 });
+  });
+
+  it("divides the month into exactly four fixed ranges", () => {
+    const sep = monthWeekRanges(2026, 9);
+    expect(sep).toHaveLength(4);
+    expect(sep[0][0]).toBe("2026-09-01");
+    expect(sep[0].at(-1)).toBe("2026-09-07");
+    expect(sep[1][0]).toBe("2026-09-08");
+    expect(sep[1].at(-1)).toBe("2026-09-14");
+    expect(sep[2][0]).toBe("2026-09-15");
+    expect(sep[2].at(-1)).toBe("2026-09-21");
+    expect(sep[3][0]).toBe("2026-09-22");
+    expect(sep[3].at(-1)).toBe("2026-09-30");
+
+    // Week 4 stops on the real final day; there is never a fifth week.
+    expect(monthWeekRanges(2026, 10)[3].at(-1)).toBe("2026-10-31");
+    expect(monthWeekRanges(2027, 2)[3].at(-1)).toBe("2027-02-28");
+    expect(monthWeekRanges(2028, 2)[3].at(-1)).toBe("2028-02-29");
+  });
+
+  it("never leaks a date from another month", () => {
+    for (const week of monthWeekRanges(2026, 9)) {
+      for (const date of week) expect(date.startsWith("2026-09-")).toBe(true);
+    }
+  });
+
+  it("selects the week containing today", () => {
+    expect(weekIndexForDate("2026-09-01")).toBe(0);
+    expect(weekIndexForDate("2026-09-13")).toBe(1);
+    expect(weekIndexForDate("2026-09-21")).toBe(2);
+    expect(weekIndexForDate("2026-09-28")).toBe(3);
+  });
+
+  it("labels each week range compactly", () => {
+    const [w1, , , w4] = monthWeekRanges(2026, 9);
+    expect(weekRangeShortLabel(w1)).toBe("1–7 Sep");
+    expect(weekRangeShortLabel(w4)).toBe("22–30 Sep");
+  });
+});
+
+describe("dated suspended / resumesOn occurrences", () => {
+  const monthBoard = (over: Partial<Parameters<typeof buildOperatorBoard>[0]> = {}) =>
+    buildOperatorBoard({
+      weekDates: monthWeekRanges(2026, 9).flat(),
+      slots: [slot()],
+      classes,
+      instructors,
+      occurrences: [],
+      shifts: [],
+      classIdBySource,
+      ...over,
+    });
+
+  const cardOn = (days: ReturnType<typeof monthBoard>, date: string) =>
+    days.find((d) => d.date === date)!.cards[0];
+
+  it("treats an active slot as operational on every occurrence", () => {
+    const days = monthBoard();
+    expect(cardOn(days, "2026-09-07").active).toBe(true);
+    expect(cardOn(days, "2026-09-28").active).toBe(true);
+  });
+
+  it("keeps a suspended slot with no resume date suspended everywhere", () => {
+    const days = monthBoard({ slots: [slot({ active: false, resumesOn: null })] });
+    expect(cardOn(days, "2026-09-07").active).toBe(false);
+    expect(cardOn(days, "2026-09-28").active).toBe(false);
+  });
+
+  it("flips from suspended to operational on the resume date", () => {
+    const slots = [slot({ active: false, resumesOn: "2026-09-21" })];
+    const days = monthBoard({ slots });
+    expect(cardOn(days, "2026-09-14").active).toBe(false);
+    expect(cardOn(days, "2026-09-21").active).toBe(true);
+    expect(cardOn(days, "2026-09-28").active).toBe(true);
+    // The stored slot state itself is never mutated.
+    expect(slots[0].active).toBe(false);
+    expect(slots[0].resumesOn).toBe("2026-09-21");
+  });
+
+  it("keeps the resume note available while suspended", () => {
+    const days = monthBoard({ slots: [slot({ active: false, resumesOn: "2026-09-21" })] });
+    expect(cardOn(days, "2026-09-14").resumesOn).toBe("2026-09-21");
   });
 });

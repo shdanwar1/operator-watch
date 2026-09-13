@@ -21,10 +21,10 @@ import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminTimetableRouteImport } from './routes/admin.timetable'
 import { Route as AdminShiftsRouteImport } from './routes/admin.shifts'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminOperatorsRouteImport } from './routes/admin.operators'
-import { Route as AdminLiveTimetableRouteImport } from './routes/admin.live-timetable'
 import { Route as AdminCalendarRouteImport } from './routes/admin.calendar'
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
 
@@ -88,6 +88,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminTimetableRoute = AdminTimetableRouteImport.update({
+  id: '/timetable',
+  path: '/timetable',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminShiftsRoute = AdminShiftsRouteImport.update({
   id: '/shifts',
   path: '/shifts',
@@ -101,11 +106,6 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
 const AdminOperatorsRoute = AdminOperatorsRouteImport.update({
   id: '/operators',
   path: '/operators',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminLiveTimetableRoute = AdminLiveTimetableRouteImport.update({
-  id: '/live-timetable',
-  path: '/live-timetable',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminCalendarRoute = AdminCalendarRouteImport.update({
@@ -133,10 +133,10 @@ export interface FileRoutesByFullPath {
   '/studio-display': typeof StudioDisplayRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
-  '/admin/live-timetable': typeof AdminLiveTimetableRoute
   '/admin/operators': typeof AdminOperatorsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/shifts': typeof AdminShiftsRoute
+  '/admin/timetable': typeof AdminTimetableRoute
   '/admin/': typeof AdminIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
 }
@@ -152,10 +152,10 @@ export interface FileRoutesByTo {
   '/studio-display': typeof StudioDisplayRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
-  '/admin/live-timetable': typeof AdminLiveTimetableRoute
   '/admin/operators': typeof AdminOperatorsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/shifts': typeof AdminShiftsRoute
+  '/admin/timetable': typeof AdminTimetableRoute
   '/admin': typeof AdminIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
 }
@@ -173,10 +173,10 @@ export interface FileRoutesById {
   '/studio-display': typeof StudioDisplayRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
-  '/admin/live-timetable': typeof AdminLiveTimetableRoute
   '/admin/operators': typeof AdminOperatorsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/shifts': typeof AdminShiftsRoute
+  '/admin/timetable': typeof AdminTimetableRoute
   '/admin/': typeof AdminIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
 }
@@ -195,10 +195,10 @@ export interface FileRouteTypes {
     | '/studio-display'
     | '/unlock'
     | '/admin/calendar'
-    | '/admin/live-timetable'
     | '/admin/operators'
     | '/admin/settings'
     | '/admin/shifts'
+    | '/admin/timetable'
     | '/admin/'
     | '/api/public/hooks/push-dispatch'
   fileRoutesByTo: FileRoutesByTo
@@ -214,10 +214,10 @@ export interface FileRouteTypes {
     | '/studio-display'
     | '/unlock'
     | '/admin/calendar'
-    | '/admin/live-timetable'
     | '/admin/operators'
     | '/admin/settings'
     | '/admin/shifts'
+    | '/admin/timetable'
     | '/admin'
     | '/api/public/hooks/push-dispatch'
   id:
@@ -234,10 +234,10 @@ export interface FileRouteTypes {
     | '/studio-display'
     | '/unlock'
     | '/admin/calendar'
-    | '/admin/live-timetable'
     | '/admin/operators'
     | '/admin/settings'
     | '/admin/shifts'
+    | '/admin/timetable'
     | '/admin/'
     | '/api/public/hooks/push-dispatch'
   fileRoutesById: FileRoutesById
@@ -343,6 +343,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/timetable': {
+      id: '/admin/timetable'
+      path: '/timetable'
+      fullPath: '/admin/timetable'
+      preLoaderRoute: typeof AdminTimetableRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/shifts': {
       id: '/admin/shifts'
       path: '/shifts'
@@ -364,13 +371,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOperatorsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/live-timetable': {
-      id: '/admin/live-timetable'
-      path: '/live-timetable'
-      fullPath: '/admin/live-timetable'
-      preLoaderRoute: typeof AdminLiveTimetableRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/calendar': {
       id: '/admin/calendar'
       path: '/calendar'
@@ -390,19 +390,19 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminCalendarRoute: typeof AdminCalendarRoute
-  AdminLiveTimetableRoute: typeof AdminLiveTimetableRoute
   AdminOperatorsRoute: typeof AdminOperatorsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminShiftsRoute: typeof AdminShiftsRoute
+  AdminTimetableRoute: typeof AdminTimetableRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCalendarRoute: AdminCalendarRoute,
-  AdminLiveTimetableRoute: AdminLiveTimetableRoute,
   AdminOperatorsRoute: AdminOperatorsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminShiftsRoute: AdminShiftsRoute,
+  AdminTimetableRoute: AdminTimetableRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 

@@ -13,6 +13,7 @@ import type {
   DmcWeekday,
 } from "./timetable";
 import { normalizeUsername } from "./operator-identity";
+import { isTimetableSlotOperationalOnDate } from "./timetable-resolver";
 import {
   addMinutesLocal,
   minutesOfDay,
@@ -103,6 +104,51 @@ export function currentBerlinWeek(now: Date = new Date()): string[] {
   const offsetToMonday = (weekdayOf(today) + 6) % 7;
   const monday = shiftDate(today, -offsetToMonday);
   return Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
+}
+
+/** The current Berlin calendar month as { year, month } (month is 1-12). */
+export function currentBerlinMonth(now: Date = new Date()): { year: number; month: number } {
+  const [y, m] = berlinDate(now).split("-").map(Number);
+  return { year: y, month: m };
+}
+
+/** Number of days in a calendar month. */
+export function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/** Every Berlin date of the given month, YYYY-MM-DD. */
+export function monthDates(year: number, month: number): string[] {
+  const total = daysInMonth(year, month);
+  const mm = String(month).padStart(2, "0");
+  return Array.from({ length: total }, (_, i) => `${year}-${mm}-${String(i + 1).padStart(2, "0")}`);
+}
+
+/**
+ * Exactly four fixed ranges per month: 1–7, 8–14, 15–21, 22–last day.
+ * Never ISO weeks, never a fifth week.
+ */
+export function monthWeekRanges(year: number, month: number): string[][] {
+  const all = monthDates(year, month);
+  return [all.slice(0, 7), all.slice(7, 14), all.slice(14, 21), all.slice(21)];
+}
+
+/** Index (0-3) of the fixed month week containing a YYYY-MM-DD date. */
+export function weekIndexForDate(date: string): number {
+  const day = Number(date.split("-")[2]);
+  if (day <= 7) return 0;
+  if (day <= 14) return 1;
+  if (day <= 21) return 2;
+  return 3;
+}
+
+/** "1–7 Sep" */
+export function weekRangeShortLabel(dates: string[]): string {
+  if (dates.length === 0) return "";
+  const first = Number(dates[0].split("-")[2]);
+  const last = Number(dates[dates.length - 1].split("-")[2]);
+  const month = MONTHS[Number(dates[0].split("-")[1]) - 1]?.slice(0, 3) ?? "";
+  return `${first}–${last} ${month}`;
 }
 
 /** "14–20 September 2026" */
@@ -220,7 +266,7 @@ export function buildOperatorBoard(input: {
         endTime: end.time,
         endsNextDay: end.nextDay,
         durationMinutes: slot.durationMinutes,
-        active: slot.active,
+        active: isTimetableSlotOperationalOnDate(slot, date),
         resumesOn: slot.resumesOn,
         date,
         operatorName,
