@@ -4,51 +4,26 @@
  * Presentation only: it receives a fully resolved week and renders it. No data
  * fetching, no database access, no DMC API knowledge.
  */
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { opColor } from "@/lib/admin-utils";
 import { resumesOnLabel } from "@/domain/timetable-view";
 import type { BoardCard, BoardDay } from "@/domain/timetable-week";
 
-function InstructorAvatar({ card }: { card: BoardCard }) {
-  if (card.instructorImageUrl) {
-    return (
-      <img
-        src={card.instructorImageUrl}
-        alt=""
-        loading="lazy"
-        className="h-6 w-6 shrink-0 rounded-full object-cover"
-        onError={(e) => {
-          e.currentTarget.style.display = "none";
-        }}
-      />
-    );
-  }
-  return (
-    <span
-      aria-hidden="true"
-      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground"
-    >
-      {card.instructorInitials}
-    </span>
-  );
-}
-
 function OperatorLine({ card }: { card: BoardCard }) {
   const color = card.assigned ? opColor(card.operatorName) : null;
   return (
-    <div className="mt-2 flex items-center gap-1.5">
+    <div className="mt-1.5 flex items-center gap-1.5">
       <span
         aria-hidden="true"
         className={cn(
-          "h-2 w-2 shrink-0 rounded-full",
+          "h-1.5 w-1.5 shrink-0 rounded-full",
           color ? color.dot : "bg-muted-foreground/40",
         )}
       />
       <span
         className={cn(
-          "truncate text-[11px] font-medium",
+          "truncate text-[11px] font-medium leading-none",
           card.assigned ? (color?.text ?? "text-foreground") : "text-muted-foreground",
         )}
       >
@@ -63,13 +38,13 @@ function SlotCard({ card }: { card: BoardCard }) {
   return (
     <li
       className={cn(
-        "rounded-lg border border-border bg-card p-3",
-        !card.active && "border-dashed bg-muted/40",
+        "rounded-md border border-border/80 bg-card/60 px-2.5 py-2",
+        !card.active && "border-dashed border-border bg-muted/25",
       )}
     >
       <span
         className={cn(
-          "text-[13px] font-semibold tabular-nums",
+          "block text-[11px] font-medium leading-none tabular-nums text-muted-foreground",
           !card.active && "text-muted-foreground",
         )}
       >
@@ -81,33 +56,21 @@ function SlotCard({ card }: { card: BoardCard }) {
 
       <p
         className={cn(
-          "mt-1 text-sm font-medium leading-snug",
+          "mt-1.5 text-[13px] font-semibold leading-[1.25] text-foreground",
           !card.active && "text-muted-foreground",
         )}
       >
         {card.className}
       </p>
 
-      <div className="mt-2 flex items-center gap-2">
-        <InstructorAvatar card={card} />
-        <span className="truncate text-xs text-muted-foreground">{card.instructorName}</span>
-      </div>
-
-      {card.displayCategory && (
-        <div className="mt-2">
-          <Badge
-            variant={card.displayCategory === "Ballet" ? "outline" : "secondary"}
-            className="text-[10px] font-normal"
-          >
-            {card.displayCategory}
-          </Badge>
-        </div>
-      )}
+      <p className="mt-1 truncate text-[11px] leading-tight text-muted-foreground">
+        {card.instructorName}
+      </p>
 
       <OperatorLine card={card} />
 
       {!card.active && (
-        <p className="mt-2 text-[11px] font-medium text-muted-foreground">
+        <p className="mt-1.5 text-[10px] font-medium leading-tight text-muted-foreground">
           Suspended{resumes ? ` · ${resumes}` : ""}
         </p>
       )}
@@ -117,12 +80,12 @@ function SlotCard({ card }: { card: BoardCard }) {
 
 export function TimetableWeekSkeleton() {
   return (
-    <div className="grid grid-cols-7 gap-3 min-w-[1000px]">
+    <div className="grid min-w-[1000px] grid-cols-7 gap-2">
       {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className="space-y-2">
-          <Skeleton className="h-5 w-20" />
-          <Skeleton className="h-28 w-full" />
-          <Skeleton className="h-28 w-full" />
+        <div key={i} className="space-y-1.5">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
         </div>
       ))}
     </div>
@@ -131,17 +94,21 @@ export function TimetableWeekSkeleton() {
 
 export function TimetableWeek({ week }: { week: BoardDay[] }) {
   return (
-    <div className="grid min-w-[1000px] grid-cols-7 gap-3">
+    <div className="grid min-w-[1000px] grid-cols-7 gap-2">
       {week.map((day) => (
         <section key={day.date} aria-label={`${day.weekday} ${day.dateLabel}`} className="min-w-0">
-          <h2 className="mb-2 border-b border-border pb-2 text-[13px] font-semibold tracking-tight">
-            {day.weekday}
-            <span className="ml-1.5 font-normal text-muted-foreground">{day.dateLabel}</span>
+          <h2 className="mb-1.5 border-b border-border/80 pb-1.5">
+            <span className="block text-[11px] font-semibold uppercase leading-tight text-foreground">
+              {day.weekday}
+            </span>
+            <span className="mt-0.5 block text-[11px] font-normal leading-tight text-muted-foreground">
+              {day.dateLabel}
+            </span>
           </h2>
           {day.cards.length === 0 ? (
             <p className="py-2 text-xs text-muted-foreground">No classes</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-1.5">
               {day.cards.map((card) => (
                 <SlotCard key={`${card.date}-${card.sourceSlotId}`} card={card} />
               ))}
