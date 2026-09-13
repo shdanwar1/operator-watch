@@ -67,7 +67,6 @@ function AdminTimetable() {
   // The displayed Monday–Sunday week, which may cross the month boundary.
   const weekDates = useMemo(
     () => weekDatesAtOffset(berlinDate(), weekOffset),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [weekOffset],
   );
 
