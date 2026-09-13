@@ -1,8 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-/** The admin area opens directly on the calendar; this legacy route just redirects. */
+/** The admin area opens on the current-week operator board. */
 export const Route = createFileRoute("/admin/")({
   beforeLoad: () => {
-    throw redirect({ to: "/admin/calendar" });
+    throw redirect({ to: "/admin/live-timetable" });
   },
 });

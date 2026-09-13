@@ -9,6 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
 import type { DmcTimetableAnomaly } from "@/domain/timetable";
 import type { StoredTimetable } from "@/domain/timetable-repository.server";
+import type { ClassOccurrence, ShiftAssignmentRow } from "@/domain/timetable-week";
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
