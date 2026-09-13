@@ -91,19 +91,57 @@ export function weekdayOf(date: string): DmcWeekday {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay() as DmcWeekday;
 }
 
-function shiftDate(date: string, days: number): string {
+export function shiftDate(date: string, days: number): string {
   const [y, m, d] = date.split("-").map(Number);
   const t = new Date(Date.UTC(y, m - 1, d));
   t.setUTCDate(t.getUTCDate() + days);
   return t.toISOString().slice(0, 10);
 }
 
+/** The Monday of the Monday→Sunday week containing a date. */
+export function weekStartOf(date: string): string {
+  return shiftDate(date, -((weekdayOf(date) + 6) % 7));
+}
+
+/** The seven dates of the Monday→Sunday week containing a date. */
+export function weekDatesFrom(date: string): string[] {
+  const monday = weekStartOf(date);
+  return Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
+}
+
 /** The seven Berlin dates of the current Monday→Sunday week. */
 export function currentBerlinWeek(now: Date = new Date()): string[] {
-  const today = berlinDate(now);
-  const offsetToMonday = (weekdayOf(today) + 6) % 7;
-  const monday = shiftDate(today, -offsetToMonday);
-  return Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
+  return weekDatesFrom(berlinDate(now));
+}
+
+/** The Monday→Sunday week `offset` full weeks away from the week containing `date`. */
+export function weekDatesAtOffset(date: string, offset: number): string[] {
+  return weekDatesFrom(shiftDate(weekStartOf(date), offset * 7));
+}
+
+/** "31 Aug – 6 Sep" (month shown once when the week stays inside one month). */
+export function weekRangeCompactLabel(dates: string[]): string {
+  if (dates.length === 0) return "";
+  const [fy, fm, fd] = dates[0].split("-").map(Number);
+  const [ly, lm, ld] = dates[dates.length - 1].split("-").map(Number);
+  const short = (m: number) => MONTHS[m - 1]?.slice(0, 3) ?? String(m);
+  if (fy === ly && fm === lm) return `${fd}–${ld} ${short(fm)}`;
+  return `${fd} ${short(fm)} – ${ld} ${short(lm)}`;
+}
+
+/** "September 2026" or "September / October 2026" for a displayed week. */
+export function weekMonthTitle(dates: string[]): string {
+  if (dates.length === 0) return "";
+  const [fy, fm] = dates[0].split("-").map(Number);
+  const [ly, lm] = dates[dates.length - 1].split("-").map(Number);
+  if (fy === ly && fm === lm) return `${MONTHS[fm - 1]} ${fy}`;
+  if (fy === ly) return `${MONTHS[fm - 1]} / ${MONTHS[lm - 1]} ${fy}`;
+  return `${MONTHS[fm - 1]} ${fy} / ${MONTHS[lm - 1]} ${ly}`;
+}
+
+/** "2026-09" for a YYYY-MM-DD date. */
+export function monthKeyOf(date: string): string {
+  return date.slice(0, 7);
 }
 
 /** The current Berlin calendar month as { year, month } (month is 1-12). */
@@ -217,6 +255,11 @@ export function buildOperatorBoard(input: {
   shifts: ShiftAssignmentRow[];
   /** DMC source class id → `dmc_classes.id`, as referenced by occurrences. */
   classIdBySource: Record<string, string>;
+  /**
+   * Operational month, "YYYY-MM". Dates outside it show their DMC classes but
+   * never an operator — assignments are only ever read for this month.
+   */
+  assignmentMonth?: string | null;
 }): BoardDay[] {
   const classBySource = new Map(input.classes.map((c) => [c.sourceClassId, c]));
   const instructorBySource = new Map(input.instructors.map((i) => [i.sourceInstructorId, i]));
@@ -238,16 +281,18 @@ export function buildOperatorBoard(input: {
 
   return input.weekDates.map((date) => {
     const dayLocal = weekdayOf(date);
+    const inScope = !input.assignmentMonth || monthKeyOf(date) === input.assignmentMonth;
     const cards: BoardCard[] = (slotsByDay.get(dayLocal) ?? []).map((slot) => {
       const cls = classBySource.get(slot.sourceClassId);
       const instructor = instructorBySource.get(slot.sourceInstructorId);
       const end = addMinutesLocal(slot.startTimeLocal, slot.durationMinutes);
       const name = instructorName(instructor);
       const dmcClassId = input.classIdBySource[slot.sourceClassId];
-      const occurrence = dmcClassId
-        ? (occurrenceByKey.get(`${date}|${dmcClassId}|${slot.startTimeLocal}`) ?? null)
-        : null;
-      const operatorName = resolveOperator(occurrence, shiftsById);
+      const occurrence =
+        inScope && dmcClassId
+          ? (occurrenceByKey.get(`${date}|${dmcClassId}|${slot.startTimeLocal}`) ?? null)
+          : null;
+      const operatorName = inScope ? resolveOperator(occurrence, shiftsById) : null;
 
       return {
         sourceSlotId: slot.sourceSlotId,

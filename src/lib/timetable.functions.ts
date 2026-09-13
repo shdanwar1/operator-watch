@@ -76,6 +76,8 @@ export const getLiveTimetable = createServerFn({ method: "GET" }).handler(
 
 export type TimetableMonthBoard = {
   timetable: StoredTimetable;
+  /** Operational month, "YYYY-MM". Operator assignments exist only for it. */
+  month: string;
   /** Every Berlin date of the current month, YYYY-MM-DD. */
   monthDates: string[];
   occurrences: ClassOccurrence[];
@@ -101,6 +103,11 @@ export const getTimetableMonthBoard = createServerFn({ method: "GET" }).handler(
       loadStoredTimetable(),
       loadWeekOperations(dates[0], dates[dates.length - 1]),
     ]);
-    return { timetable, monthDates: dates, ...operations };
+    return {
+      timetable,
+      month: `${year}-${String(month).padStart(2, "0")}`,
+      monthDates: dates,
+      ...operations,
+    };
   },
 );

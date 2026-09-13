@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { TimetableWeek, TimetableWeekSkeleton } from "@/components/admin/TimetableWeek";
@@ -10,10 +10,10 @@ import { formatBerlinTimestamp } from "@/domain/timetable-view";
 import {
   berlinDate,
   buildOperatorBoard,
-  weekIndexForDate,
-  weekRangeShortLabel,
+  weekDatesAtOffset,
+  weekMonthTitle,
+  weekRangeCompactLabel,
 } from "@/domain/timetable-week";
-import { cn } from "@/lib/utils";
 import { getTimetableMonthBoard, refreshLiveTimetable } from "@/lib/timetable.functions";
 import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/admin/timetable")({
   head: () => ({
     meta: pageMeta(
       PAGE_TITLES.timetable,
-      "This month's DMC classes, week by week, with the operator responsible for each one.",
+      "The DMC class week, with the operator responsible for each class this month.",
     ),
   }),
   component: AdminTimetable,
@@ -31,8 +31,8 @@ function AdminTimetable() {
   const qc = useQueryClient();
   const load = useServerFn(getTimetableMonthBoard);
   const refresh = useServerFn(refreshLiveTimetable);
-  // Default to the week containing today; a new month naturally lands on Week 1.
-  const [weekIndex, setWeekIndex] = useState(() => weekIndexForDate(berlinDate()));
+  // Whole weeks away from the week containing today (Europe/Berlin).
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const { data, isPending, error } = useQuery({
     queryKey: ["admin", "timetable-month"],
@@ -64,42 +64,42 @@ function AdminTimetable() {
     },
   });
 
-  // The whole month is resolved once; switching weeks only slices this result.
-  const monthBoard = useMemo(
+  // The displayed Monday–Sunday week, which may cross the month boundary.
+  const weekDates = useMemo(
+    () => weekDatesAtOffset(berlinDate(), weekOffset),
+    [weekOffset],
+  );
+
+  // Operator assignments come only from the current operational month.
+  const selected = useMemo(
     () =>
       buildOperatorBoard({
-        weekDates: data?.monthDates ?? [],
+        weekDates,
         slots: data?.timetable.slots ?? [],
         classes: data?.timetable.classes ?? [],
         instructors: data?.timetable.instructors ?? [],
         occurrences: data?.occurrences ?? [],
         shifts: data?.shifts ?? [],
         classIdBySource: data?.classIdBySource ?? {},
+        assignmentMonth: data?.month ?? null,
       }),
-    [data],
-  );
-
-  const weeks = useMemo(
-    () => [
-      monthBoard.slice(0, 7),
-      monthBoard.slice(7, 14),
-      monthBoard.slice(14, 21),
-      monthBoard.slice(21),
-    ],
-    [monthBoard],
+    [data, weekDates],
   );
 
   const lastUpdated = formatBerlinTimestamp(data?.timetable.lastRefreshedAt ?? null);
   const isEmpty = !isPending && !error && (data?.timetable.slots.length ?? 0) === 0;
   const busy = refreshMutation.isPending;
-  const selected = weeks[weekIndex] ?? [];
 
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Timetable</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Current Month</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {weekMonthTitle(weekDates)}
+            <span className="mx-1.5 text-muted-foreground/60">·</span>
+            <span className="tabular-nums">{weekRangeCompactLabel(weekDates)}</span>
+          </p>
         </div>
         <div className="flex items-center gap-3">
           {lastUpdated && (
@@ -119,33 +119,41 @@ function AdminTimetable() {
       </header>
 
       {!error && !isEmpty && (
-        <div role="tablist" aria-label="Week of the month" className="flex flex-wrap gap-1.5">
-          {weeks.map((week, i) => (
-            <button
-              key={i}
-              type="button"
-              role="tab"
-              aria-selected={i === weekIndex}
-              onClick={() => setWeekIndex(i)}
-              className={cn(
-                "press rounded-lg border px-3 py-1.5 text-left text-[12px] leading-tight transition-colors",
-                i === weekIndex
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border text-muted-foreground hover:bg-muted/50",
-              )}
-            >
-              <span className="font-medium">Week {i + 1}</span>
-              <span
-                className={cn(
-                  "ml-2 tabular-nums",
-                  i === weekIndex ? "opacity-70" : "text-muted-foreground",
-                )}
-              >
-                {weekRangeShortLabel(week.map((d) => d.date))}
-              </span>
-            </button>
-          ))}
-        </div>
+        <nav aria-label="Week navigation" className="flex items-center gap-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Previous week"
+            onClick={() => setWeekOffset((o) => o - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => setWeekOffset(0)}
+            disabled={weekOffset === 0}
+          >
+            Today
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Next week"
+            onClick={() => setWeekOffset((o) => o + 1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <span className="ml-2 text-xs tabular-nums text-muted-foreground">
+            {weekRangeCompactLabel(weekDates)}
+          </span>
+        </nav>
       )}
 
       {error && (
