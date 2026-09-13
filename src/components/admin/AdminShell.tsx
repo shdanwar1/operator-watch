@@ -76,7 +76,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         )}
       >
         <div className={cn("flex h-16 items-center px-4", collapsed && "justify-center px-0")}>
-          <Link to="/admin/calendar" className="flex items-center gap-2.5 overflow-hidden">
+          <Link to="/admin/live-timetable" className="flex items-center gap-2.5 overflow-hidden">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent">
               <Shield className="h-4 w-4" />
             </span>
