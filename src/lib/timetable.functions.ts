@@ -103,6 +103,11 @@ export const getTimetableMonthBoard = createServerFn({ method: "GET" }).handler(
       loadStoredTimetable(),
       loadWeekOperations(dates[0], dates[dates.length - 1]),
     ]);
-    return { timetable, monthDates: dates, ...operations };
+    return {
+      timetable,
+      month: `${year}-${String(month).padStart(2, "0")}`,
+      monthDates: dates,
+      ...operations,
+    };
   },
 );
