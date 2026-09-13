@@ -1,5 +1,5 @@
 /**
- * Live Timetable presentation (Operation 5).
+ * Current-week operator board presentation.
  *
  * Presentation only: it receives a fully resolved week and renders it. No data
  * fetching, no database access, no DMC API knowledge.
@@ -7,9 +7,11 @@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { resumesOnLabel, type TimetableCard, type TimetableDay } from "@/domain/timetable-view";
+import { opColor } from "@/lib/admin-utils";
+import { resumesOnLabel } from "@/domain/timetable-view";
+import type { BoardCard, BoardDay } from "@/domain/timetable-week";
 
-function InstructorAvatar({ card }: { card: TimetableCard }) {
+function InstructorAvatar({ card }: { card: BoardCard }) {
   if (card.instructorImageUrl) {
     return (
       <img
@@ -33,7 +35,30 @@ function InstructorAvatar({ card }: { card: TimetableCard }) {
   );
 }
 
-function SlotCard({ card }: { card: TimetableCard }) {
+function OperatorLine({ card }: { card: BoardCard }) {
+  const color = card.assigned ? opColor(card.operatorName) : null;
+  return (
+    <div className="mt-2 flex items-center gap-1.5">
+      <span
+        aria-hidden="true"
+        className={cn(
+          "h-2 w-2 shrink-0 rounded-full",
+          color ? color.dot : "bg-muted-foreground/40",
+        )}
+      />
+      <span
+        className={cn(
+          "truncate text-[11px] font-medium",
+          card.assigned ? (color?.text ?? "text-foreground") : "text-muted-foreground",
+        )}
+      >
+        {card.assigned ? card.operatorName : "Unassigned"}
+      </span>
+    </div>
+  );
+}
+
+function SlotCard({ card }: { card: BoardCard }) {
   const resumes = resumesOnLabel(card.resumesOn);
   return (
     <li
@@ -79,6 +104,8 @@ function SlotCard({ card }: { card: TimetableCard }) {
         </div>
       )}
 
+      <OperatorLine card={card} />
+
       {!card.active && (
         <p className="mt-2 text-[11px] font-medium text-muted-foreground">
           Suspended{resumes ? ` · ${resumes}` : ""}
@@ -102,20 +129,21 @@ export function TimetableWeekSkeleton() {
   );
 }
 
-export function TimetableWeek({ week }: { week: TimetableDay[] }) {
+export function TimetableWeek({ week }: { week: BoardDay[] }) {
   return (
     <div className="grid min-w-[1000px] grid-cols-7 gap-3">
       {week.map((day) => (
-        <section key={day.dayLocal} aria-label={day.label} className="min-w-0">
+        <section key={day.date} aria-label={`${day.weekday} ${day.dateLabel}`} className="min-w-0">
           <h2 className="mb-2 border-b border-border pb-2 text-[13px] font-semibold tracking-tight">
-            {day.label}
+            {day.weekday}
+            <span className="ml-1.5 font-normal text-muted-foreground">{day.dateLabel}</span>
           </h2>
           {day.cards.length === 0 ? (
             <p className="py-2 text-xs text-muted-foreground">No classes</p>
           ) : (
             <ul className="space-y-2">
               {day.cards.map((card) => (
-                <SlotCard key={card.sourceSlotId} card={card} />
+                <SlotCard key={`${card.date}-${card.sourceSlotId}`} card={card} />
               ))}
             </ul>
           )}

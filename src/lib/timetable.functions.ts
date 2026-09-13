@@ -9,6 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
 import type { DmcTimetableAnomaly } from "@/domain/timetable";
 import type { StoredTimetable } from "@/domain/timetable-repository.server";
+import type { ClassOccurrence, ShiftAssignmentRow } from "@/domain/timetable-week";
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
@@ -70,5 +71,34 @@ export const getLiveTimetable = createServerFn({ method: "GET" }).handler(
     await requireAdmin();
     const { loadStoredTimetable } = await import("@/domain/timetable-repository.server");
     return loadStoredTimetable();
+  },
+);
+
+export type LiveTimetableBoard = {
+  timetable: StoredTimetable;
+  weekDates: string[];
+  occurrences: ClassOccurrence[];
+  shifts: ShiftAssignmentRow[];
+  classIdBySource: Record<string, string>;
+};
+
+/**
+ * The current Berlin Monday→Sunday week: the stored DMC timetable plus the
+ * dated class rows and their shift assignments. Batched, admin-only, and it
+ * always resolves to whatever week "now" falls in.
+ */
+export const getLiveTimetableBoard = createServerFn({ method: "GET" }).handler(
+  async (): Promise<LiveTimetableBoard> => {
+    await requireAdmin();
+    const { loadStoredTimetable } = await import("@/domain/timetable-repository.server");
+    const { loadWeekOperations } = await import("@/domain/timetable-board.server");
+    const { currentBerlinWeek } = await import("@/domain/timetable-week");
+
+    const weekDates = currentBerlinWeek(new Date());
+    const [timetable, operations] = await Promise.all([
+      loadStoredTimetable(),
+      loadWeekOperations(weekDates[0], weekDates[weekDates.length - 1]),
+    ]);
+    return { timetable, weekDates, ...operations };
   },
 );
