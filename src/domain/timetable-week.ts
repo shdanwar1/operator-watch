@@ -281,6 +281,7 @@ export function buildOperatorBoard(input: {
 
   return input.weekDates.map((date) => {
     const dayLocal = weekdayOf(date);
+    const inScope = !input.assignmentMonth || monthKeyOf(date) === input.assignmentMonth;
     const cards: BoardCard[] = (slotsByDay.get(dayLocal) ?? []).map((slot) => {
       const cls = classBySource.get(slot.sourceClassId);
       const instructor = instructorBySource.get(slot.sourceInstructorId);
