@@ -64,42 +64,43 @@ function AdminTimetable() {
     },
   });
 
-  // The whole month is resolved once; switching weeks only slices this result.
-  const monthBoard = useMemo(
+  // The displayed Monday–Sunday week, which may cross the month boundary.
+  const weekDates = useMemo(
+    () => weekDatesAtOffset(berlinDate(), weekOffset),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [weekOffset],
+  );
+
+  // Operator assignments come only from the current operational month.
+  const selected = useMemo(
     () =>
       buildOperatorBoard({
-        weekDates: data?.monthDates ?? [],
+        weekDates,
         slots: data?.timetable.slots ?? [],
         classes: data?.timetable.classes ?? [],
         instructors: data?.timetable.instructors ?? [],
         occurrences: data?.occurrences ?? [],
         shifts: data?.shifts ?? [],
         classIdBySource: data?.classIdBySource ?? {},
+        assignmentMonth: data?.month ?? null,
       }),
-    [data],
-  );
-
-  const weeks = useMemo(
-    () => [
-      monthBoard.slice(0, 7),
-      monthBoard.slice(7, 14),
-      monthBoard.slice(14, 21),
-      monthBoard.slice(21),
-    ],
-    [monthBoard],
+    [data, weekDates],
   );
 
   const lastUpdated = formatBerlinTimestamp(data?.timetable.lastRefreshedAt ?? null);
   const isEmpty = !isPending && !error && (data?.timetable.slots.length ?? 0) === 0;
   const busy = refreshMutation.isPending;
-  const selected = weeks[weekIndex] ?? [];
 
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Timetable</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Current Month</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {weekMonthTitle(weekDates)}
+            <span className="mx-1.5 text-muted-foreground/60">·</span>
+            <span className="tabular-nums">{weekRangeCompactLabel(weekDates)}</span>
+          </p>
         </div>
         <div className="flex items-center gap-3">
           {lastUpdated && (
