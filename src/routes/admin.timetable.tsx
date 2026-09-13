@@ -120,33 +120,41 @@ function AdminTimetable() {
       </header>
 
       {!error && !isEmpty && (
-        <div role="tablist" aria-label="Week of the month" className="flex flex-wrap gap-1.5">
-          {weeks.map((week, i) => (
-            <button
-              key={i}
-              type="button"
-              role="tab"
-              aria-selected={i === weekIndex}
-              onClick={() => setWeekIndex(i)}
-              className={cn(
-                "press rounded-lg border px-3 py-1.5 text-left text-[12px] leading-tight transition-colors",
-                i === weekIndex
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border text-muted-foreground hover:bg-muted/50",
-              )}
-            >
-              <span className="font-medium">Week {i + 1}</span>
-              <span
-                className={cn(
-                  "ml-2 tabular-nums",
-                  i === weekIndex ? "opacity-70" : "text-muted-foreground",
-                )}
-              >
-                {weekRangeShortLabel(week.map((d) => d.date))}
-              </span>
-            </button>
-          ))}
-        </div>
+        <nav aria-label="Week navigation" className="flex items-center gap-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Previous week"
+            onClick={() => setWeekOffset((o) => o - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => setWeekOffset(0)}
+            disabled={weekOffset === 0}
+          >
+            Today
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Next week"
+            onClick={() => setWeekOffset((o) => o + 1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <span className="ml-2 text-xs tabular-nums text-muted-foreground">
+            {weekRangeCompactLabel(weekDates)}
+          </span>
+        </nav>
       )}
 
       {error && (
