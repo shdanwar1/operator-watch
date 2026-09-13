@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
  * AppShell: different navigation, different routes, no operator features.
  */
 const ADMIN_NAV: { label: string; to: string; icon: typeof CalendarDays; exact?: boolean }[] = [
-  { label: "Live Timetable", to: "/admin/live-timetable", icon: CalendarRange },
+  { label: "Timetable", to: "/admin/timetable", icon: CalendarRange },
   { label: "Calendar", to: "/admin/calendar", icon: CalendarDays },
   { label: "Shifts", to: "/admin/shifts", icon: ListChecks },
   { label: "Operators", to: "/admin/operators", icon: Users },
@@ -76,7 +76,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         )}
       >
         <div className={cn("flex h-16 items-center px-4", collapsed && "justify-center px-0")}>
-          <Link to="/admin/live-timetable" className="flex items-center gap-2.5 overflow-hidden">
+          <Link to="/admin/timetable" className="flex items-center gap-2.5 overflow-hidden">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent">
               <Shield className="h-4 w-4" />
             </span>
