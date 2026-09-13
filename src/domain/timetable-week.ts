@@ -13,6 +13,7 @@ import type {
   DmcWeekday,
 } from "./timetable";
 import { normalizeUsername } from "./operator-identity";
+import { isTimetableSlotOperationalOnDate } from "./timetable-resolver";
 import {
   addMinutesLocal,
   minutesOfDay,
@@ -265,7 +266,7 @@ export function buildOperatorBoard(input: {
         endTime: end.time,
         endsNextDay: end.nextDay,
         durationMinutes: slot.durationMinutes,
-        active: slot.active,
+        active: isTimetableSlotOperationalOnDate(slot, date),
         resumesOn: slot.resumesOn,
         date,
         operatorName,
