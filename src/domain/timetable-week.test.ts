@@ -11,6 +11,10 @@ import {
   resolveOperator,
   weekdayOf,
   weekRangeLabel,
+  weekDatesAtOffset,
+  weekDatesFrom,
+  weekRangeCompactLabel,
+  weekMonthTitle,
   type ClassOccurrence,
 } from "./timetable-week";
 import type { DmcTimetableSlot } from "./timetable";
@@ -361,7 +365,7 @@ describe("Google-Calendar-style week navigation", () => {
       "2026-09-06",
     ]);
     expect(weekRangeCompactLabel(weekDatesAtOffset("2026-09-13", -1))).toBe("31 Aug – 6 Sep");
-    expect(weekMonthTitle(weekDatesAtOffset("2026-09-13", -1))).toBe("September / October 2026".replace("September / October", "August / September"));
+    expect(weekMonthTitle(weekDatesAtOffset("2026-09-13", -1))).toBe("August / September 2026");
     expect(weekMonthTitle(weekDatesFrom("2026-09-14"))).toBe("September 2026");
     expect(weekMonthTitle(weekDatesAtOffset("2026-09-13", 3))).toBe("September / October 2026");
   });
