@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { TimetableWeek, TimetableWeekSkeleton } from "@/components/admin/TimetableWeek";
@@ -10,10 +10,10 @@ import { formatBerlinTimestamp } from "@/domain/timetable-view";
 import {
   berlinDate,
   buildOperatorBoard,
-  weekIndexForDate,
-  weekRangeShortLabel,
+  weekDatesAtOffset,
+  weekMonthTitle,
+  weekRangeCompactLabel,
 } from "@/domain/timetable-week";
-import { cn } from "@/lib/utils";
 import { getTimetableMonthBoard, refreshLiveTimetable } from "@/lib/timetable.functions";
 import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/admin/timetable")({
   head: () => ({
     meta: pageMeta(
       PAGE_TITLES.timetable,
-      "This month's DMC classes, week by week, with the operator responsible for each one.",
+      "The DMC class week, with the operator responsible for each class this month.",
     ),
   }),
   component: AdminTimetable,
@@ -31,8 +31,8 @@ function AdminTimetable() {
   const qc = useQueryClient();
   const load = useServerFn(getTimetableMonthBoard);
   const refresh = useServerFn(refreshLiveTimetable);
-  // Default to the week containing today; a new month naturally lands on Week 1.
-  const [weekIndex, setWeekIndex] = useState(() => weekIndexForDate(berlinDate()));
+  // Whole weeks away from the week containing today (Europe/Berlin).
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const { data, isPending, error } = useQuery({
     queryKey: ["admin", "timetable-month"],
