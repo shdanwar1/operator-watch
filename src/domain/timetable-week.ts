@@ -255,6 +255,11 @@ export function buildOperatorBoard(input: {
   shifts: ShiftAssignmentRow[];
   /** DMC source class id → `dmc_classes.id`, as referenced by occurrences. */
   classIdBySource: Record<string, string>;
+  /**
+   * Operational month, "YYYY-MM". Dates outside it show their DMC classes but
+   * never an operator — assignments are only ever read for this month.
+   */
+  assignmentMonth?: string | null;
 }): BoardDay[] {
   const classBySource = new Map(input.classes.map((c) => [c.sourceClassId, c]));
   const instructorBySource = new Map(input.instructors.map((i) => [i.sourceInstructorId, i]));
