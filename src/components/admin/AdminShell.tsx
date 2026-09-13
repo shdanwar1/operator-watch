@@ -22,8 +22,8 @@ import { cn } from "@/lib/utils";
  * AppShell: different navigation, different routes, no operator features.
  */
 const ADMIN_NAV: { label: string; to: string; icon: typeof CalendarDays; exact?: boolean }[] = [
-  { label: "Calendar", to: "/admin/calendar", icon: CalendarDays },
   { label: "Live Timetable", to: "/admin/live-timetable", icon: CalendarRange },
+  { label: "Calendar", to: "/admin/calendar", icon: CalendarDays },
   { label: "Shifts", to: "/admin/shifts", icon: ListChecks },
   { label: "Operators", to: "/admin/operators", icon: Users },
   { label: "Settings", to: "/admin/settings", icon: Settings },
