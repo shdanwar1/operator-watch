@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { TimetableWeek, TimetableWeekSkeleton } from "@/components/admin/TimetableWeek";
 import { formatBerlinTimestamp } from "@/domain/timetable-view";
-import { buildOperatorBoard, weekRangeLabel } from "@/domain/timetable-week";
+import { buildOperatorBoard } from "@/domain/timetable-week";
 import { getLiveTimetableBoard, refreshLiveTimetable } from "@/lib/timetable.functions";
 import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 
@@ -71,18 +71,15 @@ function AdminLiveTimetable() {
   );
 
   const lastUpdated = formatBerlinTimestamp(data?.timetable.lastRefreshedAt ?? null);
-  const rangeLabel = weekRangeLabel(data?.weekDates ?? []);
   const isEmpty = !isPending && !error && (data?.timetable.slots.length ?? 0) === 0;
   const busy = refreshMutation.isPending;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Live Timetable</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {rangeLabel || "Current week"} · who is operating each class
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Current Week</p>
         </div>
         <div className="flex items-center gap-3">
           {lastUpdated && (
