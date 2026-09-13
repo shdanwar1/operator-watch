@@ -332,3 +332,95 @@ describe("dated suspended / resumesOn occurrences", () => {
     expect(cardOn(days, "2026-09-14").resumesOn).toBe("2026-09-21");
   });
 });
+
+describe("Google-Calendar-style week navigation", () => {
+  it("always shows a Monday→Sunday week containing today", () => {
+    const week = weekDatesAtOffset(berlinDate(new Date("2026-09-13T10:00:00Z")), 0);
+    expect(week[0]).toBe("2026-09-07");
+    expect(week.at(-1)).toBe("2026-09-13");
+    expect(weekdayOf(week[0])).toBe(1);
+    expect(weekdayOf(week.at(-1)!)).toBe(0);
+  });
+
+  it("moves exactly seven days per step, in both directions", () => {
+    const today = "2026-09-13";
+    expect(weekDatesAtOffset(today, -1)[0]).toBe("2026-08-31");
+    expect(weekDatesAtOffset(today, 1)[0]).toBe("2026-09-14");
+    expect(weekDatesAtOffset(today, 3)).toEqual(weekDatesFrom("2026-09-28"));
+    expect(weekDatesAtOffset(today, 3).at(-1)).toBe("2026-10-04");
+  });
+
+  it("shows weeks that cross a month boundary", () => {
+    expect(weekDatesAtOffset("2026-09-13", -1)).toEqual([
+      "2026-08-31",
+      "2026-09-01",
+      "2026-09-02",
+      "2026-09-03",
+      "2026-09-04",
+      "2026-09-05",
+      "2026-09-06",
+    ]);
+    expect(weekRangeCompactLabel(weekDatesAtOffset("2026-09-13", -1))).toBe("31 Aug – 6 Sep");
+    expect(weekMonthTitle(weekDatesAtOffset("2026-09-13", -1))).toBe("September / October 2026".replace("September / October", "August / September"));
+    expect(weekMonthTitle(weekDatesFrom("2026-09-14"))).toBe("September 2026");
+    expect(weekMonthTitle(weekDatesAtOffset("2026-09-13", 3))).toBe("September / October 2026");
+  });
+});
+
+describe("month-scoped operator assignment", () => {
+  const septemberBoard = (weekDates: string[]) =>
+    buildOperatorBoard({
+      weekDates,
+      // A Monday slot and a Thursday slot, so out-of-month days have classes too.
+      slots: [slot(), slot({ sourceSlotId: "s2", dayLocal: 4 })],
+      classes,
+      instructors,
+      occurrences: [
+        occurrence({ specificDate: "2026-08-31" }),
+        occurrence({ specificDate: "2026-09-14" }),
+        occurrence({ id: "o3", specificDate: "2026-10-01" }),
+      ],
+      shifts: [{ id: "shift-1", assignedOperator: "Alex" }],
+      classIdBySource,
+      assignmentMonth: "2026-09",
+    });
+
+  it("shows 31 August classes with no operator while September is current", () => {
+    const day = septemberBoard(weekDatesAtOffset("2026-09-13", -1)).find(
+      (d) => d.date === "2026-08-31",
+    )!;
+    expect(day.cards).toHaveLength(1);
+    expect(day.cards[0].assigned).toBe(false);
+    expect(day.cards[0].operatorName).toBeNull();
+  });
+
+  it("uses September assignments for September dates", () => {
+    const day = septemberBoard(weekDatesFrom("2026-09-14")).find((d) => d.date === "2026-09-14")!;
+    expect(day.cards[0].operatorName).toBe("Alex");
+  });
+
+  it("shows 1–4 October classes with no operator", () => {
+    const week = septemberBoard(weekDatesAtOffset("2026-09-13", 3));
+    const oct1 = week.find((d) => d.date === "2026-10-01")!;
+    expect(oct1.cards).toHaveLength(1);
+    expect(oct1.cards[0].operatorName).toBeNull();
+    for (const d of week.filter((d) => d.date >= "2026-10-01")) {
+      for (const c of d.cards) expect(c.assigned).toBe(false);
+    }
+  });
+
+  it("keeps resumesOn date-aware across the month boundary", () => {
+    const week = buildOperatorBoard({
+      weekDates: weekDatesAtOffset("2026-09-13", 3),
+      slots: [slot({ active: false, resumesOn: "2026-10-01" })],
+      classes,
+      instructors,
+      occurrences: [],
+      shifts: [],
+      classIdBySource,
+      assignmentMonth: "2026-09",
+    });
+    expect(week.find((d) => d.date === "2026-09-28")!.cards[0].active).toBe(false);
+    expect(week.find((d) => d.date === "2026-10-05")).toBeUndefined();
+  });
+});
