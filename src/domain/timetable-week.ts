@@ -288,10 +288,11 @@ export function buildOperatorBoard(input: {
       const end = addMinutesLocal(slot.startTimeLocal, slot.durationMinutes);
       const name = instructorName(instructor);
       const dmcClassId = input.classIdBySource[slot.sourceClassId];
-      const occurrence = dmcClassId
-        ? (occurrenceByKey.get(`${date}|${dmcClassId}|${slot.startTimeLocal}`) ?? null)
-        : null;
-      const operatorName = resolveOperator(occurrence, shiftsById);
+      const occurrence =
+        inScope && dmcClassId
+          ? (occurrenceByKey.get(`${date}|${dmcClassId}|${slot.startTimeLocal}`) ?? null)
+          : null;
+      const operatorName = inScope ? resolveOperator(occurrence, shiftsById) : null;
 
       return {
         sourceSlotId: slot.sourceSlotId,
