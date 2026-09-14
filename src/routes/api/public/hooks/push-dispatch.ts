@@ -233,7 +233,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
               title: job.title,
               body: job.body,
               tag: job.key,
-              url: "/",
+              url: job.url ?? "/",
             });
           } catch (err) {
             result = {

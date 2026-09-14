@@ -142,13 +142,15 @@ export async function reconcileShiftNotifications(): Promise<{
     if (key.startsWith("leave:")) {
       const ms = Date.parse(key.slice("leave:".length));
       valid = Number.isFinite(ms) ? !!validStarts.get(d.operator_id)?.has(ms) : true;
-    } else if (key.startsWith("start:")) {
-      const [shiftId, iso] = key.slice("start:".length).split("@");
+    } else if (key.startsWith("start:") || key.startsWith("checkin:")) {
+      const prefix = key.startsWith("start:") ? "start:" : "checkin:";
+      const [shiftId, iso] = key.slice(prefix.length).split("@");
       const live = startByShiftId.get(shiftId);
       if (live === null) valid = false;
       else if (live && iso) valid = live.ms === Date.parse(iso);
       // unknown shift id (outside the window) → leave alone
     }
+
     if (valid) continue;
 
     if (d.status === "pending" || d.status === "sending" || d.status === "failed") {
