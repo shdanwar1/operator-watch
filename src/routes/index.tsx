@@ -48,6 +48,10 @@ import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 
 import { publishSync } from "@/lib/sync-bus";
 import {
+  captureAutoCheckInIntent,
+  consumeAutoCheckInIntent,
+} from "@/lib/auto-checkin-intent";
+import {
   listMyCalendarClasses,
   setMyClassStatus,
   type CalendarClassRow,
@@ -513,27 +517,36 @@ function Index() {
   // only names the shift; the server verifies ownership, state and the
   // 10-minute window, and is idempotent, so a repeat tap or refresh is safe.
   const autoCheckInFn = useServerFn(autoCheckInShift);
-  const autoCheckInHandled = useRef(false);
+  const autoCheckInBusy = useRef(false);
   useEffect(() => {
-    if (autoCheckInHandled.current) return;
-    const params = new URLSearchParams(window.location.search);
-    const target = params.get("autoCheckIn");
-    if (!target) return;
-    autoCheckInHandled.current = true;
+    const run = () => {
+      if (autoCheckInBusy.current) return;
+      // The intent may still sit in the URL (direct open) or have been parked
+      // before sign-in; either way it is taken exactly once.
+      captureAutoCheckInIntent();
+      const target = consumeAutoCheckInIntent();
+      if (!target) return;
+      autoCheckInBusy.current = true;
 
-    // Drop the intent from the URL straight away so a refresh never repeats it.
-    params.delete("autoCheckIn");
-    const rest = params.toString();
-    window.history.replaceState({}, "", window.location.pathname + (rest ? `?${rest}` : ""));
+      autoCheckInFn({ data: { scheduled_shift_id: target } })
+        .then((row) => {
+          setActive(row);
+          load();
+        })
+        .catch(() => {
+          toast.error("Automatic check-in is no longer available — hold to check in.");
+        })
+        .finally(() => {
+          autoCheckInBusy.current = false;
+        });
+    };
 
-    autoCheckInFn({ data: { scheduled_shift_id: target } })
-      .then((row) => {
-        setActive(row);
-        load();
-      })
-      .catch(() => {
-        toast.error("Automatic check-in is no longer available — hold to check in.");
-      });
+    run();
+    // Fired by the root when the service worker reports a tap on an app that
+    // is already open on the dashboard.
+    window.addEventListener("auto-checkin-intent", run);
+    return () => window.removeEventListener("auto-checkin-intent", run);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoCheckInFn]);
 
 
