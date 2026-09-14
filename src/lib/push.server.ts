@@ -18,8 +18,10 @@ export type PushPayload = {
   body: string;
   tag?: string;
   url?: string;
-  /** "close" asks the service worker to retract an already-shown notification. */
-  type?: "notify" | "close";
+  /** "close" retracts a shown notification; otherwise the notification type. */
+  type?: string;
+  /** Set on the exact-start check-in notification so the tap can act on it. */
+  scheduledShiftId?: string;
 };
 
 function vapid() {

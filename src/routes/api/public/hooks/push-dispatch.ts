@@ -78,6 +78,8 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           shiftStartMs: number;
           /** Where tapping the notification takes the operator. */
           url?: string;
+          /** Shift the tap should check the operator into, if any. */
+          scheduledShiftId?: string;
         };
 
         const jobs: Job[] = [];
@@ -176,6 +178,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
               body: "Tap to check in",
               // Identifies the shift only; the server decides everything else.
               url: `/?autoCheckIn=${shift.id}`,
+              scheduledShiftId: shift.id,
             });
           }
         }
@@ -234,6 +237,8 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
               body: job.body,
               tag: job.key,
               url: job.url ?? "/",
+              type: job.type,
+              ...(job.scheduledShiftId ? { scheduledShiftId: job.scheduledShiftId } : {}),
             });
           } catch (err) {
             result = {
