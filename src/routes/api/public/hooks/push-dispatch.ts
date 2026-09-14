@@ -110,8 +110,9 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             operatorId: plan.operator_id,
             // Canonical instant in the key: a retimed shift produces a new key,
             // so the old reminder can never be reused.
-            key: `leave:${shiftStart.toISOString()}`,
-            type: "time_to_leave",
+            key: leaveKey(shiftStart),
+            type: NOTIFICATION_TYPES.timeToLeave,
+
             at,
             shiftStartMs: shiftStart.getTime(),
             title: "Leave in 15 minutes",
