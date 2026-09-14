@@ -10,6 +10,10 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import {
+  captureAutoCheckInIntent,
+  storeAutoCheckInIntent,
+} from "../lib/auto-checkin-intent";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -121,6 +125,26 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // The "Shift starting now" tap arrives as ?autoCheckIn=<id>. It is captured
+  // here, on whatever route the app lands on, because signing in redirects
+  // through /unlock and would otherwise discard it. The dashboard consumes it
+  // once the operator session exists.
+  useEffect(() => {
+    captureAutoCheckInIntent();
+
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; scheduledShiftId?: string } | null;
+      if (!data || data.type !== "shift_start_check_in" || !data.scheduledShiftId) return;
+      storeAutoCheckInIntent(data.scheduledShiftId);
+      // Already-open app: land on the dashboard so the intent is acted on.
+      if (window.location.pathname !== "/") window.location.assign("/");
+      else window.dispatchEvent(new Event("auto-checkin-intent"));
+    };
+
+    navigator.serviceWorker?.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker?.removeEventListener("message", onMessage);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

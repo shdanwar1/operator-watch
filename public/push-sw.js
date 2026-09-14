@@ -35,7 +35,11 @@ self.addEventListener("push", (event) => {
     renotify: true,
     icon: "/favicon.ico",
     badge: "/favicon.ico",
-    data: { url: payload.url || "/" },
+    data: {
+      url: payload.url || "/",
+      type: payload.type || "notify",
+      scheduledShiftId: payload.scheduledShiftId || null,
+    },
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -43,25 +47,46 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = (event.notification.data && event.notification.data.url) || "/";
+  const data = event.notification.data || {};
+  const target = data.url || "/";
+  const absolute = new URL(target, self.location.origin).href;
 
   event.waitUntil(
     (async () => {
       const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+
       for (const client of all) {
-        if ("focus" in client) {
-          await client.focus();
-          if ("navigate" in client) {
-            try {
-              await client.navigate(target);
-            } catch {
-              /* ignore */
-            }
-          }
-          return;
+        // Tell the open app about the intent first: on browsers where
+        // client.navigate() is unavailable or rejects (notably installed iOS
+        // apps), this message is the only thing that survives the tap.
+        try {
+          client.postMessage({
+            type: data.type || "notify",
+            scheduledShiftId: data.scheduledShiftId || null,
+            url: target,
+          });
+        } catch {
+          /* ignore */
         }
+
+        try {
+          if ("focus" in client) await client.focus();
+        } catch {
+          /* ignore */
+        }
+
+        if ("navigate" in client) {
+          try {
+            await client.navigate(absolute);
+            return;
+          } catch {
+            /* uncontrolled or unsupported — the postMessage above stands in */
+          }
+        }
+        return;
       }
-      await self.clients.openWindow(target);
+
+      await self.clients.openWindow(absolute);
     })(),
   );
 });
