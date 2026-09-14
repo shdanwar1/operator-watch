@@ -76,7 +76,10 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           body: string;
           /** Start instant of the shift this reminder belongs to. */
           shiftStartMs: number;
+          /** Where tapping the notification takes the operator. */
+          url?: string;
         };
+
         const jobs: Job[] = [];
 
         // --- Leave in 15 minutes (from the server-side travel plans) ---
