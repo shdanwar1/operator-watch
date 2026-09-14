@@ -7,6 +7,8 @@ import {
   listShifts,
   listScheduledShifts,
   createShift,
+  autoCheckInShift,
+
   checkOutShift,
   updateShift as updateShiftFn,
   type ShiftRow,
@@ -506,6 +508,34 @@ function Index() {
       setCheckingIn(false);
     }
   }
+
+  // Automatic check-in from the "Shift starting now" notification. The URL
+  // only names the shift; the server verifies ownership, state and the
+  // 10-minute window, and is idempotent, so a repeat tap or refresh is safe.
+  const autoCheckInFn = useServerFn(autoCheckInShift);
+  const autoCheckInHandled = useRef(false);
+  useEffect(() => {
+    if (autoCheckInHandled.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const target = params.get("autoCheckIn");
+    if (!target) return;
+    autoCheckInHandled.current = true;
+
+    // Drop the intent from the URL straight away so a refresh never repeats it.
+    params.delete("autoCheckIn");
+    const rest = params.toString();
+    window.history.replaceState({}, "", window.location.pathname + (rest ? `?${rest}` : ""));
+
+    autoCheckInFn({ data: { scheduled_shift_id: target } })
+      .then((row) => {
+        setActive(row);
+        load();
+      })
+      .catch(() => {
+        toast.error("Automatic check-in is no longer available — hold to check in.");
+      });
+  }, [autoCheckInFn]);
+
 
   async function updateActive(patch: Partial<Shift>) {
     if (!active) return;

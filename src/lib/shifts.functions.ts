@@ -115,6 +115,61 @@ export const listScheduledShifts = createServerFn({ method: "GET" }).handler(asy
 });
 
 
+/**
+ * The single attendance-creation path.
+ *
+ * Idempotent for scheduled shifts: if the operator already has an open
+ * attendance record for the same scheduled shift, that record is returned
+ * instead of a second one being created. A database partial unique index
+ * (`shifts_one_open_per_scheduled`) closes the race window.
+ */
+async function openAttendance(username: string, scheduledShiftId: string | null) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { canonicalUsername } = await import("@/domain/operator-resolver.server");
+  const canonical = await canonicalUsername(username);
+
+  if (scheduledShiftId) {
+    const { data: open } = await supabaseAdmin
+      .from("shifts")
+      .select("*")
+      .eq("scheduled_shift_id", scheduledShiftId)
+      .is("check_out_at", null)
+      .maybeSingle();
+    if (open) {
+      const row = normalizeShift(open as Record<string, unknown>);
+      if (!sameOperator(row.operator_name, canonical)) {
+        throw new Response("Forbidden", { status: 403 });
+      }
+      return row;
+    }
+  }
+
+  const { data: row, error } = await supabaseAdmin
+    .from("shifts")
+    .insert({
+      operator_name: canonical,
+      scheduled_shift_id: scheduledShiftId,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    // Lost the race against a concurrent check-in (same notification on two
+    // devices): adopt the row that won instead of failing.
+    if (scheduledShiftId) {
+      const { data: existing } = await supabaseAdmin
+        .from("shifts")
+        .select("*")
+        .eq("scheduled_shift_id", scheduledShiftId)
+        .is("check_out_at", null)
+        .maybeSingle();
+      if (existing) return normalizeShift(existing as Record<string, unknown>);
+    }
+    throw new Error(error.message);
+  }
+  return normalizeShift(row as Record<string, unknown>);
+}
+
 export const createShift = createServerFn({ method: "POST" })
   .inputValidator(
     (data?: { scheduled_shift_id?: string | null }) => {
@@ -138,23 +193,50 @@ export const createShift = createServerFn({ method: "POST" })
     if (data.scheduled_shift_id) {
       await assertScheduledOwnership(data.scheduled_shift_id, username, false);
     }
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-
-    const { canonicalUsername } = await import("@/domain/operator-resolver.server");
-    const canonical = await canonicalUsername(username);
-
-    const { data: row, error } = await supabaseAdmin
-      .from("shifts")
-      .insert({
-        operator_name: canonical,
-        scheduled_shift_id: data.scheduled_shift_id,
-      })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    return normalizeShift(row as Record<string, unknown>);
+    return openAttendance(username, data.scheduled_shift_id);
   });
+
+/**
+ * Automatic check-in from the "Shift starting now" push notification.
+ *
+ * The notification only names a scheduled shift; everything that matters —
+ * who the operator is, whether the shift still exists, is still theirs, is
+ * not cancelled and is inside the 10-minute window — is decided here, from
+ * live data, never from the payload.
+ */
+export const autoCheckInShift = createServerFn({ method: "POST" })
+  .inputValidator((data: { scheduled_shift_id: string }) => {
+    const sid = String(data?.scheduled_shift_id ?? "");
+    if (!sid || sid.length > 64) throw new Error("Invalid scheduled_shift_id");
+    return { scheduled_shift_id: sid };
+  })
+  .handler(async ({ data }) => {
+    const { username, isAdmin } = await requireGate();
+    if (!username || isAdmin) {
+      throw new Response("Sign in as an operator to check in", { status: 403 });
+    }
+
+    // Ownership is the security boundary — same path as manual check-in.
+    await assertScheduledOwnership(data.scheduled_shift_id, username, false);
+
+    const { findById } = await import("@/domain/shift-repository.server");
+    const shift = await findById(data.scheduled_shift_id);
+    if (!shift) throw new Response("Scheduled shift not found", { status: 404 });
+    if (shift.status === "cancelled") {
+      throw new Response("This shift was cancelled", { status: 409 });
+    }
+
+    const { berlinInstant } = await import("./push-time");
+    const { withinAutoCheckInWindow } = await import("./push-keys");
+    const start = berlinInstant(shift.specific_date, shift.start_time);
+    if (!start) throw new Response("Shift has no valid start time", { status: 409 });
+    if (!withinAutoCheckInWindow(start, new Date())) {
+      throw new Response("Automatic check-in window has expired", { status: 410 });
+    }
+
+    return openAttendance(username, data.scheduled_shift_id);
+  });
+
 
 export const createPastShift = createServerFn({ method: "POST" })
   .inputValidator(

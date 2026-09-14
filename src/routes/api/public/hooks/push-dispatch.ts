@@ -1,6 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { berlinClock, berlinInstant } from "@/lib/push-time";
+import {
+  NOTIFICATION_TYPES,
+  leaveKey,
+  startCheckInKey,
+  startReminderKey,
+} from "@/lib/push-keys";
 import { normalizeUsername } from "@/domain/operator-identity";
+
 
 /**
  * Scheduled push dispatcher.
@@ -69,7 +76,10 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           body: string;
           /** Start instant of the shift this reminder belongs to. */
           shiftStartMs: number;
+          /** Where tapping the notification takes the operator. */
+          url?: string;
         };
+
         const jobs: Job[] = [];
 
         // --- Leave in 15 minutes (from the server-side travel plans) ---
@@ -100,8 +110,8 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             operatorId: plan.operator_id,
             // Canonical instant in the key: a retimed shift produces a new key,
             // so the old reminder can never be reused.
-            key: `leave:${shiftStart.toISOString()}`,
-            type: "time_to_leave",
+            key: leaveKey(shiftStart),
+            type: NOTIFICATION_TYPES.timeToLeave,
             at,
             shiftStartMs: shiftStart.getTime(),
             title: "Leave in 15 minutes",
@@ -111,7 +121,9 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           });
         }
 
-        // --- Shift start (15 minutes before) ---
+        // --- Shift start: a reminder 15 minutes before, and a separate
+        // "starting now" notification at the exact start that checks the
+        // operator in when tapped. Both are governed by notifyShiftStart. ---
         const todayKeys = [-1, 0, 1].map((offset) => {
           const d = new Date(now + offset * 24 * 60 * 60 * 1000);
           return d.toLocaleDateString("en-CA", { timeZone: "Europe/Berlin" });
@@ -137,21 +149,37 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
           const start = berlinInstant(shift.specific_date, shift.start_time);
           if (!start) continue;
-          const at = new Date(start.getTime() - SHIFT_START_LEAD_MIN * 60_000);
-          if (!due(at, now)) continue;
 
-          jobs.push({
-            operatorId,
-            // Key carries the shift's current start instant, so a calendar
-            // retime invalidates the previously scheduled reminder.
-            key: `start:${shift.id}@${start.toISOString()}`,
-            type: "shift_start",
-            at,
-            shiftStartMs: start.getTime(),
-            title: "Shift starts soon",
-            body: `Your shift starts at ${berlinClock(start)} — ${SHIFT_START_LEAD_MIN} minutes from now.`,
-          });
+          const remindAt = new Date(start.getTime() - SHIFT_START_LEAD_MIN * 60_000);
+          if (due(remindAt, now)) {
+            jobs.push({
+              operatorId,
+              // Key carries the shift's current start instant, so a calendar
+              // retime invalidates the previously scheduled reminder.
+              key: startReminderKey(shift.id, start),
+              type: NOTIFICATION_TYPES.shiftStartReminder,
+              at: remindAt,
+              shiftStartMs: start.getTime(),
+              title: "Shift starts soon",
+              body: `Your shift starts at ${berlinClock(start)} — ${SHIFT_START_LEAD_MIN} minutes from now.`,
+            });
+          }
+
+          if (due(start, now)) {
+            jobs.push({
+              operatorId,
+              key: startCheckInKey(shift.id, start),
+              type: NOTIFICATION_TYPES.shiftStartCheckIn,
+              at: start,
+              shiftStartMs: start.getTime(),
+              title: "Shift starting now",
+              body: "Tap to check in",
+              // Identifies the shift only; the server decides everything else.
+              url: `/?autoCheckIn=${shift.id}`,
+            });
+          }
         }
+
 
         const stats = {
           candidates: jobs.length,
@@ -205,7 +233,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
               title: job.title,
               body: job.body,
               tag: job.key,
-              url: "/",
+              url: job.url ?? "/",
             });
           } catch (err) {
             result = {
