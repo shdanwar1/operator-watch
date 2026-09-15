@@ -34,8 +34,15 @@ function AdminTimetable() {
   const qc = useQueryClient();
   const load = useServerFn(getTimetableMonthBoard);
   const refresh = useServerFn(refreshLiveTimetable);
-  // Whole weeks away from the week containing today (Europe/Berlin).
-  const [weekOffset, setWeekOffset] = useState(0);
+  // Navigation is restricted to the weeks intersecting the current Berlin month.
+  const today = berlinDate();
+  const { year, month } = currentBerlinMonth();
+  const weekStarts = useMemo(() => monthNavigableWeekStarts(year, month), [year, month]);
+  const todayIndex = useMemo(
+    () => navigableWeekIndexForDate(today, year, month),
+    [today, year, month],
+  );
+  const [weekIndex, setWeekIndex] = useState(todayIndex);
 
   const { data, isPending, error } = useQuery({
     queryKey: ["admin", "timetable-month"],
