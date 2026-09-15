@@ -47,11 +47,6 @@ export type BoardCard = TimetableCard & {
   /** Current operator, or null when nobody is assigned. */
   operatorName: string | null;
   assigned: boolean;
-  /**
-   * False when the date lies outside the operational month: assignments are
-   * not loaded for it, so "Unassigned" would be misleading.
-   */
-  assignmentKnown: boolean;
 };
 
 export type BoardDay = {
@@ -61,6 +56,8 @@ export type BoardDay = {
   weekday: string;
   /** "15 September" */
   dateLabel: string;
+  /** False when the date lies outside the operational month: the column is empty. */
+  inMonth: boolean;
   cards: BoardCard[];
 };
 
