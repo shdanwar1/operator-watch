@@ -331,6 +331,7 @@ export function buildOperatorBoard(input: {
       dayLocal,
       weekday: WEEKDAY_LABEL[dayLocal],
       dateLabel: dayDateLabel(date),
+      inMonth: inScope,
       cards,
     };
   });
