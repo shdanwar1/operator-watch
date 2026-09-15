@@ -143,6 +143,9 @@ function RootComponent() {
     };
 
     navigator.serviceWorker?.addEventListener("message", onMessage);
+    // addEventListener alone leaves the client message queue disabled, so
+    // messages the service worker posts on a notification tap never arrive.
+    navigator.serviceWorker?.startMessages?.();
     return () => navigator.serviceWorker?.removeEventListener("message", onMessage);
   }, []);
 
