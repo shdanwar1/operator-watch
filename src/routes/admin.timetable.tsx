@@ -107,7 +107,7 @@ function AdminTimetable() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Timetable</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {weekMonthTitle(weekDates)}
+            {weekMonthTitle([`${year}-${String(month).padStart(2, "0")}-01`])}
             <span className="mx-1.5 text-muted-foreground/60">·</span>
             <span className="tabular-nums">{weekRangeCompactLabel(weekDates)}</span>
           </p>
