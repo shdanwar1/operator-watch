@@ -106,7 +106,7 @@ export function TimetableWeek({ week }: { week: BoardDay[] }) {
               {day.dateLabel}
             </span>
           </h2>
-          {day.cards.length === 0 ? (
+          {!day.inMonth ? null : day.cards.length === 0 ? (
             <p className="py-2 text-xs text-muted-foreground">No classes</p>
           ) : (
             <ul className="space-y-1.5">
