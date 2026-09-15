@@ -389,13 +389,13 @@ describe("month-scoped operator assignment", () => {
       assignmentMonth: "2026-09",
     });
 
-  it("shows 31 August classes with no operator while September is current", () => {
+  it("keeps 31 August as a visible but empty column while September is current", () => {
     const day = septemberBoard(weekDatesAtOffset("2026-09-13", -1)).find(
       (d) => d.date === "2026-08-31",
     )!;
-    expect(day.cards).toHaveLength(1);
-    expect(day.cards[0].assigned).toBe(false);
-    expect(day.cards[0].operatorName).toBeNull();
+    expect(day.weekday).toBe("Monday");
+    expect(day.inMonth).toBe(false);
+    expect(day.cards).toHaveLength(0);
   });
 
   it("uses September assignments for September dates", () => {
