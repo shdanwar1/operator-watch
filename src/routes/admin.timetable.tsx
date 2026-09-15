@@ -137,7 +137,8 @@ function AdminTimetable() {
             size="icon"
             className="h-8 w-8"
             aria-label="Previous week"
-            onClick={() => setWeekOffset((o) => o - 1)}
+            disabled={clampedIndex === 0}
+            onClick={() => setWeekIndex((i) => Math.max(0, i - 1))}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
