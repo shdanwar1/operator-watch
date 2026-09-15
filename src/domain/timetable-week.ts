@@ -258,8 +258,8 @@ export function buildOperatorBoard(input: {
   /** DMC source class id → `dmc_classes.id`, as referenced by occurrences. */
   classIdBySource: Record<string, string>;
   /**
-   * Operational month, "YYYY-MM". Dates outside it show their DMC classes but
-   * never an operator — assignments are only ever read for this month.
+   * Operational month, "YYYY-MM". Dates outside it render no classes at all:
+   * the column stays in the week, but the timetable is strictly month-scoped.
    */
   assignmentMonth?: string | null;
 }): BoardDay[] {
