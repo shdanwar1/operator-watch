@@ -75,9 +75,10 @@ function AdminTimetable() {
   });
 
   // The displayed Monday–Sunday week, which may cross the month boundary.
+  const clampedIndex = Math.min(Math.max(weekIndex, 0), weekStarts.length - 1);
   const weekDates = useMemo(
-    () => weekDatesAtOffset(berlinDate(), weekOffset),
-    [weekOffset],
+    () => weekDatesFrom(weekStarts[clampedIndex]),
+    [weekStarts, clampedIndex],
   );
 
   // Operator assignments come only from the current operational month.
