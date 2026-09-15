@@ -158,7 +158,8 @@ function AdminTimetable() {
             size="icon"
             className="h-8 w-8"
             aria-label="Next week"
-            onClick={() => setWeekOffset((o) => o + 1)}
+            disabled={clampedIndex === weekStarts.length - 1}
+            onClick={() => setWeekIndex((i) => Math.min(weekStarts.length - 1, i + 1))}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
