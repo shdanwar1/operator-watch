@@ -10,7 +10,10 @@ import { formatBerlinTimestamp } from "@/domain/timetable-view";
 import {
   berlinDate,
   buildOperatorBoard,
-  weekDatesAtOffset,
+  currentBerlinMonth,
+  monthNavigableWeekStarts,
+  navigableWeekIndexForDate,
+  weekDatesFrom,
   weekMonthTitle,
   weekRangeCompactLabel,
 } from "@/domain/timetable-week";
