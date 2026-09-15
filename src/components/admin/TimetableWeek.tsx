@@ -12,6 +12,13 @@ import type { BoardCard, BoardDay } from "@/domain/timetable-week";
 
 function OperatorLine({ card }: { card: BoardCard }) {
   const color = card.assigned ? opColor(card.operatorName) : null;
+  // Outside the operational month no assignments are loaded, so saying
+  // "Unassigned" would wrongly suggest the class is uncovered.
+  const label = card.assigned
+    ? card.operatorName
+    : card.assignmentKnown
+      ? "Unassigned"
+      : "Outside current month";
   return (
     <div className="mt-1.5 flex items-center gap-1.5">
       <span
@@ -27,7 +34,7 @@ function OperatorLine({ card }: { card: BoardCard }) {
           card.assigned ? (color?.text ?? "text-foreground") : "text-muted-foreground",
         )}
       >
-        {card.assigned ? card.operatorName : "Unassigned"}
+        {label}
       </span>
     </div>
   );
