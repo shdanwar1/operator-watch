@@ -403,14 +403,54 @@ describe("month-scoped operator assignment", () => {
     expect(day.cards[0].operatorName).toBe("Alex");
   });
 
-  it("shows 1–4 October classes with no operator", () => {
+  it("renders 28–30 September classes but leaves 1–4 October empty", () => {
     const week = septemberBoard(weekDatesAtOffset("2026-09-13", 3));
-    const oct1 = week.find((d) => d.date === "2026-10-01")!;
-    expect(oct1.cards).toHaveLength(1);
-    expect(oct1.cards[0].operatorName).toBeNull();
+    expect(week.map((d) => d.date)).toEqual([
+      "2026-09-28",
+      "2026-09-29",
+      "2026-09-30",
+      "2026-10-01",
+      "2026-10-02",
+      "2026-10-03",
+      "2026-10-04",
+    ]);
+    expect(week.find((d) => d.date === "2026-09-28")!.cards.length).toBeGreaterThan(0);
     for (const d of week.filter((d) => d.date >= "2026-10-01")) {
-      for (const c of d.cards) expect(c.assigned).toBe(false);
+      expect(d.inMonth).toBe(false);
+      expect(d.cards).toHaveLength(0);
     }
+  });
+
+  it("never renders out-of-month suspended cards", () => {
+    const week = buildOperatorBoard({
+      weekDates: weekDatesAtOffset("2026-09-13", 3),
+      slots: [slot({ dayLocal: 4, active: false, resumesOn: null })],
+      classes,
+      instructors,
+      occurrences: [],
+      shifts: [],
+      classIdBySource,
+      assignmentMonth: "2026-09",
+    });
+    // Thursday 1 October is outside September: no card at all.
+    expect(week.find((d) => d.date === "2026-10-01")!.cards).toHaveLength(0);
+  });
+
+  it("still shows Unassigned for in-month classes with no operator", () => {
+    const day = buildOperatorBoard({
+      weekDates: weekDatesFrom("2026-09-14"),
+      slots: [slot()],
+      classes,
+      instructors,
+      occurrences: [],
+      shifts: [],
+      classIdBySource,
+      assignmentMonth: "2026-09",
+    }).find((d) => d.date === "2026-09-14")!;
+    expect(day.inMonth).toBe(true);
+    expect(day.cards).toHaveLength(1);
+    expect(day.cards[0].assigned).toBe(false);
+    expect(day.cards[0].operatorName).toBeNull();
   });
 
   it("keeps resumesOn date-aware across the month boundary", () => {
