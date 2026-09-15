@@ -5,6 +5,8 @@ import {
   currentBerlinMonth,
   currentBerlinWeek,
   monthWeekRanges,
+  monthNavigableWeekStarts,
+  navigableWeekIndexForDate,
   weekIndexForDate,
   weekRangeShortLabel,
   dayDateLabel,
@@ -466,5 +468,43 @@ describe("month-scoped operator assignment", () => {
     });
     expect(week.find((d) => d.date === "2026-09-28")!.cards[0].active).toBe(false);
     expect(week.find((d) => d.date === "2026-10-05")).toBeUndefined();
+  });
+});
+
+describe("navigable weeks restricted to the current month", () => {
+  it("lists every Monday–Sunday week intersecting September 2026", () => {
+    const starts = monthNavigableWeekStarts(2026, 9);
+    expect(starts).toEqual([
+      "2026-08-31",
+      "2026-09-07",
+      "2026-09-14",
+      "2026-09-21",
+      "2026-09-28",
+    ]);
+    // First week is 31 Aug – 6 Sep, last week is 28 Sep – 4 Oct.
+    expect(weekDatesFrom(starts[0]).at(-1)).toBe("2026-09-06");
+    expect(weekDatesFrom(starts.at(-1)!).at(-1)).toBe("2026-10-04");
+    for (const s of starts) {
+      const week = weekDatesFrom(s);
+      expect(weekdayOf(week[0])).toBe(1);
+      expect(weekdayOf(week.at(-1)!)).toBe(0);
+      expect(week).toHaveLength(7);
+    }
+  });
+
+  it("cannot step into a week outside the current month", () => {
+    const starts = monthNavigableWeekStarts(2026, 9);
+    // Previous from the first navigable week would be 24–30 Aug: not available.
+    expect(starts.includes("2026-08-24")).toBe(false);
+    // Next from the last navigable week would be 5–11 Oct: not available.
+    expect(starts.includes("2026-10-05")).toBe(false);
+  });
+
+  it("selects the week containing today, clamping dates outside the month", () => {
+    expect(navigableWeekIndexForDate("2026-09-16", 2026, 9)).toBe(2);
+    expect(navigableWeekIndexForDate("2026-09-01", 2026, 9)).toBe(0);
+    expect(navigableWeekIndexForDate("2026-09-30", 2026, 9)).toBe(4);
+    expect(navigableWeekIndexForDate("2026-08-01", 2026, 9)).toBe(0);
+    expect(navigableWeekIndexForDate("2026-10-20", 2026, 9)).toBe(4);
   });
 });
