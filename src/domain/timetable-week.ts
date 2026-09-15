@@ -121,6 +121,36 @@ export function weekDatesAtOffset(date: string, offset: number): string[] {
   return weekDatesFrom(shiftDate(weekStartOf(date), offset * 7));
 }
 
+/**
+ * Every Monday that starts a week intersecting the given month — from the
+ * Monday of the week containing the 1st to the Monday of the week containing
+ * the last day. These are the only navigable weeks.
+ */
+export function monthNavigableWeekStarts(year: number, month: number): string[] {
+  const all = monthDates(year, month);
+  const first = weekStartOf(all[0]);
+  const last = weekStartOf(all[all.length - 1]);
+  const starts: string[] = [];
+  for (let d = first; d <= last; d = shiftDate(d, 7)) starts.push(d);
+  return starts;
+}
+
+/**
+ * Index of the navigable week containing `date`, clamped into the month's
+ * range so a date outside the month still lands on a valid week.
+ */
+export function navigableWeekIndexForDate(
+  date: string,
+  year: number,
+  month: number,
+): number {
+  const starts = monthNavigableWeekStarts(year, month);
+  const target = weekStartOf(date);
+  const found = starts.indexOf(target);
+  if (found >= 0) return found;
+  return target < starts[0] ? 0 : starts.length - 1;
+}
+
 /** "31 Aug – 6 Sep" (month shown once when the week stays inside one month). */
 export function weekRangeCompactLabel(dates: string[]): string {
   if (dates.length === 0) return "";
