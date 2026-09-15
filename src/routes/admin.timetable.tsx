@@ -147,8 +147,8 @@ function AdminTimetable() {
             variant="outline"
             size="sm"
             className="h-8"
-            onClick={() => setWeekOffset(0)}
-            disabled={weekOffset === 0}
+            onClick={() => setWeekIndex(todayIndex)}
+            disabled={clampedIndex === todayIndex}
           >
             Today
           </Button>
