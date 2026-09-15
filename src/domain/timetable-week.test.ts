@@ -5,6 +5,8 @@ import {
   currentBerlinMonth,
   currentBerlinWeek,
   monthWeekRanges,
+  monthNavigableWeekStarts,
+  navigableWeekIndexForDate,
   weekIndexForDate,
   weekRangeShortLabel,
   dayDateLabel,
@@ -389,13 +391,13 @@ describe("month-scoped operator assignment", () => {
       assignmentMonth: "2026-09",
     });
 
-  it("shows 31 August classes with no operator while September is current", () => {
+  it("keeps 31 August as a visible but empty column while September is current", () => {
     const day = septemberBoard(weekDatesAtOffset("2026-09-13", -1)).find(
       (d) => d.date === "2026-08-31",
     )!;
-    expect(day.cards).toHaveLength(1);
-    expect(day.cards[0].assigned).toBe(false);
-    expect(day.cards[0].operatorName).toBeNull();
+    expect(day.weekday).toBe("Monday");
+    expect(day.inMonth).toBe(false);
+    expect(day.cards).toHaveLength(0);
   });
 
   it("uses September assignments for September dates", () => {
@@ -403,14 +405,54 @@ describe("month-scoped operator assignment", () => {
     expect(day.cards[0].operatorName).toBe("Alex");
   });
 
-  it("shows 1–4 October classes with no operator", () => {
+  it("renders 28–30 September classes but leaves 1–4 October empty", () => {
     const week = septemberBoard(weekDatesAtOffset("2026-09-13", 3));
-    const oct1 = week.find((d) => d.date === "2026-10-01")!;
-    expect(oct1.cards).toHaveLength(1);
-    expect(oct1.cards[0].operatorName).toBeNull();
+    expect(week.map((d) => d.date)).toEqual([
+      "2026-09-28",
+      "2026-09-29",
+      "2026-09-30",
+      "2026-10-01",
+      "2026-10-02",
+      "2026-10-03",
+      "2026-10-04",
+    ]);
+    expect(week.find((d) => d.date === "2026-09-28")!.cards.length).toBeGreaterThan(0);
     for (const d of week.filter((d) => d.date >= "2026-10-01")) {
-      for (const c of d.cards) expect(c.assigned).toBe(false);
+      expect(d.inMonth).toBe(false);
+      expect(d.cards).toHaveLength(0);
     }
+  });
+
+  it("never renders out-of-month suspended cards", () => {
+    const week = buildOperatorBoard({
+      weekDates: weekDatesAtOffset("2026-09-13", 3),
+      slots: [slot({ dayLocal: 4, active: false, resumesOn: null })],
+      classes,
+      instructors,
+      occurrences: [],
+      shifts: [],
+      classIdBySource,
+      assignmentMonth: "2026-09",
+    });
+    // Thursday 1 October is outside September: no card at all.
+    expect(week.find((d) => d.date === "2026-10-01")!.cards).toHaveLength(0);
+  });
+
+  it("still shows Unassigned for in-month classes with no operator", () => {
+    const day = buildOperatorBoard({
+      weekDates: weekDatesFrom("2026-09-14"),
+      slots: [slot()],
+      classes,
+      instructors,
+      occurrences: [],
+      shifts: [],
+      classIdBySource,
+      assignmentMonth: "2026-09",
+    }).find((d) => d.date === "2026-09-14")!;
+    expect(day.inMonth).toBe(true);
+    expect(day.cards).toHaveLength(1);
+    expect(day.cards[0].assigned).toBe(false);
+    expect(day.cards[0].operatorName).toBeNull();
   });
 
   it("keeps resumesOn date-aware across the month boundary", () => {
@@ -426,5 +468,43 @@ describe("month-scoped operator assignment", () => {
     });
     expect(week.find((d) => d.date === "2026-09-28")!.cards[0].active).toBe(false);
     expect(week.find((d) => d.date === "2026-10-05")).toBeUndefined();
+  });
+});
+
+describe("navigable weeks restricted to the current month", () => {
+  it("lists every Monday–Sunday week intersecting September 2026", () => {
+    const starts = monthNavigableWeekStarts(2026, 9);
+    expect(starts).toEqual([
+      "2026-08-31",
+      "2026-09-07",
+      "2026-09-14",
+      "2026-09-21",
+      "2026-09-28",
+    ]);
+    // First week is 31 Aug – 6 Sep, last week is 28 Sep – 4 Oct.
+    expect(weekDatesFrom(starts[0]).at(-1)).toBe("2026-09-06");
+    expect(weekDatesFrom(starts.at(-1)!).at(-1)).toBe("2026-10-04");
+    for (const s of starts) {
+      const week = weekDatesFrom(s);
+      expect(weekdayOf(week[0])).toBe(1);
+      expect(weekdayOf(week.at(-1)!)).toBe(0);
+      expect(week).toHaveLength(7);
+    }
+  });
+
+  it("cannot step into a week outside the current month", () => {
+    const starts = monthNavigableWeekStarts(2026, 9);
+    // Previous from the first navigable week would be 24–30 Aug: not available.
+    expect(starts.includes("2026-08-24")).toBe(false);
+    // Next from the last navigable week would be 5–11 Oct: not available.
+    expect(starts.includes("2026-10-05")).toBe(false);
+  });
+
+  it("selects the week containing today, clamping dates outside the month", () => {
+    expect(navigableWeekIndexForDate("2026-09-16", 2026, 9)).toBe(2);
+    expect(navigableWeekIndexForDate("2026-09-01", 2026, 9)).toBe(0);
+    expect(navigableWeekIndexForDate("2026-09-30", 2026, 9)).toBe(4);
+    expect(navigableWeekIndexForDate("2026-08-01", 2026, 9)).toBe(0);
+    expect(navigableWeekIndexForDate("2026-10-20", 2026, 9)).toBe(4);
   });
 });

@@ -10,7 +10,10 @@ import { formatBerlinTimestamp } from "@/domain/timetable-view";
 import {
   berlinDate,
   buildOperatorBoard,
-  weekDatesAtOffset,
+  currentBerlinMonth,
+  monthNavigableWeekStarts,
+  navigableWeekIndexForDate,
+  weekDatesFrom,
   weekMonthTitle,
   weekRangeCompactLabel,
 } from "@/domain/timetable-week";
@@ -31,8 +34,15 @@ function AdminTimetable() {
   const qc = useQueryClient();
   const load = useServerFn(getTimetableMonthBoard);
   const refresh = useServerFn(refreshLiveTimetable);
-  // Whole weeks away from the week containing today (Europe/Berlin).
-  const [weekOffset, setWeekOffset] = useState(0);
+  // Navigation is restricted to the weeks intersecting the current Berlin month.
+  const today = berlinDate();
+  const { year, month } = currentBerlinMonth();
+  const weekStarts = useMemo(() => monthNavigableWeekStarts(year, month), [year, month]);
+  const todayIndex = useMemo(
+    () => navigableWeekIndexForDate(today, year, month),
+    [today, year, month],
+  );
+  const [weekIndex, setWeekIndex] = useState(todayIndex);
 
   const { data, isPending, error } = useQuery({
     queryKey: ["admin", "timetable-month"],
@@ -65,9 +75,10 @@ function AdminTimetable() {
   });
 
   // The displayed Monday–Sunday week, which may cross the month boundary.
+  const clampedIndex = Math.min(Math.max(weekIndex, 0), weekStarts.length - 1);
   const weekDates = useMemo(
-    () => weekDatesAtOffset(berlinDate(), weekOffset),
-    [weekOffset],
+    () => weekDatesFrom(weekStarts[clampedIndex]),
+    [weekStarts, clampedIndex],
   );
 
   // Operator assignments come only from the current operational month.
@@ -96,7 +107,7 @@ function AdminTimetable() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Timetable</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {weekMonthTitle(weekDates)}
+            {weekMonthTitle([`${year}-${String(month).padStart(2, "0")}-01`])}
             <span className="mx-1.5 text-muted-foreground/60">·</span>
             <span className="tabular-nums">{weekRangeCompactLabel(weekDates)}</span>
           </p>
@@ -126,7 +137,8 @@ function AdminTimetable() {
             size="icon"
             className="h-8 w-8"
             aria-label="Previous week"
-            onClick={() => setWeekOffset((o) => o - 1)}
+            disabled={clampedIndex === 0}
+            onClick={() => setWeekIndex((i) => Math.max(0, i - 1))}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -135,8 +147,8 @@ function AdminTimetable() {
             variant="outline"
             size="sm"
             className="h-8"
-            onClick={() => setWeekOffset(0)}
-            disabled={weekOffset === 0}
+            onClick={() => setWeekIndex(todayIndex)}
+            disabled={clampedIndex === todayIndex}
           >
             Today
           </Button>
@@ -146,7 +158,8 @@ function AdminTimetable() {
             size="icon"
             className="h-8 w-8"
             aria-label="Next week"
-            onClick={() => setWeekOffset((o) => o + 1)}
+            disabled={clampedIndex === weekStarts.length - 1}
+            onClick={() => setWeekIndex((i) => Math.min(weekStarts.length - 1, i + 1))}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>

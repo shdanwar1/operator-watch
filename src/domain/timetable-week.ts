@@ -47,11 +47,6 @@ export type BoardCard = TimetableCard & {
   /** Current operator, or null when nobody is assigned. */
   operatorName: string | null;
   assigned: boolean;
-  /**
-   * False when the date lies outside the operational month: assignments are
-   * not loaded for it, so "Unassigned" would be misleading.
-   */
-  assignmentKnown: boolean;
 };
 
 export type BoardDay = {
@@ -61,6 +56,8 @@ export type BoardDay = {
   weekday: string;
   /** "15 September" */
   dateLabel: string;
+  /** False when the date lies outside the operational month: the column is empty. */
+  inMonth: boolean;
   cards: BoardCard[];
 };
 
@@ -122,6 +119,36 @@ export function currentBerlinWeek(now: Date = new Date()): string[] {
 /** The Monday→Sunday week `offset` full weeks away from the week containing `date`. */
 export function weekDatesAtOffset(date: string, offset: number): string[] {
   return weekDatesFrom(shiftDate(weekStartOf(date), offset * 7));
+}
+
+/**
+ * Every Monday that starts a week intersecting the given month — from the
+ * Monday of the week containing the 1st to the Monday of the week containing
+ * the last day. These are the only navigable weeks.
+ */
+export function monthNavigableWeekStarts(year: number, month: number): string[] {
+  const all = monthDates(year, month);
+  const first = weekStartOf(all[0]);
+  const last = weekStartOf(all[all.length - 1]);
+  const starts: string[] = [];
+  for (let d = first; d <= last; d = shiftDate(d, 7)) starts.push(d);
+  return starts;
+}
+
+/**
+ * Index of the navigable week containing `date`, clamped into the month's
+ * range so a date outside the month still lands on a valid week.
+ */
+export function navigableWeekIndexForDate(
+  date: string,
+  year: number,
+  month: number,
+): number {
+  const starts = monthNavigableWeekStarts(year, month);
+  const target = weekStartOf(date);
+  const found = starts.indexOf(target);
+  if (found >= 0) return found;
+  return target < starts[0] ? 0 : starts.length - 1;
 }
 
 /** "31 Aug – 6 Sep" (month shown once when the week stays inside one month). */
@@ -261,8 +288,8 @@ export function buildOperatorBoard(input: {
   /** DMC source class id → `dmc_classes.id`, as referenced by occurrences. */
   classIdBySource: Record<string, string>;
   /**
-   * Operational month, "YYYY-MM". Dates outside it show their DMC classes but
-   * never an operator — assignments are only ever read for this month.
+   * Operational month, "YYYY-MM". Dates outside it render no classes at all:
+   * the column stays in the week, but the timetable is strictly month-scoped.
    */
   assignmentMonth?: string | null;
 }): BoardDay[] {
@@ -287,17 +314,16 @@ export function buildOperatorBoard(input: {
   return input.weekDates.map((date) => {
     const dayLocal = weekdayOf(date);
     const inScope = !input.assignmentMonth || monthKeyOf(date) === input.assignmentMonth;
-    const cards: BoardCard[] = (slotsByDay.get(dayLocal) ?? []).map((slot) => {
+    const cards: BoardCard[] = (inScope ? (slotsByDay.get(dayLocal) ?? []) : []).map((slot) => {
       const cls = classBySource.get(slot.sourceClassId);
       const instructor = instructorBySource.get(slot.sourceInstructorId);
       const end = addMinutesLocal(slot.startTimeLocal, slot.durationMinutes);
       const name = instructorName(instructor);
       const dmcClassId = input.classIdBySource[slot.sourceClassId];
-      const occurrence =
-        inScope && dmcClassId
-          ? (occurrenceByKey.get(`${date}|${dmcClassId}|${slot.startTimeLocal}`) ?? null)
-          : null;
-      const operatorName = inScope ? resolveOperator(occurrence, shiftsById) : null;
+      const occurrence = dmcClassId
+        ? (occurrenceByKey.get(`${date}|${dmcClassId}|${slot.startTimeLocal}`) ?? null)
+        : null;
+      const operatorName = resolveOperator(occurrence, shiftsById);
 
       return {
         sourceSlotId: slot.sourceSlotId,
@@ -321,7 +347,6 @@ export function buildOperatorBoard(input: {
         date,
         operatorName,
         assigned: normalizeUsername(operatorName) !== "",
-        assignmentKnown: inScope,
       };
     });
 
@@ -336,6 +361,7 @@ export function buildOperatorBoard(input: {
       dayLocal,
       weekday: WEEKDAY_LABEL[dayLocal],
       dateLabel: dayDateLabel(date),
+      inMonth: inScope,
       cards,
     };
   });
