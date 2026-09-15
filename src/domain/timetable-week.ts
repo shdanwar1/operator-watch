@@ -317,7 +317,6 @@ export function buildOperatorBoard(input: {
         date,
         operatorName,
         assigned: normalizeUsername(operatorName) !== "",
-        assignmentKnown: inScope,
       };
     });
 
