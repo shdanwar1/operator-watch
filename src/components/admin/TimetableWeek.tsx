@@ -39,7 +39,7 @@ export function TimetableWeek({ week }: { week: BoardDay[] }) {
               <time>{card.startTime}–{card.endTime}{card.endsNextDay ? ' +1 day' : ''}</time>
               <p className="tt-class-name">{card.className}</p>
               <p className="tt-instructor">{card.instructorName}</p>
-              <p className="tt-operator"><i />{card.assigned ? card.operatorName : 'Unassigned'}</p>
+              <p className="tt-operator"><i /><span>{card.assigned ? card.operatorName : 'Unassigned'}</span></p>
               {!card.active && <p className="tt-instructor">Suspended{resumes ? ` · ${resumes}` : ''}</p>}
             </li>;
           })}</ul>

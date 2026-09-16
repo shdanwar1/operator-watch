@@ -19,4 +19,6 @@ describe('shared timetable grid', () => {
   it('retains the admin home redirect', () => { expect(source('src/routes/admin.index.tsx')).toContain('to: "/admin/timetable"'); });
   it('places operator timetable third without changing the home route', () => { const nav=source('src/components/AppShell.tsx'); expect(nav.indexOf('label: "Calendar"')).toBeLessThan(nav.indexOf('label: "Shifts"')); expect(nav.indexOf('label: "Shifts"')).toBeLessThan(nav.indexOf('label: "Timetable"')); expect(nav).toContain('to: "/"'); });
   it('keeps source refresh admin protected and board reads gated', () => { const s=source('src/lib/timetable.functions.ts'); expect(s).toContain('await requireAdmin()'); expect(s).toContain('!session.data.siteUnlocked || !session.data.username'); });
+  it('keeps long class names to one truncated line', () => { const css=source('src/styles.css'); expect(css).toMatch(/\.tt-class-name[^}]*overflow:hidden[^}]*white-space:nowrap[^}]*text-overflow:ellipsis/); });
+  it('shows the shared view refresh control to admins only', () => { const view=source('src/components/timetable/TimetableView.tsx'); expect(view).toContain('{admin && <div className="flex items-center gap-3">'); });
 });
