@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UnlockRouteImport } from './routes/unlock'
+import { Route as TimetableRouteImport } from './routes/timetable'
 import { Route as StudioDisplayRouteImport } from './routes/studio-display'
 import { Route as ShiftsRouteImport } from './routes/shifts'
 import { Route as RecordRouteImport } from './routes/record'
@@ -31,6 +32,11 @@ import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/pub
 const UnlockRoute = UnlockRouteImport.update({
   id: '/unlock',
   path: '/unlock',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TimetableRoute = TimetableRouteImport.update({
+  id: '/timetable',
+  path: '/timetable',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudioDisplayRoute = StudioDisplayRouteImport.update({
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/record': typeof RecordRoute
   '/shifts': typeof ShiftsRoute
   '/studio-display': typeof StudioDisplayRoute
+  '/timetable': typeof TimetableRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
   '/admin/operators': typeof AdminOperatorsRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/record': typeof RecordRoute
   '/shifts': typeof ShiftsRoute
   '/studio-display': typeof StudioDisplayRoute
+  '/timetable': typeof TimetableRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
   '/admin/operators': typeof AdminOperatorsRoute
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   '/record': typeof RecordRoute
   '/shifts': typeof ShiftsRoute
   '/studio-display': typeof StudioDisplayRoute
+  '/timetable': typeof TimetableRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
   '/admin/operators': typeof AdminOperatorsRoute
@@ -193,6 +202,7 @@ export interface FileRouteTypes {
     | '/record'
     | '/shifts'
     | '/studio-display'
+    | '/timetable'
     | '/unlock'
     | '/admin/calendar'
     | '/admin/operators'
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
     | '/record'
     | '/shifts'
     | '/studio-display'
+    | '/timetable'
     | '/unlock'
     | '/admin/calendar'
     | '/admin/operators'
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | '/record'
     | '/shifts'
     | '/studio-display'
+    | '/timetable'
     | '/unlock'
     | '/admin/calendar'
     | '/admin/operators'
@@ -253,6 +265,7 @@ export interface RootRouteChildren {
   RecordRoute: typeof RecordRoute
   ShiftsRoute: typeof ShiftsRoute
   StudioDisplayRoute: typeof StudioDisplayRoute
+  TimetableRoute: typeof TimetableRoute
   UnlockRoute: typeof UnlockRoute
   ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
 }
@@ -264,6 +277,13 @@ declare module '@tanstack/react-router' {
       path: '/unlock'
       fullPath: '/unlock'
       preLoaderRoute: typeof UnlockRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/timetable': {
+      id: '/timetable'
+      path: '/timetable'
+      fullPath: '/timetable'
+      preLoaderRoute: typeof TimetableRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio-display': {
@@ -419,6 +439,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecordRoute: RecordRoute,
   ShiftsRoute: ShiftsRoute,
   StudioDisplayRoute: StudioDisplayRoute,
+  TimetableRoute: TimetableRoute,
   UnlockRoute: UnlockRoute,
   ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
 }
