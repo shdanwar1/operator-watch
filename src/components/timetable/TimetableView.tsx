@@ -97,18 +97,18 @@ export function TimetableView({ admin = false }: { admin?: boolean }) {
           </p>
           <p className="text-sm text-muted-foreground">Week {clampedIndex + 1} of {weekStarts.length}</p>
         </div>
-        <div className="flex items-center gap-3">
+        {admin && <div className="flex items-center gap-3">
           <Button
             type="button"
             size="sm"
-            onClick={() => admin ? refreshMutation.mutate() : qc.invalidateQueries({ queryKey: ["timetable-month", "operator"] })}
+            onClick={() => refreshMutation.mutate()}
             disabled={busy}
             aria-label="Refresh the timetable from the studio schedule"
           >
             <RefreshCw className={busy ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
             {busy ? "Refreshing…" : "Refresh"}
           </Button>
-        </div>
+        </div>}
       </header>
 
       {!error && !isEmpty && (

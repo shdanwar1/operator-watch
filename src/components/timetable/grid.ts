@@ -1,7 +1,7 @@
 import type { BoardCard } from '@/domain/timetable-week';
 import { berlinDate } from '@/domain/timetable-week';
 import { minutesOfDay } from '@/domain/timetable-view';
-export const HOUR_HEIGHT = 128;
+export const HOUR_HEIGHT = 64;
 export function cardGeometry(card: Pick<BoardCard, 'startTime' | 'durationMinutes'>) {
   const start = minutesOfDay(card.startTime);
   return { top: start * HOUR_HEIGHT / 60, height: Math.min(card.durationMinutes, 1440 - start) * HOUR_HEIGHT / 60 };

@@ -6,9 +6,9 @@ import type { BoardCard } from '@/domain/timetable-week';
 const source = (p: string) => readFileSync(p, 'utf8');
 describe('shared timetable grid', () => {
   it('positions fractional hours on a uniform scale', () => { expect(cardGeometry({ startTime:'12:30', durationMinutes:60 })).toEqual({ top:12.5*HOUR_HEIGHT, height:HOUR_HEIGHT }); });
-  it('uses actual duration', () => { expect(cardGeometry({ startTime:'00:00', durationMinutes:45 })).toEqual({ top:0, height:96 }); });
-  it('clips overnight cards at the day boundary without changing duration', () => { expect(cardGeometry({ startTime:'23:30', durationMinutes:90 }).height).toBe(64); });
-  it('uses Berlin summer time', () => { expect(berlinClock(new Date('2026-09-16T11:56:00Z'))).toEqual({date:'2026-09-16',label:'13:56',top:(13*60+56)*128/60}); });
+  it('uses actual duration', () => { expect(cardGeometry({ startTime:'00:00', durationMinutes:45 })).toEqual({ top:0, height:0.75 * HOUR_HEIGHT }); });
+  it('clips overnight cards at the day boundary without changing duration', () => { expect(cardGeometry({ startTime:'23:30', durationMinutes:90 }).height).toBe(0.5 * HOUR_HEIGHT); });
+  it('uses Berlin summer time', () => { expect(berlinClock(new Date('2026-09-16T11:56:00Z'))).toEqual({date:'2026-09-16',label:'13:56',top:(13*60+56)*HOUR_HEIGHT/60}); });
   it('uses Berlin winter time and date rollover', () => { expect(berlinClock(new Date('2026-12-16T23:30:00Z')).date).toBe('2026-12-17'); expect(berlinClock(new Date('2026-12-16T12:00:00Z')).label).toBe('13:00'); });
   it('keeps operator colors stable and unassigned neutral', () => { expect(opColor('Alex')).toEqual(opColor('Alex')); expect(opColor(null)).toBeNull(); });
   it('separates overlapping cards and reuses lanes at endpoints', () => {

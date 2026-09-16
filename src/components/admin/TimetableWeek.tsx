@@ -16,7 +16,7 @@ function Clock({ week }: { week: BoardDay[] }) {
   if (!clock || !week.some(day => day.date === clock.date)) return null;
   return <div className="tt-now" style={{ top: clock.top }} aria-label={`Current Berlin time ${clock.label}`}><span>{clock.label}</span><i /></div>;
 }
-export function TimetableWeekSkeleton() { return <Skeleton className="h-[700px] min-w-[1120px]" />; }
+export function TimetableWeekSkeleton() { return <Skeleton className="h-[520px] min-w-[1120px]" />; }
 export function TimetableWeek({ week }: { week: BoardDay[] }) {
   const [today, setToday] = useState('');
   useEffect(() => {
