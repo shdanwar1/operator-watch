@@ -92,7 +92,10 @@ export type TimetableMonthBoard = {
  */
 export const getTimetableMonthBoard = createServerFn({ method: "GET" }).handler(
   async (): Promise<TimetableMonthBoard> => {
-    await requireAdmin();
+    const session = await useSession<GateSession>(getSessionConfig());
+    if (!session.data.siteUnlocked || !session.data.username) {
+      throw new Response("Sign in required", { status: 401 });
+    }
     const { loadStoredTimetable } = await import("@/domain/timetable-repository.server");
     const { loadWeekOperations } = await import("@/domain/timetable-board.server");
     const { currentBerlinMonth, monthDates } = await import("@/domain/timetable-week");
