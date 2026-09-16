@@ -16,7 +16,7 @@ function Clock({ week }: { week: BoardDay[] }) {
   if (!clock || !week.some(day => day.date === clock.date)) return null;
   return <div className="tt-now" style={{ top: clock.top }} aria-label={`Current Berlin time ${clock.label}`}><span>{clock.label}</span><i /></div>;
 }
-export function TimetableWeekSkeleton() { return <Skeleton className="h-[700px] min-w-[1120px]" />; }
+export function TimetableWeekSkeleton() { return <Skeleton className="h-[520px] min-w-[1120px]" />; }
 export function TimetableWeek({ week }: { week: BoardDay[] }) {
   const [today, setToday] = useState('');
   useEffect(() => {
@@ -39,7 +39,7 @@ export function TimetableWeek({ week }: { week: BoardDay[] }) {
               <time>{card.startTime}–{card.endTime}{card.endsNextDay ? ' +1 day' : ''}</time>
               <p className="tt-class-name">{card.className}</p>
               <p className="tt-instructor">{card.instructorName}</p>
-              <p className="tt-operator"><i />{card.assigned ? card.operatorName : 'Unassigned'}</p>
+              <p className="tt-operator"><i /><span>{card.assigned ? card.operatorName : 'Unassigned'}</span></p>
               {!card.active && <p className="tt-instructor">Suspended{resumes ? ` · ${resumes}` : ''}</p>}
             </li>;
           })}</ul>

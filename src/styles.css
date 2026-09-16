@@ -437,7 +437,7 @@
   animation: sd-wait-pulse 3.2s ease-in-out infinite;
 }
 
-/* Shared timetable: a single 128px/hour scale, with operator identity tokens. */
+/* Shared timetable: a compact 64px/hour scale, with operator identity tokens. */
 :root {
   --operator-blue: oklch(0.6 0.19 255);
   --operator-green: oklch(0.65 0.17 155);
@@ -449,19 +449,19 @@
   --operator-rose: oklch(0.64 0.2 15);
 }
 .tt-grid { min-width:1120px; display:grid; grid-template-columns:56px repeat(7,minmax(0,1fr)); border:1px solid var(--border); border-radius:6px; letter-spacing:0; }
-.tt-day-head { height:64px; position:relative; text-align:center; padding:10px 3px; border-left:1px solid var(--border); border-bottom:1px solid var(--border); }
+.tt-day-head { height:52px; position:relative; text-align:center; padding:6px 3px; border-left:1px solid var(--border); border-bottom:1px solid var(--border); }
 .tt-day-head h2 { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0; }
 .tt-day-head span { display:block; font-size:11px; color:var(--muted-foreground); }
 .tt-day-head strong { font-size:10px; color:var(--status-current); }
 .tt-today-head { outline:1px solid var(--status-current); background:var(--status-current-soft); z-index:1; }
 .tt-axis-head { border-bottom:1px solid var(--border); }
-.tt-body { grid-column:1/-1; position:relative; margin-bottom:14px; }
+.tt-body { grid-column:1/-1; position:relative; margin-bottom:8px; }
 .tt-axis { position:sticky; left:0; width:56px; height:100%; z-index:4; background:var(--background); border-right:1px solid var(--border); }
 .tt-axis > span { position:absolute; left:8px; font-size:10px; color:var(--muted-foreground); font-variant-numeric:tabular-nums; }
 .tt-days { position:absolute; inset:0 0 0 56px; display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
-.tt-day { position:relative; border-right:1px solid var(--border); background-image:repeating-linear-gradient(to bottom,var(--border) 0,var(--border) 1px,transparent 1px,transparent 128px); }
+.tt-day { position:relative; border-right:1px solid var(--border); background-image:repeating-linear-gradient(to bottom,var(--border) 0,var(--border) 1px,transparent 1px,transparent 64px); }
 .tt-today { outline:1px solid var(--status-current); background-color:var(--status-current-soft); z-index:1; }
-.tt-card { --operator:var(--muted-foreground); position:absolute; overflow:auto; padding:4px 6px; border:1px solid var(--border); border-left:3px solid var(--operator); border-radius:5px; background:var(--card); font-size:11px; line-height:1.2; }
+.tt-card { --operator:var(--muted-foreground); position:absolute; overflow:hidden; min-height:18px; padding:2px 4px; border:1px solid var(--border); border-left:3px solid var(--operator); border-radius:4px; background:var(--card); font-size:10px; line-height:1.05; }
 .tt-card[data-operator-color=blue] { --operator:var(--operator-blue); }
 .tt-card[data-operator-color=green] { --operator:var(--operator-green); }
 .tt-card[data-operator-color=orange] { --operator:var(--operator-orange); }
@@ -470,11 +470,12 @@
 .tt-card[data-operator-color=cyan] { --operator:var(--operator-cyan); }
 .tt-card[data-operator-color=amber] { --operator:var(--operator-amber); }
 .tt-card[data-operator-color=rose] { --operator:var(--operator-rose); }
-.tt-card time { font-size:10px; color:var(--muted-foreground); font-variant-numeric:tabular-nums; }
-.tt-class-name { margin-top:3px; font-weight:600; overflow-wrap:anywhere; }
-.tt-instructor { margin-top:3px; font-size:10px; color:var(--muted-foreground); }
-.tt-operator { display:flex; align-items:center; gap:4px; margin-top:3px; font-size:10px; color:var(--operator); }
-.tt-operator i { width:6px; height:6px; flex-shrink:0; border-radius:50%; background:var(--operator); }
+.tt-card time { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:9px; color:var(--muted-foreground); font-variant-numeric:tabular-nums; }
+.tt-class-name { margin-top:1px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:600; }
+.tt-instructor { margin-top:1px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:9px; color:var(--muted-foreground); }
+.tt-operator { display:flex; min-width:0; align-items:center; gap:3px; margin-top:1px; overflow:hidden; font-size:9px; color:var(--operator); }
+.tt-operator i { width:5px; height:5px; flex-shrink:0; border-radius:50%; background:var(--operator); }
+.tt-operator span { min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .tt-suspended { border-style:dashed; color:var(--muted-foreground); background:var(--muted); opacity:.75; }
 .tt-now { position:absolute; left:56px; right:0; border-top:2px solid var(--status-problem); z-index:5; pointer-events:none; }
 .tt-now > span { position:absolute; right:100%; margin-right:5px; transform:translateY(-50%); background:var(--status-problem); color:var(--destructive-foreground); padding:2px 4px; border-radius:4px; font-size:10px; font-variant-numeric:tabular-nums; }
