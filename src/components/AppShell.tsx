@@ -3,7 +3,6 @@ import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarDays,
-  CalendarRange,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -21,8 +20,6 @@ import { cn } from "@/lib/utils";
 
 const NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: boolean }[] = [
   { label: "Calendar", to: "/calendar", icon: CalendarDays },
-  { label: "Shifts", to: "/shifts", icon: ListChecks },
-  { label: "Timetable", to: "/timetable", icon: CalendarRange },
   { label: "Dashboard", to: "/", icon: LayoutDashboard, exact: true },
   { label: "Record", to: "/record", icon: ListChecks },
 ];
