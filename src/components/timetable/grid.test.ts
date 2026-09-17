@@ -15,9 +15,9 @@ describe('shared timetable grid', () => {
     const cards = [{startTime:'12:00',durationMinutes:60},{startTime:'12:30',durationMinutes:60},{startTime:'13:30',durationMinutes:30}] as BoardCard[];
     expect(layoutCards(cards).map(({lane,lanes})=>[lane,lanes])).toEqual([[0,2],[1,2],[0,1]]);
   });
-  it('shares the same view across both routes', () => { for(const file of ['admin.timetable','timetable']) expect(source(`src/routes/${file}.tsx`)).toContain('TimetableView'); });
+  it('keeps the timetable admin-only and redirects operators away', () => { expect(source('src/routes/admin.timetable.tsx')).toContain('TimetableView'); const op=source('src/routes/timetable.tsx'); expect(op).not.toContain('TimetableView'); expect(op).toContain('to: "/"'); });
   it('retains the admin home redirect', () => { expect(source('src/routes/admin.index.tsx')).toContain('to: "/admin/timetable"'); });
-  it('places operator timetable third without changing the home route', () => { const nav=source('src/components/AppShell.tsx'); expect(nav.indexOf('label: "Calendar"')).toBeLessThan(nav.indexOf('label: "Shifts"')); expect(nav.indexOf('label: "Shifts"')).toBeLessThan(nav.indexOf('label: "Timetable"')); expect(nav).toContain('to: "/"'); });
+  it('removes timetable and shifts from operator navigation', () => { const nav=source('src/components/AppShell.tsx'); expect(nav).not.toContain('label: "Timetable"'); expect(nav).not.toContain('label: "Shifts"'); expect(nav).toContain('to: "/"'); });
   it('keeps source refresh admin protected and board reads gated', () => { const s=source('src/lib/timetable.functions.ts'); expect(s).toContain('await requireAdmin()'); expect(s).toContain('!session.data.siteUnlocked || !session.data.username'); });
   it('keeps long class names to one truncated line', () => { const css=source('src/styles.css'); expect(css).toMatch(/\.tt-class-name[^}]*overflow:hidden[^}]*white-space:nowrap[^}]*text-overflow:ellipsis/); });
   it('shows the shared view refresh control to admins only', () => { const view=source('src/components/timetable/TimetableView.tsx'); expect(view).toContain('{admin && <div className="flex items-center gap-3">'); });
