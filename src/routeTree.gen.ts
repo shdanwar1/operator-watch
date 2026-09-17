@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as TimetableRouteImport } from './routes/timetable'
 import { Route as StudioDisplayRouteImport } from './routes/studio-display'
-import { Route as ShiftsRouteImport } from './routes/shifts'
 import { Route as RecordRouteImport } from './routes/record'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as EarningsRouteImport } from './routes/earnings'
@@ -42,11 +41,6 @@ const TimetableRoute = TimetableRouteImport.update({
 const StudioDisplayRoute = StudioDisplayRouteImport.update({
   id: '/studio-display',
   path: '/studio-display',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ShiftsRoute = ShiftsRouteImport.update({
-  id: '/shifts',
-  path: '/shifts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecordRoute = RecordRouteImport.update({
@@ -135,7 +129,6 @@ export interface FileRoutesByFullPath {
   '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
   '/record': typeof RecordRoute
-  '/shifts': typeof ShiftsRoute
   '/studio-display': typeof StudioDisplayRoute
   '/timetable': typeof TimetableRoute
   '/unlock': typeof UnlockRoute
@@ -155,7 +148,6 @@ export interface FileRoutesByTo {
   '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
   '/record': typeof RecordRoute
-  '/shifts': typeof ShiftsRoute
   '/studio-display': typeof StudioDisplayRoute
   '/timetable': typeof TimetableRoute
   '/unlock': typeof UnlockRoute
@@ -177,7 +169,6 @@ export interface FileRoutesById {
   '/earnings': typeof EarningsRoute
   '/profile': typeof ProfileRoute
   '/record': typeof RecordRoute
-  '/shifts': typeof ShiftsRoute
   '/studio-display': typeof StudioDisplayRoute
   '/timetable': typeof TimetableRoute
   '/unlock': typeof UnlockRoute
@@ -200,7 +191,6 @@ export interface FileRouteTypes {
     | '/earnings'
     | '/profile'
     | '/record'
-    | '/shifts'
     | '/studio-display'
     | '/timetable'
     | '/unlock'
@@ -220,7 +210,6 @@ export interface FileRouteTypes {
     | '/earnings'
     | '/profile'
     | '/record'
-    | '/shifts'
     | '/studio-display'
     | '/timetable'
     | '/unlock'
@@ -241,7 +230,6 @@ export interface FileRouteTypes {
     | '/earnings'
     | '/profile'
     | '/record'
-    | '/shifts'
     | '/studio-display'
     | '/timetable'
     | '/unlock'
@@ -263,7 +251,6 @@ export interface RootRouteChildren {
   EarningsRoute: typeof EarningsRoute
   ProfileRoute: typeof ProfileRoute
   RecordRoute: typeof RecordRoute
-  ShiftsRoute: typeof ShiftsRoute
   StudioDisplayRoute: typeof StudioDisplayRoute
   TimetableRoute: typeof TimetableRoute
   UnlockRoute: typeof UnlockRoute
@@ -291,13 +278,6 @@ declare module '@tanstack/react-router' {
       path: '/studio-display'
       fullPath: '/studio-display'
       preLoaderRoute: typeof StudioDisplayRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/shifts': {
-      id: '/shifts'
-      path: '/shifts'
-      fullPath: '/shifts'
-      preLoaderRoute: typeof ShiftsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/record': {
@@ -437,7 +417,6 @@ const rootRouteChildren: RootRouteChildren = {
   EarningsRoute: EarningsRoute,
   ProfileRoute: ProfileRoute,
   RecordRoute: RecordRoute,
-  ShiftsRoute: ShiftsRoute,
   StudioDisplayRoute: StudioDisplayRoute,
   TimetableRoute: TimetableRoute,
   UnlockRoute: UnlockRoute,
