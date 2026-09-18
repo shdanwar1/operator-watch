@@ -633,6 +633,7 @@ export type Database = {
           username: string
         }[]
       }
+      push_dispatch_due: { Args: never; Returns: boolean }
       rename_operator: {
         Args: { p_id: string; p_username: string }
         Returns: undefined
