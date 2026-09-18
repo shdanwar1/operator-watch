@@ -171,7 +171,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
   // Debounced so a burst of triggers collapses into one refresh.
   const debouncedLoad = useDebouncedCallback(() => load(), 700);
   useEffect(() => {
-    const t = setInterval(() => debouncedLoad(), 30_000);
+    const t = setInterval(() => debouncedLoad(), 90_000);
     const onFocus = () => debouncedLoad();
     window.addEventListener("focus", onFocus);
     return () => {
