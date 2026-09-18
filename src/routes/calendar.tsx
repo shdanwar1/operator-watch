@@ -267,7 +267,7 @@ function CalendarPage() {
 
     let interval: ReturnType<typeof setInterval> | null = null;
     const start = () => {
-      if (!interval) interval = setInterval(check, 12_000);
+      if (!interval) interval = setInterval(check, 60_000);
     };
     const stop = () => {
       if (interval) clearInterval(interval);

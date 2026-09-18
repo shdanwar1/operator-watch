@@ -359,7 +359,7 @@ function Index() {
   // Shift tables are not exposed to client realtime (per-operator data locked
   // down by RLS); refresh on a timer and when the tab regains focus instead.
   useEffect(() => {
-    const t = setInterval(() => debouncedLoad(), 30_000);
+    const t = setInterval(() => debouncedLoad(), 90_000);
     const onFocus = () => debouncedLoad();
     window.addEventListener("focus", onFocus);
     return () => {
