@@ -1189,25 +1189,34 @@ function ActiveShiftPanel({
         </CardContent>
       </Card>
 
+      <ChecklistPanel
+        title="Start Shift Checklist"
+        items={checklists?.start.items ?? []}
+        loading={checklistsLoading && !checklists}
+        onToggleItem={(itemId, completed) => toggleItem({ section: "start" }, itemId, completed)}
+      />
+
       {hasImported ? (
         <ClassScheduleCard
           classes={importedClasses}
           now={now}
           title="Shift Overview"
           onSetStatus={onSetClassStatus}
-            footer={
-              <div className="flex flex-col items-center gap-2">
-                <HoldButton
-                  label="Hold to check out"
-                  hint="Hold for check out"
-                  tone="danger"
-                  busy={checkingOut}
-                  onComplete={handleHoldComplete}
-                  size={84}
-                  resetSignal={resetSignal}
-                />
-              </div>
-            }
+          renderClassExtra={(c, st) => {
+            const entry = checklists?.classes.find((x) => x.classId === c.id);
+            if (!entry) return null;
+            return (
+              <ChecklistPanel
+                variant="inline"
+                title={entry.type === "ballet" ? "Ballet Checklist" : "Workout Checklist"}
+                items={entry.items}
+                readOnly={st === "cancelled"}
+                onToggleItem={(itemId, completed) =>
+                  toggleItem({ section: "class", classId: c.id }, itemId, completed)
+                }
+              />
+            );
+          }}
         />
       ) : (
         <Card>
