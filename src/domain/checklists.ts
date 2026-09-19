@@ -168,7 +168,7 @@ export function syncClassChecklists(
 /** Sets one item's completed flag. Unknown ids leave the snapshot unchanged. */
 export function setChecklistItemState(
   snapshot: ShiftChecklists,
-  target: { section: "start" | "end" } | { section: "class"; classId: string },
+  target: { section: "start" } | { section: "end" } | { section: "class"; classId: string },
   itemId: string,
   completed: boolean,
 ): ShiftChecklists {
