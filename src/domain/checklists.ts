@@ -181,10 +181,11 @@ export function setChecklistItemState(
   if (target.section === "end") {
     return { ...snapshot, end: { items: apply(snapshot.end.items) } };
   }
+  const { classId } = target;
   return {
     ...snapshot,
     classes: snapshot.classes.map((c) =>
-      c.classId === target.classId ? { ...c, items: apply(c.items) } : c,
+      c.classId === classId ? { ...c, items: apply(c.items) } : c,
     ),
   };
 }
