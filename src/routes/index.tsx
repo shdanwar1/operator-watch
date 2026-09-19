@@ -1036,6 +1036,29 @@ function ActiveShiftPanel({
   const d = formatDuration(shift.check_in_at, null);
   const checkInAt = new Date(shift.check_in_at);
 
+  // Operator checklists for this shift (Operation 2). Loaded once per shift.
+  const {
+    checklists,
+    loading: checklistsLoading,
+    toggleItem,
+    reload: reloadChecklists,
+  } = useShiftChecklists(shift.id);
+  // The server syncs class snapshots when classes change; pick the result up
+  // when the shift's class set changes. No polling.
+  const classKey = importedClasses.map((c) => c.id).join(",");
+  const firstClassKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (firstClassKey.current === null) {
+      firstClassKey.current = classKey;
+      return;
+    }
+    if (firstClassKey.current === classKey) return;
+    firstClassKey.current = classKey;
+    reloadChecklists();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classKey]);
+  const endComplete = checklists ? isEndChecklistComplete(checklists) : true;
+
   const times = scheduledShift ? instanceTimes(scheduledShift, checkInAt) : null;
   const lateMin = minutesLate(times?.startAt ?? null, checkInAt);
   const expected = scheduledClassCount(scheduledShift?.label);
