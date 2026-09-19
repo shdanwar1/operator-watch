@@ -84,9 +84,6 @@ export function ClassScheduleCard({
 
   const states = classes.map((c) => classStatusOf(c, now));
 
-
-
-
   return (
     <Card className="max-lg:glass max-lg:rounded-[22px]">
       <CardContent className="space-y-4 p-4 sm:p-5">
@@ -206,7 +203,12 @@ export function ClassScheduleCard({
                   {onSetStatus && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Class actions">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          aria-label="Class actions"
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -245,9 +247,7 @@ export function ClassScheduleCard({
           })}
         </div>
 
-        {footer ? (
-          <div className="border-t border-border pt-4">{footer}</div>
-        ) : null}
+        {footer ? <div className="border-t border-border pt-4">{footer}</div> : null}
       </CardContent>
     </Card>
   );

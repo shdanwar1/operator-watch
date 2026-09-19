@@ -2,10 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { getMyShiftChecklists, setMyChecklistItem } from "@/lib/checklists.functions";
-import {
-  setChecklistItemState,
-  type ShiftChecklists,
-} from "@/domain/checklists";
+import { setChecklistItemState, type ShiftChecklists } from "@/domain/checklists";
 
 export type ChecklistTarget =
   | { section: "start" }
