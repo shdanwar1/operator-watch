@@ -846,6 +846,7 @@ export async function addClassToShift(
     .single();
   if (error) throw new Error(error.message);
   await refreshShiftLabels([shiftId]);
+  await syncShiftChecklists(shiftId);
   return (await withIdentities([data]))[0];
 }
 
@@ -886,7 +887,10 @@ export async function updateShiftClass(
     .select(CLASS_COLUMNS)
     .single();
   if (error) throw new Error(error.message);
-  if (existing.scheduled_shift_id) await refreshShiftLabels([existing.scheduled_shift_id]);
+  if (existing.scheduled_shift_id) {
+    await refreshShiftLabels([existing.scheduled_shift_id]);
+    await syncShiftChecklists(existing.scheduled_shift_id);
+  }
   return (await withIdentities([data]))[0];
 }
 
