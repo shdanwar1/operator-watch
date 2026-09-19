@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
-import { assertCanCheckOut } from "./checkout-validation";
+import { assertCanCheckOut, assertEndChecklistComplete } from "./checkout-validation";
 import { sameOperator, statusForAssignment } from "@/domain/operator-identity";
 import { isGoogleIdentity, manualShiftIdentity } from "@/domain/shift-identity";
 
