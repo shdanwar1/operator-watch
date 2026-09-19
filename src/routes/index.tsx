@@ -1296,21 +1296,36 @@ function ActiveShiftPanel({
                 ))}
               </div>
             )}
-
-            <div className="flex flex-col items-center gap-2 border-t border-border pt-4">
-              <HoldButton
-                label="Hold to check out"
-                hint="Hold for check out"
-                tone="danger"
-                busy={checkingOut}
-                onComplete={handleHoldComplete}
-                size={84}
-                resetSignal={resetSignal}
-              />
-            </div>
           </CardContent>
         </Card>
       )}
+
+      <ChecklistPanel
+        title="End Shift Checklist"
+        items={checklists?.end.items ?? []}
+        loading={checklistsLoading && !checklists}
+        onToggleItem={(itemId, completed) => toggleItem({ section: "end" }, itemId, completed)}
+      />
+
+      <Card className="max-lg:glass max-lg:rounded-[22px]">
+        <CardContent className="flex flex-col items-center gap-2 p-5">
+          <HoldButton
+            label="Hold to check out"
+            hint={endComplete ? "Hold for check out" : undefined}
+            tone="danger"
+            busy={checkingOut}
+            disabled={!endComplete}
+            onComplete={handleHoldComplete}
+            size={84}
+            resetSignal={resetSignal}
+          />
+          {!endComplete && (
+            <p className="text-center text-xs text-muted-foreground">
+              Complete the End Shift Checklist before checking out.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* One dialog instance for every confirmation step. Swapping between
           separate mounted dialogs (early → camera) left the modal layer in a
