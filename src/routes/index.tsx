@@ -43,6 +43,9 @@ import { Plus, X, Clock, LogIn, CalendarDays, Ship, Footprints, Home, MapPin, Al
 import { transitIconFor } from "@/components/TransitIcons";
 import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
+import { ChecklistPanel } from "@/components/checklist/ChecklistPanel";
+import { useShiftChecklists } from "@/components/checklist/useShiftChecklists";
+import { isEndChecklistComplete } from "@/domain/checklists";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 
