@@ -819,6 +819,19 @@ async function resolveDmcSelection(
   };
 }
 
+/**
+ * Mirrors a class change into the checklist snapshot of the open shift, if any.
+ * Never allowed to fail the class operation itself.
+ */
+async function syncShiftChecklists(scheduledShiftId: string | null): Promise<void> {
+  try {
+    const { syncChecklistsForScheduledShift } = await import("./checklists.server");
+    await syncChecklistsForScheduledShift(scheduledShiftId);
+  } catch (err) {
+    console.error("syncChecklistsForScheduledShift failed", err);
+  }
+}
+
 /** Adds a class to a scheduled shift and refreshes the derived shift label. */
 export async function addClassToShift(
   displayName: string,
@@ -903,5 +916,8 @@ export async function removeShiftClass(displayName: string, id: string): Promise
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { error } = await supabaseAdmin.from("calendar_classes").delete().eq("id", id);
   if (error) throw new Error(error.message);
-  if (existing.scheduled_shift_id) await refreshShiftLabels([existing.scheduled_shift_id]);
+  if (existing.scheduled_shift_id) {
+    await refreshShiftLabels([existing.scheduled_shift_id]);
+    await syncShiftChecklists(existing.scheduled_shift_id);
+  }
 }
