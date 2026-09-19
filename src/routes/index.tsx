@@ -43,6 +43,9 @@ import { Plus, X, Clock, LogIn, CalendarDays, Ship, Footprints, Home, MapPin, Al
 import { transitIconFor } from "@/components/TransitIcons";
 import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
+import { ChecklistPanel } from "@/components/checklist/ChecklistPanel";
+import { useShiftChecklists } from "@/components/checklist/useShiftChecklists";
+import { isEndChecklistComplete } from "@/domain/checklists";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 
@@ -1033,6 +1036,29 @@ function ActiveShiftPanel({
   const d = formatDuration(shift.check_in_at, null);
   const checkInAt = new Date(shift.check_in_at);
 
+  // Operator checklists for this shift (Operation 2). Loaded once per shift.
+  const {
+    checklists,
+    loading: checklistsLoading,
+    toggleItem,
+    reload: reloadChecklists,
+  } = useShiftChecklists(shift.id);
+  // The server syncs class snapshots when classes change; pick the result up
+  // when the shift's class set changes. No polling.
+  const classKey = importedClasses.map((c) => c.id).join(",");
+  const firstClassKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (firstClassKey.current === null) {
+      firstClassKey.current = classKey;
+      return;
+    }
+    if (firstClassKey.current === classKey) return;
+    firstClassKey.current = classKey;
+    reloadChecklists();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classKey]);
+  const endComplete = checklists ? isEndChecklistComplete(checklists) : true;
+
   const times = scheduledShift ? instanceTimes(scheduledShift, checkInAt) : null;
   const lateMin = minutesLate(times?.startAt ?? null, checkInAt);
   const expected = scheduledClassCount(scheduledShift?.label);
@@ -1163,25 +1189,34 @@ function ActiveShiftPanel({
         </CardContent>
       </Card>
 
+      <ChecklistPanel
+        title="Start Shift Checklist"
+        items={checklists?.start.items ?? []}
+        loading={checklistsLoading && !checklists}
+        onToggleItem={(itemId, completed) => toggleItem({ section: "start" }, itemId, completed)}
+      />
+
       {hasImported ? (
         <ClassScheduleCard
           classes={importedClasses}
           now={now}
           title="Shift Overview"
           onSetStatus={onSetClassStatus}
-            footer={
-              <div className="flex flex-col items-center gap-2">
-                <HoldButton
-                  label="Hold to check out"
-                  hint="Hold for check out"
-                  tone="danger"
-                  busy={checkingOut}
-                  onComplete={handleHoldComplete}
-                  size={84}
-                  resetSignal={resetSignal}
-                />
-              </div>
-            }
+          renderClassExtra={(c, st) => {
+            const entry = checklists?.classes.find((x) => x.classId === c.id);
+            if (!entry) return null;
+            return (
+              <ChecklistPanel
+                variant="inline"
+                title={entry.type === "ballet" ? "Ballet Checklist" : "Workout Checklist"}
+                items={entry.items}
+                readOnly={st === "cancelled"}
+                onToggleItem={(itemId, completed) =>
+                  toggleItem({ section: "class", classId: c.id }, itemId, completed)
+                }
+              />
+            );
+          }}
         />
       ) : (
         <Card>
@@ -1261,21 +1296,36 @@ function ActiveShiftPanel({
                 ))}
               </div>
             )}
-
-            <div className="flex flex-col items-center gap-2 border-t border-border pt-4">
-              <HoldButton
-                label="Hold to check out"
-                hint="Hold for check out"
-                tone="danger"
-                busy={checkingOut}
-                onComplete={handleHoldComplete}
-                size={84}
-                resetSignal={resetSignal}
-              />
-            </div>
           </CardContent>
         </Card>
       )}
+
+      <ChecklistPanel
+        title="End Shift Checklist"
+        items={checklists?.end.items ?? []}
+        loading={checklistsLoading && !checklists}
+        onToggleItem={(itemId, completed) => toggleItem({ section: "end" }, itemId, completed)}
+      />
+
+      <Card className="max-lg:glass max-lg:rounded-[22px]">
+        <CardContent className="flex flex-col items-center gap-2 p-5">
+          <HoldButton
+            label="Hold to check out"
+            hint={endComplete ? "Hold for check out" : undefined}
+            tone="danger"
+            busy={checkingOut}
+            disabled={!endComplete}
+            onComplete={handleHoldComplete}
+            size={84}
+            resetSignal={resetSignal}
+          />
+          {!endComplete && (
+            <p className="text-center text-xs text-muted-foreground">
+              Complete the End Shift Checklist before checking out.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* One dialog instance for every confirmation step. Swapping between
           separate mounted dialogs (early → camera) left the modal layer in a

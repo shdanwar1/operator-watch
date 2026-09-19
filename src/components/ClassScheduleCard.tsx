@@ -68,6 +68,7 @@ export function ClassScheduleCard({
   title = "Shift Overview",
   onSetStatus,
   footer,
+  renderClassExtra,
 }: {
   classes: CalendarClassRow[];
   now: Date;
@@ -76,13 +77,12 @@ export function ClassScheduleCard({
   onSetStatus?: (id: string, status: "scheduled" | "completed" | "cancelled") => void;
   /** Optional action area rendered at the bottom of the card, e.g. a check-out control. */
   footer?: React.ReactNode;
+  /** Extra content rendered on its own line inside a class row (e.g. its checklist). */
+  renderClassExtra?: (c: CalendarClassRow, status: ClassStatus) => React.ReactNode;
 }) {
   if (classes.length === 0) return null;
 
   const states = classes.map((c) => classStatusOf(c, now));
-
-
-
 
   return (
     <Card className="max-lg:glass max-lg:rounded-[22px]">
@@ -203,7 +203,12 @@ export function ClassScheduleCard({
                   {onSetStatus && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Class actions">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          aria-label="Class actions"
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -225,15 +230,24 @@ export function ClassScheduleCard({
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
+
+                  {renderClassExtra
+                    ? (() => {
+                        const extra = renderClassExtra(c, st);
+                        return extra ? (
+                          <div className="w-full basis-full border-t border-border pt-2">
+                            {extra}
+                          </div>
+                        ) : null;
+                      })()
+                    : null}
                 </div>
               </div>
             );
           })}
         </div>
 
-        {footer ? (
-          <div className="border-t border-border pt-4">{footer}</div>
-        ) : null}
+        {footer ? <div className="border-t border-border pt-4">{footer}</div> : null}
       </CardContent>
     </Card>
   );

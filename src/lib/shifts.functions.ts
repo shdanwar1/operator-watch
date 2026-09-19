@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
-import { assertCanCheckOut } from "./checkout-validation";
+import { assertCanCheckOut, assertEndChecklistComplete } from "./checkout-validation";
 import { sameOperator, statusForAssignment } from "@/domain/operator-identity";
 import { isGoogleIdentity, manualShiftIdentity } from "@/domain/shift-identity";
 
@@ -425,7 +425,7 @@ export const checkOutShift = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing, error: loadError } = await supabaseAdmin
       .from("shifts")
-      .select("id, operator_name, check_in_at, check_out_at, scheduled_shift_id")
+      .select("id, operator_name, check_in_at, check_out_at, scheduled_shift_id, checklists")
       .eq("id", data.id)
       .maybeSingle();
     if (loadError) throw new Error(loadError.message);
@@ -444,6 +444,8 @@ export const checkOutShift = createServerFn({ method: "POST" })
       },
       now,
     );
+    // Server-side gate: a direct request cannot bypass the End Shift checklist.
+    assertEndChecklistComplete((existing as { checklists?: unknown }).checklists);
 
     const patch: ShiftPatch = { check_out_at: now.toISOString() };
     if (data.classes !== undefined) {
