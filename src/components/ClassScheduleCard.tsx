@@ -68,6 +68,7 @@ export function ClassScheduleCard({
   title = "Shift Overview",
   onSetStatus,
   footer,
+  renderClassExtra,
 }: {
   classes: CalendarClassRow[];
   now: Date;
@@ -76,6 +77,8 @@ export function ClassScheduleCard({
   onSetStatus?: (id: string, status: "scheduled" | "completed" | "cancelled") => void;
   /** Optional action area rendered at the bottom of the card, e.g. a check-out control. */
   footer?: React.ReactNode;
+  /** Extra content rendered on its own line inside a class row (e.g. its checklist). */
+  renderClassExtra?: (c: CalendarClassRow, status: ClassStatus) => React.ReactNode;
 }) {
   if (classes.length === 0) return null;
 
