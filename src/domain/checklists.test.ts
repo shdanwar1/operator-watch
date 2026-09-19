@@ -43,9 +43,7 @@ describe("classification", () => {
 describe("snapshot generation", () => {
   it("preserves order, ids, text and headings, and starts uncompleted", () => {
     const snap = buildShiftChecklists(config, [ballet]);
-    expect(snap.start.items.map((i) => i.id)).toEqual(
-      config.start_shift.items.map((i) => i.id),
-    );
+    expect(snap.start.items.map((i) => i.id)).toEqual(config.start_shift.items.map((i) => i.id));
     expect(snap.start.items.every((i) => i.completed === false)).toBe(true);
     expect(snap.start.items.every((i) => i.heading === undefined)).toBe(true);
     expect(snap.end.items.every((i) => i.heading === undefined)).toBe(true);
@@ -108,9 +106,7 @@ describe("class synchronization", () => {
 
     const retyped = syncClassChecklists(snap, config, [{ ...workout, durationMinutes: 60 }]);
     expect(retyped.classes[0].type).toBe("ballet");
-    expect(retyped.classes[0].items.map((i) => i.id)).toEqual(
-      config.ballet.items.map((i) => i.id),
-    );
+    expect(retyped.classes[0].items.map((i) => i.id)).toEqual(config.ballet.items.map((i) => i.id));
   });
 
   it("keeps cancelled classes with their status and completion", () => {

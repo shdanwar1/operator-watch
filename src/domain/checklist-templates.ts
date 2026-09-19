@@ -67,7 +67,11 @@ export const DEFAULT_CHECKLISTS: ChecklistConfig = {
         text: "Check exposure using false color meter — Green and Pink for skin.",
         heading: H10,
       },
-      { id: "bal_05", text: "Prepare the timecode application to start at 01:00:00.", heading: H10 },
+      {
+        id: "bal_05",
+        text: "Prepare the timecode application to start at 01:00:00.",
+        heading: H10,
+      },
       {
         id: "bal_06",
         text: "Start recording in the YoloBox and start the timecode at the same time.",
@@ -190,7 +194,10 @@ export const DEFAULT_CHECKLISTS: ChecklistConfig = {
       { id: "end_06", text: "Check if there's any rubbish and throw it away." },
       { id: "end_07", text: "Turn the security camera in the operator room back ON." },
       { id: "end_08", text: "Turn all lights OFF." },
-      { id: "end_09", text: "Check if bins (bathroom and studio) need to be put out / change bags." },
+      {
+        id: "end_09",
+        text: "Check if bins (bathroom and studio) need to be put out / change bags.",
+      },
       { id: "end_10", text: "Check if there's enough hand towels and toilet paper." },
     ],
   },

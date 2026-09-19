@@ -113,8 +113,10 @@ export function isShiftChecklists(value: unknown): value is ShiftChecklists {
   if (!value || typeof value !== "object") return false;
   const v = value as Partial<ShiftChecklists>;
   return (
-    !!v.start && Array.isArray(v.start.items) &&
-    !!v.end && Array.isArray(v.end.items) &&
+    !!v.start &&
+    Array.isArray(v.start.items) &&
+    !!v.end &&
+    Array.isArray(v.end.items) &&
     Array.isArray(v.classes)
   );
 }
@@ -156,11 +158,7 @@ export function syncClassChecklists(
       next.push(fresh);
       continue;
     }
-    next.push(
-      prev.type === fresh.type
-        ? { ...fresh, items: prev.items }
-        : fresh,
-    );
+    next.push(prev.type === fresh.type ? { ...fresh, items: prev.items } : fresh);
   }
   return { ...snapshot, classes: next };
 }

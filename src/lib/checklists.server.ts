@@ -70,7 +70,7 @@ async function classesForScheduledShift(
   }[];
   if (!rows.length) return [];
   const { resolveClassIdentities } = await import("@/domain/dmc-directory.server");
-  const resolved = (await resolveClassIdentities(rows)) as (typeof rows[number] & {
+  const resolved = (await resolveClassIdentities(rows)) as ((typeof rows)[number] & {
     className: string;
     teacherName: string;
   })[];
