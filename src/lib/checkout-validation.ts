@@ -1,3 +1,5 @@
+import { isEndChecklistComplete } from "@/domain/checklists";
+
 export type CheckoutState = {
   check_in_at: string;
   check_out_at: string | null;
