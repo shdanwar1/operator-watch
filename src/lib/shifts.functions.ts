@@ -123,7 +123,7 @@ export const listScheduledShifts = createServerFn({ method: "GET" }).handler(asy
  * instead of a second one being created. A database partial unique index
  * (`shifts_one_open_per_scheduled`) closes the race window.
  */
-async function openAttendance(username: string, scheduledShiftId: string | null) {
+async function openAttendanceRow(username: string, scheduledShiftId: string | null) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { canonicalUsername } = await import("@/domain/operator-resolver.server");
   const canonical = await canonicalUsername(username);
