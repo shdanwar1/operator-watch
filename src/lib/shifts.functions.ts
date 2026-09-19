@@ -123,7 +123,7 @@ export const listScheduledShifts = createServerFn({ method: "GET" }).handler(asy
  * instead of a second one being created. A database partial unique index
  * (`shifts_one_open_per_scheduled`) closes the race window.
  */
-async function openAttendance(username: string, scheduledShiftId: string | null) {
+async function openAttendanceRow(username: string, scheduledShiftId: string | null) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { canonicalUsername } = await import("@/domain/operator-resolver.server");
   const canonical = await canonicalUsername(username);
@@ -169,6 +169,23 @@ async function openAttendance(username: string, scheduledShiftId: string | null)
   }
   return normalizeShift(row as Record<string, unknown>);
 }
+
+/**
+ * Single entry point for manual and automatic check-in. Also guarantees the
+ * shift owns a checklist snapshot (idempotent; never resets an existing one).
+ */
+async function openAttendance(username: string, scheduledShiftId: string | null) {
+  const shift = await openAttendanceRow(username, scheduledShiftId);
+  try {
+    const { ensureChecklistsForShift } = await import("./checklists.server");
+    await ensureChecklistsForShift(shift.id);
+  } catch (err) {
+    // Attendance must never fail because of the checklist layer.
+    console.error("ensureChecklistsForShift failed", err);
+  }
+  return shift;
+}
+
 
 export const createShift = createServerFn({ method: "POST" })
   .inputValidator(
