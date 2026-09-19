@@ -228,6 +228,17 @@ export function ClassScheduleCard({
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
+
+                  {renderClassExtra
+                    ? (() => {
+                        const extra = renderClassExtra(c, st);
+                        return extra ? (
+                          <div className="w-full basis-full border-t border-border pt-2">
+                            {extra}
+                          </div>
+                        ) : null;
+                      })()
+                    : null}
                 </div>
               </div>
             );
