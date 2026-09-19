@@ -12,3 +12,15 @@ export function assertCanCheckOut(state: CheckoutState, now: Date) {
     throw new Error("Invalid attendance record");
   }
 }
+/**
+ * Operation 2 rule: only the End Shift checklist blocks checkout. Start Shift
+ * and class checklists never do.
+ */
+export function assertEndChecklistComplete(checklists: unknown) {
+  const { isEndChecklistComplete } = require("@/domain/checklists") as {
+    isEndChecklistComplete: (v: unknown) => boolean;
+  };
+  if (!isEndChecklistComplete(checklists)) {
+    throw new Error("Complete the End Shift Checklist before checking out");
+  }
+}

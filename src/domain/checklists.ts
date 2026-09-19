@@ -187,3 +187,20 @@ export function setChecklistItemState(
     ),
   };
 }
+
+/** Derived progress for a list of snapshot items. Never stored. */
+export function checklistProgress(items: ChecklistSnapshotItem[]): {
+  completed: number;
+  total: number;
+  complete: boolean;
+} {
+  const total = items.length;
+  const completed = items.filter((i) => i.completed).length;
+  return { completed, total, complete: total > 0 && completed === total };
+}
+
+/** True when every End Shift item is ticked. An empty end list counts as done. */
+export function isEndChecklistComplete(snapshot: unknown): boolean {
+  if (!isShiftChecklists(snapshot)) return true;
+  return snapshot.end.items.every((i) => i.completed);
+}
