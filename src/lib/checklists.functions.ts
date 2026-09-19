@@ -51,3 +51,16 @@ export const setMyChecklistItem = createServerFn({ method: "POST" })
     const { setChecklistItem } = await import("./checklists.server");
     return setChecklistItem({ ...data, operator });
   });
+
+/** Read the checklist snapshot of the operator's own shift. */
+export const getMyShiftChecklists = createServerFn({ method: "POST" })
+  .inputValidator((data: { shiftId: string }) => {
+    const shiftId = String(data?.shiftId ?? "");
+    if (!shiftId || shiftId.length > 64) throw new Error("Invalid shiftId");
+    return { shiftId };
+  })
+  .handler(async ({ data }): Promise<ShiftChecklists | null> => {
+    const operator = await requireOperator();
+    const { readChecklistsForShift } = await import("./checklists.server");
+    return readChecklistsForShift({ shiftId: data.shiftId, operator });
+  });

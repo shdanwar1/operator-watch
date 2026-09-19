@@ -182,3 +182,19 @@ export async function setChecklistItem(input: {
   await writeChecklists(input.shiftId, next);
   return next;
 }
+
+/** The operator's own snapshot for one shift. Created on first read if missing. */
+export async function readChecklistsForShift(input: {
+  shiftId: string;
+  operator: string;
+}): Promise<ShiftChecklists | null> {
+  const { sameOperator } = await import("@/domain/operator-identity");
+  const shift = await loadShift(input.shiftId);
+  if (!shift) throw new Response("Shift not found", { status: 404 });
+  if (!sameOperator(shift.operator_name, input.operator)) {
+    throw new Response("Forbidden", { status: 403 });
+  }
+  if (isShiftChecklists(shift.checklists)) return shift.checklists;
+  if (shift.check_out_at) return null;
+  return ensureChecklistsForShift(input.shiftId);
+}
