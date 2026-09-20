@@ -110,7 +110,12 @@ async function displayWindowFor(
   }
 
   const pad = CLASS_WINDOW_PADDING_MIN * 60_000;
-  return { segmentIds, from: startAt.getTime() - pad, to: endAt.getTime() + pad };
+  return {
+    segmentIds,
+    from: startAt.getTime() - pad,
+    to: endAt.getTime() + pad,
+    operator: a.assigned_operator,
+  };
 }
 
 /** The classes attached to a scheduled shift, as checklist inputs. */
