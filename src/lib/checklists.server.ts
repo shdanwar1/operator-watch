@@ -5,6 +5,7 @@
  * defaults). Snapshot: `shifts.checklists`, written only when a real shift is
  * opened or its classes change.
  */
+import { berlinClock } from "./push-time";
 import { intervalOf, toDate } from "./class-interval";
 import { buildDisplayShifts, dateKey } from "./display-shifts";
 import type { ScheduledShiftRow } from "./shifts.functions";
@@ -185,13 +186,27 @@ async function loadShift(shiftId: string) {
   } | null;
 }
 
-async function writeChecklists(shiftId: string, value: ShiftChecklists) {
+/** Compare-and-swap protects all snapshot writers, including class synchronization. */
+async function updateChecklists(
+  shiftId: string,
+  transform: (shift: NonNullable<Awaited<ReturnType<typeof loadShift>>>) => ShiftChecklists,
+): Promise<ShiftChecklists> {
   const db = await admin();
-  const { error } = await db
-    .from("shifts")
-    .update({ checklists: value } as never)
-    .eq("id", shiftId);
-  if (error) throw new Error(error.message);
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const shift = await loadShift(shiftId);
+    if (!shift) throw new Error("Shift not found");
+    if (shift.check_out_at) throw new Error("Shift is already checked out");
+    const next = transform(shift);
+    let query = db.from("shifts").update({ checklists: next } as never)
+      .eq("id", shiftId).eq("operator_name", shift.operator_name).is("check_out_at", null);
+    query = shift.checklists === null
+      ? query.is("checklists", null)
+      : query.eq("checklists", JSON.stringify(shift.checklists));
+    const { data, error } = await query.select("id");
+    if (error) throw new Error(error.message);
+    if (data?.length) return next;
+  }
+  throw new Error("Checklist changed repeatedly. Please try again.");
 }
 
 /**
@@ -207,8 +222,9 @@ export async function ensureChecklistsForShift(shiftId: string): Promise<ShiftCh
     classesForScheduledShift(shift.scheduled_shift_id),
   ]);
   const snapshot = ensureShiftChecklists(null, config, classes);
-  await writeChecklists(shiftId, snapshot);
-  return snapshot;
+  return updateChecklists(shiftId, (latest) =>
+    isShiftChecklists(latest.checklists) ? latest.checklists : snapshot,
+  );
 }
 
 /**
@@ -236,7 +252,9 @@ export async function syncChecklistsForScheduledShift(
     readChecklistConfig(),
     classesForScheduledShift(scheduledShiftId),
   ]);
-  await writeChecklists(open.id, syncClassChecklists(open.checklists, config, classes));
+  await updateChecklists(open.id, (latest) =>
+    syncClassChecklists(ensureShiftChecklists(latest.checklists, config, classes), config, classes),
+  );
 }
 
 /** Operator toggle of one checklist item on their own OPEN shift. */
@@ -265,9 +283,14 @@ export async function setChecklistItem(input: {
     input.section === "class"
       ? ({ section: "class", classId: String(input.classId ?? "") } as const)
       : ({ section: input.section } as const);
-  const next = setChecklistItemState(current, target, input.itemId, input.completed);
-  await writeChecklists(input.shiftId, next);
-  return next;
+  return updateChecklists(input.shiftId, (latest) => {
+    if (!sameOperator(latest.operator_name, input.operator)) {
+      throw new Response("Forbidden", { status: 403 });
+    }
+    const snapshot = isShiftChecklists(latest.checklists) ? latest.checklists : current;
+    return setChecklistItemState(snapshot, target, input.itemId, input.completed,
+      input.completed ? berlinClock(new Date()) : null);
+  });
 }
 
 /** The operator's own snapshot for one shift. Created on first read if missing. */

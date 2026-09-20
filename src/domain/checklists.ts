@@ -26,7 +26,7 @@ export type ChecklistTemplate = {
 
 export type ChecklistConfig = Record<ChecklistType, ChecklistTemplate>;
 
-export type ChecklistSnapshotItem = ChecklistTemplateItem & { completed: boolean };
+export type ChecklistSnapshotItem = ChecklistTemplateItem & { completed: boolean; completedAt?: string | null };
 
 export type ChecklistClassSnapshot = {
   classId: string;
@@ -73,6 +73,7 @@ function snapshotItems(template: ChecklistTemplate): ChecklistSnapshotItem[] {
     text: i.text,
     ...(i.heading ? { heading: i.heading } : {}),
     completed: false,
+    completedAt: null,
   }));
 }
 
@@ -169,9 +170,10 @@ export function setChecklistItemState(
   target: { section: "start" } | { section: "end" } | { section: "class"; classId: string },
   itemId: string,
   completed: boolean,
+  completedAt: string | null = null,
 ): ShiftChecklists {
   const apply = (items: ChecklistSnapshotItem[]) =>
-    items.map((i) => (i.id === itemId ? { ...i, completed } : i));
+    items.map((i) => (i.id === itemId ? { ...i, completed, completedAt: completed ? completedAt : null } : i));
 
   if (target.section === "start") {
     return { ...snapshot, start: { items: apply(snapshot.start.items) } };
