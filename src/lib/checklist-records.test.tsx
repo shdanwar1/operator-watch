@@ -1,13 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import {
-  HistoricalChecklistItems,
-  ChecklistRecords,
-} from "@/components/admin/ChecklistRecords";
-import {
-  recordState,
-  visibleChecklistRecords,
-} from "@/components/admin/checklist-records-view";
+import { HistoricalChecklistItems, ChecklistRecords } from "@/components/admin/ChecklistRecords";
+import { recordState, visibleChecklistRecords } from "@/components/admin/checklist-records-view";
 import {
   checklistDateBounds,
   completionLabel,
