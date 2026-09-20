@@ -74,7 +74,7 @@ type ClassRow = {
  */
 async function displayWindowFor(
   scheduledShiftId: string,
-): Promise<{ segmentIds: string[]; from: number; to: number } | null> {
+): Promise<{ segmentIds: string[]; from: number; to: number; operator: string | null } | null> {
   const db = await admin();
   const { data: anchor, error } = await db
     .from("scheduled_shifts")
