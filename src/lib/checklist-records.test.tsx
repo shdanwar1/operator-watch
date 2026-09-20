@@ -1,6 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { HistoricalChecklistItems, ChecklistRecords } from "@/components/admin/ChecklistRecords";
+import {
+  HistoricalChecklistItems,
+  ChecklistRecords,
+  recordState,
+  visibleChecklistRecords,
+} from "@/components/admin/ChecklistRecords";
 import {
   checklistDateBounds,
   completionLabel,
@@ -171,9 +176,47 @@ describe("Berlin completion times", () => {
     expect(html).not.toContain("<input");
   });
   it("renders actual shift timing and operator", () => {
-    const html = renderToStaticMarkup(<ChecklistRecords records={[row("Shad")]} />);
+    const completed = row("Shad");
+    completed.checklists = setChecklistItemState(
+      completed.checklists!,
+      { section: "start" },
+      "start_01",
+      true,
+      "18:31",
+    );
+    const html = renderToStaticMarkup(<ChecklistRecords records={[completed]} />);
     expect(html).toContain("Shad");
     expect(html).toContain("18:30");
     expect(html).toContain("20 September 2026");
+    expect(html).toContain("Shift Timing");
+    expect(html).toContain("Status");
+    expect(html).toContain("In Progress");
+  });
+  it("shows only shifts with activity, newest first", () => {
+    const older = row("Older");
+    older.check_in_at = "2026-09-19T10:00:00Z";
+    older.checklists = setChecklistItemState(
+      older.checklists!,
+      { section: "start" },
+      "start_01",
+      true,
+      "12:01",
+    );
+    const newer = row("Newer");
+    newer.check_in_at = "2026-09-20T10:00:00Z";
+    newer.checklists = setChecklistItemState(
+      newer.checklists!,
+      { section: "end" },
+      "end_01",
+      true,
+      "12:02",
+    );
+    const empty = row("Empty");
+    expect(visibleChecklistRecords([older, empty, newer]).map((record) => record.operator_name)).toEqual([
+      "Newer",
+      "Older",
+    ]);
+    expect(recordState(empty)).toBe("not-started");
+    expect(recordState(newer)).toBe("in-progress");
   });
 });

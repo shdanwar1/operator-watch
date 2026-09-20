@@ -15,7 +15,7 @@ Validation: 169 tests passed; automatic build OK; isolated desktop/narrow grid v
 - [x] Keep template editing, analytics, and background services out of scope.
 
 # Admin Checklist Records UI redesign
-- [ ] Filter the records overview to shifts with completed checklist activity and sort newest first.
-- [ ] Build the compact four-column shift table and three-group inline expansion.
-- [ ] Preserve filters and historical checklist detail behavior.
+- [x] Filter the records overview to shifts with completed checklist activity and sort newest first.
+- [x] Build the compact four-column shift table and three-group inline expansion.
+- [x] Preserve filters and historical checklist detail behavior.
 - [ ] Verify focused tests, changed-file lint, type/build status, and available desktop/mobile flows.
