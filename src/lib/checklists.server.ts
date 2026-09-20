@@ -5,7 +5,9 @@
  * defaults). Snapshot: `shifts.checklists`, written only when a real shift is
  * opened or its classes change.
  */
-import { intervalOf } from "./class-interval";
+import { intervalOf, toDate } from "./class-interval";
+import { buildDisplayShifts, dateKey } from "./display-shifts";
+import type { ScheduledShiftRow } from "./shifts.functions";
 import { DEFAULT_CHECKLISTS } from "@/domain/checklist-templates";
 import {
   ensureShiftChecklists,
@@ -46,28 +48,109 @@ function durationMinutes(date: string, start: string, end: string): number {
   return Math.round((endAt.getTime() - startAt.getTime()) / 60_000);
 }
 
+/** Same leeway the operator UI uses when matching classes to a shift. */
+const CLASS_WINDOW_PADDING_MIN = 45;
+
+type ClassRow = {
+  id: string;
+  dmc_class_id: string | null;
+  dmc_instructor_id: string | null;
+  specific_date: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  scheduled_shift_id: string | null;
+};
+
+/**
+ * The operator-facing window of a scheduled shift: its merged segments and
+ * absolute start/end, padded like `classesForShift` in display-shifts.ts.
+ *
+ * Raw scheduled rows are often split at midnight, and `shifts.scheduled_shift_id`
+ * points only at the FIRST segment — so matching classes by that single id
+ * misses every class after midnight. Merging the operator's rows here (the
+ * same pure logic the dashboard uses) yields all segment ids plus the full
+ * time window, and classes are matched against both.
+ */
+async function displayWindowFor(
+  scheduledShiftId: string,
+): Promise<{ segmentIds: string[]; from: number; to: number; operator: string | null } | null> {
+  const db = await admin();
+  const { data: anchor, error } = await db
+    .from("scheduled_shifts")
+    .select("*")
+    .eq("id", scheduledShiftId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!anchor) return null;
+  const a = anchor as ScheduledShiftRow;
+
+  let segmentIds = [a.id];
+  let { startAt, endAt } = intervalOf(
+    a.specific_date,
+    a.start_time.slice(0, 5),
+    a.end_time.slice(0, 5),
+  );
+
+  if (a.assigned_operator) {
+    const { data: rows, error: sErr } = await db
+      .from("scheduled_shifts")
+      .select("*")
+      .ilike("assigned_operator", a.assigned_operator);
+    if (sErr) throw new Error(sErr.message);
+    const display = buildDisplayShifts((rows ?? []) as ScheduledShiftRow[], new Date(), {
+      daysBack: 2,
+      daysAhead: 2,
+    }).find((d) => d.segments.some((s) => s.id === a.id));
+    if (display) {
+      segmentIds = display.segments.map((s) => s.id);
+      startAt = display.startAt;
+      endAt = display.endAt;
+    }
+  }
+
+  const pad = CLASS_WINDOW_PADDING_MIN * 60_000;
+  return {
+    segmentIds,
+    from: startAt.getTime() - pad,
+    to: endAt.getTime() + pad,
+    operator: a.assigned_operator,
+  };
+}
+
 /** The classes attached to a scheduled shift, as checklist inputs. */
 async function classesForScheduledShift(
   scheduledShiftId: string | null,
 ): Promise<ChecklistClassInput[]> {
   if (!scheduledShiftId) return [];
+  const window = await displayWindowFor(scheduledShiftId);
+  if (!window) return [];
   const db = await admin();
-  const { data, error } = await db
+  const fromKey = dateKey(new Date(window.from));
+  const toKey = dateKey(new Date(window.to));
+  const idList = window.segmentIds.join(",");
+  let query = db
     .from("calendar_classes")
-    .select("id, dmc_class_id, dmc_instructor_id, specific_date, start_time, end_time, status")
-    .eq("scheduled_shift_id", scheduledShiftId)
-    .order("specific_date")
-    .order("start_time");
+    .select(
+      "id, dmc_class_id, dmc_instructor_id, specific_date, start_time, end_time, status, scheduled_shift_id",
+    );
+  // The time-window branch is only safe when scoped to this shift's operator —
+  // without it, another operator's class at the same time would leak in.
+  query = window.operator
+    ? query
+        .ilike("operator", window.operator)
+        .or(
+          `scheduled_shift_id.in.(${idList}),and(specific_date.gte.${fromKey},specific_date.lte.${toKey})`,
+        )
+    : query.in("scheduled_shift_id", window.segmentIds);
+  const { data, error } = await query.order("specific_date").order("start_time");
   if (error) throw new Error(error.message);
-  const rows = (data ?? []) as {
-    id: string;
-    dmc_class_id: string | null;
-    dmc_instructor_id: string | null;
-    specific_date: string;
-    start_time: string;
-    end_time: string;
-    status: string;
-  }[];
+  const segmentSet = new Set(window.segmentIds);
+  const rows = ((data ?? []) as ClassRow[]).filter((c) => {
+    if (c.scheduled_shift_id && segmentSet.has(c.scheduled_shift_id)) return true;
+    const t = toDate(c.specific_date, c.start_time.slice(0, 5)).getTime();
+    return t >= window.from && t <= window.to;
+  });
   if (!rows.length) return [];
   const { resolveClassIdentities } = await import("@/domain/dmc-directory.server");
   const resolved = (await resolveClassIdentities(rows)) as ((typeof rows)[number] & {
@@ -137,10 +220,14 @@ export async function syncChecklistsForScheduledShift(
 ): Promise<void> {
   if (!scheduledShiftId) return;
   const db = await admin();
+  // The caller may pass ANY segment of a day-split shift (e.g. an after-midnight
+  // class points at the second segment) while the open shift row references the
+  // first — so look the open shift up across all merged segments.
+  const window = await displayWindowFor(scheduledShiftId);
   const { data } = await db
     .from("shifts")
     .select("id, checklists")
-    .eq("scheduled_shift_id", scheduledShiftId)
+    .in("scheduled_shift_id", window?.segmentIds ?? [scheduledShiftId])
     .is("check_out_at", null)
     .maybeSingle();
   const open = data as { id: string; checklists: unknown } | null;
