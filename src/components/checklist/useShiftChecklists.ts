@@ -69,39 +69,55 @@ export function useShiftChecklists(shiftId: string | null) {
     else setLoading(false);
   }, [shiftId, refresh]);
 
+  const sameTarget = (a: ChecklistTarget, b: ChecklistTarget) =>
+    a.section === b.section &&
+    (a.section !== "class" || b.section !== "class" || a.classId === b.classId);
+
   const toggleItem = useCallback(
     (target: ChecklistTarget, itemId: string, completed: boolean) => {
       if (!shiftId || !confirmed.current) return;
       const id = shiftId;
-      const operation = { target, itemId, completed };
+      const operation: Pending = { target, itemId, completed };
       pending.current.push(operation);
       project();
       queue.current = queue.current.then(async () => {
-        try {
-          const saved = await write({
-            data: {
-              shiftId: id,
-              section: target.section,
-              classId: target.section === "class" ? target.classId : null,
-              itemId,
-              completed,
-            },
-          });
-          if (active.current === id) {
-            confirmed.current = saved;
-            revision.current++;
+        const superseded = pending.current.some(
+          (op) => op !== operation && sameTarget(op.target, target) && op.itemId === itemId,
+        );
+        // A newer click on the same item is already queued — its final state wins.
+        if (!superseded && active.current === id) {
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              const saved = await write({
+                data: {
+                  shiftId: id,
+                  section: target.section,
+                  classId: target.section === "class" ? target.classId : null,
+                  itemId,
+                  completed,
+                },
+              });
+              if (active.current === id) {
+                confirmed.current = saved;
+                revision.current++;
+              }
+              break;
+            } catch (error) {
+              if (attempt === 0) continue;
+              // Never lock the checklist: reconcile with the server and keep going.
+              toast.error("Unable to save checklist change. Retrying…");
+              if (active.current === id) refresh(id);
+              void error;
+            }
           }
-        } catch (error) {
-          toast.error(error instanceof Error ? error.message : "Could not save the checklist item");
-        } finally {
-          if (active.current === id) {
-            pending.current = pending.current.filter((op) => op !== operation);
-            project();
-          }
+        }
+        if (active.current === id) {
+          pending.current = pending.current.filter((op) => op !== operation);
+          project();
         }
       });
     },
-    [shiftId, write, project],
+    [shiftId, write, project, refresh],
   );
 
   return { checklists, loading, toggleItem, reload: () => shiftId && refresh(shiftId) };
