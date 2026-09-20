@@ -202,11 +202,14 @@ async function updateChecklists(
     if (!shift) throw new Error("Shift not found");
     if (shift.check_out_at) throw new Error("Shift is already checked out");
     const next = transform(shift);
-    const { data, error } = await db.rpc("update_shift_checklists_cas" as never, {
-      p_shift_id: shiftId,
-      p_expected: shift.checklists ?? null,
-      p_next: next,
-    } as never);
+    const { data, error } = await db.rpc(
+      "update_shift_checklists_cas" as never,
+      {
+        p_shift_id: shiftId,
+        p_expected: shift.checklists ?? null,
+        p_next: next,
+      } as never,
+    );
     if (error) throw new Error(error.message);
     if (data) return next;
   }
@@ -286,15 +289,18 @@ export async function setChecklistItem(input: {
   // Single atomic statement inside Postgres (row-locked): only this one item is
   // touched, so overlapping rapid clicks can never overwrite each other.
   const db = await admin();
-  const { data, error } = await db.rpc("set_shift_checklist_item" as never, {
-    p_shift_id: input.shiftId,
-    p_operator: input.operator,
-    p_section: input.section,
-    p_class_id: input.section === "class" ? String(input.classId ?? "") : null,
-    p_item_id: input.itemId,
-    p_completed: input.completed,
-    p_completed_at: input.completed ? berlinClock(new Date()) : null,
-  } as never);
+  const { data, error } = await db.rpc(
+    "set_shift_checklist_item" as never,
+    {
+      p_shift_id: input.shiftId,
+      p_operator: input.operator,
+      p_section: input.section,
+      p_class_id: input.section === "class" ? String(input.classId ?? "") : null,
+      p_item_id: input.itemId,
+      p_completed: input.completed,
+      p_completed_at: input.completed ? berlinClock(new Date()) : null,
+    } as never,
+  );
   if (error) {
     const message = String(error.message ?? "");
     if (message.includes("FORBIDDEN")) throw new Response("Forbidden", { status: 403 });

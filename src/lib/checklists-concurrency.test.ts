@@ -6,7 +6,7 @@ const store = vi.hoisted(() => ({
   row: {} as Record<string, unknown>,
   calls: 0,
   failNext: new Set<string>(),
-  delay: (_itemId: string) => 0,
+  delay: (_itemId: string): number => 0,
 }));
 
 vi.mock("@/integrations/supabase/client.server", () => ({
@@ -24,30 +24,30 @@ vi.mock("@/integrations/supabase/client.server", () => ({
     // Mirrors set_shift_checklist_item: one atomic, row-locked item write.
     rpc: async (_name: string, args: Record<string, unknown>) => {
       store.calls++;
-      const itemId = String(args['p_item_id']);
+      const itemId = String(args["p_item_id"]);
       await new Promise((r) => setTimeout(r, store.delay(itemId)));
       if (store.failNext.has(itemId)) {
         store.failNext.delete(itemId);
         return { data: null, error: { message: "Bad Request" } };
       }
-      const operator = String(args['p_operator'] ?? "");
+      const operator = String(args["p_operator"] ?? "");
       if (
-        String(store.row['operator_name']).trim().toLowerCase() !== operator.trim().toLowerCase()
+        String(store.row["operator_name"]).trim().toLowerCase() !== operator.trim().toLowerCase()
       ) {
         return { data: null, error: { message: "FORBIDDEN" } };
       }
-      if (store.row['check_out_at']) return { data: null, error: { message: "SHIFT_CLOSED" } };
-      const section = String(args['p_section']) as "start" | "end" | "class";
+      if (store.row["check_out_at"]) return { data: null, error: { message: "SHIFT_CLOSED" } };
+      const section = String(args["p_section"]) as "start" | "end" | "class";
       const target =
         section === "class"
-          ? ({ section: "class", classId: String(args['p_class_id']) } as const)
+          ? ({ section: "class", classId: String(args["p_class_id"]) } as const)
           : ({ section } as const);
       const next = setChecklistItemState(
-        store.row['checklists'] as ReturnType<typeof buildShiftChecklists>,
+        store.row["checklists"] as ReturnType<typeof buildShiftChecklists>,
         target,
         itemId,
-        Boolean(args['p_completed']),
-        (args['p_completed_at'] as string | null) ?? null,
+        Boolean(args["p_completed"]),
+        (args["p_completed_at"] as string | null) ?? null,
       );
       store.row = { ...store.row, checklists: next };
       return { data: structuredClone(next), error: null };
@@ -58,7 +58,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({
 import { setChecklistItem } from "./checklists.server";
 
 const base = { shiftId: "shift", operator: "A", section: "start" as const };
-const snapshot = () => store.row['checklists'] as ReturnType<typeof buildShiftChecklists>;
+const snapshot = () => store.row["checklists"] as ReturnType<typeof buildShiftChecklists>;
 const item = (id: string) => snapshot().start.items.find((i) => i.id === id)!;
 
 beforeEach(async () => {
@@ -94,7 +94,9 @@ it("keeps every item when responses resolve out of order", async () => {
 it("leaves neighbours intact when one write fails", async () => {
   store.failNext.add("start_02");
   await setChecklistItem({ ...base, itemId: "start_01", completed: true });
-  await expect(setChecklistItem({ ...base, itemId: "start_02", completed: true })).rejects.toThrow();
+  await expect(
+    setChecklistItem({ ...base, itemId: "start_02", completed: true }),
+  ).rejects.toThrow();
   await setChecklistItem({ ...base, itemId: "start_03", completed: true });
   expect(item("start_01").completed).toBe(true);
   expect(item("start_02").completed).toBe(false);
@@ -115,7 +117,7 @@ it("ends a check/uncheck/recheck sequence checked with a fresh time", async () =
 
 it("keeps sections and classes independent", async () => {
   const classes = ["c1", "c2"];
-  store.row['checklists'] = buildShiftChecklists(DEFAULT_CHECKLISTS, [
+  store.row["checklists"] = buildShiftChecklists(DEFAULT_CHECKLISTS, [
     {
       classId: "c1",
       className: "A",
@@ -161,7 +163,9 @@ it("keeps sections and classes independent", async () => {
 
 it("rejects another operator and closed shifts", async () => {
   const input = { ...base, itemId: "start_01", completed: true };
-  await expect(setChecklistItem({ ...input, operator: "B" })).rejects.toMatchObject({ status: 403 });
-  store.row['check_out_at'] = "2026-09-20T20:00Z";
+  await expect(setChecklistItem({ ...input, operator: "B" })).rejects.toMatchObject({
+    status: 403,
+  });
+  store.row["check_out_at"] = "2026-09-20T20:00Z";
   await expect(setChecklistItem(input)).rejects.toMatchObject({ status: 409 });
 });
