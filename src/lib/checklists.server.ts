@@ -283,23 +283,29 @@ export async function setChecklistItem(input: {
     (await ensureChecklistsForShift(input.shiftId));
   if (!current) throw new Response("Shift not found", { status: 404 });
 
-  const target =
-    input.section === "class"
-      ? ({ section: "class", classId: String(input.classId ?? "") } as const)
-      : ({ section: input.section } as const);
-  return updateChecklists(input.shiftId, (latest) => {
-    if (!sameOperator(latest.operator_name, input.operator)) {
-      throw new Response("Forbidden", { status: 403 });
+  // Single atomic statement inside Postgres (row-locked): only this one item is
+  // touched, so overlapping rapid clicks can never overwrite each other.
+  const db = await admin();
+  const { data, error } = await db.rpc("set_shift_checklist_item" as never, {
+    p_shift_id: input.shiftId,
+    p_operator: input.operator,
+    p_section: input.section,
+    p_class_id: input.section === "class" ? String(input.classId ?? "") : null,
+    p_item_id: input.itemId,
+    p_completed: input.completed,
+    p_completed_at: input.completed ? berlinClock(new Date()) : null,
+  } as never);
+  if (error) {
+    const message = String(error.message ?? "");
+    if (message.includes("FORBIDDEN")) throw new Response("Forbidden", { status: 403 });
+    if (message.includes("SHIFT_CLOSED")) {
+      throw new Response("Shift is already checked out", { status: 409 });
     }
-    const snapshot = isShiftChecklists(latest.checklists) ? latest.checklists : current;
-    return setChecklistItemState(
-      snapshot,
-      target,
-      input.itemId,
-      input.completed,
-      input.completed ? berlinClock(new Date()) : null,
-    );
-  });
+    if (message.includes("SHIFT_NOT_FOUND")) throw new Response("Shift not found", { status: 404 });
+    throw new Error(message || "Could not save the checklist item");
+  }
+  if (!isShiftChecklists(data)) throw new Error("Could not save the checklist item");
+  return data;
 }
 
 /** The operator's own snapshot for one shift. Created on first read if missing. */
