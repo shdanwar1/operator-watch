@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarDays,
   CalendarRange,
-
+  ClipboardCheck,
   ListChecks,
   LogOut,
   PanelLeft,
@@ -25,10 +25,10 @@ const ADMIN_NAV: { label: string; to: string; icon: typeof CalendarDays; exact?:
   { label: "Timetable", to: "/admin/timetable", icon: CalendarRange },
   { label: "Calendar", to: "/admin/calendar", icon: CalendarDays },
   { label: "Shifts", to: "/admin/shifts", icon: ListChecks },
+  { label: "Checklists", to: "/admin/checklists", icon: ClipboardCheck },
   { label: "Operators", to: "/admin/operators", icon: Users },
   { label: "Settings", to: "/admin/settings", icon: Settings },
 ];
-
 
 const COLLAPSE_KEY = "so.admin.sidebar.collapsed";
 

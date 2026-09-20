@@ -212,7 +212,9 @@ describe("operator dashboard wiring", () => {
   });
 
   it("rolls an optimistic toggle back when the server rejects it", () => {
-    expect(hook).toContain("setChecklistItemState(cur, target, itemId, !completed)");
+    expect(hook).toContain("pending.current.filter((op) => op !== operation)");
+    expect(hook).toContain("confirmed.current = saved");
+    expect(hook).toContain("project()");
   });
 
   it("renders headings as plain labels, not accordions", () => {
