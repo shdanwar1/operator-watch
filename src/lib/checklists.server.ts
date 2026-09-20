@@ -5,7 +5,9 @@
  * defaults). Snapshot: `shifts.checklists`, written only when a real shift is
  * opened or its classes change.
  */
-import { intervalOf } from "./class-interval";
+import { intervalOf, toDate } from "./class-interval";
+import { buildDisplayShifts, dateKey } from "./display-shifts";
+import type { ScheduledShiftRow } from "./shifts.functions";
 import { DEFAULT_CHECKLISTS } from "@/domain/checklist-templates";
 import {
   ensureShiftChecklists,
