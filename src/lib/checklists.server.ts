@@ -197,11 +197,16 @@ async function updateChecklists(
     if (!shift) throw new Error("Shift not found");
     if (shift.check_out_at) throw new Error("Shift is already checked out");
     const next = transform(shift);
-    let query = db.from("shifts").update({ checklists: next } as never)
-      .eq("id", shiftId).eq("operator_name", shift.operator_name).is("check_out_at", null);
-    query = shift.checklists === null
-      ? query.is("checklists", null)
-      : query.eq("checklists", JSON.stringify(shift.checklists));
+    let query = db
+      .from("shifts")
+      .update({ checklists: next } as never)
+      .eq("id", shiftId)
+      .eq("operator_name", shift.operator_name)
+      .is("check_out_at", null);
+    query =
+      shift.checklists === null
+        ? query.is("checklists", null)
+        : query.eq("checklists", JSON.stringify(shift.checklists));
     const { data, error } = await query.select("id");
     if (error) throw new Error(error.message);
     if (data?.length) return next;
@@ -288,8 +293,13 @@ export async function setChecklistItem(input: {
       throw new Response("Forbidden", { status: 403 });
     }
     const snapshot = isShiftChecklists(latest.checklists) ? latest.checklists : current;
-    return setChecklistItemState(snapshot, target, input.itemId, input.completed,
-      input.completed ? berlinClock(new Date()) : null);
+    return setChecklistItemState(
+      snapshot,
+      target,
+      input.itemId,
+      input.completed,
+      input.completed ? berlinClock(new Date()) : null,
+    );
   });
 }
 
