@@ -613,6 +613,10 @@ export type Database = {
         Args: { p_id: string; p_pin?: string; p_username?: string }
         Returns: undefined
       }
+      apply_checklist_item: {
+        Args: { p_item_id: string; p_items: Json; p_patch: Json }
+        Returns: Json
+      }
       claim_push_delivery: {
         Args: {
           p_expires_at: string
@@ -653,7 +657,23 @@ export type Database = {
         Args: { p_id: string; p_username: string }
         Returns: undefined
       }
+      set_shift_checklist_item: {
+        Args: {
+          p_class_id: string
+          p_completed: boolean
+          p_completed_at: string
+          p_item_id: string
+          p_operator: string
+          p_section: string
+          p_shift_id: string
+        }
+        Returns: Json
+      }
       set_site_password: { Args: { p_pw: string }; Returns: undefined }
+      update_shift_checklists_cas: {
+        Args: { p_expected: Json; p_next: Json; p_shift_id: string }
+        Returns: Json
+      }
       verify_operator_pin: {
         Args: { p_pin: string; p_username: string }
         Returns: string
