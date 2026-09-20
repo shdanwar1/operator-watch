@@ -18,4 +18,5 @@ Validation: 169 tests passed; automatic build OK; isolated desktop/narrow grid v
 - [x] Filter the records overview to shifts with completed checklist activity and sort newest first.
 - [x] Build the compact four-column shift table and three-group inline expansion.
 - [x] Preserve filters and historical checklist detail behavior.
-- [ ] Verify focused tests, changed-file lint, type/build status, and available desktop/mobile flows.
+- [x] Verify focused tests, changed-file lint, TypeScript, and automatic build status.
+- [ ] Live desktop/mobile admin verification remains blocked by the existing unlock gate rejecting the configured access value.

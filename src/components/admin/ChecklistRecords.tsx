@@ -180,26 +180,28 @@ function RecordExpansion({ record }: { record: ChecklistRecord }) {
                 key={cls.classId}
                 className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 border-b border-border px-3 py-3 last:border-b-0 md:grid-cols-[0.85fr_1.45fr_1.15fr_0.75fr_0.7fr_auto] md:items-center md:py-2.5"
               >
-                <span className="text-xs tabular-nums text-muted-foreground md:text-sm">
+                <span className="col-span-2 text-xs tabular-nums text-muted-foreground md:col-span-1 md:text-sm">
                   {cls.startTime}–{cls.endTime}
                 </span>
-                <span className="min-w-0 break-words text-sm font-medium md:font-normal">
+                <span className="col-span-2 min-w-0 break-words text-sm font-medium md:col-span-1 md:font-normal">
                   {cls.className}
                 </span>
-                <span className="min-w-0 break-words text-xs text-muted-foreground md:text-sm md:text-foreground">
+                <span className="col-span-2 min-w-0 break-words text-xs text-muted-foreground md:col-span-1 md:text-sm md:text-foreground">
                   {cls.teacherName}
                 </span>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="col-span-2 flex flex-wrap items-center gap-1.5 md:col-span-1">
                   <Badge variant="secondary" className="font-medium capitalize">
                     {cls.type}
                   </Badge>
                   {cls.status === "cancelled" && <Badge variant="outline">Cancelled</Badge>}
                 </div>
-                <ProgressValue items={cls.items} />
+                <span className="col-span-2 md:col-span-1">
+                  <ProgressValue items={cls.items} />
+                </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="justify-self-end"
+                  className="col-span-2 justify-self-start md:col-span-1 md:justify-self-end"
                   onClick={() =>
                     setDetail({
                       title: cls.type === "ballet" ? "Ballet Checklist" : "Workout Checklist",
