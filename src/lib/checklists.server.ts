@@ -220,10 +220,14 @@ export async function syncChecklistsForScheduledShift(
 ): Promise<void> {
   if (!scheduledShiftId) return;
   const db = await admin();
+  // The caller may pass ANY segment of a day-split shift (e.g. an after-midnight
+  // class points at the second segment) while the open shift row references the
+  // first — so look the open shift up across all merged segments.
+  const window = await displayWindowFor(scheduledShiftId);
   const { data } = await db
     .from("shifts")
     .select("id, checklists")
-    .eq("scheduled_shift_id", scheduledShiftId)
+    .in("scheduled_shift_id", window?.segmentIds ?? [scheduledShiftId])
     .is("check_out_at", null)
     .maybeSingle();
   const open = data as { id: string; checklists: unknown } | null;
