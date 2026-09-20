@@ -129,16 +129,21 @@ async function classesForScheduledShift(
   const fromKey = dateKey(new Date(window.from));
   const toKey = dateKey(new Date(window.to));
   const idList = window.segmentIds.join(",");
-  const { data, error } = await db
+  let query = db
     .from("calendar_classes")
     .select(
       "id, dmc_class_id, dmc_instructor_id, specific_date, start_time, end_time, status, scheduled_shift_id",
-    )
-    .or(
-      `scheduled_shift_id.in.(${idList}),and(specific_date.gte.${fromKey},specific_date.lte.${toKey})`,
-    )
-    .order("specific_date")
-    .order("start_time");
+    );
+  // The time-window branch is only safe when scoped to this shift's operator —
+  // without it, another operator's class at the same time would leak in.
+  query = window.operator
+    ? query
+        .ilike("operator", window.operator)
+        .or(
+          `scheduled_shift_id.in.(${idList}),and(specific_date.gte.${fromKey},specific_date.lte.${toKey})`,
+        )
+    : query.in("scheduled_shift_id", window.segmentIds);
+  const { data, error } = await query.order("specific_date").order("start_time");
   if (error) throw new Error(error.message);
   const segmentSet = new Set(window.segmentIds);
   const rows = ((data ?? []) as ClassRow[]).filter((c) => {
