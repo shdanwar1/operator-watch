@@ -12,10 +12,8 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import {
-  ChecklistRecords,
-  visibleChecklistRecords,
-} from "@/components/admin/ChecklistRecords";
+import { ChecklistRecords } from "@/components/admin/ChecklistRecords";
+import { visibleChecklistRecords } from "@/components/admin/checklist-records-view";
 import { adminListChecklistRecords } from "@/lib/checklist-records.functions";
 import { filterChecklistRecords } from "@/lib/checklist-records";
 import { berlinDateKey } from "@/lib/gcal-core";

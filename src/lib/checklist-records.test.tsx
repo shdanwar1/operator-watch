@@ -3,9 +3,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   HistoricalChecklistItems,
   ChecklistRecords,
+} from "@/components/admin/ChecklistRecords";
+import {
   recordState,
   visibleChecklistRecords,
-} from "@/components/admin/ChecklistRecords";
+} from "@/components/admin/checklist-records-view";
 import {
   checklistDateBounds,
   completionLabel,
@@ -212,10 +214,9 @@ describe("Berlin completion times", () => {
       "12:02",
     );
     const empty = row("Empty");
-    expect(visibleChecklistRecords([older, empty, newer]).map((record) => record.operator_name)).toEqual([
-      "Newer",
-      "Older",
-    ]);
+    expect(
+      visibleChecklistRecords([older, empty, newer]).map((record) => record.operator_name),
+    ).toEqual(["Newer", "Older"]);
     expect(recordState(empty)).toBe("not-started");
     expect(recordState(newer)).toBe("in-progress");
   });
