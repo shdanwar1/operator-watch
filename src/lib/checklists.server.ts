@@ -5,6 +5,7 @@
  * defaults). Snapshot: `shifts.checklists`, written only when a real shift is
  * opened or its classes change.
  */
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { berlinClock } from "./push-time";
 import { intervalOf, toDate } from "./class-interval";
 import { buildDisplayShifts, dateKey } from "./display-shifts";
@@ -21,7 +22,6 @@ import {
 } from "@/domain/checklists";
 
 async function admin() {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
 }
 
