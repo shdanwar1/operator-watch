@@ -186,7 +186,12 @@ async function loadShift(shiftId: string) {
   } | null;
 }
 
-/** Compare-and-swap protects all snapshot writers, including class synchronization. */
+/**
+ * Compare-and-swap protects the whole-snapshot writers (creation and class
+ * synchronization). The comparison runs INSIDE Postgres under a row lock via
+ * `update_shift_checklists_cas` — sending the previous snapshot as a PostgREST
+ * query-string filter produced oversized URLs and "Bad Request" failures.
+ */
 async function updateChecklists(
   shiftId: string,
   transform: (shift: NonNullable<Awaited<ReturnType<typeof loadShift>>>) => ShiftChecklists,
@@ -197,19 +202,13 @@ async function updateChecklists(
     if (!shift) throw new Error("Shift not found");
     if (shift.check_out_at) throw new Error("Shift is already checked out");
     const next = transform(shift);
-    let query = db
-      .from("shifts")
-      .update({ checklists: next } as never)
-      .eq("id", shiftId)
-      .eq("operator_name", shift.operator_name)
-      .is("check_out_at", null);
-    query =
-      shift.checklists === null
-        ? query.is("checklists", null)
-        : query.eq("checklists", JSON.stringify(shift.checklists));
-    const { data, error } = await query.select("id");
+    const { data, error } = await db.rpc("update_shift_checklists_cas" as never, {
+      p_shift_id: shiftId,
+      p_expected: shift.checklists ?? null,
+      p_next: next,
+    } as never);
     if (error) throw new Error(error.message);
-    if (data?.length) return next;
+    if (data) return next;
   }
   throw new Error("Checklist changed repeatedly. Please try again.");
 }
