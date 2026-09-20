@@ -20,3 +20,8 @@ Validation: 169 tests passed; automatic build OK; isolated desktop/narrow grid v
 - [x] Preserve filters and historical checklist detail behavior.
 - [x] Verify focused tests, changed-file lint, TypeScript, and automatic build status.
 - [ ] Live desktop/mobile admin verification remains blocked by the existing unlock gate rejecting the configured access value.
+
+## Checklist rapid-click reliability fix
+- [x] Atomic per-item save in the database (no more oversized request that caused "Bad Request")
+- [x] Client queue coalesces superseded clicks, auto-retries once, reconciles instead of locking
+- [x] Live verified: 8 rapid ticks + triple toggle persisted after refresh, no error toast
