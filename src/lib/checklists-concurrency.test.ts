@@ -40,7 +40,8 @@ vi.mock("@/integrations/supabase/client.server", () => ({
   },
 }));
 import { setChecklistItem } from "./checklists.server";
-beforeEach(() => {
+beforeEach(async () => {
+  await import("@/integrations/supabase/client.server");
   store.conflicts = 0;
   store.row = {
     id: "shift",
