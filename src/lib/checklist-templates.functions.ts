@@ -22,10 +22,15 @@ function getSessionConfig() {
   };
 }
 
+/**
+ * Plain Errors (not thrown Responses): a thrown Response crosses the RPC
+ * boundary as an empty resolved value, which would make a rejected call look
+ * like a success to the caller.
+ */
 async function requireAdmin() {
   const session = await useSession<GateSession>(getSessionConfig());
-  if (!session.data.siteUnlocked) throw new Response("Unauthorized", { status: 401 });
-  if (!session.data.isAdmin) throw new Response("Admin access required", { status: 403 });
+  if (!session.data.siteUnlocked) throw new Error("Unauthorized");
+  if (!session.data.isAdmin) throw new Error("Admin access required");
 }
 
 /** Current master templates (admin only). */
