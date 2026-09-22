@@ -25,3 +25,8 @@ Validation: 169 tests passed; automatic build OK; isolated desktop/narrow grid v
 - [x] Atomic per-item save in the database (no more oversized request that caused "Bad Request")
 - [x] Client queue coalesces superseded clicks, auto-retries once, reconciles instead of locking
 - [x] Live verified: 8 rapid ticks + triple toggle persisted after refresh, no error toast
+
+## Daily optimization — duplicate check-in
+- [x] Check-in is now idempotent for unscheduled shifts too (returns the existing open shift instead of creating a second one)
+- [x] Database index prevents two open unscheduled shifts for one operator
+- [x] Live verified as Shad: four simultaneous check-ins produced one shift; test row removed
