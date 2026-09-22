@@ -118,30 +118,36 @@ export const listScheduledShifts = createServerFn({ method: "GET" }).handler(asy
 /**
  * The single attendance-creation path.
  *
- * Idempotent for scheduled shifts: if the operator already has an open
- * attendance record for the same scheduled shift, that record is returned
- * instead of a second one being created. A database partial unique index
- * (`shifts_one_open_per_scheduled`) closes the race window.
+ * Idempotent in both directions: if the operator already has an open
+ * attendance record — for the same scheduled shift, or any open record at all
+ * when checking in without one — that record is returned instead of a second
+ * one being created. Two database partial unique indexes
+ * (`shifts_one_open_per_scheduled`, `shifts_one_open_unscheduled_per_operator`)
+ * close the remaining race window.
  */
 async function openAttendanceRow(username: string, scheduledShiftId: string | null) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { canonicalUsername } = await import("@/domain/operator-resolver.server");
   const canonical = await canonicalUsername(username);
 
-  if (scheduledShiftId) {
-    const { data: open } = await supabaseAdmin
-      .from("shifts")
-      .select("*")
-      .eq("scheduled_shift_id", scheduledShiftId)
-      .is("check_out_at", null)
-      .maybeSingle();
-    if (open) {
-      const row = normalizeShift(open as Record<string, unknown>);
-      if (!sameOperator(row.operator_name, canonical)) {
-        throw new Response("Forbidden", { status: 403 });
-      }
-      return row;
+  const findOpen = async () => {
+    const query = supabaseAdmin.from("shifts").select("*").is("check_out_at", null);
+    const { data } = scheduledShiftId
+      ? await query.eq("scheduled_shift_id", scheduledShiftId).maybeSingle()
+      : await query
+          .ilike("operator_name", canonical)
+          .order("check_in_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+    return data ? normalizeShift(data as Record<string, unknown>) : null;
+  };
+
+  const open = await findOpen();
+  if (open) {
+    if (!sameOperator(open.operator_name, canonical)) {
+      throw new Response("Forbidden", { status: 403 });
     }
+    return open;
   }
 
   const { data: row, error } = await supabaseAdmin
@@ -154,21 +160,15 @@ async function openAttendanceRow(username: string, scheduledShiftId: string | nu
     .single();
 
   if (error) {
-    // Lost the race against a concurrent check-in (same notification on two
-    // devices): adopt the row that won instead of failing.
-    if (scheduledShiftId) {
-      const { data: existing } = await supabaseAdmin
-        .from("shifts")
-        .select("*")
-        .eq("scheduled_shift_id", scheduledShiftId)
-        .is("check_out_at", null)
-        .maybeSingle();
-      if (existing) return normalizeShift(existing as Record<string, unknown>);
-    }
+    // Lost the race against a concurrent check-in (double tap, or the same
+    // notification on two devices): adopt the row that won instead of failing.
+    const existing = await findOpen();
+    if (existing && sameOperator(existing.operator_name, canonical)) return existing;
     throw new Error(error.message);
   }
   return normalizeShift(row as Record<string, unknown>);
 }
+
 
 /**
  * Single entry point for manual and automatic check-in. Also guarantees the
