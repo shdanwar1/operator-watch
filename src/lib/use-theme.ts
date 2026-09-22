@@ -44,12 +44,3 @@ export function useTheme() {
     setTheme,
   };
 }
-
-// Inline snippet to run in <head> before hydration to avoid theme flash.
-export const THEME_INIT_SCRIPT = `
-try {
-  var t = localStorage.getItem('theme');
-  if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  if (t === 'dark') document.documentElement.classList.add('dark');
-} catch (e) {}
-`;
