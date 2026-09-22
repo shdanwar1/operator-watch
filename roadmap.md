@@ -30,3 +30,8 @@ Validation: 169 tests passed; automatic build OK; isolated desktop/narrow grid v
 - [x] Check-in is now idempotent for unscheduled shifts too (returns the existing open shift instead of creating a second one)
 - [x] Database index prevents two open unscheduled shifts for one operator
 - [x] Live verified as Shad: four simultaneous check-ins produced one shift; test row removed
+
+## Daily optimization — theme startup warning
+- [x] Removed the hydration mismatch the saved dark/light theme caused on every page load
+- [x] Deleted the unused duplicate copy of the theme startup snippet
+- [x] Verified: 236 tests, typecheck clean; live light + dark load and operator sign-in with no console errors
