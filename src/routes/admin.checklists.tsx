@@ -13,6 +13,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { ChecklistRecords } from "@/components/admin/ChecklistRecords";
+import { ChecklistTemplateList } from "@/components/admin/ChecklistTemplateList";
 import { visibleChecklistRecords } from "@/components/admin/checklist-records-view";
 import { adminListChecklistRecords } from "@/lib/checklist-records.functions";
 import { filterChecklistRecords } from "@/lib/checklist-records";
@@ -96,6 +97,11 @@ function AdminChecklists() {
       ) : (
         <p className="text-sm text-muted-foreground">No checklist records found.</p>
       )}
+
+      <div className="space-y-3 border-t border-border pt-6">
+        <h2 className="text-xs font-semibold uppercase text-muted-foreground">Edit Checklists</h2>
+        <ChecklistTemplateList />
+      </div>
     </section>
   );
 }
