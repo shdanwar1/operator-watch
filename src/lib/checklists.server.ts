@@ -129,13 +129,35 @@ type ShiftContext = {
 };
 
 /**
+ * Class rows store a Berlin wall-clock date+time, and `toDate` reads them in
+ * the server's own zone — so a real timestamp has to be expressed on the same
+ * Berlin clock before the two can be compared.
+ */
+function berlinClockTime(iso: string): number {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(iso));
+  const at = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  return toDate(
+    `${at("year")}-${at("month")}-${at("day")}`,
+    `${at("hour")}:${at("minute")}`,
+  ).getTime();
+}
+
+/**
  * Window for a shift opened WITHOUT a scheduled row (ad-hoc check-in). The
  * dashboard shows the operator's classes around the check-in, so the snapshot
  * has to cover the same span — otherwise such a shift gets no class checklists.
  */
 function adHocWindow(shift: ShiftContext) {
-  const checkIn = new Date(shift.check_in_at).getTime();
-  const end = shift.check_out_at ? new Date(shift.check_out_at).getTime() : Date.now();
+  const checkIn = berlinClockTime(shift.check_in_at);
+  const end = berlinClockTime(shift.check_out_at ?? new Date().toISOString());
   return {
     segmentIds: [] as string[],
     from: checkIn - 60 * 60_000,
