@@ -92,7 +92,7 @@ describe("idempotency", () => {
 });
 
 describe("class synchronization", () => {
-  it("adds, removes and retypes class checklists", () => {
+  it("adds and retypes class checklists", () => {
     let snap = buildShiftChecklists(config, [ballet]);
     snap = setChecklistItemState(snap, { section: "class", classId: "c1" }, "bal_01", true);
 
@@ -101,12 +101,34 @@ describe("class synchronization", () => {
     expect(snap.classes[1].type).toBe("workout");
     expect(snap.classes[0].items[0].completed).toBe(true);
 
-    snap = syncClassChecklists(snap, config, [workout]);
-    expect(snap.classes.map((c) => c.classId)).toEqual(["c2"]);
+    const retyped = syncClassChecklists(snap, config, [
+      ballet,
+      { ...workout, durationMinutes: 60 },
+    ]);
+    expect(retyped.classes[1].type).toBe("ballet");
+    expect(retyped.classes[1].items.map((i) => i.id)).toEqual(config.ballet.items.map((i) => i.id));
+  });
 
-    const retyped = syncClassChecklists(snap, config, [{ ...workout, durationMinutes: 60 }]);
-    expect(retyped.classes[0].type).toBe("ballet");
-    expect(retyped.classes[0].items.map((i) => i.id)).toEqual(config.ballet.items.map((i) => i.id));
+  it("drops an untouched class that left the shift but keeps one with progress", () => {
+    let snap = buildShiftChecklists(config, [ballet, workout]);
+    snap = setChecklistItemState(snap, { section: "class", classId: "c1" }, "bal_01", true);
+
+    // c2 has no ticked item — removing the class removes its checklist.
+    expect(syncClassChecklists(snap, config, [ballet]).classes.map((c) => c.classId)).toEqual([
+      "c1",
+    ]);
+    // c1 has progress — it survives even when the class is no longer listed.
+    const kept = syncClassChecklists(snap, config, [workout]);
+    expect(kept.classes.map((c) => c.classId)).toEqual(["c2", "c1"]);
+    expect(kept.classes[1].items[0].completed).toBe(true);
+  });
+
+  it("keeps each class checklist independent", () => {
+    let snap = buildShiftChecklists(config, [ballet, workout]);
+    snap = setChecklistItemState(snap, { section: "class", classId: "c1" }, "bal_01", true);
+    snap = syncClassChecklists(snap, config, [ballet, workout]);
+    expect(snap.classes[0].items[0].completed).toBe(true);
+    expect(snap.classes[1].items.every((i) => !i.completed)).toBe(true);
   });
 
   it("keeps cancelled classes with their status and completion", () => {

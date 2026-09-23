@@ -144,7 +144,7 @@ export function ensureShiftChecklists(
  * - new class → snapshot added from the CURRENT template
  * - metadata change → metadata updated, completion preserved
  * - type change (45 ↔ 60) → items rebuilt from the correct template
- * - class removed → entry removed
+ * - class removed → entry removed, UNLESS it already has ticked items
  * - cancelled class → kept, with its status recorded
  */
 export function syncClassChecklists(
@@ -154,15 +154,22 @@ export function syncClassChecklists(
 ): ShiftChecklists {
   const byId = new Map(snapshot.classes.map((c) => [c.classId, c]));
   const next: ChecklistClassSnapshot[] = [];
+  const kept = new Set<string>();
   for (const input of classes) {
     const fresh = classSnapshot(config, input);
     if (!fresh) continue;
     const prev = byId.get(input.classId);
+    kept.add(input.classId);
     if (!prev) {
       next.push(fresh);
       continue;
     }
     next.push(prev.type === fresh.type ? { ...fresh, items: prev.items } : fresh);
+  }
+  // Recorded progress is never thrown away by a reconciliation pass.
+  for (const prev of snapshot.classes) {
+    if (kept.has(prev.classId)) continue;
+    if (prev.items.some((i) => i.completed)) next.push(prev);
   }
   return { ...snapshot, classes: next };
 }

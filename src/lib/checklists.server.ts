@@ -119,17 +119,62 @@ async function displayWindowFor(
   };
 }
 
-/** The classes attached to a scheduled shift, as checklist inputs. */
-async function classesForScheduledShift(
-  scheduledShiftId: string | null,
-): Promise<ChecklistClassInput[]> {
-  if (!scheduledShiftId) return [];
-  const window = await displayWindowFor(scheduledShiftId);
+/** The attendance record a checklist snapshot belongs to. */
+type ShiftContext = {
+  id: string;
+  operator_name: string;
+  check_in_at: string;
+  check_out_at: string | null;
+  scheduled_shift_id: string | null;
+};
+
+/**
+ * Class rows store a Berlin wall-clock date+time, and `toDate` reads them in
+ * the server's own zone — so a real timestamp has to be expressed on the same
+ * Berlin clock before the two can be compared.
+ */
+function berlinClockTime(iso: string): number {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(iso));
+  const at = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  return toDate(
+    `${at("year")}-${at("month")}-${at("day")}`,
+    `${at("hour")}:${at("minute")}`,
+  ).getTime();
+}
+
+/**
+ * Window for a shift opened WITHOUT a scheduled row (ad-hoc check-in). The
+ * dashboard shows the operator's classes around the check-in, so the snapshot
+ * has to cover the same span — otherwise such a shift gets no class checklists.
+ */
+function adHocWindow(shift: ShiftContext) {
+  const checkIn = berlinClockTime(shift.check_in_at);
+  const end = berlinClockTime(shift.check_out_at ?? new Date().toISOString());
+  return {
+    segmentIds: [] as string[],
+    from: checkIn - 60 * 60_000,
+    to: Math.max(end, checkIn) + 6 * 60 * 60_000,
+    operator: shift.operator_name,
+  };
+}
+
+/** The classes belonging to a shift (scheduled or ad-hoc), as checklist inputs. */
+async function classesForShift(shift: ShiftContext): Promise<ChecklistClassInput[]> {
+  const window = shift.scheduled_shift_id
+    ? await displayWindowFor(shift.scheduled_shift_id)
+    : adHocWindow(shift);
   if (!window) return [];
   const db = await admin();
   const fromKey = dateKey(new Date(window.from));
   const toKey = dateKey(new Date(window.to));
-  const idList = window.segmentIds.join(",");
   let query = db
     .from("calendar_classes")
     .select(
@@ -137,13 +182,18 @@ async function classesForScheduledShift(
     );
   // The time-window branch is only safe when scoped to this shift's operator —
   // without it, another operator's class at the same time would leak in.
-  query = window.operator
-    ? query
-        .ilike("operator", window.operator)
-        .or(
-          `scheduled_shift_id.in.(${idList}),and(specific_date.gte.${fromKey},specific_date.lte.${toKey})`,
+  if (window.operator) {
+    query = query.ilike("operator", window.operator);
+    query = window.segmentIds.length
+      ? query.or(
+          `scheduled_shift_id.in.(${window.segmentIds.join(",")}),and(specific_date.gte.${fromKey},specific_date.lte.${toKey})`,
         )
-    : query.in("scheduled_shift_id", window.segmentIds);
+      : query.gte("specific_date", fromKey).lte("specific_date", toKey);
+  } else if (window.segmentIds.length) {
+    query = query.in("scheduled_shift_id", window.segmentIds);
+  } else {
+    return [];
+  }
   const { data, error } = await query.order("specific_date").order("start_time");
   if (error) throw new Error(error.message);
   const segmentSet = new Set(window.segmentIds);
@@ -173,17 +223,11 @@ async function loadShift(shiftId: string) {
   const db = await admin();
   const { data, error } = await db
     .from("shifts")
-    .select("id, operator_name, check_out_at, scheduled_shift_id, checklists")
+    .select("id, operator_name, check_in_at, check_out_at, scheduled_shift_id, checklists")
     .eq("id", shiftId)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return (data ?? null) as {
-    id: string;
-    operator_name: string;
-    check_out_at: string | null;
-    scheduled_shift_id: string | null;
-    checklists: unknown;
-  } | null;
+  return (data ?? null) as (ShiftContext & { checklists: unknown }) | null;
 }
 
 /**
@@ -224,14 +268,35 @@ export async function ensureChecklistsForShift(shiftId: string): Promise<ShiftCh
   const shift = await loadShift(shiftId);
   if (!shift) return null;
   if (isShiftChecklists(shift.checklists)) return shift.checklists;
-  const [config, classes] = await Promise.all([
-    readChecklistConfig(),
-    classesForScheduledShift(shift.scheduled_shift_id),
-  ]);
+  const [config, classes] = await Promise.all([readChecklistConfig(), classesForShift(shift)]);
   const snapshot = ensureShiftChecklists(null, config, classes);
   return updateChecklists(shiftId, (latest) =>
     isShiftChecklists(latest.checklists) ? latest.checklists : snapshot,
   );
+}
+
+/**
+ * Brings one OPEN shift's class entries in line with its live classes.
+ * Completion state is keyed by class id, so existing progress is preserved and
+ * only genuinely new/changed classes are touched. Returns the current snapshot
+ * unchanged when nothing differs (no write).
+ */
+async function syncClassesForShift(
+  shift: ShiftContext & { checklists: unknown },
+): Promise<ShiftChecklists | null> {
+  if (shift.check_out_at) {
+    return isShiftChecklists(shift.checklists) ? shift.checklists : null;
+  }
+  const [config, classes] = await Promise.all([readChecklistConfig(), classesForShift(shift)]);
+  const current = ensureShiftChecklists(shift.checklists, config, classes);
+  const next = syncClassChecklists(current, config, classes);
+  if (isShiftChecklists(shift.checklists) && JSON.stringify(next) === JSON.stringify(current)) {
+    return current;
+  }
+  return updateChecklists(shift.id, (latest) => {
+    const base = ensureShiftChecklists(latest.checklists, config, classes);
+    return syncClassChecklists(base, config, classes);
+  });
 }
 
 /**
@@ -249,19 +314,15 @@ export async function syncChecklistsForScheduledShift(
   const window = await displayWindowFor(scheduledShiftId);
   const { data } = await db
     .from("shifts")
-    .select("id, checklists")
+    .select("id")
     .in("scheduled_shift_id", window?.segmentIds ?? [scheduledShiftId])
     .is("check_out_at", null)
     .maybeSingle();
-  const open = data as { id: string; checklists: unknown } | null;
-  if (!open || !isShiftChecklists(open.checklists)) return;
-  const [config, classes] = await Promise.all([
-    readChecklistConfig(),
-    classesForScheduledShift(scheduledShiftId),
-  ]);
-  await updateChecklists(open.id, (latest) =>
-    syncClassChecklists(ensureShiftChecklists(latest.checklists, config, classes), config, classes),
-  );
+  const open = data as { id: string } | null;
+  if (!open) return;
+  const shift = await loadShift(open.id);
+  if (!shift || !isShiftChecklists(shift.checklists)) return;
+  await syncClassesForShift(shift);
 }
 
 /** Operator toggle of one checklist item on their own OPEN shift. */
@@ -314,7 +375,14 @@ export async function setChecklistItem(input: {
   return data;
 }
 
-/** The operator's own snapshot for one shift. Created on first read if missing. */
+/**
+ * The operator's own snapshot for one shift. Created on first read if missing.
+ *
+ * While the shift is open the class entries are reconciled with its live
+ * classes, so a class added, retimed or cancelled after check-in still gets the
+ * right checklist. Completion state is keyed by class id and never reset; a
+ * closed shift is returned exactly as recorded.
+ */
 export async function readChecklistsForShift(input: {
   shiftId: string;
   operator: string;
@@ -325,7 +393,14 @@ export async function readChecklistsForShift(input: {
   if (!sameOperator(shift.operator_name, input.operator)) {
     throw new Response("Forbidden", { status: 403 });
   }
-  if (isShiftChecklists(shift.checklists)) return shift.checklists;
-  if (shift.check_out_at) return null;
-  return ensureChecklistsForShift(input.shiftId);
+  if (shift.check_out_at) {
+    return isShiftChecklists(shift.checklists) ? shift.checklists : null;
+  }
+  try {
+    return await syncClassesForShift(shift);
+  } catch (err) {
+    // Reading must never fail because of the reconciliation step.
+    console.error("syncClassesForShift failed", err);
+    return isShiftChecklists(shift.checklists) ? shift.checklists : null;
+  }
 }
