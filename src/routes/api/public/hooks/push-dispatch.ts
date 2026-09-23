@@ -1,12 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { berlinClock, berlinInstant } from "@/lib/push-time";
-import {
-  NOTIFICATION_TYPES,
-  startCheckInKey,
-  startReminderKey,
-} from "@/lib/push-keys";
+import { NOTIFICATION_TYPES, startCheckInKey, startReminderKey } from "@/lib/push-keys";
 import { normalizeUsername } from "@/domain/operator-identity";
-
 
 /**
  * Scheduled push dispatcher.
@@ -29,7 +24,6 @@ function due(at: Date, now: number): boolean {
   const t = at.getTime();
   return t <= now + LOOKAHEAD_MS && t >= now - LOOKBACK_MS;
 }
-
 
 export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
   server: {
@@ -141,7 +135,6 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           }
         }
 
-
         const stats = {
           candidates: jobs.length,
           claimed: 0,
@@ -248,7 +241,6 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           .lt("expires_at", new Date(now).toISOString());
 
         return Response.json({ ok: true, ...stats });
-
       },
     },
   },
