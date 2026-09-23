@@ -32,6 +32,8 @@ export function HoldButton({
   size = 100,
   hint,
   resetSignal,
+  showCaption = false,
+  completedCaption,
 }: {
   label: string;
   /** Kept for API compatibility; no success text is rendered anymore. */
@@ -45,6 +47,10 @@ export function HoldButton({
   hint?: string;
   /** Change this value to reset the button back to its idle state. */
   resetSignal?: number;
+  /** Show the dashboard-style live hold countdown below the control. */
+  showCaption?: boolean;
+  /** Caption shown after a completed hold. */
+  completedCaption?: string;
 }) {
 
   const reduced = usePrefersReducedMotion();
@@ -151,6 +157,14 @@ export function HoldButton({
   const successRing = "oklch(0.72 0.17 155)";
 
   const scale = done ? 1.08 : holding ? (reduced ? 1 : 1.06) : 1;
+  const secondsLeft = Math.max(1, Math.ceil((1 - progress) * (HOLD_MS / 1000)));
+  const caption = done
+    ? (completedCaption ?? successLabel ?? "Complete")
+    : busy
+      ? "Working…"
+      : holding || progress > 0
+        ? `Keep holding… ${secondsLeft}`
+        : hint || "Hold to clock in";
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -166,6 +180,7 @@ export function HoldButton({
         onPointerUp={end}
         onPointerLeave={end}
         onPointerCancel={end}
+        onContextMenu={(event) => event.preventDefault()}
         onKeyDown={(e) => {
           if (e.key === " " || e.key === "Enter") {
             e.preventDefault();
@@ -234,9 +249,12 @@ export function HoldButton({
           )}
         </span>
       </button>
-      {!done && (busy || hint) ? (
-        <p className="text-[11px] text-muted-foreground" aria-live="polite">
-          {busy ? "Working…" : hint}
+      {showCaption || (!done && (busy || hint)) ? (
+        <p
+          className={`min-h-4 text-[11px] ${done ? "font-medium text-done" : "text-muted-foreground"}`}
+          aria-live="polite"
+        >
+          {showCaption ? caption : busy ? "Working…" : hint}
         </p>
       ) : null}
 

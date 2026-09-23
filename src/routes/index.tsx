@@ -585,7 +585,7 @@ function Index() {
         <ProfileIncompleteBanner missing={profileStatus?.missing ?? []} />
       )}
 
-      <div className="mx-auto w-full max-w-3xl space-y-6">
+      <div className={`mx-auto w-full space-y-6 ${active ? "max-w-3xl" : "max-w-[520px]"}`}>
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : active ? (
@@ -604,7 +604,7 @@ function Index() {
             onSetClassStatus={setClassStatus}
           />
         ) : (
-          <>
+          <div className="space-y-6 pb-28">
             <InactiveDashboard
               nextShift={nextDisplay}
               upcoming={upcomingDisplay.slice(1, 6)}
@@ -621,21 +621,17 @@ function Index() {
                 reason="Complete your profile to enable Check In and Time to Leave."
               />
             ) : (
-              <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
-                <CardContent className="p-0">
-                  <CheckInPanel
-                    openScheduled={openScheduled}
-                    openShift={openTarget}
-                    nextShift={nextDisplay}
-                    now={now}
-                    checkingIn={checkingIn}
-                    onCheckIn={checkIn}
-                    hideShiftInfo
-                  />
-                </CardContent>
-              </Card>
+              <CheckInPanel
+                openScheduled={openScheduled}
+                openShift={openTarget}
+                nextShift={nextDisplay}
+                now={now}
+                checkingIn={checkingIn}
+                onCheckIn={checkIn}
+                hideShiftInfo
+              />
             )}
-          </>
+          </div>
         )}
       </div>
     </AppShell>
@@ -660,7 +656,7 @@ function InactiveDashboard({
   showTimeToLeave: boolean;
 }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <NextShiftSummary
         shift={nextShift}
         now={now}
@@ -700,31 +696,28 @@ function NextShiftSummary({
   const leave = result?.ok ? new Date(result.leave_iso) : null;
   return (
     <section>
-      <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+      <div className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         Next shift
       </div>
-      <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
-        <CardContent className="grid gap-5 p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
-          <div>
-            <div className="text-lg font-semibold">
+      <Card className="rise-in rounded-[22px] shadow-none">
+        <CardContent className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-4 p-5 sm:gap-6 sm:p-6">
+          <div className="min-w-0">
+            <div className="text-[30px] font-bold leading-none">
               {shift.startAt.toLocaleDateString(undefined, { weekday: "long" })}
             </div>
             <div className="mt-1 text-sm text-muted-foreground">{fullDateLabel(shift.startAt)}</div>
-            <div className="mt-3 text-xl font-semibold tabular-nums">{range.range}</div>
-            <div className="mt-1 text-xs text-muted-foreground">
+            <div className="mt-4 text-[22px] font-medium tabular-nums">{range.range}</div>
+            <div className="mt-1.5 text-xs text-muted-foreground">
               {count} {count === 1 ? "class" : "classes"}
             </div>
           </div>
           {showTimeToLeave ? (
-            <div className="border-t border-border pt-4 sm:min-w-40 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
+            <div className="flex min-w-[108px] flex-col justify-center border-l border-border pl-4 sm:min-w-40 sm:pl-6">
               <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Time to leave
+                Leave at
               </div>
-              <div className="mt-1 text-3xl font-semibold tabular-nums text-primary">
+              <div className="mt-1 text-[28px] font-bold leading-none tabular-nums">
                 {leave ? fmtHM(leave) : loading ? "…" : "Unavailable"}
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {leave ? `Leave at ${fmtHM(leave)}` : loading ? "Calculating…" : "Try again later"}
               </div>
             </div>
           ) : null}
@@ -737,10 +730,15 @@ function NextShiftSummary({
 function UpcomingShifts({ shifts, now }: { shifts: DisplayShift[]; now: Date }) {
   return (
     <section>
-      <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        Upcoming shifts
+      <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+        <h2 className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Upcoming
+        </h2>
+        <Button asChild variant="outline" size="sm" className="h-7 rounded-full px-3 text-[11px]">
+          <Link to="/calendar">Calendar <span aria-hidden>›</span></Link>
+        </Button>
       </div>
-      <Card className="max-lg:glass max-lg:rounded-[22px]">
+      <Card className="rounded-[22px] shadow-none">
         <CardContent className="p-0">
           {shifts.length ? (
             shifts.map((shift) => {
@@ -846,10 +844,12 @@ function CheckInPanel({
         )}
 
         <HoldButton
-          label="Hold to check in"
+          label="Hold for 3 seconds to clock in"
           busy={checkingIn}
           onComplete={handleHoldComplete}
-          size={100}
+          size={76}
+          showCaption
+          completedCaption={`Clocked in ${fmtHM(new Date())}`}
           resetSignal={resetSignal}
         />
 
