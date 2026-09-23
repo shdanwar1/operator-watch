@@ -20,7 +20,7 @@ export type TimeToLeaveResult =
       shift_start_iso: string;
       leave_iso: string;
       travel_minutes: number;
-      source: "live" | "cached" | "fallback";
+      source: "saved" | "live" | "fallback";
     }
   | { ok: false; reason: "no_home" | "no_session" | "no_operator" | "unavailable" };
 

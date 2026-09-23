@@ -2,8 +2,6 @@
 export const ARRIVAL_BUFFER_MIN = 5;
 /** Leave-home push fires this many minutes before Time to Leave. */
 export const LEAVE_NOTIFY_LEAD_MIN = 15;
-/** A live result is reused for this long before it is recalculated. */
-export const LEAVE_CACHE_TTL_MS = 30 * 60_000;
 /** Arrival offsets (minutes) queried in order; later ones only on failure. */
 export const ARRIVAL_ATTEMPT_OFFSETS_MIN = [0, -5, 5] as const;
 
