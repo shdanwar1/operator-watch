@@ -244,7 +244,6 @@ export type Database = {
         Row: {
           calendar_ics_url: string | null
           calendar_last_sync_at: string | null
-          commute_calculated_at: string | null
           commute_minutes: number | null
           commute_route_key: string | null
           created_at: string
@@ -254,8 +253,6 @@ export type Database = {
           id: string
           is_active: boolean
           is_admin: boolean
-          leave_at: string | null
-          leave_shift_start: string | null
           pin_hash: string | null
           prefs: Json
           updated_at: string
@@ -264,7 +261,6 @@ export type Database = {
         Insert: {
           calendar_ics_url?: string | null
           calendar_last_sync_at?: string | null
-          commute_calculated_at?: string | null
           commute_minutes?: number | null
           commute_route_key?: string | null
           created_at?: string
@@ -274,8 +270,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_admin?: boolean
-          leave_at?: string | null
-          leave_shift_start?: string | null
           pin_hash?: string | null
           prefs?: Json
           updated_at?: string
@@ -284,7 +278,6 @@ export type Database = {
         Update: {
           calendar_ics_url?: string | null
           calendar_last_sync_at?: string | null
-          commute_calculated_at?: string | null
           commute_minutes?: number | null
           commute_route_key?: string | null
           created_at?: string
@@ -294,8 +287,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_admin?: boolean
-          leave_at?: string | null
-          leave_shift_start?: string | null
           pin_hash?: string | null
           prefs?: Json
           updated_at?: string
@@ -439,6 +430,8 @@ export type Database = {
           specific_date: string
           start_time: string
           status: string
+          time_to_leave: string | null
+          time_to_leave_calculated_at: string | null
         }
         Insert: {
           assigned_operator?: string | null
@@ -452,6 +445,8 @@ export type Database = {
           specific_date: string
           start_time: string
           status?: string
+          time_to_leave?: string | null
+          time_to_leave_calculated_at?: string | null
         }
         Update: {
           assigned_operator?: string | null
@@ -465,6 +460,8 @@ export type Database = {
           specific_date?: string
           start_time?: string
           status?: string
+          time_to_leave?: string | null
+          time_to_leave_calculated_at?: string | null
         }
         Relationships: []
       }

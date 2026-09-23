@@ -1,7 +1,6 @@
 import { readAppSettings } from "./settings.functions";
 import {
   ARRIVAL_ATTEMPT_OFFSETS_MIN,
-  LEAVE_CACHE_TTL_MS,
   commuteRouteKey,
   latestValidJourney,
   leaveFromDuration,
@@ -14,7 +13,7 @@ export type LeaveResult =
       shift_start_iso: string;
       leave_iso: string;
       travel_minutes: number;
-      source: "live" | "cached" | "fallback";
+      source: "saved" | "live" | "fallback";
     }
   | { ok: false; reason: "no_home" | "no_operator" | "unavailable" };
 
@@ -67,97 +66,151 @@ export async function liveCommute(
 
 type OperatorRow = {
   id: string;
+  username: string;
   home_lat: number | null;
   home_lng: number | null;
   commute_minutes: number | null;
   commute_route_key: string | null;
-  commute_calculated_at: string | null;
-  leave_shift_start: string | null;
-  leave_at: string | null;
 };
 
+type ShiftRow = {
+  id: string;
+  time_to_leave: string | null;
+};
+
+export type TimeToLeaveStore = {
+  loadOperator(where: { operatorId: string } | { username: string }): Promise<OperatorRow | null>;
+  findShift(op: OperatorRow, shiftStart: Date): Promise<ShiftRow | null>;
+  /** Saves only if the shift still has no value (never overwrites). */
+  saveShift(shiftId: string, leaveIso: string, nowIso: string): Promise<string | null>;
+  saveCommute(operatorId: string, minutes: number, routeKey: string): Promise<void>;
+  studio(): Promise<Coords>;
+};
+
+async function supabaseStore(): Promise<TimeToLeaveStore> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { berlinInstant } = await import("./push-time");
+  return {
+    async loadOperator(where) {
+      let q = supabaseAdmin
+        .from("operators")
+        .select("id, username, home_lat, home_lng, commute_minutes, commute_route_key");
+      q =
+        "operatorId" in where ? q.eq("id", where.operatorId) : q.ilike("username", where.username);
+      const { data, error } = await q.maybeSingle();
+      if (error) throw new Error(error.message);
+      return data as OperatorRow | null;
+    },
+    async findShift(op, shiftStart) {
+      const day = (offset: number) =>
+        new Date(shiftStart.getTime() + offset * 86_400_000).toLocaleDateString("en-CA", {
+          timeZone: "Europe/Berlin",
+        });
+      const { data, error } = await supabaseAdmin
+        .from("scheduled_shifts")
+        .select("id, specific_date, start_time, status, time_to_leave")
+        .ilike("assigned_operator", op.username)
+        .in("specific_date", [day(-1), day(0)]);
+      if (error) throw new Error(error.message);
+      const rows = (data ?? []) as (ShiftRow & {
+        specific_date: string;
+        start_time: string;
+        status: string;
+      })[];
+      const hit = rows.find(
+        (r) =>
+          r.status !== "cancelled" &&
+          berlinInstant(r.specific_date, r.start_time)?.getTime() === shiftStart.getTime(),
+      );
+      return hit ? { id: hit.id, time_to_leave: hit.time_to_leave } : null;
+    },
+    async saveShift(shiftId, leaveIso, nowIso) {
+      await supabaseAdmin
+        .from("scheduled_shifts")
+        .update({ time_to_leave: leaveIso, time_to_leave_calculated_at: nowIso } as never)
+        .eq("id", shiftId)
+        .is("time_to_leave", null);
+      // Re-read: a concurrent writer may have saved first; its value wins.
+      const { data } = await supabaseAdmin
+        .from("scheduled_shifts")
+        .select("time_to_leave")
+        .eq("id", shiftId)
+        .maybeSingle();
+      return (data as { time_to_leave: string | null } | null)?.time_to_leave ?? null;
+    },
+    async saveCommute(operatorId, minutes, routeKey) {
+      await supabaseAdmin
+        .from("operators")
+        .update({ commute_minutes: minutes, commute_route_key: routeKey } as never)
+        .eq("id", operatorId);
+    },
+    async studio() {
+      const s = (await readAppSettings()).studio;
+      return { lat: s.lat, lng: s.lng };
+    },
+  };
+}
+
 /**
- * The single authoritative Time to Leave for an operator's next shift.
- * Used by the Dashboard and by the leave-home notification.
+ * The single authoritative Time to Leave for a scheduled shift.
+ *
+ * scheduled_shifts.time_to_leave is the source of truth: once saved it is
+ * returned as-is (no TTL, no travel request). While it is null, a live
+ * calculation is attempted and saved on success. Database triggers clear it
+ * when the shift, home or studio location changes.
  */
 export async function resolveTimeToLeave(
   where: { operatorId: string } | { username: string },
   shiftStart: Date,
-  opts: { fetcher?: JourneyFetcher; now?: number } = {},
+  opts: { fetcher?: JourneyFetcher; now?: number; store?: TimeToLeaveStore } = {},
 ): Promise<LeaveResult> {
   const now = opts.now ?? Date.now();
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  let q = supabaseAdmin
-    .from("operators")
-    .select(
-      "id, home_lat, home_lng, commute_minutes, commute_route_key, commute_calculated_at, leave_shift_start, leave_at",
-    );
-  q = "operatorId" in where ? q.eq("id", where.operatorId) : q.ilike("username", where.username);
-  const { data, error } = await q.maybeSingle();
-  if (error) return { ok: false, reason: "unavailable" };
-  const op = data as OperatorRow | null;
+  const store = opts.store ?? (await supabaseStore());
+  const op = await store.loadOperator(where);
   if (!op) return { ok: false, reason: "no_operator" };
-  if (op.home_lat == null || op.home_lng == null) return { ok: false, reason: "no_home" };
-
-  const settings = await readAppSettings();
-  const home = { lat: op.home_lat, lng: op.home_lng };
-  const studio = { lat: settings.studio.lat, lng: settings.studio.lng };
-  const routeKey = commuteRouteKey(home, studio);
   const shiftIso = shiftStart.toISOString();
+  const shift = await store.findShift(op, shiftStart);
 
-  // Fresh cached result for this exact shift and route.
-  if (
-    op.leave_at &&
-    op.leave_shift_start &&
-    new Date(op.leave_shift_start).getTime() === shiftStart.getTime() &&
-    op.commute_route_key === routeKey &&
-    op.commute_calculated_at &&
-    now - Date.parse(op.commute_calculated_at) < LEAVE_CACHE_TTL_MS &&
-    op.commute_minutes != null
-  ) {
+  if (shift?.time_to_leave) {
     return {
       ok: true,
       shift_start_iso: shiftIso,
-      leave_iso: new Date(op.leave_at).toISOString(),
-      travel_minutes: op.commute_minutes,
-      source: "cached",
+      leave_iso: new Date(shift.time_to_leave).toISOString(),
+      travel_minutes: Math.round(
+        (requiredArrival(shiftStart).getTime() - Date.parse(shift.time_to_leave)) / 60_000,
+      ),
+      source: "saved",
     };
   }
+  if (op.home_lat == null || op.home_lng == null) return { ok: false, reason: "no_home" };
+
+  const home = { lat: op.home_lat, lng: op.home_lng };
+  const studio = await store.studio();
+  const routeKey = commuteRouteKey(home, studio);
 
   const live = await liveCommute(home, studio, shiftStart, opts.fetcher);
   if (live) {
-    await supabaseAdmin
-      .from("operators")
-      .update({
-        commute_minutes: live.travelMinutes,
-        commute_route_key: routeKey,
-        commute_calculated_at: new Date(now).toISOString(),
-        leave_shift_start: shiftIso,
-        leave_at: live.departureIso,
-      } as never)
-      .eq("id", op.id);
+    await store.saveCommute(op.id, live.travelMinutes, routeKey);
+    const saved = shift
+      ? await store.saveShift(shift.id, live.departureIso, new Date(now).toISOString())
+      : null;
+    const leaveIso = saved ? new Date(saved).toISOString() : live.departureIso;
     return {
       ok: true,
       shift_start_iso: shiftIso,
-      leave_iso: live.departureIso,
+      leave_iso: leaveIso,
       travel_minutes: live.travelMinutes,
       source: "live",
     };
   }
 
-  // Fallback: last successful duration for the same home→studio pair.
+  // Display-only fallback: last real commute for the same home→studio pair.
+  // Never saved, so the shift stays null and the next opportunity retries.
   if (op.commute_minutes != null && op.commute_route_key === routeKey) {
-    const leave = leaveFromDuration(shiftStart, op.commute_minutes);
-    // Keep the notification aligned with what the Dashboard shows, but do not
-    // refresh commute_calculated_at so the next read retries VBB.
-    await supabaseAdmin
-      .from("operators")
-      .update({ leave_shift_start: shiftIso, leave_at: leave.toISOString() } as never)
-      .eq("id", op.id);
     return {
       ok: true,
       shift_start_iso: shiftIso,
-      leave_iso: leave.toISOString(),
+      leave_iso: leaveFromDuration(shiftStart, op.commute_minutes).toISOString(),
       travel_minutes: op.commute_minutes,
       source: "fallback",
     };

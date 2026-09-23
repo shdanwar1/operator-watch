@@ -23,7 +23,14 @@ describe("latestValidJourney", () => {
 
   it("normal weekday: home departure includes the walk from home", () => {
     const r = latestValidJourney(
-      { journeys: [j(walk("2026-09-25T09:05:00+02:00", "2026-09-25T09:12:00+02:00"), ride("2026-09-25T09:14:00+02:00", "2026-09-25T09:48:00+02:00"))] },
+      {
+        journeys: [
+          j(
+            walk("2026-09-25T09:05:00+02:00", "2026-09-25T09:12:00+02:00"),
+            ride("2026-09-25T09:14:00+02:00", "2026-09-25T09:48:00+02:00"),
+          ),
+        ],
+      },
       required,
     )!;
     expect(berlinClock(new Date(r.departureIso))).toBe("09:05");
@@ -49,13 +56,27 @@ describe("latestValidJourney", () => {
     expect(latestValidJourney(null, required)).toBeNull();
     expect(latestValidJourney({ journeys: [{ legs: [{}] }, { nope: 1 }] }, required)).toBeNull();
     expect(
-      latestValidJourney({ journeys: [j(ride("2026-09-25T09:30:00+02:00", "2026-09-25T10:01:00+02:00"))] }, required),
+      latestValidJourney(
+        { journeys: [j(ride("2026-09-25T09:30:00+02:00", "2026-09-25T10:01:00+02:00"))] },
+        required,
+      ),
     ).toBeNull();
   });
 
   it("falls back to planned times", () => {
     const r = latestValidJourney(
-      { journeys: [{ legs: [{ plannedDeparture: "2026-09-25T09:10:00+02:00", plannedArrival: "2026-09-25T09:40:00+02:00" }] }] },
+      {
+        journeys: [
+          {
+            legs: [
+              {
+                plannedDeparture: "2026-09-25T09:10:00+02:00",
+                plannedArrival: "2026-09-25T09:40:00+02:00",
+              },
+            ],
+          },
+        ],
+      },
       required,
     );
     expect(r?.travelMinutes).toBe(30);
@@ -70,14 +91,18 @@ describe("liveCommute", () => {
       .fn()
       .mockRejectedValueOnce(new Error("VBB 500"))
       .mockResolvedValueOnce({ journeys: [] })
-      .mockResolvedValueOnce({ journeys: [j(ride("2026-09-25T09:10:00+02:00", "2026-09-25T09:50:00+02:00"))] });
+      .mockResolvedValueOnce({
+        journeys: [j(ride("2026-09-25T09:10:00+02:00", "2026-09-25T09:50:00+02:00"))],
+      });
     const r = await liveCommute(home, studio, shift, fetcher);
     expect(fetcher).toHaveBeenCalledTimes(3);
     expect(r?.travelMinutes).toBe(40);
   });
 
   it("makes one request when the first succeeds", async () => {
-    const fetcher = vi.fn().mockResolvedValue({ journeys: [j(ride("2026-09-25T09:10:00+02:00", "2026-09-25T09:50:00+02:00"))] });
+    const fetcher = vi.fn().mockResolvedValue({
+      journeys: [j(ride("2026-09-25T09:10:00+02:00", "2026-09-25T09:50:00+02:00"))],
+    });
     await liveCommute(home, studio, shift, fetcher);
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
@@ -119,7 +144,9 @@ describe("fallback and Berlin time", () => {
   });
 
   it("route key changes when home moves", () => {
-    expect(commuteRouteKey(home, studio)).not.toBe(commuteRouteKey({ lat: 52.53, lng: 13.4 }, studio));
+    expect(commuteRouteKey(home, studio)).not.toBe(
+      commuteRouteKey({ lat: 52.53, lng: 13.4 }, studio),
+    );
   });
 });
 
@@ -133,5 +160,114 @@ describe("leave-home notification timing", () => {
   it("no stale notification once the leave time has passed", () => {
     const leave = berlinInstant("2026-09-25", "09:05")!;
     expect(leaveNotificationAt(leave, berlinInstant("2026-09-25", "09:06")!.getTime())).toBeNull();
+  });
+});
+
+import { resolveTimeToLeave, type TimeToLeaveStore } from "./time-to-leave.server";
+
+function memoryStore(init: { ttl?: string | null; commute?: number | null; shift?: boolean } = {}) {
+  const state = {
+    ttl: init.ttl ?? null,
+    commute: init.commute ?? null,
+    routeKey: init.commute != null ? commuteRouteKey(home, studio) : null,
+    saves: 0,
+  };
+  const store: TimeToLeaveStore = {
+    loadOperator: async () => ({
+      id: "op",
+      username: "Shad",
+      home_lat: home.lat,
+      home_lng: home.lng,
+      commute_minutes: state.commute,
+      commute_route_key: state.routeKey,
+    }),
+    findShift: async () => (init.shift === false ? null : { id: "s1", time_to_leave: state.ttl }),
+    saveShift: async (_id, iso) => {
+      if (state.ttl == null) {
+        state.ttl = iso;
+        state.saves += 1;
+      }
+      return state.ttl;
+    },
+    saveCommute: async (_id, m, k) => {
+      state.commute = m;
+      state.routeKey = k;
+    },
+    studio: async () => studio,
+  };
+  return { store, state };
+}
+
+describe("resolveTimeToLeave — scheduled_shifts.time_to_leave lifecycle", () => {
+  const shift = berlinInstant("2026-09-25", "10:00")!;
+  const ok = { journeys: [j(ride("2026-09-25T09:05:00+02:00", "2026-09-25T09:48:00+02:00"))] };
+
+  it("saves a successful calculation to the shift", async () => {
+    const { store, state } = memoryStore();
+    const r = await resolveTimeToLeave({ username: "Shad" }, shift, {
+      store,
+      fetcher: async () => ok,
+    });
+    expect(r.ok && r.source).toBe("live");
+    expect(berlinClock(new Date(state.ttl!))).toBe("09:05");
+  });
+
+  it("reuses a saved value without calling the travel API — even days later (no TTL)", async () => {
+    const { store } = memoryStore({ ttl: "2026-09-25T06:51:00.000Z" });
+    const fetcher = vi.fn();
+    const r = await resolveTimeToLeave({ username: "Shad" }, shift, {
+      store,
+      fetcher,
+      now: shift.getTime() - 3 * 86_400_000,
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(r.ok && berlinClock(new Date(r.leave_iso))).toBe("08:51");
+    expect(r.ok && r.source).toBe("saved");
+  });
+
+  it("failed calculation stays null, then a later retry saves it and stops", async () => {
+    const { store, state } = memoryStore();
+    const down = vi.fn().mockRejectedValue(new Error("down"));
+    const r1 = await resolveTimeToLeave({ username: "Shad" }, shift, { store, fetcher: down });
+    expect(r1.ok).toBe(false);
+    expect(state.ttl).toBeNull();
+    await resolveTimeToLeave({ username: "Shad" }, shift, { store, fetcher: async () => ok });
+    expect(state.ttl).not.toBeNull();
+    const again = vi.fn();
+    await resolveTimeToLeave({ username: "Shad" }, shift, { store, fetcher: again });
+    expect(again).not.toHaveBeenCalled();
+    expect(state.saves).toBe(1);
+  });
+
+  it("fallback is display-only and never saved (shift stays null for retry)", async () => {
+    const { store, state } = memoryStore({ commute: 50 });
+    const r = await resolveTimeToLeave({ username: "Shad" }, shift, {
+      store,
+      fetcher: async () => {
+        throw new Error("down");
+      },
+    });
+    expect(r.ok && r.source).toBe("fallback");
+    expect(r.ok && berlinClock(new Date(r.leave_iso))).toBe("09:05");
+    expect(state.ttl).toBeNull();
+  });
+
+  it("invalidated shift (null again) causes a new calculation", async () => {
+    const { store, state } = memoryStore({ ttl: "2026-09-25T06:51:00.000Z" });
+    state.ttl = null; // what the DB trigger does on a shift change
+    const fetcher = vi.fn(async () => ok);
+    await resolveTimeToLeave({ username: "Shad" }, shift, { store, fetcher });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(berlinClock(new Date(state.ttl!))).toBe("09:05");
+  });
+
+  it("saved 09:05 drives the notification at exactly 08:50", async () => {
+    const { store } = memoryStore({ ttl: berlinInstant("2026-09-25", "09:05")!.toISOString() });
+    const r = await resolveTimeToLeave({ username: "Shad" }, shift, { store });
+    const at = leaveNotificationAt(
+      new Date(r.ok ? r.leave_iso : 0),
+      berlinInstant("2026-09-25", "08:00")!.getTime(),
+    );
+    expect(berlinClock(at!)).toBe("08:50");
   });
 });
