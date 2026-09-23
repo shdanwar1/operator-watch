@@ -119,17 +119,40 @@ async function displayWindowFor(
   };
 }
 
-/** The classes attached to a scheduled shift, as checklist inputs. */
-async function classesForScheduledShift(
-  scheduledShiftId: string | null,
-): Promise<ChecklistClassInput[]> {
-  if (!scheduledShiftId) return [];
-  const window = await displayWindowFor(scheduledShiftId);
+/** The attendance record a checklist snapshot belongs to. */
+type ShiftContext = {
+  id: string;
+  operator_name: string;
+  check_in_at: string;
+  check_out_at: string | null;
+  scheduled_shift_id: string | null;
+};
+
+/**
+ * Window for a shift opened WITHOUT a scheduled row (ad-hoc check-in). The
+ * dashboard shows the operator's classes around the check-in, so the snapshot
+ * has to cover the same span — otherwise such a shift gets no class checklists.
+ */
+function adHocWindow(shift: ShiftContext) {
+  const checkIn = new Date(shift.check_in_at).getTime();
+  const end = shift.check_out_at ? new Date(shift.check_out_at).getTime() : Date.now();
+  return {
+    segmentIds: [] as string[],
+    from: checkIn - 60 * 60_000,
+    to: Math.max(end, checkIn) + 6 * 60 * 60_000,
+    operator: shift.operator_name,
+  };
+}
+
+/** The classes belonging to a shift (scheduled or ad-hoc), as checklist inputs. */
+async function classesForShift(shift: ShiftContext): Promise<ChecklistClassInput[]> {
+  const window = shift.scheduled_shift_id
+    ? await displayWindowFor(shift.scheduled_shift_id)
+    : adHocWindow(shift);
   if (!window) return [];
   const db = await admin();
   const fromKey = dateKey(new Date(window.from));
   const toKey = dateKey(new Date(window.to));
-  const idList = window.segmentIds.join(",");
   let query = db
     .from("calendar_classes")
     .select(
@@ -137,13 +160,18 @@ async function classesForScheduledShift(
     );
   // The time-window branch is only safe when scoped to this shift's operator —
   // without it, another operator's class at the same time would leak in.
-  query = window.operator
-    ? query
-        .ilike("operator", window.operator)
-        .or(
-          `scheduled_shift_id.in.(${idList}),and(specific_date.gte.${fromKey},specific_date.lte.${toKey})`,
+  if (window.operator) {
+    query = query.ilike("operator", window.operator);
+    query = window.segmentIds.length
+      ? query.or(
+          `scheduled_shift_id.in.(${window.segmentIds.join(",")}),and(specific_date.gte.${fromKey},specific_date.lte.${toKey})`,
         )
-    : query.in("scheduled_shift_id", window.segmentIds);
+      : query.gte("specific_date", fromKey).lte("specific_date", toKey);
+  } else if (window.segmentIds.length) {
+    query = query.in("scheduled_shift_id", window.segmentIds);
+  } else {
+    return [];
+  }
   const { data, error } = await query.order("specific_date").order("start_time");
   if (error) throw new Error(error.message);
   const segmentSet = new Set(window.segmentIds);
