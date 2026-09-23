@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CATEGORY_COLOR, CATEGORY_LABEL, formatHM, summarizeMonth } from "@/lib/attendance";
+import { CATEGORY_LABEL, formatHM, summarizeMonth } from "@/lib/attendance";
 import type { ScheduledShiftRow, ShiftRow } from "@/lib/shifts.functions";
 import { Link } from "@tanstack/react-router";
 
@@ -40,8 +40,13 @@ export function MonthlyHours({
               <div key={category} className="min-w-0">
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                   <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: CATEGORY_COLOR[category] }}
+                    className={`h-2 w-2 shrink-0 rounded-full ${
+                      category === "day"
+                        ? "bg-hours-day"
+                        : category === "night"
+                          ? "bg-hours-night"
+                          : "bg-hours-weekend"
+                    }`}
                   />
                   {CATEGORY_LABEL[category]}
                 </div>
