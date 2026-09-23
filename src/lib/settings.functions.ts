@@ -33,7 +33,7 @@ async function requireAdmin() {
 
 export type StudioSetting = {
   label: string;
-  /** Street + house number shown in the journey timeline (no postcode/city). */
+  /** Street + house number shown in the application (no postcode/city). */
   address: string | null;
   /** Verified full postal address (street, postcode, city) when known. */
   full_address: string | null;

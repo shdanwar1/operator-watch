@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   AUTO_CHECKIN_WINDOW_MS,
   NOTIFICATION_TYPES,
-  leaveKey,
   startCheckInKey,
   startReminderKey,
   withinAutoCheckInWindow,
@@ -22,9 +21,8 @@ describe("notification identity", () => {
     );
   });
 
-  it("keeps the three delivery keys independent for one shift", () => {
+  it("keeps the two delivery keys independent for one shift", () => {
     const keys = [
-      leaveKey(start),
       startReminderKey(SHIFT_ID, start),
       startCheckInKey(SHIFT_ID, start),
     ];
