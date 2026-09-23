@@ -394,12 +394,6 @@ export function AttendanceSection({ username }: { username: string | null }) {
               )}
             </CardContent>
           </Card>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border pt-5 sm:grid-cols-4">
-            <SummaryValue label="Day hours" value={formatHM(summary.dayMin)} />
-            <SummaryValue label="Night hours" value={formatHM(summary.nightMin)} />
-            <SummaryValue label="Weekend hours" value={formatHM(summary.weekendMin)} />
-            <SummaryValue label="Total" value={formatHM(summary.workedMin)} />
-          </div>
         </div>
       )}
 
