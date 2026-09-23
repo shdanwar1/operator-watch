@@ -1,17 +1,17 @@
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  CATEGORY_COLOR,
-  CATEGORY_LABEL,
-  formatHM,
-  summarizeMonth,
-} from "@/lib/attendance";
+import { CATEGORY_COLOR, CATEGORY_LABEL, formatHM, summarizeMonth } from "@/lib/attendance";
 import type { ScheduledShiftRow, ShiftRow } from "@/lib/shifts.functions";
 
-export function MonthlyHours({ shifts, scheduled }: { shifts: ShiftRow[]; scheduled: ScheduledShiftRow[] }) {
+export function MonthlyHours({
+  shifts,
+  scheduled,
+}: {
+  shifts: ShiftRow[];
+  scheduled: ScheduledShiftRow[];
+}) {
   const summary = summarizeMonth(shifts, scheduled, new Date());
-  const progress = summary.scheduledMin > 0
-    ? Math.min(100, (summary.workedMin / summary.scheduledMin) * 100)
-    : 0;
+  const progress =
+    summary.scheduledMin > 0 ? Math.min(100, (summary.workedMin / summary.scheduledMin) * 100) : 0;
 
   return (
     <section>
@@ -31,7 +31,10 @@ export function MonthlyHours({ shifts, scheduled }: { shifts: ShiftRow[]; schedu
             {(["day", "night", "weekend"] as const).map((category) => (
               <div key={category}>
                 <div className="flex items-center gap-1.5 text-[10px] uppercase text-muted-foreground">
-                  <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: CATEGORY_COLOR[category] }} />
+                  <span
+                    className="h-2 w-2 rounded-sm"
+                    style={{ backgroundColor: CATEGORY_COLOR[category] }}
+                  />
                   {CATEGORY_LABEL[category]}
                 </div>
                 <div className="mt-1 text-sm font-semibold tabular-nums">
@@ -46,11 +49,25 @@ export function MonthlyHours({ shifts, scheduled }: { shifts: ShiftRow[]; schedu
   );
 }
 
-function HourValue({ label, minutes, prominent = false }: { label: string; minutes: number; prominent?: boolean }) {
+function HourValue({
+  label,
+  minutes,
+  prominent = false,
+}: {
+  label: string;
+  minutes: number;
+  prominent?: boolean;
+}) {
   return (
     <div>
       <div className="text-[10px] uppercase text-muted-foreground">{label}</div>
-      <div className={prominent ? "mt-1 text-2xl font-semibold tabular-nums" : "mt-1 text-sm font-semibold tabular-nums"}>
+      <div
+        className={
+          prominent
+            ? "mt-1 text-2xl font-semibold tabular-nums"
+            : "mt-1 text-sm font-semibold tabular-nums"
+        }
+      >
         {formatHM(minutes)}
       </div>
     </div>

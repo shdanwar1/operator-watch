@@ -105,7 +105,6 @@ const emptyClass = (): ShiftClass => ({
 });
 
 export function AttendanceSection({ username }: { username: string | null }) {
-
   const fetchShifts = useServerFn(listShifts);
   const fetchScheduled = useServerFn(listScheduledShifts);
   const fetchDmcDirectory = useServerFn(listDmcDirectory);
@@ -180,16 +179,13 @@ export function AttendanceSection({ username }: { username: string | null }) {
     };
   }, [debouncedLoad]);
 
-
   const [monthStart, setMonthStart] = useState(() => {
     const n = new Date();
     return new Date(n.getFullYear(), n.getMonth(), 1);
   });
   const isCurrentMonth = useMemo(() => {
     const n = new Date();
-    return (
-      monthStart.getFullYear() === n.getFullYear() && monthStart.getMonth() === n.getMonth()
-    );
+    return monthStart.getFullYear() === n.getFullYear() && monthStart.getMonth() === n.getMonth();
   }, [monthStart]);
   const shiftMonth = (delta: number) =>
     setMonthStart((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
@@ -208,7 +204,6 @@ export function AttendanceSection({ username }: { username: string | null }) {
   // Class and teacher identity now comes from the DMC directory, so there is no
   // separate usage directory to keep warm any more.
 
-
   async function saveEdit(next: Shift) {
     try {
       await updateShiftServer({
@@ -222,7 +217,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
           },
         },
       });
-      
+
       toast.success("Shift updated");
       setEditing(null);
       load();
@@ -254,7 +249,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
   }) {
     try {
       await createPastServer({ data: payload });
-      
+
       toast.success("Past shift added");
       setAddingPast(false);
       load();
@@ -285,7 +280,12 @@ export function AttendanceSection({ username }: { username: string | null }) {
     <section className="space-y-6">
       <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" onClick={() => shiftMonth(-1)} aria-label="Previous month">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => shiftMonth(-1)}
+            aria-label="Previous month"
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="min-w-[9rem] text-center text-sm font-medium tabular-nums">
@@ -303,127 +303,119 @@ export function AttendanceSection({ username }: { username: string | null }) {
         </div>
       </div>
 
-
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : (
-          <div className="space-y-6">
-            {/* Attendance history */}
-            <Card className="border-border/60 shadow-sm max-lg:glass max-lg:rounded-[22px]">
-              <CardContent className="p-0">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b p-6 max-lg:p-4">
-                  <div>
-                    <h2 className="text-sm font-semibold">Attendance · {summary.monthLabel}</h2>
-                    <p className="text-xs text-muted-foreground">
-                      {summary.rows.length} shift{summary.rows.length === 1 ? "" : "s"} this month
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setAddingPast(true)}>
-                      <Plus className="mr-1.5 h-3.5 w-3.5" /> Add past shift
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={exportPdf}
-                      disabled={summary.rows.length === 0}
-                    >
-                      <Download className="mr-1.5 h-3.5 w-3.5" /> Export PDF
-                    </Button>
-                  </div>
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <div className="space-y-6">
+          {/* Attendance history */}
+          <Card className="border-border/60 shadow-sm max-lg:glass max-lg:rounded-[22px]">
+            <CardContent className="p-0">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b p-6 max-lg:p-4">
+                <div>
+                  <h2 className="text-sm font-semibold">Attendance · {summary.monthLabel}</h2>
+                  <p className="text-xs text-muted-foreground">
+                    {summary.rows.length} shift{summary.rows.length === 1 ? "" : "s"} this month
+                  </p>
                 </div>
-
-                {/* Mobile: one row per shift instead of a horizontally scrolling table. */}
-                <div className="md:hidden">
-                  {summary.rows.length === 0 ? (
-                    <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-                      No completed shifts yet this month.
-                    </p>
-                  ) : (
-                    <>
-                      <ul>
-                        {summary.rows.map((r) => (
-                          <AttendanceMobileRow
-                            key={r.id}
-                            row={r}
-                            expanded={!!expanded[r.id]}
-                            onToggle={() =>
-                              setExpanded((e) => ({ ...e, [r.id]: !e[r.id] }))
-                            }
-                            onEdit={() => startEdit(r)}
-                            onDelete={() => deleteShift(r.id)}
-                          />
-                        ))}
-                      </ul>
-                      <div className="flex items-center justify-between border-t border-border px-4 py-3 text-[12px] font-semibold">
-                        <span>Total</span>
-                        <span className="tabular-nums">{formatHM(summary.workedMin)}</span>
-                      </div>
-                    </>
-                  )}
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setAddingPast(true)}>
+                    <Plus className="mr-1.5 h-3.5 w-3.5" /> Add past shift
+                  </Button>
+                  <Button size="sm" onClick={exportPdf} disabled={summary.rows.length === 0}>
+                    <Download className="mr-1.5 h-3.5 w-3.5" /> Export PDF
+                  </Button>
                 </div>
+              </div>
 
-                <div className="hidden overflow-x-auto md:block">
+              {/* Mobile: one row per shift instead of a horizontally scrolling table. */}
+              <div className="md:hidden">
+                {summary.rows.length === 0 ? (
+                  <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    No completed shifts yet this month.
+                  </p>
+                ) : (
+                  <>
+                    <ul>
+                      {summary.rows.map((r) => (
+                        <AttendanceMobileRow
+                          key={r.id}
+                          row={r}
+                          expanded={!!expanded[r.id]}
+                          onToggle={() => setExpanded((e) => ({ ...e, [r.id]: !e[r.id] }))}
+                          onEdit={() => startEdit(r)}
+                          onDelete={() => deleteShift(r.id)}
+                        />
+                      ))}
+                    </ul>
+                    <div className="flex items-center justify-between border-t border-border px-4 py-3 text-[12px] font-semibold">
+                      <span>Total</span>
+                      <span className="tabular-nums">{formatHM(summary.workedMin)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
 
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="w-8 px-2 py-3" />
+                      <th className="px-5 py-3 text-left">Date</th>
+                      <th className="px-5 py-3 text-left">Scheduled</th>
+                      <th className="px-5 py-3 text-left">Check in</th>
+                      <th className="px-5 py-3 text-left">Check out</th>
+                      <th className="px-5 py-3 text-right">Worked</th>
+                      <th className="px-5 py-3 text-right">Diff</th>
+                      <th className="px-5 py-3 text-center">Type</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {summary.rows.length === 0 ? (
                       <tr>
-                        <th className="w-8 px-2 py-3" />
-                        <th className="px-5 py-3 text-left">Date</th>
-                        <th className="px-5 py-3 text-left">Scheduled</th>
-                        <th className="px-5 py-3 text-left">Check in</th>
-                        <th className="px-5 py-3 text-left">Check out</th>
-                        <th className="px-5 py-3 text-right">Worked</th>
-                        <th className="px-5 py-3 text-right">Diff</th>
-                        <th className="px-5 py-3 text-center">Type</th>
+                        <td
+                          colSpan={8}
+                          className="px-5 py-10 text-center text-sm text-muted-foreground"
+                        >
+                          No completed shifts yet this month.
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {summary.rows.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={8}
-                            className="px-5 py-10 text-center text-sm text-muted-foreground"
-                          >
-                            No completed shifts yet this month.
-                          </td>
-                        </tr>
-                      ) : (
-                        summary.rows.map((r) => (
-                          <AttendanceTableRow
-                            key={r.id}
-                            row={r}
-                            expanded={!!expanded[r.id]}
-                            onToggle={() =>
-                              setExpanded((e) => ({ ...e, [r.id]: !e[r.id] }))
-                            }
-                            onEdit={() => startEdit(r)}
-                            onDelete={() => deleteShift(r.id)}
-                          />
-                        ))
-                      )}
-                    </tbody>
-                    {summary.rows.length > 0 && (
-                      <tfoot>
-                        <tr className="bg-muted/30 font-semibold">
-                          <td colSpan={5} className="px-5 py-3 text-right">Total</td>
-                          <td className="px-5 py-3 text-right tabular-nums">
-                            {formatHM(summary.workedMin)}
-                          </td>
-                          <td colSpan={2} />
-                        </tr>
-                      </tfoot>
+                    ) : (
+                      summary.rows.map((r) => (
+                        <AttendanceTableRow
+                          key={r.id}
+                          row={r}
+                          expanded={!!expanded[r.id]}
+                          onToggle={() => setExpanded((e) => ({ ...e, [r.id]: !e[r.id] }))}
+                          onEdit={() => startEdit(r)}
+                          onDelete={() => deleteShift(r.id)}
+                        />
+                      ))
                     )}
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border pt-5 sm:grid-cols-4">
-              <SummaryValue label="Day hours" value={formatHM(summary.dayMin)} />
-              <SummaryValue label="Night hours" value={formatHM(summary.nightMin)} />
-              <SummaryValue label="Weekend hours" value={formatHM(summary.weekendMin)} />
-              <SummaryValue label="Total" value={formatHM(summary.workedMin)} />
-            </div>
+                  </tbody>
+                  {summary.rows.length > 0 && (
+                    <tfoot>
+                      <tr className="bg-muted/30 font-semibold">
+                        <td colSpan={5} className="px-5 py-3 text-right">
+                          Total
+                        </td>
+                        <td className="px-5 py-3 text-right tabular-nums">
+                          {formatHM(summary.workedMin)}
+                        </td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border pt-5 sm:grid-cols-4">
+            <SummaryValue label="Day hours" value={formatHM(summary.dayMin)} />
+            <SummaryValue label="Night hours" value={formatHM(summary.nightMin)} />
+            <SummaryValue label="Weekend hours" value={formatHM(summary.weekendMin)} />
+            <SummaryValue label="Total" value={formatHM(summary.workedMin)} />
           </div>
+        </div>
       )}
 
       <EditDialog
@@ -448,11 +440,10 @@ export function AttendanceSection({ username }: { username: string | null }) {
 function SummaryValue({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground max-lg:text-[9px]">{label}</div>
-      <div className="mt-1 text-base font-semibold tabular-nums">
-        {value}
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground max-lg:text-[9px]">
+        {label}
       </div>
-
+      <div className="mt-1 text-base font-semibold tabular-nums">{value}</div>
     </div>
   );
 }
@@ -499,8 +490,12 @@ function ShiftDetailPanel({
               <tbody>
                 {row.classes.map((c, i) => (
                   <tr key={i} className="border-t">
-                    <td className="px-3 py-1.5">{c.class || <span className="text-muted-foreground">—</span>}</td>
-                    <td className="px-3 py-1.5">{c.teacher || <span className="text-muted-foreground">—</span>}</td>
+                    <td className="px-3 py-1.5">
+                      {c.class || <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-3 py-1.5">
+                      {c.teacher || <span className="text-muted-foreground">—</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -510,9 +505,7 @@ function ShiftDetailPanel({
       ) : (
         <p className="text-xs text-muted-foreground">No classes logged.</p>
       )}
-      {row.notes && (
-        <p className="mt-2 text-sm italic text-muted-foreground">"{row.notes}"</p>
-      )}
+      {row.notes && <p className="mt-2 text-sm italic text-muted-foreground">"{row.notes}"</p>}
       <div className="mt-3 flex justify-end gap-1 max-md:mt-1">
         <Button
           variant="outline"
@@ -645,9 +638,7 @@ function AttendanceMobileRow({
           aria-label="Toggle shift details"
           className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
         >
-          <ChevronDown
-            className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
-          />
+          <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
         </button>
         <div className="text-[10px] font-semibold tabular-nums">{fmtDate(row.date)}</div>
         <div className="min-w-0">
@@ -750,8 +741,6 @@ function AddPastDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-
-
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Check in</Label>
@@ -821,7 +810,9 @@ function AddPastDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
           <Button onClick={submit}>
             <Save className="mr-1 h-4 w-4" /> Save shift
           </Button>
@@ -856,7 +847,9 @@ function EditDialog({
     setDraft((d) => (d ? { ...d, ...p } : d));
   }
   function updateClass(i: number, p: Partial<ShiftClass>) {
-    setDraft((d) => (d ? { ...d, classes: d.classes.map((c, idx) => (idx === i ? { ...c, ...p } : c)) } : d));
+    setDraft((d) =>
+      d ? { ...d, classes: d.classes.map((c, idx) => (idx === i ? { ...c, ...p } : c)) } : d,
+    );
   }
   function addClass() {
     setDraft((d) => (d ? { ...d, classes: [...d.classes, emptyClass()] } : d));
@@ -874,10 +867,6 @@ function EditDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-
-
-
-
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Check in</Label>
@@ -899,8 +888,6 @@ function EditDialog({
               />
             </div>
           </div>
-
-
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -960,7 +947,9 @@ function EditDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
           <Button onClick={() => draft && onSave(draft)}>
             <Save className="mr-1 h-4 w-4" /> Save
           </Button>

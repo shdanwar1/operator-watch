@@ -32,7 +32,6 @@ import { PushDeviceToggle } from "@/components/PushDeviceToggle";
 import { USERNAME_RE, PIN_RE } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 
-
 export const Route = createFileRoute("/profile")({
   beforeLoad: async () => {
     const status = await getGateStatus();
@@ -401,9 +400,7 @@ function ProfilePage() {
             <Field label="Home address">
               <div className="flex items-center gap-3">
                 <p className="min-w-0 flex-1 truncate text-[13px]">
-                  {profile.home_label ?? (
-                    <span className="text-muted-foreground">Not set</span>
-                  )}
+                  {profile.home_label ?? <span className="text-muted-foreground">Not set</span>}
                 </p>
                 <Button
                   variant="outline"
@@ -417,7 +414,6 @@ function ProfilePage() {
             </Field>
           </div>
         </Panel>
-
 
         <Panel
           title="Google Calendar"
@@ -487,7 +483,6 @@ function ProfilePage() {
       >
         Log out
       </button>
-
     </AppShell>
   );
 }

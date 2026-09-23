@@ -75,7 +75,7 @@ function normalizeShift(r: Record<string, unknown>): ShiftRow {
   return {
     ...(r as ShiftRow),
     classes: Array.isArray((r as { classes?: unknown }).classes)
-      ? ((r as { classes: ShiftClass[] }).classes)
+      ? (r as { classes: ShiftClass[] }).classes
       : [],
   };
 }
@@ -95,7 +95,6 @@ export const listShifts = createServerFn({ method: "GET" }).handler(async () => 
   return (data ?? []).map((r) => normalizeShift(r as Record<string, unknown>));
 });
 
-
 export const listScheduledShifts = createServerFn({ method: "GET" }).handler(async () => {
   const { username, isAdmin } = await requireGate();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -113,7 +112,6 @@ export const listScheduledShifts = createServerFn({ method: "GET" }).handler(asy
   if (error) throw new Error(error.message);
   return (data ?? []) as ScheduledShiftRow[];
 });
-
 
 /**
  * The single attendance-creation path.
@@ -169,7 +167,6 @@ async function openAttendanceRow(username: string, scheduledShiftId: string | nu
   return normalizeShift(row as Record<string, unknown>);
 }
 
-
 /**
  * Single entry point for manual and automatic check-in. Also guarantees the
  * shift owns a checklist snapshot (idempotent; never resets an existing one).
@@ -186,18 +183,15 @@ async function openAttendance(username: string, scheduledShiftId: string | null)
   return shift;
 }
 
-
 export const createShift = createServerFn({ method: "POST" })
-  .inputValidator(
-    (data?: { scheduled_shift_id?: string | null }) => {
-      const sid =
-        !data || data.scheduled_shift_id === undefined || data.scheduled_shift_id === null
-          ? null
-          : String(data.scheduled_shift_id);
-      if (sid !== null && sid.length > 64) throw new Error("Invalid scheduled_shift_id");
-      return { scheduled_shift_id: sid };
-    },
-  )
+  .inputValidator((data?: { scheduled_shift_id?: string | null }) => {
+    const sid =
+      !data || data.scheduled_shift_id === undefined || data.scheduled_shift_id === null
+        ? null
+        : String(data.scheduled_shift_id);
+    if (sid !== null && sid.length > 64) throw new Error("Invalid scheduled_shift_id");
+    return { scheduled_shift_id: sid };
+  })
   .handler(async ({ data }) => {
     // Session-authenticated: the signed-in operator (username + PIN) checks
     // themselves in. No secondary secret is required.
@@ -254,7 +248,6 @@ export const autoCheckInShift = createServerFn({ method: "POST" })
     return openAttendance(username, data.scheduled_shift_id);
   });
 
-
 export const createPastShift = createServerFn({ method: "POST" })
   .inputValidator(
     (data: {
@@ -278,9 +271,7 @@ export const createPastShift = createServerFn({ method: "POST" })
           }))
         : [];
       const notes =
-        data.notes === undefined || data.notes === null
-          ? null
-          : String(data.notes).slice(0, 5000);
+        data.notes === undefined || data.notes === null ? null : String(data.notes).slice(0, 5000);
       return {
         check_in_at: ci.toISOString(),
         check_out_at: co.toISOString(),
@@ -364,11 +355,7 @@ function sanitizeShiftPatch(patch: ShiftPatch): ShiftPatch {
 }
 
 /** Load a shift's owner and enforce that the caller is the owner or an admin. */
-async function assertShiftOwnership(
-  shiftId: string,
-  username: string | null,
-  isAdmin: boolean,
-) {
+async function assertShiftOwnership(shiftId: string, username: string | null, isAdmin: boolean) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: existing, error } = await supabaseAdmin
     .from("shifts")
@@ -413,9 +400,10 @@ export const updateShift = createServerFn({ method: "POST" })
 export const checkOutShift = createServerFn({ method: "POST" })
   .inputValidator((data: { id: string; classes?: ShiftClass[] }) => {
     if (!data?.id) throw new Error("id required");
-    const classes = data.classes === undefined
-      ? undefined
-      : sanitizeShiftPatch({ classes: data.classes }).classes;
+    const classes =
+      data.classes === undefined
+        ? undefined
+        : sanitizeShiftPatch({ classes: data.classes }).classes;
     return { id: String(data.id), classes };
   })
   .handler(async ({ data }) => {
@@ -465,9 +453,7 @@ export const checkOutShift = createServerFn({ method: "POST" })
 
     // Checkout is the authoritative completion event for a scheduled shift.
     // Class rows stay untouched so admins keep full history.
-    const scheduledId = existing.scheduled_shift_id
-      ? String(existing.scheduled_shift_id)
-      : null;
+    const scheduledId = existing.scheduled_shift_id ? String(existing.scheduled_shift_id) : null;
     if (scheduledId) {
       await supabaseAdmin
         .from("scheduled_shifts")
@@ -534,8 +520,6 @@ async function resolveAssignmentValue(
   const { column } = await resolveAssignmentColumn(requested);
   return column;
 }
-
-
 
 type ScheduledPatch = {
   start_time?: string;
@@ -665,8 +649,6 @@ export const deleteScheduledShift = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-
-
 /**
  * Operator-facing deletion of a *future* scheduled shift.
  *
@@ -715,13 +697,11 @@ export const deleteMyScheduledShift = createServerFn({ method: "POST" })
     // Tombstone Google-imported shifts (uid identity, never fuzzy matching).
     const uid = shift.external_event_id;
     if (isGoogleIdentity(uid) && shift.assigned_operator) {
-      const { error: tombErr } = await supabaseAdmin
-        .from("deleted_shift_events")
-        .insert({
-          operator_name: shift.assigned_operator,
-          external_event_id: uid,
-          specific_date: shift.specific_date,
-        } as never);
+      const { error: tombErr } = await supabaseAdmin.from("deleted_shift_events").insert({
+        operator_name: shift.assigned_operator,
+        external_event_id: uid,
+        specific_date: shift.specific_date,
+      } as never);
       // A pre-existing tombstone is fine; anything else must abort the delete
       // so sync can never resurrect the shift behind the operator's back.
       if (tombErr && !/duplicate key|unique/i.test(tombErr.message)) {

@@ -16,16 +16,11 @@ describe("notification identity", () => {
   it("uses a distinct type for reminder and exact-start check-in", () => {
     expect(NOTIFICATION_TYPES.shiftStartReminder).toBe("shift_start");
     expect(NOTIFICATION_TYPES.shiftStartCheckIn).toBe("shift_start_check_in");
-    expect(NOTIFICATION_TYPES.shiftStartCheckIn).not.toBe(
-      NOTIFICATION_TYPES.shiftStartReminder,
-    );
+    expect(NOTIFICATION_TYPES.shiftStartCheckIn).not.toBe(NOTIFICATION_TYPES.shiftStartReminder);
   });
 
   it("keeps the two delivery keys independent for one shift", () => {
-    const keys = [
-      startReminderKey(SHIFT_ID, start),
-      startCheckInKey(SHIFT_ID, start),
-    ];
+    const keys = [startReminderKey(SHIFT_ID, start), startCheckInKey(SHIFT_ID, start)];
     expect(new Set(keys).size).toBe(2);
   });
 
@@ -50,16 +45,10 @@ describe("notification timing", () => {
   });
 
   it("handles winter time and the DST changeover", () => {
-    expect(berlinInstant("2026-01-15", "20:00")!.toISOString()).toBe(
-      "2026-01-15T19:00:00.000Z",
-    );
+    expect(berlinInstant("2026-01-15", "20:00")!.toISOString()).toBe("2026-01-15T19:00:00.000Z");
     // Clocks go back on 25 Oct 2026 (CEST -> CET).
-    expect(berlinInstant("2026-10-24", "20:00")!.toISOString()).toBe(
-      "2026-10-24T18:00:00.000Z",
-    );
-    expect(berlinInstant("2026-10-26", "20:00")!.toISOString()).toBe(
-      "2026-10-26T19:00:00.000Z",
-    );
+    expect(berlinInstant("2026-10-24", "20:00")!.toISOString()).toBe("2026-10-24T18:00:00.000Z");
+    expect(berlinInstant("2026-10-26", "20:00")!.toISOString()).toBe("2026-10-26T19:00:00.000Z");
   });
 });
 
@@ -79,9 +68,9 @@ describe("automatic check-in window", () => {
 
   it("rejects a tap after the window", () => {
     expect(withinAutoCheckInWindow(start, at(11))).toBe(false);
-    expect(withinAutoCheckInWindow(start, new Date(start.getTime() + AUTO_CHECKIN_WINDOW_MS + 1))).toBe(
-      false,
-    );
+    expect(
+      withinAutoCheckInWindow(start, new Date(start.getTime() + AUTO_CHECKIN_WINDOW_MS + 1)),
+    ).toBe(false);
   });
 
   it("rejects a tap long before the shift", () => {

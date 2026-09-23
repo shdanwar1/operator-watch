@@ -8,7 +8,6 @@ import {
   listScheduledShifts,
   createShift,
   autoCheckInShift,
-
   checkOutShift,
   updateShift as updateShiftFn,
   type ShiftRow,
@@ -45,10 +44,7 @@ import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 
 import { publishSync } from "@/lib/sync-bus";
-import {
-  captureAutoCheckInIntent,
-  consumeAutoCheckInIntent,
-} from "@/lib/auto-checkin-intent";
+import { captureAutoCheckInIntent, consumeAutoCheckInIntent } from "@/lib/auto-checkin-intent";
 import {
   listMyCalendarClasses,
   setMyClassStatus,
@@ -67,10 +63,6 @@ import {
   type DisplayShift,
 } from "@/lib/display-shifts";
 
-
-
-
-
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
     const status = await getGateStatus();
@@ -79,7 +71,8 @@ export const Route = createFileRoute("/")({
   },
   loader: async () => {
     const { username } = await getGateStatus();
-    if (!username) return { username: null as string | null, profile: null as MyProfileStatus | null };
+    if (!username)
+      return { username: null as string | null, profile: null as MyProfileStatus | null };
     const [canonical, profile] = await Promise.all([
       getOperatorDisplayName({ data: { username } }),
       getMyProfileStatus().catch(() => null),
@@ -248,7 +241,9 @@ function Index() {
   // from /complete-profile or /profile with new information).
   useEffect(() => {
     const onFocus = () => {
-      fetchProfile().then(setProfileStatus).catch(() => {});
+      fetchProfile()
+        .then(setProfileStatus)
+        .catch(() => {});
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
@@ -319,8 +314,6 @@ function Index() {
       cancelled = true;
     };
   }, [loadPrefs, prefsCacheKey]);
-
-
 
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 1000);
@@ -396,8 +389,6 @@ function Index() {
     }
   }
 
-
-
   // Open Studio Display popups are refreshed with the latest class data
   // (name, teacher, start, duration) whenever the schedule changes.
   useEffect(() => {
@@ -440,8 +431,6 @@ function Index() {
   // Reminders are delivered by the server as background Web Push (see
   // /api/public/hooks/push-dispatch), so nothing fires from this page.
 
-
-
   // The scheduled shift the active attendance record belongs to.
   const activeScheduled =
     (active?.scheduled_shift_id
@@ -472,7 +461,6 @@ function Index() {
       .filter((c) => classAt(c) >= from && classAt(c) <= to)
       .sort((a, b) => classAt(a) - classAt(b));
   })();
-
 
   async function checkIn() {
     setCheckingIn(true);
@@ -524,7 +512,6 @@ function Index() {
     return () => window.removeEventListener("auto-checkin-intent", run);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoCheckInFn]);
-
 
   async function updateActive(patch: Partial<Shift>) {
     if (!active) return;
@@ -618,11 +605,9 @@ function Index() {
         />
       )}
 
-
       {!profileComplete && !active && (
         <ProfileIncompleteBanner missing={profileStatus?.missing ?? []} />
       )}
-
 
       <div className="mx-auto w-full max-w-3xl space-y-6">
         {loading ? (
@@ -676,14 +661,10 @@ function Index() {
             )}
           </>
         )}
-
       </div>
-
     </AppShell>
   );
 }
-
-
 
 function InactiveDashboard({
   nextShift,
@@ -704,14 +685,24 @@ function InactiveDashboard({
 }) {
   return (
     <div className="space-y-6">
-      <NextShiftSummary shift={nextShift} now={now} calendarClasses={calendarClasses} showTimeToLeave={showTimeToLeave} />
+      <NextShiftSummary
+        shift={nextShift}
+        now={now}
+        calendarClasses={calendarClasses}
+        showTimeToLeave={showTimeToLeave}
+      />
       <UpcomingShifts shifts={upcoming} now={now} />
       <MonthlyHours shifts={shifts} scheduled={scheduled} />
     </div>
   );
 }
 
-function NextShiftSummary({ shift, now, calendarClasses, showTimeToLeave }: {
+function NextShiftSummary({
+  shift,
+  now,
+  calendarClasses,
+  showTimeToLeave,
+}: {
   shift: DisplayShift | null;
   now: Date;
   calendarClasses: CalendarClassRow[];
@@ -733,23 +724,35 @@ function NextShiftSummary({ shift, now, calendarClasses, showTimeToLeave }: {
   const leave = result?.ok ? new Date(result.departure_iso) : null;
   return (
     <section>
-      <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Next shift</div>
+      <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        Next shift
+      </div>
       <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
         <CardContent className="grid gap-5 p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
           <div>
-            <div className="text-lg font-semibold">{shift.startAt.toLocaleDateString(undefined, { weekday: "long" })}</div>
+            <div className="text-lg font-semibold">
+              {shift.startAt.toLocaleDateString(undefined, { weekday: "long" })}
+            </div>
             <div className="mt-1 text-sm text-muted-foreground">{fullDateLabel(shift.startAt)}</div>
             <div className="mt-3 text-xl font-semibold tabular-nums">{range.range}</div>
-            <div className="mt-1 text-xs text-muted-foreground">{count} {count === 1 ? "class" : "classes"}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {count} {count === 1 ? "class" : "classes"}
+            </div>
           </div>
           {showTimeToLeave ? (
             <div className="border-t border-border pt-4 sm:min-w-40 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Time to leave</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Time to leave
+              </div>
               <div className="mt-1 text-3xl font-semibold tabular-nums text-primary">
                 {leave ? fmtHM(leave) : loading ? "…" : "—"}
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
-                {leave ? `Leave at ${fmtHM(leave)}` : loading ? "Calculating…" : "Currently unavailable"}
+                {leave
+                  ? `Leave at ${fmtHM(leave)}`
+                  : loading
+                    ? "Calculating…"
+                    : "Currently unavailable"}
               </div>
             </div>
           ) : null}
@@ -762,27 +765,40 @@ function NextShiftSummary({ shift, now, calendarClasses, showTimeToLeave }: {
 function UpcomingShifts({ shifts, now }: { shifts: DisplayShift[]; now: Date }) {
   return (
     <section>
-      <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Upcoming shifts</div>
+      <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        Upcoming shifts
+      </div>
       <Card className="max-lg:glass max-lg:rounded-[22px]">
         <CardContent className="p-0">
-          {shifts.length ? shifts.map((shift) => {
-            const range = formatShiftRange(shift, now);
-            return (
-              <div key={`${shift.startAt.toISOString()}-${shift.endAt.toISOString()}`} className="flex items-center justify-between gap-4 border-b border-border px-5 py-3.5 last:border-b-0">
-                <span className="text-sm font-medium">{shift.startAt.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" })}</span>
-                <span className="text-sm tabular-nums text-muted-foreground">{range.range}</span>
-              </div>
-            );
-          }) : <p className="px-5 py-8 text-center text-sm text-muted-foreground">No upcoming shifts.</p>}
+          {shifts.length ? (
+            shifts.map((shift) => {
+              const range = formatShiftRange(shift, now);
+              return (
+                <div
+                  key={`${shift.startAt.toISOString()}-${shift.endAt.toISOString()}`}
+                  className="flex items-center justify-between gap-4 border-b border-border px-5 py-3.5 last:border-b-0"
+                >
+                  <span className="text-sm font-medium">
+                    {shift.startAt.toLocaleDateString(undefined, {
+                      weekday: "short",
+                      day: "2-digit",
+                      month: "short",
+                    })}
+                  </span>
+                  <span className="text-sm tabular-nums text-muted-foreground">{range.range}</span>
+                </div>
+              );
+            })
+          ) : (
+            <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+              No upcoming shifts.
+            </p>
+          )}
         </CardContent>
       </Card>
     </section>
   );
 }
-
-
-
-
 
 function CheckInPanel({
   openScheduled,
@@ -823,7 +839,6 @@ function CheckInPanel({
     }
   }
 
-
   // How late we are relative to the scheduled start (informational only).
   const openStart = openShift?.startAt ?? null;
   const openRange = openShift ? formatShiftRange(openShift, now) : null;
@@ -833,7 +848,6 @@ function CheckInPanel({
   return (
     <>
       <div className="flex flex-col items-center gap-5 px-5 py-6 text-center max-lg:py-7">
-
         {hideShiftInfo ? null : hasShift ? (
           <div className="flex flex-col items-center gap-1.5">
             <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -867,7 +881,6 @@ function CheckInPanel({
           resetSignal={resetSignal}
         />
 
-
         {openScheduled && lateMin > 0 ? (
           <div className="flex items-start gap-2 rounded-xl bg-warn-soft px-3 py-2 text-left">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warn" />
@@ -887,7 +900,6 @@ function CheckInPanel({
           if (!o) setResetSignal((n) => n + 1);
         }}
       >
-
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>No shifts scheduled right now</AlertDialogTitle>
@@ -911,7 +923,6 @@ function CheckInPanel({
     </>
   );
 }
-
 
 function ActiveShiftPanel({
   shift,
@@ -981,7 +992,6 @@ function ActiveShiftPanel({
     for (let i = 0; i < expected; i++) onAddClass();
   }, [expected, hasImported, shift.classes.length, onAddClass]);
 
-
   const filled = shift.classes.filter((c) => c.class.trim() || c.teacher.trim()).length;
   const target = Math.max(expected ?? 0, shift.classes.length);
   const progressPct = target > 0 ? Math.min(100, (filled / target) * 100) : 0;
@@ -991,7 +1001,9 @@ function ActiveShiftPanel({
     return st === "upcoming" || st === "live";
   }).length;
 
-  const earlyMin = times ? Math.max(0, Math.round((times.endAt.getTime() - now.getTime()) / 60000)) : 0;
+  const earlyMin = times
+    ? Math.max(0, Math.round((times.endAt.getTime() - now.getTime()) / 60000))
+    : 0;
   // Only material when the finish is more than 15 minutes early.
   const early = earlyMin > 15;
 
@@ -1001,9 +1013,10 @@ function ActiveShiftPanel({
 
   // Admin-managed, system-wide check-out reminder.
   const loadSettings = useServerFn(getAppSettings);
-  const [checkoutPrompt, setCheckoutPrompt] = useState<{ message: string; enabled: boolean } | null>(
-    null,
-  );
+  const [checkoutPrompt, setCheckoutPrompt] = useState<{
+    message: string;
+    enabled: boolean;
+  } | null>(null);
   useEffect(() => {
     let alive = true;
     loadSettings()
@@ -1036,10 +1049,6 @@ function ActiveShiftPanel({
     }
     setConfirm(pendingClasses > 0 ? "incomplete" : "early");
   };
-
-
-
-
 
   // Shift progress: from check-in (or scheduled start) to the scheduled end.
   const shiftStart = times?.startAt ?? checkInAt;
@@ -1075,7 +1084,8 @@ function ActiveShiftPanel({
           </div>
           <div className="text-7xl font-semibold tabular-nums tracking-tight">{d.long}</div>
           <div className="text-[13px] text-muted-foreground">
-            Started {checkInAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+            Started{" "}
+            {checkInAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
             {times ? ` · Ends ${fmtTime(scheduledShift!.end_time)}` : ""}
             {lateMin > 0 ? ` · ${lateMin}m late` : ""}
           </div>
@@ -1259,7 +1269,11 @@ function ActiveShiftPanel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={closeConfirm}>
-              {confirm === "incomplete" ? "Continue Working" : confirm === "early" ? "Cancel" : "Not yet"}
+              {confirm === "incomplete"
+                ? "Continue Working"
+                : confirm === "early"
+                  ? "Cancel"
+                  : "Not yet"}
             </AlertDialogCancel>
             {confirm === "camera" ? (
               <AlertDialogAction
@@ -1276,16 +1290,9 @@ function ActiveShiftPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-
     </div>
   );
 }
-
-
-
-
-
 
 function fmtHM(d: Date) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
@@ -1316,9 +1323,7 @@ function ProfileIncompleteBanner({ missing }: { missing: string[] }) {
     <div className="mb-6 flex flex-col gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 sm:mb-8 sm:flex-row sm:items-center sm:gap-4">
       <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium text-foreground">
-          Your profile isn't complete
-        </div>
+        <div className="text-sm font-medium text-foreground">Your profile isn't complete</div>
         <div className="text-xs text-muted-foreground">
           Complete your profile to enable {featureText}.
         </div>
@@ -1367,9 +1372,7 @@ function LockedFeatureCard({
         </div>
         <p
           className={
-            hero
-              ? "max-w-xs text-sm text-muted-foreground"
-              : "text-xs text-muted-foreground"
+            hero ? "max-w-xs text-sm text-muted-foreground" : "text-xs text-muted-foreground"
           }
         >
           {reason}
