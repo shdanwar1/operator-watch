@@ -2,17 +2,13 @@ import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getPushPublicKey, registerPushSubscription } from "@/lib/push.functions";
 import { pushSupport, reconcilePushSubscription } from "@/lib/push-client";
+import { currentDevice } from "@/lib/device-info";
 
 /**
  * Keeps this device's push endpoint bound to the *currently signed-in*
- * operator.
- *
- * Without this, a browser that once registered as operator A keeps receiving
- * A's reminders after operator B signs in on the same device. Registering is
- * an ownership transfer on the server (the endpoint is detached from any other
- * operator first), so running it on every app load closes that window app-wide
- * instead of only on the Profile page. It never prompts: it does nothing
- * unless notification permission is already granted.
+ * operator. Registering is an ownership transfer on the server, so running it
+ * on every app load stops a shared phone from receiving a previous operator's
+ * reminders. It never prompts, and does nothing on desktop browsers.
  */
 export function PushBinding() {
   const fetchKey = useServerFn(getPushPublicKey);
@@ -22,6 +18,8 @@ export function PushBinding() {
     let cancelled = false;
     void (async () => {
       try {
+        const device = currentDevice();
+        if (device.type === "desktop") return;
         const support = pushSupport();
         if (!support.supported || support.permission !== "granted") return;
         const { publicKey } = await fetchKey();
@@ -29,15 +27,16 @@ export function PushBinding() {
         if (!live || cancelled) return;
         await register({
           data: {
-            endpoint: live.endpoint,
-            p256dh: live.p256dh,
-            auth: live.auth,
+            ...live,
             userAgent: navigator.userAgent,
-            platform: navigator.platform,
+            platform: device.os,
+            deviceType: device.type,
+            browser: device.browser,
+            label: device.label,
           },
         });
       } catch {
-        /* binding is best-effort; the Profile toggle remains the manual path */
+        /* best-effort; the Profile section is the manual path and shows errors */
       }
     })();
     return () => {
