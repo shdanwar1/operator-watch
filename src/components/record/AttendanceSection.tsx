@@ -334,7 +334,6 @@ export function AttendanceSection({ username }: { username: string | null }) {
                     No completed shifts yet this month.
                   </p>
                 ) : (
-                  <>
                     <ul>
                       {summary.rows.map((r) => (
                         <AttendanceMobileRow
@@ -347,11 +346,6 @@ export function AttendanceSection({ username }: { username: string | null }) {
                         />
                       ))}
                     </ul>
-                    <div className="flex items-center justify-between border-t border-border px-4 py-3 text-[12px] font-semibold">
-                      <span>Total</span>
-                      <span className="tabular-nums">{formatHM(summary.workedMin)}</span>
-                    </div>
-                  </>
                 )}
               </div>
 
@@ -392,29 +386,14 @@ export function AttendanceSection({ username }: { username: string | null }) {
                       ))
                     )}
                   </tbody>
-                  {summary.rows.length > 0 && (
-                    <tfoot>
-                      <tr className="bg-muted/30 font-semibold">
-                        <td colSpan={5} className="px-5 py-3 text-right">
-                          Total
-                        </td>
-                        <td className="px-5 py-3 text-right tabular-nums">
-                          {formatHM(summary.workedMin)}
-                        </td>
-                        <td colSpan={2} />
-                      </tr>
-                    </tfoot>
-                  )}
                 </table>
               </div>
+
+              {summary.rows.length > 0 && (
+                <AttendanceSummaryFooter summary={summary} />
+              )}
             </CardContent>
           </Card>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border pt-5 sm:grid-cols-4">
-            <SummaryValue label="Day hours" value={formatHM(summary.dayMin)} />
-            <SummaryValue label="Night hours" value={formatHM(summary.nightMin)} />
-            <SummaryValue label="Weekend hours" value={formatHM(summary.weekendMin)} />
-            <SummaryValue label="Total" value={formatHM(summary.workedMin)} />
-          </div>
         </div>
       )}
 
@@ -437,13 +416,38 @@ export function AttendanceSection({ username }: { username: string | null }) {
   );
 }
 
-function SummaryValue({ label, value }: { label: string; value: string }) {
+/**
+ * Integrated summary footer — sits directly below the shift rows inside the
+ * attendance card. Mirrors the reference design: "Total Hours" label on the
+ * left, Day / Night / Weekend breakdowns separated by vertical dividers, and
+ * the grand total in a highlighted box on the right.
+ */
+function AttendanceSummaryFooter({ summary }: { summary: ReturnType<typeof summarizeMonth> }) {
   return (
-    <div>
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground max-lg:text-[9px]">
-        {label}
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border bg-muted/20 px-5 py-3.5 max-lg:px-4 max-lg:py-3">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
+        Total Hours
+      </span>
+      <div className="flex flex-1 items-stretch gap-x-4 min-w-[180px]">
+        <SummaryCell label="Day Hours" value={formatHM(summary.dayMin)} />
+        <SummaryCell label="Night Hours" value={formatHM(summary.nightMin)} divided />
+        <SummaryCell label="Weekend Hours" value={formatHM(summary.weekendMin)} divided />
       </div>
-      <div className="mt-1 text-base font-semibold tabular-nums">{value}</div>
+      <div className="rounded-lg bg-muted/50 px-4 py-1.5 max-lg:px-3">
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Total</div>
+        <div className="text-base font-bold tabular-nums text-foreground max-lg:text-sm">
+          {formatHM(summary.workedMin)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCell({ label, value, divided = false }: { label: string; value: string; divided?: boolean }) {
+  return (
+    <div className={`flex flex-col justify-center px-4 first:pl-0 max-lg:px-3 ${divided ? "border-l border-border" : ""}`}>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-sm font-semibold tabular-nums text-foreground">{value}</div>
     </div>
   );
 }
