@@ -353,7 +353,14 @@ export async function setChecklistItem(input: {
   return data;
 }
 
-/** The operator's own snapshot for one shift. Created on first read if missing. */
+/**
+ * The operator's own snapshot for one shift. Created on first read if missing.
+ *
+ * While the shift is open the class entries are reconciled with its live
+ * classes, so a class added, retimed or cancelled after check-in still gets the
+ * right checklist. Completion state is keyed by class id and never reset; a
+ * closed shift is returned exactly as recorded.
+ */
 export async function readChecklistsForShift(input: {
   shiftId: string;
   operator: string;
@@ -364,7 +371,14 @@ export async function readChecklistsForShift(input: {
   if (!sameOperator(shift.operator_name, input.operator)) {
     throw new Response("Forbidden", { status: 403 });
   }
-  if (isShiftChecklists(shift.checklists)) return shift.checklists;
-  if (shift.check_out_at) return null;
-  return ensureChecklistsForShift(input.shiftId);
+  if (shift.check_out_at) {
+    return isShiftChecklists(shift.checklists) ? shift.checklists : null;
+  }
+  try {
+    return await syncClassesForShift(shift);
+  } catch (err) {
+    // Reading must never fail because of the reconciliation step.
+    console.error("syncClassesForShift failed", err);
+    return isShiftChecklists(shift.checklists) ? shift.checklists : null;
+  }
 }
