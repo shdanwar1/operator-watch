@@ -41,4 +41,4 @@ Validation: 169 tests passed; automatic build OK; isolated desktop/narrow grid v
 - [x] Remove route planning, persistence, background work, obsolete code, assets, tests, and database table.
 - [x] Restructure Dashboard with Next Shift, five upcoming shifts, and existing monthly-hours calculations.
 - [x] Make Records attendance-only with the compact hours summary below the table.
-- [ ] Verify operator flows, stored history, database cleanup, tests, typecheck, lint, and production build.
+- [x] Verify operator flows, stored history, database cleanup, tests, typecheck, lint, and production build.
