@@ -44,6 +44,9 @@ type SubscriptionInput = {
   auth: string;
   userAgent?: string;
   platform?: string;
+  deviceType?: string;
+  browser?: string;
+  label?: string;
 };
 
 function validateSubscription(data: SubscriptionInput): SubscriptionInput {
@@ -62,6 +65,9 @@ function validateSubscription(data: SubscriptionInput): SubscriptionInput {
     auth,
     userAgent: String(data?.userAgent ?? "").slice(0, 300) || undefined,
     platform: String(data?.platform ?? "").slice(0, 100) || undefined,
+    deviceType: String(data?.deviceType ?? ""),
+    browser: String(data?.browser ?? "").slice(0, 60) || undefined,
+    label: String(data?.label ?? "").slice(0, 80) || undefined,
   };
 }
 
@@ -69,6 +75,10 @@ export const registerPushSubscription = createServerFn({ method: "POST" })
   .inputValidator(validateSubscription)
   .handler(async ({ data }) => {
     const { operatorId } = await requireOperatorId();
+    // Notifications are for phones/tablets only; desktop browsers are refused.
+    if (data.deviceType !== "mobile" && data.deviceType !== "tablet") {
+      throw new Error("Notifications are available on mobile devices only.");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // A device belongs to exactly one operator. If this endpoint was
@@ -89,13 +99,27 @@ export const registerPushSubscription = createServerFn({ method: "POST" })
         auth: data.auth,
         user_agent: data.userAgent ?? null,
         platform: data.platform ?? null,
+        device_type: data.deviceType,
+        browser: data.browser ?? null,
+        device_label: data.label ?? null,
         last_seen_at: new Date().toISOString(),
         disabled_at: null,
       } as never,
       { onConflict: "endpoint" },
     );
     if (error) throw new Error(error.message);
-    return { ok: true };
+
+    // Confirm the row really is stored for this operator before the UI says "On".
+    const { data: stored, error: readError } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("endpoint")
+      .eq("operator_id", operatorId)
+      .eq("endpoint", data.endpoint)
+      .is("disabled_at", null)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+    if (!stored) throw new Error("The device could not be saved. Please try again.");
+    return { ok: true, endpoint: data.endpoint };
   });
 
 export const unregisterPushSubscription = createServerFn({ method: "POST" })
@@ -112,17 +136,38 @@ export const unregisterPushSubscription = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** How many devices this operator currently receives notifications on. */
+export type PushDevice = { endpoint: string; label: string; lastSeenAt: string };
+
+/** The devices this operator currently receives notifications on. */
 export const getMyPushStatus = createServerFn({ method: "GET" }).handler(async () => {
   const { operatorId } = await requireOperatorId();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { detectDevice } = await import("./device-info");
   const { data, error } = await supabaseAdmin
     .from("push_subscriptions")
-    .select("endpoint")
+    .select("endpoint, device_label, user_agent, last_seen_at")
     .eq("operator_id", operatorId)
-    .is("disabled_at", null);
+    .is("disabled_at", null)
+    .order("last_seen_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return { devices: (data ?? []).map((r) => (r as { endpoint: string }).endpoint) };
+  const devices: PushDevice[] = (data ?? []).map((r) => {
+    const row = r as { endpoint: string; device_label: string | null; user_agent: string | null; last_seen_at: string };
+    return {
+      endpoint: row.endpoint,
+      label: row.device_label ?? detectDevice(row.user_agent ?? "").label,
+      lastSeenAt: row.last_seen_at,
+    };
+  });
+  return { devices };
+});
+
+/** Removes every notification device of the signed-in operator. */
+export const clearMyPushDevices = createServerFn({ method: "POST" }).handler(async () => {
+  const { operatorId } = await requireOperatorId();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error } = await supabaseAdmin.from("push_subscriptions").delete().eq("operator_id", operatorId);
+  if (error) throw new Error(error.message);
+  return { ok: true };
 });
 
 /** Sends a test notification to every device of the signed-in operator. */

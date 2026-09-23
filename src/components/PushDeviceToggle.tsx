@@ -1,168 +1,246 @@
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   getPushPublicKey,
   getMyPushStatus,
   registerPushSubscription,
   unregisterPushSubscription,
+  clearMyPushDevices,
   sendTestPush,
+  type PushDevice,
 } from "@/lib/push.functions";
 import {
   currentPushEndpoint,
   pushSupport,
-  reconcilePushSubscription,
   subscribeToPush,
   unsubscribeFromPush,
 } from "@/lib/push-client";
+import { currentDevice, type DeviceInfo } from "@/lib/device-info";
+
+const SUBSCRIBE_ERRORS: Record<string, string> = {
+  needs_install: "On iPhone and iPad, add the app to your Home Screen first, then enable notifications.",
+  denied: "Notifications are blocked for this site. Allow them in your browser settings, then try again.",
+  unsupported: "This browser doesn't support background notifications.",
+  no_key: "Notifications aren't configured yet.",
+  failed: "Couldn't create a notification subscription on this device.",
+};
+
+function errorText(e: unknown, fallback: string) {
+  return e instanceof Error && e.message ? e.message : fallback;
+}
 
 /**
- * Turns background notifications on for *this* device.
+ * Registered notification devices for the signed-in operator.
  *
- * The preference toggles above decide *which* reminders are sent; this decides
- * whether this phone/computer is one of the places they arrive.
+ * "This device" is On only when the browser's own subscription endpoint is
+ * confirmed stored on the server — local permission alone never counts.
  */
 export function PushDeviceToggle() {
   const fetchKey = useServerFn(getPushPublicKey);
   const fetchStatus = useServerFn(getMyPushStatus);
   const register = useServerFn(registerPushSubscription);
   const unregister = useServerFn(unregisterPushSubscription);
+  const clearAll = useServerFn(clearMyPushDevices);
   const test = useServerFn(sendTestPush);
 
-  const [enabled, setEnabled] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [devices, setDevices] = useState(0);
+  const [device, setDevice] = useState<DeviceInfo | null>(null);
   const [support, setSupport] = useState<ReturnType<typeof pushSupport> | null>(null);
+  const [devices, setDevices] = useState<PushDevice[]>([]);
+  const [endpoint, setEndpoint] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const refresh = useCallback(async () => {
-    const s = pushSupport();
-    setSupport(s);
-    if (!s.supported) return;
-
-    // Silent reconciliation: when permission is already granted the browser's
-    // current endpoint is re-registered without prompting or notifying, so a
-    // rotated mobile subscription keeps working on its own.
-    let endpoint = await currentPushEndpoint();
-    try {
-      let status = await fetchStatus();
-      if (s.permission === "granted") {
-        const { publicKey } = await fetchKey();
-        const live = await reconcilePushSubscription(publicKey);
-        if (live && !status.devices.includes(live.endpoint)) {
-          await register({
-            data: {
-              endpoint: live.endpoint,
-              p256dh: live.p256dh,
-              auth: live.auth,
-              userAgent: navigator.userAgent,
-              platform: navigator.platform,
-            },
-          });
-          status = await fetchStatus();
-        }
-        if (live) endpoint = live.endpoint;
-      }
-      setDevices(status.devices.length);
-      setEnabled(Boolean(endpoint) && status.devices.includes(endpoint ?? ""));
-    } catch {
-      setEnabled(false);
-    }
-  }, [fetchStatus, fetchKey, register]);
-
+    setDevice(currentDevice());
+    setSupport(pushSupport());
+    const [status, local] = await Promise.all([fetchStatus(), currentPushEndpoint().catch(() => null)]);
+    setDevices(status.devices);
+    setEndpoint(local);
+  }, [fetchStatus]);
 
   useEffect(() => {
-    void refresh();
+    refresh().catch((e) => setError(errorText(e, "Couldn't load notification devices.")));
   }, [refresh]);
 
-  async function toggle(next: boolean) {
+  const isDesktop = device?.type === "desktop";
+  const enabled = Boolean(endpoint) && devices.some((d) => d.endpoint === endpoint);
+  const others = devices.filter((d) => d.endpoint !== endpoint);
+
+  async function enable() {
+    if (!device || isDesktop) return;
     setBusy(true);
+    setError(null);
     try {
-      if (next) {
-        const { publicKey } = await fetchKey();
-        const res = await subscribeToPush(publicKey);
-        if (!res.ok) {
-          const messages: Record<string, string> = {
-            needs_install: "On iPhone, add the app to your Home Screen first, then turn this on.",
-            denied: "Notifications are blocked in your browser settings.",
-            unsupported: "This browser doesn't support background notifications.",
-            no_key: "Notifications aren't configured yet.",
-            failed: "Couldn't turn on notifications on this device.",
-          };
-          toast.error(messages[res.reason] ?? "Couldn't turn on notifications.");
-          return;
-        }
-        await register({
-          data: {
-            endpoint: res.endpoint,
-            p256dh: res.p256dh,
-            auth: res.auth,
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-          },
-        });
-        setEnabled(true);
-        toast.success("Notifications on for this device");
-      } else {
-        const endpoint = await unsubscribeFromPush();
-        if (endpoint) await unregister({ data: { endpoint } });
-        setEnabled(false);
-        toast.success("Notifications off for this device");
+      const { publicKey } = await fetchKey();
+      const res = await subscribeToPush(publicKey);
+      if (!res.ok) {
+        setError(res.detail ? `${SUBSCRIBE_ERRORS[res.reason]} (${res.detail})` : SUBSCRIBE_ERRORS[res.reason]);
+        return;
       }
+      const saved = await register({
+        data: {
+          endpoint: res.endpoint,
+          p256dh: res.p256dh,
+          auth: res.auth,
+          userAgent: navigator.userAgent,
+          platform: device.os,
+          deviceType: device.type,
+          browser: device.browser,
+          label: device.label,
+        },
+      });
       await refresh();
-    } catch {
-      toast.error("Something went wrong");
+      if (saved.endpoint === res.endpoint) toast.success("Notifications on for this device");
+    } catch (e) {
+      setError(errorText(e, "Couldn't register this device. Please try again."));
+      await refresh().catch(() => undefined);
     } finally {
       setBusy(false);
     }
   }
 
-  const blocked = support?.supported === false;
+  async function disable() {
+    setBusy(true);
+    setError(null);
+    try {
+      const removed = await unsubscribeFromPush();
+      if (removed) await unregister({ data: { endpoint: removed } });
+      await refresh();
+    } catch (e) {
+      setError(errorText(e, "Couldn't turn off notifications. Please try again."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doClearAll() {
+    setBusy(true);
+    setError(null);
+    try {
+      await clearAll();
+      await unsubscribeFromPush().catch(() => null);
+      setConfirmClear(false);
+      await refresh();
+      toast.success("All notification devices cleared");
+    } catch (e) {
+      setError(errorText(e, "Couldn't clear devices. Please try again."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendTest() {
+    try {
+      const res = await test();
+      if (res.total === 0) toast.error("No device is registered for notifications yet");
+      else if (res.sent > 0)
+        toast.success(res.failed > 0 ? `Test sent to ${res.sent} of ${res.total} devices` : "Test sent");
+      else toast.error("Couldn't deliver the test to any device");
+    } catch (e) {
+      toast.error(errorText(e, "Couldn't send a test"));
+    }
+  }
+
+  let status = "Notifications Off";
+  let hint: string | null = null;
+  if (isDesktop) {
+    status = "Notifications unavailable";
+    hint = "Notifications are available on mobile devices only.";
+  } else if (enabled) {
+    status = "Notifications On";
+  } else if (support && !support.supported) {
+    status = "Notifications unavailable";
+    hint = support.needsInstall ? SUBSCRIBE_ERRORS.needs_install : SUBSCRIBE_ERRORS.unsupported;
+  }
 
   return (
-    <div className="flex items-center justify-between gap-3 py-3">
-      <div className="min-w-0">
-        <div className="text-[15px]">This device</div>
-        <div className="text-[13px] text-muted-foreground">
-          {blocked
-            ? support?.needsInstall
-              ? "Add to Home Screen to enable"
-              : "Not supported in this browser"
-            : enabled
-              ? devices > 1
-                ? `On · ${devices} devices`
-                : "On"
-              : "Off"}
+    <div className="py-3">
+      <div className="text-[12px] uppercase tracking-wide text-muted-foreground">This device</div>
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[15px]">{device?.label ?? "…"}</div>
+          <div className={enabled ? "text-[13px] text-done" : "text-[13px] text-muted-foreground"}>{status}</div>
+          {hint && <div className="mt-0.5 text-[12px] text-muted-foreground">{hint}</div>}
         </div>
-      </div>
-      <div className="flex items-center gap-3">
-        {enabled && (
-          <button
-            type="button"
-            className="press rounded-full border border-border px-3 py-1.5 text-[13px]"
-            onClick={async () => {
-              try {
-                const res = await test();
-                if (res.total === 0) {
-                  toast.error("No device is registered for notifications yet");
-                } else if (res.sent > 0) {
-                  toast.success(
-                    res.failed > 0 ? `Test sent to ${res.sent} of ${res.total} devices` : "Test sent",
-                  );
-                } else {
-                  toast.error("Couldn't deliver the test to any device");
-                }
-
-              } catch {
-                toast.error("Couldn't send a test");
-              }
-            }}
-          >
-            Test
-          </button>
+        {!isDesktop && support?.supported && (
+          <div className="flex shrink-0 items-center gap-2">
+            {enabled ? (
+              <>
+                <Button size="sm" variant="outline" onClick={() => void sendTest()}>
+                  Test
+                </Button>
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => void disable()}>
+                  Turn off
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" disabled={busy} onClick={() => void enable()}>
+                {busy ? "Enabling…" : "Enable notifications"}
+              </Button>
+            )}
+          </div>
         )}
-        <Switch checked={enabled} disabled={busy || blocked} onCheckedChange={(v) => void toggle(v)} />
       </div>
+
+      {error && (
+        <div role="alert" className="mt-2 text-[13px] text-destructive">
+          {error}
+        </div>
+      )}
+
+      {others.length > 0 && (
+        <div className="mt-4">
+          <div className="text-[12px] uppercase tracking-wide text-muted-foreground">Other devices</div>
+          <ul className="mt-1 divide-y divide-border">
+            {others.map((d) => (
+              <li key={d.endpoint} className="py-2">
+                <div className="text-[15px]">{d.label}</div>
+                <div className="text-[13px] text-done">Notifications On</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {devices.length > 0 && (
+        <button
+          type="button"
+          className="press mt-3 text-[13px] text-destructive"
+          disabled={busy}
+          onClick={() => setConfirmClear(true)}
+        >
+          Clear all devices
+        </button>
+      )}
+
+      <Dialog open={confirmClear} onOpenChange={(o) => !busy && setConfirmClear(o)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clear all notification devices?</DialogTitle>
+            <DialogDescription>This will disable notifications on all registered devices.</DialogDescription>
+          </DialogHeader>
+          {error && <div className="text-[13px] text-destructive">{error}</div>}
+          <DialogFooter>
+            <Button variant="outline" disabled={busy} onClick={() => setConfirmClear(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" disabled={busy} onClick={() => void doClearAll()}>
+              Clear all devices
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

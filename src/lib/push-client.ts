@@ -26,7 +26,12 @@ function isIos(): boolean {
 }
 
 export function pushSupport(): PushSupport {
-  if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+  if (
+    typeof window === "undefined" ||
+    !("serviceWorker" in navigator) ||
+    !("PushManager" in window) ||
+    typeof Notification === "undefined"
+  ) {
     return { supported: false, needsInstall: isIos() && !isStandalone(), permission: "unsupported" };
   }
   return {
@@ -63,7 +68,7 @@ async function ensureRegistration(): Promise<ServiceWorkerRegistration> {
 
 export type SubscribeResult =
   | { ok: true; endpoint: string; p256dh: string; auth: string }
-  | { ok: false; reason: "unsupported" | "needs_install" | "denied" | "no_key" | "failed" };
+  | { ok: false; reason: "unsupported" | "needs_install" | "denied" | "no_key" | "failed"; detail?: string };
 
 /** Must be called from a user gesture. */
 export async function subscribeToPush(publicKey: string | null): Promise<SubscribeResult> {
@@ -94,8 +99,8 @@ export async function subscribeToPush(publicKey: string | null): Promise<Subscri
       p256dh: encodeKey(subscription.getKey("p256dh")),
       auth: encodeKey(subscription.getKey("auth")),
     };
-  } catch {
-    return { ok: false, reason: "failed" };
+  } catch (e) {
+    return { ok: false, reason: "failed", detail: e instanceof Error ? e.message : undefined };
   }
 }
 

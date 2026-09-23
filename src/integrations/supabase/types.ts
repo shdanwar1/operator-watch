@@ -366,7 +366,10 @@ export type Database = {
       push_subscriptions: {
         Row: {
           auth: string
+          browser: string | null
           created_at: string
+          device_label: string | null
+          device_type: string | null
           disabled_at: string | null
           endpoint: string
           id: string
@@ -378,7 +381,10 @@ export type Database = {
         }
         Insert: {
           auth: string
+          browser?: string | null
           created_at?: string
+          device_label?: string | null
+          device_type?: string | null
           disabled_at?: string | null
           endpoint: string
           id?: string
@@ -390,7 +396,10 @@ export type Database = {
         }
         Update: {
           auth?: string
+          browser?: string | null
           created_at?: string
+          device_label?: string | null
+          device_type?: string | null
           disabled_at?: string | null
           endpoint?: string
           id?: string
