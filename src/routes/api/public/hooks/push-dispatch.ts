@@ -51,19 +51,18 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
         const { data: operators, error: opErr } = await supabaseAdmin
           .from("operators")
-          .select("id, username, prefs")
+          .select("id, username")
           .eq("is_active", true);
         if (opErr) return Response.json({ error: opErr.message }, { status: 500 });
 
         type OpRow = {
           id: string;
           username: string;
-          prefs: Prefs;
         };
         const byId = new Map<string, OpRow>();
         const byName = new Map<string, string>();
         for (const row of (operators ?? []) as OpRow[]) {
-          byId.set(row.id, { ...row, prefs: row.prefs ?? {} });
+          byId.set(row.id, row);
           byName.set(normalizeUsername(row.username), row.id);
         }
 

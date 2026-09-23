@@ -16,7 +16,6 @@ import {
 import { getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
