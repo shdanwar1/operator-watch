@@ -42,3 +42,9 @@ Validation: 169 tests passed; automatic build OK; isolated desktop/narrow grid v
 - [x] Restructure Dashboard with Next Shift, five upcoming shifts, and existing monthly-hours calculations.
 - [x] Make Records attendance-only with the compact hours summary below the table.
 - [x] Verify operator flows, stored history, database cleanup, tests, typecheck, lint, and production build.
+
+## Operator dashboard reference redesign
+- [ ] Restyle the inactive Dashboard and floating check-in control.
+- [ ] Restyle Calendar while preserving sync and shift actions.
+- [ ] Move Records to /records and preserve expandable attendance actions.
+- [ ] Verify focused checks, build status, and responsive browser rendering.
