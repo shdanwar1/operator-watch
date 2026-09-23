@@ -817,7 +817,13 @@ function CheckInPanel({
 
   return (
     <>
-      <div className="flex flex-col items-center gap-5 px-5 py-6 text-center max-lg:py-7">
+      <div
+        className={
+          hideShiftInfo
+            ? "pointer-events-none fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 flex justify-center bg-gradient-to-t from-background via-background/95 to-transparent pb-2 pt-10 text-center lg:bottom-5"
+            : "flex flex-col items-center gap-5 px-5 py-6 text-center max-lg:py-7"
+        }
+      >
         {hideShiftInfo ? null : hasShift ? (
           <div className="flex flex-col items-center gap-1.5">
             <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -843,15 +849,17 @@ function CheckInPanel({
           </div>
         )}
 
-        <HoldButton
-          label="Hold for 3 seconds to clock in"
-          busy={checkingIn}
-          onComplete={handleHoldComplete}
-          size={76}
-          showCaption
-          completedCaption={`Clocked in ${fmtHM(new Date())}`}
-          resetSignal={resetSignal}
-        />
+        <div className={hideShiftInfo ? "pointer-events-auto" : undefined}>
+          <HoldButton
+            label="Hold for 3 seconds to clock in"
+            busy={checkingIn}
+            onComplete={handleHoldComplete}
+            size={76}
+            showCaption={hideShiftInfo}
+            completedCaption={`Clocked in ${fmtHM(new Date())}`}
+            resetSignal={resetSignal}
+          />
+        </div>
 
         {openScheduled && lateMin > 0 ? (
           <div className="flex items-start gap-2 rounded-xl bg-warn-soft px-3 py-2 text-left">
