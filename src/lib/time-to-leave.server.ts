@@ -95,7 +95,8 @@ async function supabaseStore(): Promise<TimeToLeaveStore> {
       let q = supabaseAdmin
         .from("operators")
         .select("id, username, home_lat, home_lng, commute_minutes, commute_route_key");
-      q = "operatorId" in where ? q.eq("id", where.operatorId) : q.ilike("username", where.username);
+      q =
+        "operatorId" in where ? q.eq("id", where.operatorId) : q.ilike("username", where.username);
       const { data, error } = await q.maybeSingle();
       if (error) throw new Error(error.message);
       return data as OperatorRow | null;

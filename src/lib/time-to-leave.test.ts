@@ -23,7 +23,14 @@ describe("latestValidJourney", () => {
 
   it("normal weekday: home departure includes the walk from home", () => {
     const r = latestValidJourney(
-      { journeys: [j(walk("2026-09-25T09:05:00+02:00", "2026-09-25T09:12:00+02:00"), ride("2026-09-25T09:14:00+02:00", "2026-09-25T09:48:00+02:00"))] },
+      {
+        journeys: [
+          j(
+            walk("2026-09-25T09:05:00+02:00", "2026-09-25T09:12:00+02:00"),
+            ride("2026-09-25T09:14:00+02:00", "2026-09-25T09:48:00+02:00"),
+          ),
+        ],
+      },
       required,
     )!;
     expect(berlinClock(new Date(r.departureIso))).toBe("09:05");
@@ -49,13 +56,27 @@ describe("latestValidJourney", () => {
     expect(latestValidJourney(null, required)).toBeNull();
     expect(latestValidJourney({ journeys: [{ legs: [{}] }, { nope: 1 }] }, required)).toBeNull();
     expect(
-      latestValidJourney({ journeys: [j(ride("2026-09-25T09:30:00+02:00", "2026-09-25T10:01:00+02:00"))] }, required),
+      latestValidJourney(
+        { journeys: [j(ride("2026-09-25T09:30:00+02:00", "2026-09-25T10:01:00+02:00"))] },
+        required,
+      ),
     ).toBeNull();
   });
 
   it("falls back to planned times", () => {
     const r = latestValidJourney(
-      { journeys: [{ legs: [{ plannedDeparture: "2026-09-25T09:10:00+02:00", plannedArrival: "2026-09-25T09:40:00+02:00" }] }] },
+      {
+        journeys: [
+          {
+            legs: [
+              {
+                plannedDeparture: "2026-09-25T09:10:00+02:00",
+                plannedArrival: "2026-09-25T09:40:00+02:00",
+              },
+            ],
+          },
+        ],
+      },
       required,
     );
     expect(r?.travelMinutes).toBe(30);
@@ -70,14 +91,18 @@ describe("liveCommute", () => {
       .fn()
       .mockRejectedValueOnce(new Error("VBB 500"))
       .mockResolvedValueOnce({ journeys: [] })
-      .mockResolvedValueOnce({ journeys: [j(ride("2026-09-25T09:10:00+02:00", "2026-09-25T09:50:00+02:00"))] });
+      .mockResolvedValueOnce({
+        journeys: [j(ride("2026-09-25T09:10:00+02:00", "2026-09-25T09:50:00+02:00"))],
+      });
     const r = await liveCommute(home, studio, shift, fetcher);
     expect(fetcher).toHaveBeenCalledTimes(3);
     expect(r?.travelMinutes).toBe(40);
   });
 
   it("makes one request when the first succeeds", async () => {
-    const fetcher = vi.fn().mockResolvedValue({ journeys: [j(ride("2026-09-25T09:10:00+02:00", "2026-09-25T09:50:00+02:00"))] });
+    const fetcher = vi.fn().mockResolvedValue({
+      journeys: [j(ride("2026-09-25T09:10:00+02:00", "2026-09-25T09:50:00+02:00"))],
+    });
     await liveCommute(home, studio, shift, fetcher);
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
@@ -119,7 +144,9 @@ describe("fallback and Berlin time", () => {
   });
 
   it("route key changes when home moves", () => {
-    expect(commuteRouteKey(home, studio)).not.toBe(commuteRouteKey({ lat: 52.53, lng: 13.4 }, studio));
+    expect(commuteRouteKey(home, studio)).not.toBe(
+      commuteRouteKey({ lat: 52.53, lng: 13.4 }, studio),
+    );
   });
 });
 
@@ -177,7 +204,10 @@ describe("resolveTimeToLeave — scheduled_shifts.time_to_leave lifecycle", () =
 
   it("saves a successful calculation to the shift", async () => {
     const { store, state } = memoryStore();
-    const r = await resolveTimeToLeave({ username: "Shad" }, shift, { store, fetcher: async () => ok });
+    const r = await resolveTimeToLeave({ username: "Shad" }, shift, {
+      store,
+      fetcher: async () => ok,
+    });
     expect(r.ok && r.source).toBe("live");
     expect(berlinClock(new Date(state.ttl!))).toBe("09:05");
   });
@@ -234,7 +264,10 @@ describe("resolveTimeToLeave — scheduled_shifts.time_to_leave lifecycle", () =
   it("saved 09:05 drives the notification at exactly 08:50", async () => {
     const { store } = memoryStore({ ttl: berlinInstant("2026-09-25", "09:05")!.toISOString() });
     const r = await resolveTimeToLeave({ username: "Shad" }, shift, { store });
-    const at = leaveNotificationAt(new Date(r.ok ? r.leave_iso : 0), berlinInstant("2026-09-25", "08:00")!.getTime());
+    const at = leaveNotificationAt(
+      new Date(r.ok ? r.leave_iso : 0),
+      berlinInstant("2026-09-25", "08:00")!.getTime(),
+    );
     expect(berlinClock(at!)).toBe("08:50");
   });
 });
