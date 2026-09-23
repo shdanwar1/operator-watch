@@ -53,7 +53,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
         const { data: operators, error: opErr } = await supabaseAdmin
           .from("operators")
-          .select("id, username, prefs, leave_shift_start, leave_at")
+          .select("id, username, prefs")
           .eq("is_active", true);
         if (opErr) return Response.json({ error: opErr.message }, { status: 500 });
 
@@ -61,8 +61,6 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           id: string;
           username: string;
           prefs: Prefs;
-          leave_shift_start: string | null;
-          leave_at: string | null;
         };
         const byId = new Map<string, OpRow>();
         const byName = new Map<string, string>();
@@ -98,7 +96,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
         const { data: shifts } = await supabaseAdmin
           .from("scheduled_shifts")
-          .select("id, assigned_operator, specific_date, start_time, status")
+          .select("id, assigned_operator, specific_date, start_time, status, time_to_leave")
           .in("specific_date", todayKeys);
 
         for (const shift of (shifts ?? []) as {
@@ -107,6 +105,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           specific_date: string;
           start_time: string;
           status: string;
+          time_to_leave: string | null;
         }[]) {
           if (!shift.assigned_operator || shift.status === "cancelled") continue;
           const operatorId = byName.get(normalizeUsername(shift.assigned_operator));
@@ -117,25 +116,18 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           const start = berlinInstant(shift.specific_date, shift.start_time);
           if (!start) continue;
 
-          // --- Leave home: uses the same authoritative Time to Leave as the
-          // Dashboard. About 2 hours ahead, refresh it once for this shift
-          // (unless an earlier upcoming shift still owns the cached value). ---
+          // --- Leave home: reads scheduled_shifts.time_to_leave, the same
+          // stored value the Dashboard shows. While it is still null, ~2 hours
+          // before the shift, try to calculate and save it (no-op once saved). ---
+          let timeToLeave = shift.time_to_leave;
           const untilStart = start.getTime() - now;
-          const cachedFor = op.leave_shift_start ? Date.parse(op.leave_shift_start) : null;
-          if (
-            untilStart >= 2 * 60 * 60_000 &&
-            untilStart <= 2 * 60 * 60_000 + 20 * 60_000 &&
-            !(cachedFor && cachedFor > now && cachedFor < start.getTime())
-          ) {
+          if (!timeToLeave && untilStart >= 2 * 60 * 60_000 && untilStart <= 140 * 60_000) {
             const { resolveTimeToLeave } = await import("@/lib/time-to-leave.server");
             const r = await resolveTimeToLeave({ operatorId }, start).catch(() => null);
-            if (r?.ok) {
-              op.leave_shift_start = r.shift_start_iso;
-              op.leave_at = r.leave_iso;
-            }
+            if (r?.ok && r.source !== "fallback") timeToLeave = r.leave_iso;
           }
-          if (op.leave_at && op.leave_shift_start && Date.parse(op.leave_shift_start) === start.getTime()) {
-            const leaveAt = new Date(op.leave_at);
+          if (timeToLeave) {
+            const leaveAt = new Date(timeToLeave);
             const notifyAt = leaveNotificationAt(leaveAt, now);
             if (notifyAt && due(notifyAt, now)) {
               jobs.push({
