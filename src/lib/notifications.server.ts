@@ -115,8 +115,8 @@ export async function reconcileShiftNotifications(): Promise<{
   for (const d of rows) {
     const key = d.notification_key;
     let valid = true;
-    if (key.startsWith("start:") || key.startsWith("checkin:")) {
-      const prefix = key.startsWith("start:") ? "start:" : "checkin:";
+    const prefix = ["start:", "checkin:", "leave:"].find((p) => key.startsWith(p));
+    if (prefix) {
       const [shiftId, iso] = key.slice(prefix.length).split("@");
       const live = startByShiftId.get(shiftId);
       if (live === null) valid = false;

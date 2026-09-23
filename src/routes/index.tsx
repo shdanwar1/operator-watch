@@ -721,7 +721,7 @@ function NextShiftSummary({
   }
   const range = formatShiftRange(shift, now);
   const count = classesForShift(calendarClasses, shift).length;
-  const leave = result?.ok ? new Date(result.departure_iso) : null;
+  const leave = result?.ok ? new Date(result.leave_iso) : null;
   return (
     <section>
       <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -745,14 +745,10 @@ function NextShiftSummary({
                 Time to leave
               </div>
               <div className="mt-1 text-3xl font-semibold tabular-nums text-primary">
-                {leave ? fmtHM(leave) : loading ? "…" : "—"}
+                {leave ? fmtHM(leave) : loading ? "…" : "Unavailable"}
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
-                {leave
-                  ? `Leave at ${fmtHM(leave)}`
-                  : loading
-                    ? "Calculating…"
-                    : "Currently unavailable"}
+                {leave ? `Leave at ${fmtHM(leave)}` : loading ? "Calculating…" : "Try again later"}
               </div>
             </div>
           ) : null}
