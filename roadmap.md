@@ -35,3 +35,10 @@ Validation: 169 tests passed; automatic build OK; isolated desktop/narrow grid v
 - [x] Removed the hydration mismatch the saved dark/light theme caused on every page load
 - [x] Deleted the unused duplicate copy of the theme startup snippet
 - [x] Verified: 236 tests, typecheck clean; live light + dark load and operator sign-in with no console errors
+
+## Remove route planning; restructure Dashboard and Records
+- [ ] Audit travel-routing dependencies and isolate the remaining Time to Leave calculation.
+- [ ] Remove route planning, persistence, background work, obsolete code, assets, tests, and database table.
+- [ ] Restructure Dashboard with Next Shift, five upcoming shifts, and existing monthly-hours calculations.
+- [ ] Make Records attendance-only with the compact hours summary below the table.
+- [ ] Verify operator flows, stored history, database cleanup, tests, typecheck, lint, and production build.
