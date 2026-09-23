@@ -32,7 +32,7 @@ export const Route = createFileRoute("/unlock")({
   beforeLoad: async () => {
     const status = await getGateStatus();
     if (status.unlocked) {
-      throw redirect({ to: status.isAdmin ? "/admin/calendar" : "/" });
+      throw redirect({ to: status.isAdmin ? "/admin/timetable" : "/" });
     }
     return { status };
   },
@@ -145,7 +145,7 @@ function Unlock() {
       });
       if (res.ok) {
         if (res.isAdmin) {
-          await router.navigate({ to: "/admin/calendar" });
+          await router.navigate({ to: "/admin/timetable" });
         } else {
           try {
             const status = await getMyProfileStatus();
