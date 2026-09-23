@@ -15,11 +15,7 @@ import {
   type ScheduledShiftRow,
 } from "@/lib/shifts.functions";
 import { listDmcDirectory, type DmcOption } from "@/lib/dmc-directory.functions";
-import { ARRIVAL_BUFFER_MIN } from "@/lib/travel.functions";
-import { useTravelPlan } from "@/hooks/useTravelPlan";
-import { type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
-import { type DirectPlan, type JourneyPlan } from "@/lib/journey-plan";
-import { cleanAddress } from "@/lib/address";
+import { useTimeToLeave } from "@/hooks/useTimeToLeave";
 
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { clearAllCaches, operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
@@ -39,8 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, Ship, Footprints, Home, MapPin, AlertTriangle, Lock, ArrowRight, Briefcase, ChevronDown, Building2 } from "lucide-react";
-import { transitIconFor } from "@/components/TransitIcons";
+import { Plus, X, Clock, LogIn, CalendarDays, AlertTriangle, Lock } from "lucide-react";
 import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { ChecklistPanel } from "@/components/checklist/ChecklistPanel";
@@ -63,6 +58,7 @@ import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
 import { CHECK_IN_WINDOW_MS, LEAVE_WINDOW_MS } from "@/lib/shift-phase";
 import { StudioActivation } from "@/components/StudioActivation";
+import { MonthlyHours } from "@/components/MonthlyHours";
 import {
   buildDisplayShifts,
   resolveCheckInTarget,
@@ -92,7 +88,7 @@ export const Route = createFileRoute("/")({
     return { username: canonical ?? username, profile };
   },
   head: () => ({
-    meta: pageMeta(PAGE_TITLES.dashboard, "Your next shift, travel plan and check-in for today."),
+    meta: pageMeta(PAGE_TITLES.dashboard, "Your next shift, time to leave, and monthly hours."),
   }),
   component: Index,
 });
@@ -451,17 +447,6 @@ function Index() {
   const openTarget = resolveCheckInTarget(scheduled, now);
   const openScheduled = openTarget?.segments[0] ?? null;
 
-  // Daily-view priority: today's shift comes first, then tomorrow, then the
-  // next known shift. Time to Leave and the check-in fingerprint only surface
-  // for a shift that is today; everything else is read-only context.
-  const todayShift =
-    upcomingDisplay.find((s) => sameDay(s.startAt, now)) ?? null;
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowShift = todayShift
-    ? null
-    : (upcomingDisplay.find((s) => sameDay(s.startAt, tomorrow)) ?? null);
-  const nextShift = upcomingDisplay[0] ?? null;
   const hasAnyScheduled = scheduled.length > 0;
 
   // Reminders are delivered by the server as background Web Push (see
@@ -669,53 +654,38 @@ function Index() {
             importedClasses={activeShiftClasses}
             onSetClassStatus={setClassStatus}
           />
-        ) : checkInLocked ? (
-          <LockedFeatureCard
-            icon={<LogIn className="h-4 w-4" />}
-            title="Check In"
-            reason="Complete your profile to enable Check In and Time to Leave."
-            hero
-          />
-        ) : todayShift ? (
-          <TodayShiftCard
-            shift={todayShift}
-            now={now}
+        ) : (
+          <>
+            <InactiveDashboard
+              nextShift={nextDisplay}
+              upcoming={upcomingDisplay.slice(0, 5)}
+              now={now}
+              calendarClasses={calendarClasses}
+              shifts={history}
+              scheduled={scheduled}
+              showTimeToLeave={prefs.showTimeToLeave && !needsHome}
+            />
+            {checkInLocked ? (
+              <LockedFeatureCard
+                icon={<LogIn className="h-4 w-4" />}
+                title="Check In"
+                reason="Complete your profile to enable Check In and Time to Leave."
+              />
+            ) : (
+              <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
+                <CardContent className="p-0">
+                  <CheckInPanel
             openScheduled={openScheduled}
             openShift={openTarget}
             nextShift={nextDisplay}
+                    now={now}
             checkingIn={checkingIn}
             onCheckIn={checkIn}
-            showTravel={prefs.showTimeToLeave && !needsHome}
-            username={username}
-            scheduled={scheduled}
-            homeLat={profileStatus?.home_lat ?? null}
-            homeLng={profileStatus?.home_lng ?? null}
-            calendarClasses={calendarClasses}
-          />
-        ) : (
-          <>
-            {tomorrowShift ? (
-              <NoShiftTodayCard shift={tomorrowShift} now={now} />
-            ) : nextShift ? (
-              <NoShiftSoonCard shift={nextShift} now={now} />
-            ) : (
-              <NoShiftsBookedCard hasScheduled={hasAnyScheduled} />
+                    hideShiftInfo
+                  />
+                </CardContent>
+              </Card>
             )}
-            {/* Covering a colleague or an unplanned shift: check-in is always
-                reachable, even on days with nothing scheduled. */}
-            <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
-              <CardContent className="p-0">
-                <CheckInPanel
-                  openScheduled={openScheduled}
-                  openShift={openTarget}
-                  nextShift={nextDisplay}
-                  now={now}
-                  checkingIn={checkingIn}
-                  onCheckIn={checkIn}
-                  hideShiftInfo
-                />
-              </CardContent>
-            </Card>
           </>
         )}
 
@@ -727,149 +697,98 @@ function Index() {
 
 
 
-/**
- * Today's shift — the dashboard's primary card when a shift runs today.
- *
- * Shows the shift time and class count once, the Time to Leave plan (for every
- * today shift, not just the leave window), and the check-in fingerprint.
- */
-function TodayShiftCard({
-  shift,
-  now,
-  openScheduled,
-  openShift,
+function InactiveDashboard({
   nextShift,
-  checkingIn,
-  onCheckIn,
-  showTravel,
-  username,
-  scheduled,
-  homeLat,
-  homeLng,
+  upcoming,
+  now,
   calendarClasses,
+  shifts,
+  scheduled,
+  showTimeToLeave,
 }: {
-  shift: DisplayShift;
-  now: Date;
-  openScheduled: ScheduledShift | null;
-  openShift: DisplayShift | null;
   nextShift: DisplayShift | null;
-  checkingIn: boolean;
-  onCheckIn: () => void;
-  showTravel: boolean;
-  username: string | null;
-  scheduled: ScheduledShift[];
-  homeLat?: number | null;
-  homeLng?: number | null;
+  upcoming: DisplayShift[];
+  now: Date;
   calendarClasses: CalendarClassRow[];
+  shifts: Shift[];
+  scheduled: ScheduledShift[];
+  showTimeToLeave: boolean;
 }) {
-  const range = formatShiftRange(shift, now);
-  const classCount = classesForShift(calendarClasses, shift).length;
-  const untilStart = shift.startAt.getTime() - now.getTime();
-  const ongoing = untilStart <= 0;
-  const label =
-    ongoing || untilStart <= CHECK_IN_WINDOW_MS
-      ? "Ready to check in"
-      : untilStart <= LEAVE_WINDOW_MS
-        ? "Travel"
-        : "Today";
-  const dot = ongoing || untilStart <= CHECK_IN_WINDOW_MS ? "bg-primary" : "bg-muted-foreground";
   return (
-    <Card className="rise-in overflow-hidden max-lg:glass max-lg:rounded-[22px]">
-      <CardContent className="p-0">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
-          <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            <span className={`status-dot ${dot}`} />
-            {label}
-          </span>
-          <span className="text-[13px] tabular-nums text-muted-foreground">
-            {range.dayLabel} · {range.range}
-            {classCount
-              ? ` · ${classCount} ${classCount === 1 ? "class" : "classes"}`
-              : ""}
-          </span>
-        </div>
+    <div className="space-y-6">
+      <NextShiftSummary shift={nextShift} now={now} calendarClasses={calendarClasses} showTimeToLeave={showTimeToLeave} />
+      <UpcomingShifts shifts={upcoming} now={now} />
+      <MonthlyHours shifts={shifts} scheduled={scheduled} />
+    </div>
+  );
+}
 
-        <CheckInPanel
-          openScheduled={openScheduled}
-          openShift={openShift}
-          nextShift={nextShift}
-          now={now}
-          onCheckIn={onCheckIn}
-          checkingIn={checkingIn}
-          hideShiftInfo
-        />
-
-        {showTravel ? (
-          <div className="border-t border-border">
-            <TimeToLeaveCard
-              username={username}
-              scheduled={scheduled}
-              now={now}
-              homeLat={homeLat}
-              homeLng={homeLng}
-              variant="embedded"
-            />
+function NextShiftSummary({ shift, now, calendarClasses, showTimeToLeave }: {
+  shift: DisplayShift | null;
+  now: Date;
+  calendarClasses: CalendarClassRow[];
+  showTimeToLeave: boolean;
+}) {
+  const { result, loading } = useTimeToLeave(shift?.startAt.toISOString() ?? null);
+  if (!shift) {
+    return (
+      <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
+        <CardContent className="flex items-center gap-3 p-5">
+          <Clock className="h-5 w-5 text-muted-foreground" />
+          <span className="text-sm font-medium">No upcoming shifts</span>
+        </CardContent>
+      </Card>
+    );
+  }
+  const range = formatShiftRange(shift, now);
+  const count = classesForShift(calendarClasses, shift).length;
+  const leave = result?.ok ? new Date(result.departure_iso) : null;
+  return (
+    <section>
+      <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Next shift</div>
+      <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
+        <CardContent className="grid gap-5 p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
+          <div>
+            <div className="text-lg font-semibold">{shift.startAt.toLocaleDateString(undefined, { weekday: "long" })}</div>
+            <div className="mt-1 text-sm text-muted-foreground">{fullDateLabel(shift.startAt)}</div>
+            <div className="mt-3 text-xl font-semibold tabular-nums">{range.range}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{count} {count === 1 ? "class" : "classes"}</div>
           </div>
-        ) : null}
-      </CardContent>
-    </Card>
+          {showTimeToLeave ? (
+            <div className="border-t border-border pt-4 sm:min-w-40 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Time to leave</div>
+              <div className="mt-1 text-3xl font-semibold tabular-nums text-primary">
+                {leave ? fmtHM(leave) : loading ? "…" : "—"}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {leave ? `Leave at ${fmtHM(leave)}` : loading ? "Calculating…" : "Currently unavailable"}
+              </div>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+    </section>
   );
 }
 
-/** No shift today, but one tomorrow — show tomorrow's day + start/end only. */
-function NoShiftTodayCard({ shift, now }: { shift: DisplayShift; now: Date }) {
-  const range = formatShiftRange(shift, now);
+function UpcomingShifts({ shifts, now }: { shifts: DisplayShift[]; now: Date }) {
   return (
-    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
-      <CardContent className="p-5">
-        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          <span className="status-dot bg-muted-foreground" />
-          No shift today
-        </div>
-        <p className="mt-2 text-sm">
-          <span className="font-medium">{range.dayLabel}</span>
-          <span className="text-muted-foreground"> · {range.range}</span>
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-/** No shift today/tomorrow — show only the next shift's day or date. */
-function NoShiftSoonCard({ shift, now }: { shift: DisplayShift; now: Date }) {
-  const days = Math.round(
-    (startOfDay(shift.startAt).getTime() - startOfDay(now).getTime()) / 86_400_000,
-  );
-  const label =
-    days <= 7
-      ? shift.startAt.toLocaleDateString(undefined, { weekday: "long" })
-      : shift.startAt.toLocaleDateString(undefined, { month: "long", day: "numeric" });
-  return (
-    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
-      <CardContent className="p-5">
-        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          <span className="status-dot bg-muted-foreground" />
-          No shift soon
-        </div>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Next shift · <span className="font-medium text-foreground">{label}</span>
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-/** No shifts scheduled at all. */
-function NoShiftsBookedCard({ hasScheduled }: { hasScheduled: boolean }) {
-  return (
-    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
-      <CardContent className="flex flex-col items-center gap-2 px-5 py-10 text-center">
-        <Clock className="h-5 w-5 text-muted-foreground" />
-        <h2 className="text-sm font-medium tracking-tight">
-          {hasScheduled ? "No upcoming shifts" : "No shifts booked"}
-        </h2>
-      </CardContent>
-    </Card>
+    <section>
+      <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Upcoming shifts</div>
+      <Card className="max-lg:glass max-lg:rounded-[22px]">
+        <CardContent className="p-0">
+          {shifts.length ? shifts.map((shift) => {
+            const range = formatShiftRange(shift, now);
+            return (
+              <div key={shift.key} className="flex items-center justify-between gap-4 border-b border-border px-5 py-3.5 last:border-b-0">
+                <span className="text-sm font-medium">{shift.startAt.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" })}</span>
+                <span className="text-sm tabular-nums text-muted-foreground">{range.range}</span>
+              </div>
+            );
+          }) : <p className="px-5 py-8 text-center text-sm text-muted-foreground">No upcoming shifts.</p>}
+        </CardContent>
+      </Card>
+    </section>
   );
 }
 
