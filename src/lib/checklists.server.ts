@@ -246,14 +246,35 @@ export async function ensureChecklistsForShift(shiftId: string): Promise<ShiftCh
   const shift = await loadShift(shiftId);
   if (!shift) return null;
   if (isShiftChecklists(shift.checklists)) return shift.checklists;
-  const [config, classes] = await Promise.all([
-    readChecklistConfig(),
-    classesForScheduledShift(shift.scheduled_shift_id),
-  ]);
+  const [config, classes] = await Promise.all([readChecklistConfig(), classesForShift(shift)]);
   const snapshot = ensureShiftChecklists(null, config, classes);
   return updateChecklists(shiftId, (latest) =>
     isShiftChecklists(latest.checklists) ? latest.checklists : snapshot,
   );
+}
+
+/**
+ * Brings one OPEN shift's class entries in line with its live classes.
+ * Completion state is keyed by class id, so existing progress is preserved and
+ * only genuinely new/changed classes are touched. Returns the current snapshot
+ * unchanged when nothing differs (no write).
+ */
+async function syncClassesForShift(
+  shift: ShiftContext & { checklists: unknown },
+): Promise<ShiftChecklists | null> {
+  if (shift.check_out_at) {
+    return isShiftChecklists(shift.checklists) ? shift.checklists : null;
+  }
+  const [config, classes] = await Promise.all([readChecklistConfig(), classesForShift(shift)]);
+  const current = ensureShiftChecklists(shift.checklists, config, classes);
+  const next = syncClassChecklists(current, config, classes);
+  if (isShiftChecklists(shift.checklists) && JSON.stringify(next) === JSON.stringify(current)) {
+    return current;
+  }
+  return updateChecklists(shift.id, (latest) => {
+    const base = ensureShiftChecklists(latest.checklists, config, classes);
+    return syncClassChecklists(base, config, classes);
+  });
 }
 
 /**
@@ -271,19 +292,15 @@ export async function syncChecklistsForScheduledShift(
   const window = await displayWindowFor(scheduledShiftId);
   const { data } = await db
     .from("shifts")
-    .select("id, checklists")
+    .select("id")
     .in("scheduled_shift_id", window?.segmentIds ?? [scheduledShiftId])
     .is("check_out_at", null)
     .maybeSingle();
-  const open = data as { id: string; checklists: unknown } | null;
-  if (!open || !isShiftChecklists(open.checklists)) return;
-  const [config, classes] = await Promise.all([
-    readChecklistConfig(),
-    classesForScheduledShift(scheduledShiftId),
-  ]);
-  await updateChecklists(open.id, (latest) =>
-    syncClassChecklists(ensureShiftChecklists(latest.checklists, config, classes), config, classes),
-  );
+  const open = data as { id: string } | null;
+  if (!open) return;
+  const shift = await loadShift(open.id);
+  if (!shift || !isShiftChecklists(shift.checklists)) return;
+  await syncClassesForShift(shift);
 }
 
 /** Operator toggle of one checklist item on their own OPEN shift. */
