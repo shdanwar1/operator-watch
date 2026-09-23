@@ -386,21 +386,12 @@ export function AttendanceSection({ username }: { username: string | null }) {
                       ))
                     )}
                   </tbody>
-                  {summary.rows.length > 0 && (
-                    <tfoot>
-                      <tr className="bg-muted/30 font-semibold">
-                        <td colSpan={5} className="px-5 py-3 text-right">
-                          Total
-                        </td>
-                        <td className="px-5 py-3 text-right tabular-nums">
-                          {formatHM(summary.workedMin)}
-                        </td>
-                        <td colSpan={2} />
-                      </tr>
-                    </tfoot>
-                  )}
                 </table>
               </div>
+
+              {summary.rows.length > 0 && (
+                <AttendanceSummaryFooter summary={summary} />
+              )}
             </CardContent>
           </Card>
           <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border pt-5 sm:grid-cols-4">
