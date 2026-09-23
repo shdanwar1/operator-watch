@@ -1,5 +1,5 @@
 /**
- * Delivery identity keys for the three shift notifications.
+ * Delivery identity keys for shift notifications.
  *
  * Each notification purpose has its own prefix, so the reminder and the
  * exact-start check-in can never claim the same delivery row, and one
@@ -7,15 +7,9 @@
  */
 
 export const NOTIFICATION_TYPES = {
-  timeToLeave: "time_to_leave",
   shiftStartReminder: "shift_start",
   shiftStartCheckIn: "shift_start_check_in",
 } as const;
-
-/** "Time to leave", keyed by the canonical shift start instant. */
-export function leaveKey(shiftStart: Date): string {
-  return `leave:${shiftStart.toISOString()}`;
-}
 
 /** "Shift starts in 15 minutes". */
 export function startReminderKey(shiftId: string, shiftStart: Date): string {

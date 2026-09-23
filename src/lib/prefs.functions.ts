@@ -29,8 +29,6 @@ async function requireOperator() {
 }
 
 export type OperatorPrefs = {
-  /** Browser reminder when it is time to leave home. */
-  notifyTimeToLeave: boolean;
   /** Browser reminder shortly before the shift starts. */
   notifyShiftStart: boolean;
   /** Show the "Time to leave" card on the dashboard. */
@@ -41,7 +39,6 @@ export type OperatorPrefs = {
 // `autoSync` / `syncNextMonth` keys may still sit in stored JSON; they are
 // intentionally ignored here and never influence runtime behaviour.
 export const DEFAULT_PREFS: OperatorPrefs = {
-  notifyTimeToLeave: true,
   notifyShiftStart: true,
   showTimeToLeave: true,
 };
@@ -54,7 +51,6 @@ function coerce(value: unknown): OperatorPrefs {
   const pick = (k: BoolKey): boolean =>
     v[k] === undefined ? (DEFAULT_PREFS[k] as boolean) : Boolean(v[k]);
   return {
-    notifyTimeToLeave: pick("notifyTimeToLeave"),
     notifyShiftStart: pick("notifyShiftStart"),
     showTimeToLeave: pick("showTimeToLeave"),
   };

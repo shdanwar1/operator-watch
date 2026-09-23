@@ -15,11 +15,7 @@ import {
   type ScheduledShiftRow,
 } from "@/lib/shifts.functions";
 import { listDmcDirectory, type DmcOption } from "@/lib/dmc-directory.functions";
-import { ARRIVAL_BUFFER_MIN } from "@/lib/travel.functions";
-import { useTravelPlan } from "@/hooks/useTravelPlan";
-import { type TimeToLeaveSnapshot } from "@/lib/travel-snapshot";
-import { type DirectPlan, type JourneyPlan } from "@/lib/journey-plan";
-import { cleanAddress } from "@/lib/address";
+import { useTimeToLeave } from "@/hooks/useTimeToLeave";
 
 import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { clearAllCaches, operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
@@ -39,8 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, Ship, Footprints, Home, MapPin, AlertTriangle, Lock, ArrowRight, Briefcase, ChevronDown, Building2 } from "lucide-react";
-import { transitIconFor } from "@/components/TransitIcons";
+import { Plus, X, Clock, LogIn, AlertTriangle, Lock } from "lucide-react";
 import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { ChecklistPanel } from "@/components/checklist/ChecklistPanel";
@@ -61,8 +56,8 @@ import {
 } from "@/lib/gcal.functions";
 import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
-import { CHECK_IN_WINDOW_MS, LEAVE_WINDOW_MS } from "@/lib/shift-phase";
 import { StudioActivation } from "@/components/StudioActivation";
+import { MonthlyHours } from "@/components/MonthlyHours";
 import {
   buildDisplayShifts,
   resolveCheckInTarget,
@@ -92,7 +87,7 @@ export const Route = createFileRoute("/")({
     return { username: canonical ?? username, profile };
   },
   head: () => ({
-    meta: pageMeta(PAGE_TITLES.dashboard, "Your next shift, travel plan and check-in for today."),
+    meta: pageMeta(PAGE_TITLES.dashboard, "Your next shift, time to leave, and monthly hours."),
   }),
   component: Index,
 });
@@ -176,15 +171,6 @@ function dateKey(d: Date) {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-}
-
-/** True when two timestamps fall on the same calendar day. */
-function sameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
 }
 
 function overrideDates(all: { specific_date: string | null }[]) {
@@ -451,19 +437,6 @@ function Index() {
   const openTarget = resolveCheckInTarget(scheduled, now);
   const openScheduled = openTarget?.segments[0] ?? null;
 
-  // Daily-view priority: today's shift comes first, then tomorrow, then the
-  // next known shift. Time to Leave and the check-in fingerprint only surface
-  // for a shift that is today; everything else is read-only context.
-  const todayShift =
-    upcomingDisplay.find((s) => sameDay(s.startAt, now)) ?? null;
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowShift = todayShift
-    ? null
-    : (upcomingDisplay.find((s) => sameDay(s.startAt, tomorrow)) ?? null);
-  const nextShift = upcomingDisplay[0] ?? null;
-  const hasAnyScheduled = scheduled.length > 0;
-
   // Reminders are delivered by the server as background Web Push (see
   // /api/public/hooks/push-dispatch), so nothing fires from this page.
 
@@ -669,53 +642,38 @@ function Index() {
             importedClasses={activeShiftClasses}
             onSetClassStatus={setClassStatus}
           />
-        ) : checkInLocked ? (
-          <LockedFeatureCard
-            icon={<LogIn className="h-4 w-4" />}
-            title="Check In"
-            reason="Complete your profile to enable Check In and Time to Leave."
-            hero
-          />
-        ) : todayShift ? (
-          <TodayShiftCard
-            shift={todayShift}
-            now={now}
-            openScheduled={openScheduled}
-            openShift={openTarget}
-            nextShift={nextDisplay}
-            checkingIn={checkingIn}
-            onCheckIn={checkIn}
-            showTravel={prefs.showTimeToLeave && !needsHome}
-            username={username}
-            scheduled={scheduled}
-            homeLat={profileStatus?.home_lat ?? null}
-            homeLng={profileStatus?.home_lng ?? null}
-            calendarClasses={calendarClasses}
-          />
         ) : (
           <>
-            {tomorrowShift ? (
-              <NoShiftTodayCard shift={tomorrowShift} now={now} />
-            ) : nextShift ? (
-              <NoShiftSoonCard shift={nextShift} now={now} />
+            <InactiveDashboard
+              nextShift={nextDisplay}
+              upcoming={upcomingDisplay.slice(0, 5)}
+              now={now}
+              calendarClasses={calendarClasses}
+              shifts={history}
+              scheduled={scheduled}
+              showTimeToLeave={prefs.showTimeToLeave && !needsHome}
+            />
+            {checkInLocked ? (
+              <LockedFeatureCard
+                icon={<LogIn className="h-4 w-4" />}
+                title="Check In"
+                reason="Complete your profile to enable Check In and Time to Leave."
+              />
             ) : (
-              <NoShiftsBookedCard hasScheduled={hasAnyScheduled} />
+              <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
+                <CardContent className="p-0">
+                  <CheckInPanel
+                    openScheduled={openScheduled}
+                    openShift={openTarget}
+                    nextShift={nextDisplay}
+                    now={now}
+                    checkingIn={checkingIn}
+                    onCheckIn={checkIn}
+                    hideShiftInfo
+                  />
+                </CardContent>
+              </Card>
             )}
-            {/* Covering a colleague or an unplanned shift: check-in is always
-                reachable, even on days with nothing scheduled. */}
-            <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
-              <CardContent className="p-0">
-                <CheckInPanel
-                  openScheduled={openScheduled}
-                  openShift={openTarget}
-                  nextShift={nextDisplay}
-                  now={now}
-                  checkingIn={checkingIn}
-                  onCheckIn={checkIn}
-                  hideShiftInfo
-                />
-              </CardContent>
-            </Card>
           </>
         )}
 
@@ -727,149 +685,98 @@ function Index() {
 
 
 
-/**
- * Today's shift — the dashboard's primary card when a shift runs today.
- *
- * Shows the shift time and class count once, the Time to Leave plan (for every
- * today shift, not just the leave window), and the check-in fingerprint.
- */
-function TodayShiftCard({
-  shift,
-  now,
-  openScheduled,
-  openShift,
+function InactiveDashboard({
   nextShift,
-  checkingIn,
-  onCheckIn,
-  showTravel,
-  username,
-  scheduled,
-  homeLat,
-  homeLng,
+  upcoming,
+  now,
   calendarClasses,
+  shifts,
+  scheduled,
+  showTimeToLeave,
 }: {
-  shift: DisplayShift;
-  now: Date;
-  openScheduled: ScheduledShift | null;
-  openShift: DisplayShift | null;
   nextShift: DisplayShift | null;
-  checkingIn: boolean;
-  onCheckIn: () => void;
-  showTravel: boolean;
-  username: string | null;
-  scheduled: ScheduledShift[];
-  homeLat?: number | null;
-  homeLng?: number | null;
+  upcoming: DisplayShift[];
+  now: Date;
   calendarClasses: CalendarClassRow[];
+  shifts: Shift[];
+  scheduled: ScheduledShift[];
+  showTimeToLeave: boolean;
 }) {
-  const range = formatShiftRange(shift, now);
-  const classCount = classesForShift(calendarClasses, shift).length;
-  const untilStart = shift.startAt.getTime() - now.getTime();
-  const ongoing = untilStart <= 0;
-  const label =
-    ongoing || untilStart <= CHECK_IN_WINDOW_MS
-      ? "Ready to check in"
-      : untilStart <= LEAVE_WINDOW_MS
-        ? "Travel"
-        : "Today";
-  const dot = ongoing || untilStart <= CHECK_IN_WINDOW_MS ? "bg-primary" : "bg-muted-foreground";
   return (
-    <Card className="rise-in overflow-hidden max-lg:glass max-lg:rounded-[22px]">
-      <CardContent className="p-0">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
-          <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            <span className={`status-dot ${dot}`} />
-            {label}
-          </span>
-          <span className="text-[13px] tabular-nums text-muted-foreground">
-            {range.dayLabel} · {range.range}
-            {classCount
-              ? ` · ${classCount} ${classCount === 1 ? "class" : "classes"}`
-              : ""}
-          </span>
-        </div>
+    <div className="space-y-6">
+      <NextShiftSummary shift={nextShift} now={now} calendarClasses={calendarClasses} showTimeToLeave={showTimeToLeave} />
+      <UpcomingShifts shifts={upcoming} now={now} />
+      <MonthlyHours shifts={shifts} scheduled={scheduled} />
+    </div>
+  );
+}
 
-        <CheckInPanel
-          openScheduled={openScheduled}
-          openShift={openShift}
-          nextShift={nextShift}
-          now={now}
-          onCheckIn={onCheckIn}
-          checkingIn={checkingIn}
-          hideShiftInfo
-        />
-
-        {showTravel ? (
-          <div className="border-t border-border">
-            <TimeToLeaveCard
-              username={username}
-              scheduled={scheduled}
-              now={now}
-              homeLat={homeLat}
-              homeLng={homeLng}
-              variant="embedded"
-            />
+function NextShiftSummary({ shift, now, calendarClasses, showTimeToLeave }: {
+  shift: DisplayShift | null;
+  now: Date;
+  calendarClasses: CalendarClassRow[];
+  showTimeToLeave: boolean;
+}) {
+  const { result, loading } = useTimeToLeave(shift?.startAt.toISOString() ?? null);
+  if (!shift) {
+    return (
+      <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
+        <CardContent className="flex items-center gap-3 p-5">
+          <Clock className="h-5 w-5 text-muted-foreground" />
+          <span className="text-sm font-medium">No upcoming shifts</span>
+        </CardContent>
+      </Card>
+    );
+  }
+  const range = formatShiftRange(shift, now);
+  const count = classesForShift(calendarClasses, shift).length;
+  const leave = result?.ok ? new Date(result.departure_iso) : null;
+  return (
+    <section>
+      <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Next shift</div>
+      <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
+        <CardContent className="grid gap-5 p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
+          <div>
+            <div className="text-lg font-semibold">{shift.startAt.toLocaleDateString(undefined, { weekday: "long" })}</div>
+            <div className="mt-1 text-sm text-muted-foreground">{fullDateLabel(shift.startAt)}</div>
+            <div className="mt-3 text-xl font-semibold tabular-nums">{range.range}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{count} {count === 1 ? "class" : "classes"}</div>
           </div>
-        ) : null}
-      </CardContent>
-    </Card>
+          {showTimeToLeave ? (
+            <div className="border-t border-border pt-4 sm:min-w-40 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Time to leave</div>
+              <div className="mt-1 text-3xl font-semibold tabular-nums text-primary">
+                {leave ? fmtHM(leave) : loading ? "…" : "—"}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {leave ? `Leave at ${fmtHM(leave)}` : loading ? "Calculating…" : "Currently unavailable"}
+              </div>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+    </section>
   );
 }
 
-/** No shift today, but one tomorrow — show tomorrow's day + start/end only. */
-function NoShiftTodayCard({ shift, now }: { shift: DisplayShift; now: Date }) {
-  const range = formatShiftRange(shift, now);
+function UpcomingShifts({ shifts, now }: { shifts: DisplayShift[]; now: Date }) {
   return (
-    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
-      <CardContent className="p-5">
-        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          <span className="status-dot bg-muted-foreground" />
-          No shift today
-        </div>
-        <p className="mt-2 text-sm">
-          <span className="font-medium">{range.dayLabel}</span>
-          <span className="text-muted-foreground"> · {range.range}</span>
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-/** No shift today/tomorrow — show only the next shift's day or date. */
-function NoShiftSoonCard({ shift, now }: { shift: DisplayShift; now: Date }) {
-  const days = Math.round(
-    (startOfDay(shift.startAt).getTime() - startOfDay(now).getTime()) / 86_400_000,
-  );
-  const label =
-    days <= 7
-      ? shift.startAt.toLocaleDateString(undefined, { weekday: "long" })
-      : shift.startAt.toLocaleDateString(undefined, { month: "long", day: "numeric" });
-  return (
-    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
-      <CardContent className="p-5">
-        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          <span className="status-dot bg-muted-foreground" />
-          No shift soon
-        </div>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Next shift · <span className="font-medium text-foreground">{label}</span>
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-/** No shifts scheduled at all. */
-function NoShiftsBookedCard({ hasScheduled }: { hasScheduled: boolean }) {
-  return (
-    <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
-      <CardContent className="flex flex-col items-center gap-2 px-5 py-10 text-center">
-        <Clock className="h-5 w-5 text-muted-foreground" />
-        <h2 className="text-sm font-medium tracking-tight">
-          {hasScheduled ? "No upcoming shifts" : "No shifts booked"}
-        </h2>
-      </CardContent>
-    </Card>
+    <section>
+      <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Upcoming shifts</div>
+      <Card className="max-lg:glass max-lg:rounded-[22px]">
+        <CardContent className="p-0">
+          {shifts.length ? shifts.map((shift) => {
+            const range = formatShiftRange(shift, now);
+            return (
+              <div key={`${shift.startAt.toISOString()}-${shift.endAt.toISOString()}`} className="flex items-center justify-between gap-4 border-b border-border px-5 py-3.5 last:border-b-0">
+                <span className="text-sm font-medium">{shift.startAt.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" })}</span>
+                <span className="text-sm tabular-nums text-muted-foreground">{range.range}</span>
+              </div>
+            );
+          }) : <p className="px-5 py-8 text-center text-sm text-muted-foreground">No upcoming shifts.</p>}
+        </CardContent>
+      </Card>
+    </section>
   );
 }
 
@@ -1384,39 +1291,6 @@ function fmtHM(d: Date) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
-/** Splits "07:30 AM" into value + meridiem so the suffix can be de-emphasised. */
-function splitClock(d: Date) {
-  const s = fmtHM(d);
-  const m = s.match(/^(.*?)\s*([AaPp][Mm])$/);
-  return m ? { time: m[1], suffix: m[2].toUpperCase() } : { time: s, suffix: "" };
-}
-
-function startOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-/**
- * Day context for a shift, derived from its actual timestamp (never from a
- * manually offset weekday), so midnight and week boundaries stay correct.
- *
- * today → "Today", tomorrow → "Tomorrow", within 6 days → "Wed, Aug 19",
- * beyond → "Mon, Aug 24".
- */
-function shiftDayLabel(shiftStart: Date, now: Date) {
-  const days = Math.round(
-    (startOfDay(shiftStart).getTime() - startOfDay(now).getTime()) / 86_400_000,
-  );
-  if (days === 0) return "Today";
-  if (days === 1) return "Tomorrow";
-  return shiftStart.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 function fullDateLabel(d: Date) {
   return d.toLocaleDateString(undefined, {
     weekday: "long",
@@ -1425,633 +1299,6 @@ function fullDateLabel(d: Date) {
     year: "numeric",
   });
 }
-
-function IconTile({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary">
-      {children}
-    </div>
-  );
-}
-
-function BigClock({ date, tone }: { date: Date; tone?: "urgent" | "go" }) {
-  const { time, suffix } = splitClock(date);
-  return (
-    <span
-      className={`text-3xl font-semibold tabular-nums tracking-tight sm:text-[2.35rem] ${
-        tone === "urgent" ? "text-destructive" : tone === "go" ? "text-primary" : ""
-      }`}
-    >
-      {time}
-      {suffix ? (
-        <span className="ml-1 align-baseline text-lg font-medium text-muted-foreground sm:text-xl">
-          {suffix}
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
-/**
- * Time to Leave.
- *
- * The route comes from a persisted travel snapshot (calculated once per plan
- * identity); everything time-based below is derived locally from that
- * snapshot plus `now`, so the live clock never causes a network request.
- *
- * Compact view: the departure clock only.
- * Detailed view: at most three sections — the fastest overall route and the
- * two fastest direct alternatives.
- */
-function TimeToLeaveCard({
-  username,
-  scheduled,
-  now,
-  homeLat,
-  homeLng,
-  variant = "default",
-  onDeparture,
-}: {
-  username: string | null;
-  scheduled: ScheduledShift[];
-  now: Date;
-  homeLat?: number | null;
-  homeLng?: number | null;
-  variant?: "default" | "hero" | "embedded";
-  /** Reports the planned departure time so the dashboard can remind about it. */
-  onDeparture?: (iso: string | null) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  // The studio (destination) is an admin-managed setting: a plan calculated to
-  // the old address must never be reused after it moves, so its coordinates
-  // are part of the plan identity.
-  const loadSettings = useServerFn(getAppSettings);
-  const [studio, setStudio] = useState<{
-    lat: number;
-    lng: number;
-    address: string | null;
-  } | null>(null);
-  useEffect(() => {
-    let alive = true;
-    loadSettings()
-      .then((s) => {
-        if (alive)
-          setStudio({ lat: s.studio.lat, lng: s.studio.lng, address: s.studio.address });
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [loadSettings]);
-
-  const next = useMemo(() => {
-    const upcoming = buildDisplayShifts(scheduled, now).filter(
-      (s) => s.endAt.getTime() > now.getTime(),
-    );
-    return upcoming[0] ?? null;
-    // `now` ticks every second; only the shift set actually matters here.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scheduled]);
-
-  const shiftIso = next?.startAt.toISOString() ?? null;
-  const shiftEndIso = next?.endAt.toISOString() ?? null;
-
-  const identity = useMemo(
-    () =>
-      username && shiftIso && shiftEndIso && studio
-        ? {
-            username,
-            shiftStartIso: shiftIso,
-            shiftEndIso,
-            homeLat: homeLat ?? null,
-            homeLng: homeLng ?? null,
-            studioLat: studio.lat,
-            studioLng: studio.lng,
-          }
-        : null,
-    [username, shiftIso, shiftEndIso, homeLat, homeLng, studio],
-  );
-
-  const { snapshot, status, reason } = useTravelPlan(identity);
-
-  // Time to leave always follows Option 1 (the fastest overall route).
-  const departureIso = snapshot?.best.leave_iso ?? snapshot?.departure_iso ?? null;
-  const reportDeparture = onDeparture;
-  useEffect(() => {
-    reportDeparture?.(departureIso);
-  }, [departureIso, reportDeparture]);
-
-  if (!next) return null;
-
-  const shiftStart = next.startAt;
-  const shiftClock = splitClock(shiftStart);
-  const departure = departureIso ? new Date(departureIso) : null;
-  const minutesUntilLeave = departure
-    ? Math.round((departure.getTime() - now.getTime()) / 60_000)
-    : null;
-  const urgent = minutesUntilLeave !== null && minutesUntilLeave <= 10;
-  const hero = variant === "hero";
-  const embedded = variant === "embedded";
-
-  return (
-    <Card
-      className={
-        embedded
-          ? "overflow-hidden rounded-none border-0 bg-transparent shadow-none"
-          : `overflow-hidden max-lg:glass max-lg:rounded-[22px] ${hero ? "border-primary/40" : ""}`
-      }
-    >
-      <CardContent className="p-0">
-        {/* ── Header: shift context + the one number that matters ───────── */}
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-          aria-label={expanded ? "Hide travel details" : "Show travel details"}
-          className="flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-muted/30 sm:px-6 sm:py-5"
-        >
-          <IconTile>
-            <CalendarDays className="h-5 w-5" />
-          </IconTile>
-
-          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
-            <div className="min-w-0 sm:flex-1">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Next shift
-              </div>
-              <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-2xl font-semibold tracking-tight sm:text-[1.75rem]">
-                <span className="truncate">{shiftDayLabel(shiftStart, now)}</span>
-                <span className="text-muted-foreground">·</span>
-                <span className="tabular-nums">{shiftClock.time}</span>
-                {shiftClock.suffix ? (
-                  <span className="text-base font-medium text-muted-foreground">
-                    {shiftClock.suffix}
-                  </span>
-                ) : null}
-              </div>
-              {expanded ? (
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  {fullDateLabel(shiftStart)}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="min-w-0 sm:border-l sm:border-border sm:pl-5">
-              <div
-                className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${
-                  urgent ? "text-destructive" : "text-muted-foreground"
-                }`}
-              >
-                Time to leave
-              </div>
-              <div className="mt-0.5">
-                {departure ? (
-                  <BigClock date={departure} tone={urgent ? "urgent" : "go"} />
-                ) : (
-                  <span className="text-3xl font-semibold tracking-tight text-muted-foreground">
-                    {status === "loading" ? "…" : "—"}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border text-muted-foreground">
-            <ChevronDown
-              className={`h-4.5 w-4.5 transition-transform duration-300 ${
-                expanded ? "rotate-180" : ""
-              }`}
-            />
-          </span>
-        </button>
-
-        {/* ── Expanded detail: best option + up to two direct options ───── */}
-        <div
-          className={`grid transition-all duration-300 ease-out ${
-            expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-          }`}
-        >
-          <div className="overflow-hidden">
-            <div className="border-t border-border">
-              {snapshot ? (
-                <TimeToLeaveDetails
-                  snapshot={snapshot}
-                  studioAddress={studio?.address ?? null}
-                />
-              ) : (
-                <div className="space-y-3 px-5 py-5 sm:px-6">
-                  {reason === "no_home" ? (
-                    <>
-                      <p className="text-sm text-muted-foreground">
-                        Add your home address in Profile to plan your trip.
-                      </p>
-                      <Button size="sm" variant="outline" asChild>
-                        <Link to="/profile">
-                          <Home className="mr-1.5 h-3.5 w-3.5" /> Open Profile
-                        </Link>
-                      </Button>
-                    </>
-                  ) : status === "loading" ? (
-                    <p className="text-sm text-muted-foreground">Planning your trip…</p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Route information is currently unavailable.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ModeIcon({
-  mode,
-  size = 14,
-  variant = "outline",
-}: {
-  mode: string;
-  size?: number;
-  variant?: "filled" | "outline";
-}) {
-  // Ferry has no dedicated glyph — keep the lucide ship.
-  if (mode === "ferry") return <Ship className="h-3.5 w-3.5" />;
-  const Icon = transitIconFor(mode);
-  return <Icon size={size} variant={variant} />;
-}
-
-/** Small low-emphasis label carrying the line number. */
-function LineLabel({ line }: { line: string }) {
-  return (
-    <span className="inline-flex h-5 shrink-0 items-center rounded border border-border px-1.5 text-[11px] font-semibold leading-none text-foreground">
-      {line}
-    </span>
-  );
-}
-
-/** Timeline marker: the official mode mark. */
-function ModeMarker({ mode }: { mode: string }) {
-  return (
-    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-background text-foreground">
-      <ModeIcon mode={mode} size={22} />
-    </span>
-  );
-}
-
-
-/** "S+U Gesundbrunnen Bhf (Berlin)" → "Gesundbrunnen" */
-function cleanStop(name: string): string {
-  return (
-    name
-      .replace(/\s*\([^)]*\)\s*$/, "")
-      .replace(/,\s*Berlin\s*$/i, "")
-      .replace(/^(S\+U|U\+S|S|U)\s+/i, "")
-      .replace(/\s+(Bhf|Bahnhof)\.?$/i, "")
-      .trim() || name
-  );
-}
-
-function SectionShell({
-  title,
-  badge,
-  total,
-  children,
-}: {
-  title?: string;
-  badge?: string;
-  total: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-border bg-muted/20 p-4">
-      <header className="flex items-center gap-2">
-        {title ? (
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {title}
-          </h3>
-        ) : null}
-        {badge ? (
-          <span className="rounded-md bg-primary/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
-            {badge}
-          </span>
-        ) : null}
-        <span className="ml-auto text-sm font-semibold tabular-nums">{total} min</span>
-      </header>
-      <div className="mt-3">{children}</div>
-    </section>
-  );
-}
-
-/** One row of the vertical journey timeline. */
-function StepRow({
-  marker,
-  children,
-  last = false,
-}: {
-  marker: React.ReactNode;
-  children: React.ReactNode;
-  last?: boolean;
-}) {
-  return (
-    <div className="flex gap-3">
-      <div className="flex flex-col items-center">
-        {marker}
-        {last ? null : <span className="w-px flex-1 bg-border" />}
-      </div>
-      <div className={`min-w-0 flex-1 ${last ? "pb-0" : "pb-4"}`}>{children}</div>
-    </div>
-  );
-}
-
-function EndpointMarker({ kind = "home" }: { kind?: "home" | "studio" }) {
-  const Icon = kind === "home" ? Home : Building2;
-  return (
-    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground">
-      <Icon className="h-4 w-4" strokeWidth={1.6} />
-    </span>
-  );
-}
-
-
-type TransitLeg = Extract<JourneyPlan["legs"][number], { kind: "transit" }>;
-
-/**
- * Turns the raw leg list into display rows: a transit row per service, with
- * same-station transfers and adjoining walks folded into a single note line.
- */
-function buildRows(plan: JourneyPlan) {
-  const legs = plan.legs;
-  const rows: { leg: TransitLeg; note: string | null }[] = [];
-  let leadNote: string | null = null;
-
-  const nextTransit = (from: number): TransitLeg | null => {
-    for (let i = from; i < legs.length; i++) {
-      const l = legs[i];
-      if (l.kind === "transit") return l;
-    }
-    return null;
-  };
-
-  legs.forEach((leg, i) => {
-    if (leg.kind === "transit") {
-      rows.push({ leg, note: null });
-      return;
-    }
-    const upcoming = nextTransit(i + 1);
-    let note: string | null;
-    if (!upcoming) {
-      note = `${leg.minutes} min walk to studio`;
-    } else if (leg.kind === "transfer" || leg.minutes <= 2 || !leg.to_label) {
-      note = `Transfer to ${upcoming.line}`;
-    } else {
-      note = `${leg.minutes} min walk to ${cleanStop(leg.to_label)}`;
-    }
-    if (rows.length === 0) {
-      const fallback = leg.kind === "walk" ? (leg.to_label ?? "") : "";
-      const target = upcoming ? cleanStop(upcoming.from_stop || fallback) : "";
-      leadNote = target ? `${leg.minutes} min walk to ${target}` : `${leg.minutes} min walk`;
-    } else {
-      rows[rows.length - 1].note = note;
-    }
-  });
-
-  return { rows, leadNote };
-}
-
-function Endpoint({
-  time,
-  label,
-  address,
-  last = false,
-}: {
-  time: string;
-  label: string;
-  address?: string | null;
-  last?: boolean;
-}) {
-  return (
-    <StepRow marker={<EndpointMarker kind="studio" />} last={last}>
-      <div className="text-xs text-muted-foreground tabular-nums">{time}</div>
-      <div className="text-sm">
-        <span className="font-semibold">{label}</span>
-        {address ? <span className="text-muted-foreground"> · {address}</span> : null}
-      </div>
-    </StepRow>
-  );
-}
-
-type TimelineRow = {
-  mode: string;
-  line: string;
-  departure_iso: string;
-  from_stop: string;
-  to_stop: string;
-  minutes: number;
-  note: string | null;
-};
-
-/**
- * Shared vertical journey timeline — Home → walk → transit legs → Studio.
- * Used by the Best Option and every Direct Option so they can never drift
- * apart visually.
- */
-function JourneyTimeline({
-  leaveIso,
-  arriveIso,
-  homeAddress,
-  studioAddress,
-  leadNote,
-  rows,
-}: {
-  leaveIso: string;
-  arriveIso: string;
-  homeAddress?: string | null;
-  studioAddress?: string | null;
-  leadNote: string | null;
-  rows: TimelineRow[];
-}) {
-  return (
-    <div>
-      <StepRow marker={<EndpointMarker />}>
-        <div className="text-xs text-muted-foreground tabular-nums">
-          {fmtHM(new Date(leaveIso))}
-        </div>
-        <div className="text-sm">
-          <span className="font-semibold">Home</span>
-          {homeAddress ? (
-            <span className="text-muted-foreground"> · {homeAddress}</span>
-          ) : null}
-        </div>
-        {leadNote ? (
-          <div className="mt-0.5 text-sm text-muted-foreground">{leadNote}</div>
-        ) : null}
-      </StepRow>
-
-      {rows.map((row, i) => (
-        <StepRow key={i} marker={<ModeMarker mode={row.mode} />}>
-          <div className="text-xs text-muted-foreground tabular-nums">
-            {fmtHM(new Date(row.departure_iso))}
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <LineLabel line={row.line} />
-              <span className="min-w-0 truncate text-sm font-semibold">
-                {cleanStop(row.from_stop)} → {cleanStop(row.to_stop)}
-              </span>
-            </div>
-            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-              {row.minutes} min
-            </span>
-          </div>
-          {row.note ? (
-            <div className="mt-0.5 text-sm text-muted-foreground">{row.note}</div>
-          ) : null}
-        </StepRow>
-      ))}
-
-      <Endpoint
-        time={fmtHM(new Date(arriveIso))}
-        label="Studio"
-        address={studioAddress}
-        last
-      />
-    </div>
-  );
-}
-
-function BestOptionSection({
-  plan,
-  alsoDirect,
-  homeAddress,
-  studioAddress,
-}: {
-  plan: JourneyPlan;
-  alsoDirect: boolean;
-  homeAddress?: string | null;
-  studioAddress?: string | null;
-}) {
-  const { rows, leadNote } = buildRows(plan);
-  return (
-    <SectionShell
-      title="Best option"
-      badge={alsoDirect ? "Fastest · direct" : "Fastest"}
-      total={plan.total_minutes}
-    >
-      <JourneyTimeline
-        leaveIso={plan.leave_iso}
-        arriveIso={plan.arrive_iso}
-        homeAddress={homeAddress}
-        studioAddress={studioAddress}
-        leadNote={leadNote}
-        rows={rows.map(({ leg, note }) => ({
-          mode: leg.mode,
-          line: leg.line,
-          departure_iso: leg.departure_iso,
-          from_stop: leg.from_stop,
-          to_stop: leg.to_stop,
-          minutes: leg.minutes,
-          note,
-        }))}
-      />
-    </SectionShell>
-  );
-}
-
-function DirectOptionSection({
-  route,
-  homeAddress,
-  studioAddress,
-}: {
-  route: DirectPlan;
-  homeAddress?: string | null;
-  studioAddress?: string | null;
-}) {
-  return (
-    <SectionShell total={route.total_minutes}>
-      <JourneyTimeline
-        leaveIso={route.leave_iso}
-        arriveIso={route.arrive_iso}
-        homeAddress={homeAddress}
-        studioAddress={studioAddress}
-        leadNote={
-          route.walk_to_minutes > 0
-            ? `${route.walk_to_minutes} min walk to ${cleanStop(route.from_stop)}`
-            : null
-        }
-        rows={[
-          {
-            mode: route.mode,
-            line: route.line,
-            departure_iso: route.departure_iso,
-            from_stop: route.from_stop,
-            to_stop: route.to_stop,
-            minutes: route.ride_minutes,
-            note:
-              route.walk_from_minutes > 0
-                ? `${route.walk_from_minutes} min walk to studio`
-                : null,
-          },
-        ]}
-      />
-    </SectionShell>
-  );
-}
-
-function TimeToLeaveDetails({
-  snapshot,
-  studioAddress,
-}: {
-  snapshot: TimeToLeaveSnapshot;
-  /** Resolved street address from the studio settings (street + number only). */
-  studioAddress?: string | null;
-}) {
-  const best = snapshot.best;
-  const bestLine = best.legs.find((l): l is TransitLeg => l.kind === "transit") ?? null;
-
-  // A direct route identical to the best option is labelled, never duplicated.
-  const sameAsBest = (r: DirectPlan) =>
-    best.direct && bestLine?.line === r.line && bestLine?.departure_iso === r.departure_iso;
-  const directs = snapshot.direct_routes.filter((r) => !sameAsBest(r)).slice(0, 2);
-  const alsoDirect = best.direct && snapshot.direct_routes.some(sameAsBest);
-
-  const homeAddress =
-    snapshot.home_label && snapshot.home_label.trim().toLowerCase() !== "home"
-      ? cleanAddress(snapshot.home_label.trim())
-      : null;
-  // Never the studio name or postcode/city — only a verified street address.
-  const studioAddr = studioAddress ?? null;
-
-  return (
-    <div className="space-y-3 px-4 py-4 sm:px-6 sm:py-5">
-      <BestOptionSection
-        plan={best}
-        alsoDirect={alsoDirect}
-        homeAddress={homeAddress}
-        studioAddress={studioAddr}
-      />
-      {directs.length > 0 ? (
-        <div className="space-y-3">
-          <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            Direct options
-          </h3>
-          {directs.map((r) => (
-            <DirectOptionSection
-              key={`${r.line}-${r.departure_iso}`}
-              route={r}
-              homeAddress={homeAddress}
-              studioAddress={studioAddr}
-            />
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 
 function ProfileIncompleteBanner({ missing }: { missing: string[] }) {
   const parts: string[] = [];

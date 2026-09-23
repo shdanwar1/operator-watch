@@ -449,14 +449,10 @@ function ProfilePage() {
 
         <Panel title="Notifications">
           <ToggleRow
-            label="Time to leave"
-            checked={prefs.notifyTimeToLeave}
-            onChange={(v) => setPref({ notifyTimeToLeave: v })}
-          />
-          <ToggleRow
             label="Shift start"
             checked={prefs.notifyShiftStart}
             onChange={(v) => setPref({ notifyShiftStart: v })}
+            last
           />
           <PushDeviceToggle />
         </Panel>

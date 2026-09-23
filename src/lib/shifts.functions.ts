@@ -670,9 +670,8 @@ export const deleteScheduledShift = createServerFn({ method: "POST" })
 /**
  * Operator-facing deletion of a *future* scheduled shift.
  *
- * Single authoritative cleanup path: the shift row, its calendar classes,
- * its travel plan (Time to Leave) and any pending push deliveries go away
- * together, and Google-imported shifts get a tombstone so the next sync does
+ * Single authoritative cleanup path: the shift row, its calendar classes and
+ * any pending push deliveries go away together, and Google-imported shifts get a tombstone so the next sync does
  * not recreate the very shift the operator just removed.
  */
 export const deleteMyScheduledShift = createServerFn({ method: "POST" })
@@ -738,12 +737,10 @@ export const deleteMyScheduledShift = createServerFn({ method: "POST" })
       .eq("scheduled_shift_id", shift.id);
     if (classErr) throw new Error(classErr.message);
 
-    // Travel plans linked to this shift go with it (FK cascade); legacy plans
-    // keyed only by start instant are cleared by the reconciliation below.
     const { remove } = await import("@/domain/shift-repository.server");
     await remove(shift.id);
 
-    // Travel plan + pending notification state for this exact start instant.
+    // Pending notification state for this exact start instant.
     try {
       const { reconcileShiftNotifications } = await import("./notifications.server");
       await reconcileShiftNotifications();
