@@ -9,6 +9,7 @@
 export const NOTIFICATION_TYPES = {
   shiftStartReminder: "shift_start",
   shiftStartCheckIn: "shift_start_check_in",
+  leaveHome: "leave_home",
 } as const;
 
 /** "Shift starts in 15 minutes". */
@@ -19,6 +20,11 @@ export function startReminderKey(shiftId: string, shiftStart: Date): string {
 /** "Shift starting now — tap to check in". */
 export function startCheckInKey(shiftId: string, shiftStart: Date): string {
   return `checkin:${shiftId}@${shiftStart.toISOString()}`;
+}
+
+/** "Leave home within 15 minutes" — one per shift instance. */
+export function leaveHomeKey(shiftId: string, shiftStart: Date): string {
+  return `leave:${shiftId}@${shiftStart.toISOString()}`;
 }
 
 /** How long after the scheduled start an automatic check-in stays valid. */

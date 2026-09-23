@@ -1,6 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { berlinClock, berlinInstant } from "@/lib/push-time";
-import { NOTIFICATION_TYPES, startCheckInKey, startReminderKey } from "@/lib/push-keys";
+import {
+  NOTIFICATION_TYPES,
+  leaveHomeKey,
+  startCheckInKey,
+  startReminderKey,
+} from "@/lib/push-keys";
+import { LEAVE_NOTIFY_LEAD_MIN, leaveNotificationAt } from "@/lib/time-to-leave";
 import { normalizeUsername } from "@/domain/operator-identity";
 
 /**
@@ -47,14 +53,21 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
         const { data: operators, error: opErr } = await supabaseAdmin
           .from("operators")
-          .select("id, username, prefs")
+          .select("id, username, prefs, leave_shift_start, leave_at")
           .eq("is_active", true);
         if (opErr) return Response.json({ error: opErr.message }, { status: 500 });
 
-        const byId = new Map<string, { username: string; prefs: Prefs }>();
+        type OpRow = {
+          id: string;
+          username: string;
+          prefs: Prefs;
+          leave_shift_start: string | null;
+          leave_at: string | null;
+        };
+        const byId = new Map<string, OpRow>();
         const byName = new Map<string, string>();
-        for (const row of (operators ?? []) as { id: string; username: string; prefs: Prefs }[]) {
-          byId.set(row.id, { username: row.username, prefs: row.prefs ?? {} });
+        for (const row of (operators ?? []) as OpRow[]) {
+          byId.set(row.id, { ...row, prefs: row.prefs ?? {} });
           byName.set(normalizeUsername(row.username), row.id);
         }
 
@@ -103,6 +116,41 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
           const start = berlinInstant(shift.specific_date, shift.start_time);
           if (!start) continue;
+
+          // --- Leave home: uses the same authoritative Time to Leave as the
+          // Dashboard. About 2 hours ahead, refresh it once for this shift
+          // (unless an earlier upcoming shift still owns the cached value). ---
+          const untilStart = start.getTime() - now;
+          const cachedFor = op.leave_shift_start ? Date.parse(op.leave_shift_start) : null;
+          if (
+            untilStart >= 2 * 60 * 60_000 &&
+            untilStart <= 2 * 60 * 60_000 + 20 * 60_000 &&
+            !(cachedFor && cachedFor > now && cachedFor < start.getTime())
+          ) {
+            const { resolveTimeToLeave } = await import("@/lib/time-to-leave.server");
+            const r = await resolveTimeToLeave({ operatorId }, start).catch(() => null);
+            if (r?.ok) {
+              op.leave_shift_start = r.shift_start_iso;
+              op.leave_at = r.leave_iso;
+            }
+          }
+          if (op.leave_at && op.leave_shift_start && Date.parse(op.leave_shift_start) === start.getTime()) {
+            const leaveAt = new Date(op.leave_at);
+            const notifyAt = leaveNotificationAt(leaveAt, now);
+            if (notifyAt && due(notifyAt, now)) {
+              jobs.push({
+                operatorId,
+                // One key per shift instance: a recalculated leave time moves
+                // the timing but can never produce a second notification.
+                key: leaveHomeKey(shift.id, start),
+                type: NOTIFICATION_TYPES.leaveHome,
+                at: notifyAt,
+                shiftStartMs: start.getTime(),
+                title: "Time to leave soon",
+                body: `Leave home by ${berlinClock(leaveAt)} — within the next ${LEAVE_NOTIFY_LEAD_MIN} minutes.`,
+              });
+            }
+          }
 
           const remindAt = new Date(start.getTime() - SHIFT_START_LEAD_MIN * 60_000);
           if (due(remindAt, now)) {
