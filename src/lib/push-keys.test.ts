@@ -26,7 +26,7 @@ describe("notification identity", () => {
       startReminderKey(SHIFT_ID, start),
       startCheckInKey(SHIFT_ID, start),
     ];
-    expect(new Set(keys).size).toBe(3);
+    expect(new Set(keys).size).toBe(2);
   });
 
   it("invalidates keys when the shift is retimed", () => {

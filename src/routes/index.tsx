@@ -646,7 +646,7 @@ function Index() {
           <>
             <InactiveDashboard
               nextShift={nextDisplay}
-              upcoming={upcomingDisplay.slice(0, 5)}
+              upcoming={upcomingDisplay.slice(1, 6)}
               now={now}
               calendarClasses={calendarClasses}
               shifts={history}
