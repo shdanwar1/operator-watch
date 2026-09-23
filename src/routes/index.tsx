@@ -35,7 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast, Toaster } from "sonner";
-import { Plus, X, Clock, LogIn, CalendarDays, AlertTriangle, Lock } from "lucide-react";
+import { Plus, X, Clock, LogIn, AlertTriangle, Lock } from "lucide-react";
 import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { ChecklistPanel } from "@/components/checklist/ChecklistPanel";
@@ -56,7 +56,6 @@ import {
 } from "@/lib/gcal.functions";
 import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
-import { CHECK_IN_WINDOW_MS, LEAVE_WINDOW_MS } from "@/lib/shift-phase";
 import { StudioActivation } from "@/components/StudioActivation";
 import { MonthlyHours } from "@/components/MonthlyHours";
 import {
@@ -172,15 +171,6 @@ function dateKey(d: Date) {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-}
-
-/** True when two timestamps fall on the same calendar day. */
-function sameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
 }
 
 function overrideDates(all: { specific_date: string | null }[]) {
@@ -447,8 +437,6 @@ function Index() {
   const openTarget = resolveCheckInTarget(scheduled, now);
   const openScheduled = openTarget?.segments[0] ?? null;
 
-  const hasAnyScheduled = scheduled.length > 0;
-
   // Reminders are delivered by the server as background Web Push (see
   // /api/public/hooks/push-dispatch), so nothing fires from this page.
 
@@ -675,12 +663,12 @@ function Index() {
               <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
                 <CardContent className="p-0">
                   <CheckInPanel
-            openScheduled={openScheduled}
-            openShift={openTarget}
-            nextShift={nextDisplay}
+                    openScheduled={openScheduled}
+                    openShift={openTarget}
+                    nextShift={nextDisplay}
                     now={now}
-            checkingIn={checkingIn}
-            onCheckIn={checkIn}
+                    checkingIn={checkingIn}
+                    onCheckIn={checkIn}
                     hideShiftInfo
                   />
                 </CardContent>
@@ -780,7 +768,7 @@ function UpcomingShifts({ shifts, now }: { shifts: DisplayShift[]; now: Date }) 
           {shifts.length ? shifts.map((shift) => {
             const range = formatShiftRange(shift, now);
             return (
-              <div key={shift.key} className="flex items-center justify-between gap-4 border-b border-border px-5 py-3.5 last:border-b-0">
+              <div key={`${shift.startAt.toISOString()}-${shift.endAt.toISOString()}`} className="flex items-center justify-between gap-4 border-b border-border px-5 py-3.5 last:border-b-0">
                 <span className="text-sm font-medium">{shift.startAt.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" })}</span>
                 <span className="text-sm tabular-nums text-muted-foreground">{range.range}</span>
               </div>
@@ -1301,13 +1289,6 @@ function ActiveShiftPanel({
 
 function fmtHM(d: Date) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-}
-
-/** Splits "07:30 AM" into value + meridiem so the suffix can be de-emphasised. */
-function splitClock(d: Date) {
-  const s = fmtHM(d);
-  const m = s.match(/^(.*?)\s*([AaPp][Mm])$/);
-  return m ? { time: m[1], suffix: m[2].toUpperCase() } : { time: s, suffix: "" };
 }
 
 function fullDateLabel(d: Date) {

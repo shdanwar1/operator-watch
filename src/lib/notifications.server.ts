@@ -1,8 +1,8 @@
 /**
  * Server-only notification/shift state reconciliation.
  *
- * The push system derives its jobs from live shift data, so the only durable
- * `push_notification_deliveries` can go stale when a shift is cancelled,
+ * The push system derives its jobs from live shift data, so its durable
+ * delivery records can go stale when a shift is cancelled,
  * retimed or removed by Google Calendar.
  *
  * Everything here is idempotent: running it repeatedly converges on
@@ -92,7 +92,6 @@ export async function reconcileShiftNotifications(): Promise<{
     const start = berlinInstant(s.specific_date, s.start_time);
     const deliverable = !!opId && activeIds.has(opId) && s.status !== "cancelled" && !!start;
     startByShiftId.set(s.id, deliverable ? { operatorId: opId!, ms: start!.getTime() } : null);
-    if (!deliverable) continue;
   }
 
   // --- delivery rows that no longer match a live shift ---

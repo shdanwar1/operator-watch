@@ -43,7 +43,7 @@ export const getTimeToLeave = createServerFn({ method: "POST" })
     const settings = await readAppSettings();
     const { data: op, error } = await supabaseAdmin
       .from("operators")
-      .select("id, home_label, home_lat, home_lng")
+      .select("home_lat, home_lng")
       .ilike("username", session.data.username)
       .maybeSingle();
     if (error) throw new Error(error.message);
