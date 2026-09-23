@@ -1280,7 +1280,6 @@ function fmtHM(d: Date) {
 
 function fullDateLabel(d: Date) {
   return d.toLocaleDateString(undefined, {
-    weekday: "long",
     month: "short",
     day: "numeric",
     year: "numeric",

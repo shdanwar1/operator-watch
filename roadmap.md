@@ -46,4 +46,5 @@ Validation: 169 tests passed; automatic build OK; isolated desktop/narrow grid v
 ## Operator dashboard reference redesign
 - [x] Restyle the inactive Dashboard and floating check-in control.
 - [x] Keep the existing Calendar and Records pages unchanged and link to their current routes.
-- [ ] Verify focused checks, build status, and responsive browser rendering.
+- [x] Typecheck and automatic build verification completed.
+- [ ] Authenticated responsive browser rendering is blocked because the configured site password is rejected by the live gate.
