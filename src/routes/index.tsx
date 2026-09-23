@@ -16,7 +16,6 @@ import {
 import { listDmcDirectory, type DmcOption } from "@/lib/dmc-directory.functions";
 import { useTimeToLeave } from "@/hooks/useTimeToLeave";
 
-import { getMyPrefs, DEFAULT_PREFS, type OperatorPrefs } from "@/lib/prefs.functions";
 import { clearAllCaches, operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 import { getOperatorDisplayName } from "@/lib/operators.functions";
 import { getMyProfileStatus, type MyProfileStatus } from "@/lib/profile.functions";
@@ -291,29 +290,6 @@ function Index() {
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [, setTick] = useState(0);
-
-  // Personal preferences (notifications, dashboard cards), cached so a
-  // returning device paints the real saved values immediately.
-  const prefsCacheKey = username ? `${operatorNamespace(username)}prefs` : null;
-  const loadPrefs = useServerFn(getMyPrefs);
-  const [prefs, setPrefs] = useState<OperatorPrefs>(
-    () => (prefsCacheKey && readCache<OperatorPrefs>(prefsCacheKey)) || DEFAULT_PREFS,
-  );
-  useEffect(() => {
-    let cancelled = false;
-    loadPrefs()
-      .then((p) => {
-        if (cancelled) return;
-        setPrefs(p);
-        if (prefsCacheKey) writeCache(prefsCacheKey, p);
-      })
-      .catch(() => {
-        /* defaults are fine */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [loadPrefs, prefsCacheKey]);
 
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 1000);
@@ -636,7 +612,7 @@ function Index() {
               calendarClasses={calendarClasses}
               shifts={history}
               scheduled={scheduled}
-              showTimeToLeave={prefs.showTimeToLeave && !needsHome}
+              showTimeToLeave={!needsHome}
             />
             {checkInLocked ? (
               <LockedFeatureCard

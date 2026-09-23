@@ -14,7 +14,6 @@ import {
   type OperatorProfile,
 } from "@/lib/operators.functions";
 import { getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
-import { getMyPrefs, setMyPrefs, type OperatorPrefs } from "@/lib/prefs.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -41,14 +40,12 @@ export const Route = createFileRoute("/profile")({
   loader: async (): Promise<{
     profile: OperatorProfile;
     icsUrl: string | null;
-    prefs: OperatorPrefs;
   }> => {
-    const [profile, calRes, prefs] = await Promise.all([
+    const [profile, calRes] = await Promise.all([
       getMyOperatorProfile(),
       getMyCalendarUrl().catch(() => ({ icsUrl: null as string | null })),
-      getMyPrefs(),
     ]);
-    return { profile, icsUrl: calRes.icsUrl, prefs };
+    return { profile, icsUrl: calRes.icsUrl };
   },
   head: () => ({
     meta: pageMeta(
@@ -94,35 +91,6 @@ function Field({
         {label}
       </label>
       {children}
-    </div>
-  );
-}
-
-function ToggleRow({
-  label,
-  hint,
-  checked,
-  onChange,
-  last,
-}: {
-  label: string;
-  hint?: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  last?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-4 py-3",
-        !last && "border-b border-border",
-      )}
-    >
-      <div className="min-w-0">
-        <p className="text-[13px] font-medium">{label}</p>
-        {hint && <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>}
-      </div>
-      <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }
@@ -294,25 +262,20 @@ function ProfilePage() {
   const {
     profile: initialProfile,
     icsUrl: initialIcs,
-    prefs: initialPrefs,
   } = Route.useLoaderData();
 
   const saveProfileFn = useServerFn(updateMyProfile);
   const saveCalFn = useServerFn(setMyCalendarUrl);
-  const savePrefsFn = useServerFn(setMyPrefs);
   const reloadProfile = useServerFn(getMyOperatorProfile);
 
   const [profile, setProfile] = useState<OperatorProfile>(initialProfile);
   const [icsUrl, setIcsUrl] = useState<string | null>(initialIcs);
-  const [prefs, setPrefs] = useState<OperatorPrefs>(initialPrefs);
 
   const [username, setUsername] = useState(profile.username);
   const [calDraft, setCalDraft] = useState(icsUrl ?? "");
   const [saving, setSaving] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
   const [homeOpen, setHomeOpen] = useState(false);
-
-  const setPref = (patch: Partial<OperatorPrefs>) => setPrefs((p) => ({ ...p, ...patch }));
 
   async function saveAll() {
     const nameChanged = username.trim() !== "" && username.trim() !== profile.username;
@@ -331,8 +294,6 @@ function ProfilePage() {
         setIcsUrl(res.icsUrl);
         setCalDraft(res.icsUrl ?? "");
       }
-
-      await savePrefsFn({ data: prefs });
 
       if (nameChanged) {
         const fresh = await reloadProfile();
@@ -444,23 +405,9 @@ function ProfilePage() {
         </Panel>
 
         <Panel title="Notifications">
-          <ToggleRow
-            label="Shift start"
-            checked={prefs.notifyShiftStart}
-            onChange={(v) => setPref({ notifyShiftStart: v })}
-            last
-          />
           <PushDeviceToggle />
         </Panel>
 
-        <Panel title="Dashboard settings">
-          <ToggleRow
-            label="Time to leave card"
-            checked={prefs.showTimeToLeave}
-            onChange={(v) => setPref({ showTimeToLeave: v })}
-            last
-          />
-        </Panel>
       </div>
 
       {/* Mobile: logout lives here since the bottom tab bar has no room for it. */}
