@@ -201,17 +201,11 @@ async function loadShift(shiftId: string) {
   const db = await admin();
   const { data, error } = await db
     .from("shifts")
-    .select("id, operator_name, check_out_at, scheduled_shift_id, checklists")
+    .select("id, operator_name, check_in_at, check_out_at, scheduled_shift_id, checklists")
     .eq("id", shiftId)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return (data ?? null) as {
-    id: string;
-    operator_name: string;
-    check_out_at: string | null;
-    scheduled_shift_id: string | null;
-    checklists: unknown;
-  } | null;
+  return (data ?? null) as (ShiftContext & { checklists: unknown }) | null;
 }
 
 /**
