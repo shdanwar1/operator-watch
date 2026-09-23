@@ -19,9 +19,9 @@ import { clearAllCaches } from "@/lib/local-cache";
 import { cn } from "@/lib/utils";
 
 const NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: boolean }[] = [
-  { label: "Calendar", to: "/calendar", icon: CalendarDays },
   { label: "Dashboard", to: "/", icon: LayoutDashboard, exact: true },
-  { label: "Record", to: "/record", icon: ListChecks },
+  { label: "Calendar", to: "/calendar", icon: CalendarDays },
+  { label: "Records", to: "/record", icon: ListChecks },
 ];
 
 /** Desktop sidebar: the four primary destinations plus Studio Display. */
