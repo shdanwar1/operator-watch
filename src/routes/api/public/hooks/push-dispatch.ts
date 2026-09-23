@@ -24,8 +24,6 @@ const LOOKAHEAD_MS = 60 * 1000; // "due within this tick"
 // The shift-start reminder has a 15-minute lead.
 const SHIFT_START_LEAD_MIN = 15;
 
-type Prefs = { notifyShiftStart?: boolean };
-
 function due(at: Date, now: number): boolean {
   const t = at.getTime();
   return t <= now + LOOKAHEAD_MS && t >= now - LOOKBACK_MS;
@@ -53,19 +51,18 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
         const { data: operators, error: opErr } = await supabaseAdmin
           .from("operators")
-          .select("id, username, prefs")
+          .select("id, username")
           .eq("is_active", true);
         if (opErr) return Response.json({ error: opErr.message }, { status: 500 });
 
         type OpRow = {
           id: string;
           username: string;
-          prefs: Prefs;
         };
         const byId = new Map<string, OpRow>();
         const byName = new Map<string, string>();
         for (const row of (operators ?? []) as OpRow[]) {
-          byId.set(row.id, { ...row, prefs: row.prefs ?? {} });
+          byId.set(row.id, row);
           byName.set(normalizeUsername(row.username), row.id);
         }
 
@@ -88,7 +85,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
         // --- Shift start: a reminder 15 minutes before, and a separate
         // "starting now" notification at the exact start that checks the
-        // operator in when tapped. Both are governed by notifyShiftStart. ---
+        // operator in when tapped. Always sent for every assigned, non-cancelled shift. ---
         const todayKeys = [-1, 0, 1].map((offset) => {
           const d = new Date(now + offset * 24 * 60 * 60 * 1000);
           return d.toLocaleDateString("en-CA", { timeZone: "Europe/Berlin" });
@@ -111,7 +108,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           const operatorId = byName.get(normalizeUsername(shift.assigned_operator));
           if (!operatorId) continue;
           const op = byId.get(operatorId);
-          if (!op || op.prefs.notifyShiftStart === false) continue;
+          if (!op || !op) continue;
 
           const start = berlinInstant(shift.specific_date, shift.start_time);
           if (!start) continue;
