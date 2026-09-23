@@ -416,13 +416,40 @@ export function AttendanceSection({ username }: { username: string | null }) {
   );
 }
 
-function SummaryValue({ label, value }: { label: string; value: string }) {
+/**
+ * Integrated summary footer — sits directly below the shift rows inside the
+ * attendance card. Mirrors the reference design: "Total Hours" label on the
+ * left, Day / Night / Weekend breakdowns separated by vertical dividers, and
+ * the grand total in a highlighted box on the right.
+ */
+function AttendanceSummaryFooter({ summary }: { summary: ReturnType<typeof summarizeMonth> }) {
   return (
-    <div>
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground max-lg:text-[9px]">
-        {label}
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border bg-muted/20 px-5 py-3.5 max-lg:px-4 max-lg:py-3">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
+        Total Hours
+      </span>
+      <div className="flex flex-1 items-stretch gap-x-4 min-w-[180px]">
+        <SummaryCell label="Day Hours" value={formatHM(summary.dayMin)} />
+        <span className="w-px self-stretch bg-border" aria-hidden />
+        <SummaryCell label="Night Hours" value={formatHM(summary.nightMin)} />
+        <span className="w-px self-stretch bg-border" aria-hidden />
+        <SummaryCell label="Weekend Hours" value={formatHM(summary.weekendMin)} />
       </div>
-      <div className="mt-1 text-base font-semibold tabular-nums">{value}</div>
+      <div className="rounded-lg bg-muted/50 px-4 py-1.5 max-lg:px-3">
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Total</div>
+        <div className="text-base font-bold tabular-nums text-foreground max-lg:text-sm">
+          {formatHM(summary.workedMin)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col justify-center">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-sm font-semibold tabular-nums text-foreground">{value}</div>
     </div>
   );
 }
