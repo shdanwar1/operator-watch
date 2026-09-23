@@ -334,7 +334,6 @@ export function AttendanceSection({ username }: { username: string | null }) {
                     No completed shifts yet this month.
                   </p>
                 ) : (
-                  <>
                     <ul>
                       {summary.rows.map((r) => (
                         <AttendanceMobileRow
@@ -347,11 +346,6 @@ export function AttendanceSection({ username }: { username: string | null }) {
                         />
                       ))}
                     </ul>
-                    <div className="flex items-center justify-between border-t border-border px-4 py-3 text-[12px] font-semibold">
-                      <span>Total</span>
-                      <span className="tabular-nums">{formatHM(summary.workedMin)}</span>
-                    </div>
-                  </>
                 )}
               </div>
 
