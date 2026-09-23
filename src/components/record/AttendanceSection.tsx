@@ -430,10 +430,8 @@ function AttendanceSummaryFooter({ summary }: { summary: ReturnType<typeof summa
       </span>
       <div className="flex flex-1 items-stretch gap-x-4 min-w-[180px]">
         <SummaryCell label="Day Hours" value={formatHM(summary.dayMin)} />
-        <span className="w-px self-stretch bg-border" aria-hidden />
-        <SummaryCell label="Night Hours" value={formatHM(summary.nightMin)} />
-        <span className="w-px self-stretch bg-border" aria-hidden />
-        <SummaryCell label="Weekend Hours" value={formatHM(summary.weekendMin)} />
+        <SummaryCell label="Night Hours" value={formatHM(summary.nightMin)} divided />
+        <SummaryCell label="Weekend Hours" value={formatHM(summary.weekendMin)} divided />
       </div>
       <div className="rounded-lg bg-muted/50 px-4 py-1.5 max-lg:px-3">
         <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Total</div>
@@ -445,9 +443,9 @@ function AttendanceSummaryFooter({ summary }: { summary: ReturnType<typeof summa
   );
 }
 
-function SummaryCell({ label, value }: { label: string; value: string }) {
+function SummaryCell({ label, value, divided = false }: { label: string; value: string; divided?: boolean }) {
   return (
-    <div className="flex flex-col justify-center">
+    <div className={`flex flex-col justify-center px-4 first:pl-0 max-lg:px-3 ${divided ? "border-l border-border" : ""}`}>
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="text-sm font-semibold tabular-nums text-foreground">{value}</div>
     </div>
