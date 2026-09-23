@@ -73,6 +73,9 @@
   /* Surfaces — layered elevation inside a near-monochrome shell. */
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
+  --color-hours-day: var(--hours-day);
+  --color-hours-night: var(--hours-night);
+  --color-hours-weekend: var(--hours-weekend);
 
   /* Glass — translucent mobile surfaces (iOS-style). */
   --color-glass: var(--glass);
@@ -86,6 +89,9 @@
   --foreground: oklch(0.185 0.006 264);
   --surface: oklch(1 0 0);
   --surface-raised: oklch(0.975 0.002 264);
+  --hours-day: oklch(0.64 0.18 258);
+  --hours-night: oklch(0.59 0.18 294);
+  --hours-weekend: oklch(0.65 0.13 155);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.185 0.006 264);
   --popover: oklch(1 0 0);
@@ -138,6 +144,9 @@
   --foreground: oklch(0.955 0.002 264);
   --surface: oklch(0.198 0.003 264);
   --surface-raised: oklch(0.225 0.004 264);
+  --hours-day: oklch(0.64 0.18 258);
+  --hours-night: oklch(0.59 0.18 294);
+  --hours-weekend: oklch(0.65 0.13 155);
   --card: oklch(0.198 0.003 264);
   --card-foreground: oklch(0.955 0.002 264);
   --popover: oklch(0.215 0.004 264);
