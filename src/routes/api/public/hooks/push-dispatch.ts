@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { berlinClock, berlinInstant } from "@/lib/push-time";
 import {
   NOTIFICATION_TYPES,
-  leaveKey,
   startCheckInKey,
   startReminderKey,
 } from "@/lib/push-keys";
@@ -21,12 +20,10 @@ import { normalizeUsername } from "@/domain/operator-identity";
 // never surface. 15 minutes is the maximum lateness we accept.
 const LOOKBACK_MS = 15 * 60 * 1000;
 const LOOKAHEAD_MS = 60 * 1000; // "due within this tick"
-// Exactly two reminders exist, both with the same 15-minute lead:
-// "leave in 15 minutes" and "shift starts in 15 minutes".
+// The shift-start reminder has a 15-minute lead.
 const SHIFT_START_LEAD_MIN = 15;
-const LEAVE_LEAD_MIN = 15;
 
-type Prefs = { notifyTimeToLeave?: boolean; notifyShiftStart?: boolean };
+type Prefs = { notifyShiftStart?: boolean };
 
 function due(at: Date, now: number): boolean {
   const t = at.getTime();
@@ -83,45 +80,6 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         };
 
         const jobs: Job[] = [];
-
-        // --- Leave in 15 minutes (from the server-side travel plans) ---
-        // The reminder fires 15 minutes *before* the departure time, so the
-        // due-window is shifted forward by the same lead.
-        const leaveLeadMs = LEAVE_LEAD_MIN * 60_000;
-        const { data: plans } = await supabaseAdmin
-          .from("operator_travel_plans")
-          .select("operator_id, shift_start_at, departure_at, travel_minutes, route_label")
-          .gte("departure_at", new Date(now - LOOKBACK_MS + leaveLeadMs).toISOString())
-          .lte("departure_at", new Date(now + LOOKAHEAD_MS + leaveLeadMs).toISOString());
-
-
-        for (const plan of (plans ?? []) as {
-          operator_id: string;
-          shift_start_at: string;
-          departure_at: string;
-          travel_minutes: number;
-          route_label: string | null;
-        }[]) {
-          const op = byId.get(plan.operator_id);
-          if (!op || op.prefs.notifyTimeToLeave === false) continue;
-          const departure = new Date(plan.departure_at);
-          const at = new Date(departure.getTime() - leaveLeadMs);
-          if (!due(at, now)) continue;
-          const shiftStart = new Date(plan.shift_start_at);
-          jobs.push({
-            operatorId: plan.operator_id,
-            // Canonical instant in the key: a retimed shift produces a new key,
-            // so the old reminder can never be reused.
-            key: leaveKey(shiftStart),
-            type: NOTIFICATION_TYPES.timeToLeave,
-            at,
-            shiftStartMs: shiftStart.getTime(),
-            title: "Leave in 15 minutes",
-            body: `Leave at ${berlinClock(departure)} — about ${plan.travel_minutes} min to the studio for your ${berlinClock(
-              shiftStart,
-            )} shift.`,
-          });
-        }
 
         // --- Shift start: a reminder 15 minutes before, and a separate
         // "starting now" notification at the exact start that checks the

@@ -2,9 +2,8 @@
  * Server-only notification/shift state reconciliation.
  *
  * The push system derives its jobs from live shift data, so the only durable
- * notification state is `operator_travel_plans` (time-to-leave input) and
- * `push_notification_deliveries` (what has been claimed/sent). Both can go
- * stale when a shift is cancelled, retimed or removed by Google Calendar.
+ * `push_notification_deliveries` can go stale when a shift is cancelled,
+ * retimed or removed by Google Calendar.
  *
  * Everything here is idempotent: running it repeatedly converges on
  * "notifications match the current shift state" and never creates duplicates.
@@ -60,14 +59,11 @@ export async function activeShiftStartSet(
 /**
  * Brings the notification state in line with the current shift data.
  *
- * - drops travel plans whose shift no longer exists at that time (cancelled,
- *   removed or retimed), which kills the associated "Time to leave" job,
- * - marks still-pending delivery rows for those shifts as `cancelled`, so the
+ * - marks still-pending delivery rows for removed shifts as `cancelled`, so the
  *   dispatcher's claim can never resurrect them,
  * - best-effort closes a notification that was already displayed.
  */
 export async function reconcileShiftNotifications(): Promise<{
-  plansRemoved: number;
   deliveriesCancelled: number;
 }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -90,7 +86,6 @@ export async function reconcileShiftNotifications(): Promise<{
     .gte("specific_date", berlinDay(-1))
     .lte("specific_date", berlinDay(8));
 
-  const validStarts = new Map<string, Set<number>>(); // operatorId → start ms
   const startByShiftId = new Map<string, { operatorId: string; ms: number } | null>();
   for (const s of (shiftRows ?? []) as ShiftRow[]) {
     const opId = s.assigned_operator ? idByName.get(s.assigned_operator.toLowerCase()) : undefined;
@@ -98,24 +93,6 @@ export async function reconcileShiftNotifications(): Promise<{
     const deliverable = !!opId && activeIds.has(opId) && s.status !== "cancelled" && !!start;
     startByShiftId.set(s.id, deliverable ? { operatorId: opId!, ms: start!.getTime() } : null);
     if (!deliverable) continue;
-    const set = validStarts.get(opId!) ?? new Set<number>();
-    set.add(start!.getTime());
-    validStarts.set(opId!, set);
-  }
-
-  // --- stale travel plans (the source of the "Time to leave" job) ---
-  const { data: plans } = await supabaseAdmin
-    .from("operator_travel_plans")
-    .select("id, operator_id, shift_start_at")
-    .gte("shift_start_at", new Date(now - 60 * 60_000).toISOString());
-
-  const staleplanIds: string[] = [];
-  for (const p of (plans ?? []) as { id: string; operator_id: string; shift_start_at: string }[]) {
-    const ms = Date.parse(p.shift_start_at);
-    if (!validStarts.get(p.operator_id)?.has(ms)) staleplanIds.push(p.id);
-  }
-  if (staleplanIds.length) {
-    await supabaseAdmin.from("operator_travel_plans").delete().in("id", staleplanIds);
   }
 
   // --- delivery rows that no longer match a live shift ---
@@ -139,10 +116,7 @@ export async function reconcileShiftNotifications(): Promise<{
   for (const d of rows) {
     const key = d.notification_key;
     let valid = true;
-    if (key.startsWith("leave:")) {
-      const ms = Date.parse(key.slice("leave:".length));
-      valid = Number.isFinite(ms) ? !!validStarts.get(d.operator_id)?.has(ms) : true;
-    } else if (key.startsWith("start:") || key.startsWith("checkin:")) {
+    if (key.startsWith("start:") || key.startsWith("checkin:")) {
       const prefix = key.startsWith("start:") ? "start:" : "checkin:";
       const [shiftId, iso] = key.slice(prefix.length).split("@");
       const live = startByShiftId.get(shiftId);
@@ -185,5 +159,5 @@ export async function reconcileShiftNotifications(): Promise<{
     }
   }
 
-  return { plansRemoved: staleplanIds.length, deliveriesCancelled: cancelIds.length };
+  return { deliveriesCancelled: cancelIds.length };
 }

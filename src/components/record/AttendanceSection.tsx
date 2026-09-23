@@ -198,11 +198,6 @@ export function AttendanceSection({ username }: { username: string | null }) {
     [shifts, scheduled, monthStart],
   );
 
-  const progressPct =
-    summary.scheduledMin > 0
-      ? Math.min(100, (summary.workedMin / summary.scheduledMin) * 100)
-      : 0;
-
   // Look up a raw shift row by id so the Edit dialog gets check_in/check_out ISOs.
   const shiftsById = useMemo(() => {
     const m = new Map<string, ShiftRow>();
@@ -313,31 +308,6 @@ export function AttendanceSection({ username }: { username: string | null }) {
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (
           <div className="space-y-6">
-            {/* Overview */}
-            <Card className="border-border/60 shadow-sm max-lg:glass max-lg:rounded-[22px]">
-              <CardContent className="p-6 sm:p-8 max-lg:p-4">
-                <div className="grid gap-6 sm:grid-cols-2 max-lg:grid-cols-2 max-lg:gap-2">
-                  <StatBlock label="Worked hours" value={formatHM(summary.workedMin)} />
-                  <StatBlock label="Scheduled hours" value={formatHM(summary.scheduledMin)} />
-                </div>
-                <div className="mt-6 max-lg:mt-4">
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted max-lg:h-1">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all duration-700"
-                      style={{ width: `${progressPct}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6 grid grid-cols-3 gap-3 max-lg:mt-4 max-lg:gap-2">
-                  <CategoryTile category="day" mins={summary.dayMin} />
-                  <CategoryTile category="night" mins={summary.nightMin} />
-                  <CategoryTile category="weekend" mins={summary.weekendMin} />
-                </div>
-              </CardContent>
-            </Card>
-
-
             {/* Attendance history */}
             <Card className="border-border/60 shadow-sm max-lg:glass max-lg:rounded-[22px]">
               <CardContent className="p-0">
@@ -447,6 +417,12 @@ export function AttendanceSection({ username }: { username: string | null }) {
                 </div>
               </CardContent>
             </Card>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border pt-5 sm:grid-cols-4">
+              <SummaryValue label="Day hours" value={formatHM(summary.dayMin)} />
+              <SummaryValue label="Night hours" value={formatHM(summary.nightMin)} />
+              <SummaryValue label="Weekend hours" value={formatHM(summary.weekendMin)} />
+              <SummaryValue label="Total" value={formatHM(summary.workedMin)} />
+            </div>
           </div>
       )}
 
@@ -469,35 +445,13 @@ export function AttendanceSection({ username }: { username: string | null }) {
   );
 }
 
-function StatBlock({ label, value }: { label: string; value: string }) {
+function SummaryValue({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className="text-[11px] uppercase tracking-wide text-muted-foreground max-lg:text-[9px]">{label}</div>
-      <div className="mt-1 text-3xl font-semibold tabular-nums tracking-tight max-lg:text-[26px] max-lg:tracking-[-0.03em] sm:text-4xl">
+      <div className="mt-1 text-base font-semibold tabular-nums">
         {value}
       </div>
-
-    </div>
-  );
-}
-
-function CategoryTile({
-  category,
-  mins,
-}: {
-  category: "day" | "night" | "weekend";
-  mins: number;
-}) {
-  return (
-    <div className="rounded-lg border border-border/60 p-3 max-lg:glass-tile max-lg:rounded-[14px] max-lg:p-2.5">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground max-lg:gap-1.5 max-lg:text-[8.5px]">
-        <span
-          className="inline-block h-2.5 w-2.5 rounded-sm max-lg:h-2 max-lg:w-2"
-          style={{ backgroundColor: CATEGORY_COLOR[category] }}
-        />
-        {CATEGORY_LABEL[category]}
-      </div>
-      <div className="mt-1 text-lg font-semibold tabular-nums max-lg:text-[15px]">{formatHM(mins)}</div>
 
     </div>
   );
