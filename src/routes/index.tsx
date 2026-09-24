@@ -53,6 +53,7 @@ import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
 import { MonthlyHours } from "@/components/MonthlyHours";
+import { preCheckInState } from "@/lib/shift-phase";
 import {
   buildDisplayShifts,
   resolveCheckInTarget,
@@ -604,6 +605,18 @@ function Index() {
             onSetClassStatus={setClassStatus}
           />
         ) : (
+          preCheckInState(nextDisplay, now) !== "normal" && nextDisplay ? (
+            <CheckInTakeover
+              shift={nextDisplay}
+              state={preCheckInState(nextDisplay, now) as "window" | "late"}
+              now={now}
+              calendarClasses={calendarClasses}
+              showTimeToLeave={!needsHome}
+              locked={checkInLocked}
+              checkingIn={checkingIn}
+              onCheckIn={checkIn}
+            />
+          ) : (
           <div className="space-y-6 pb-28">
             <InactiveDashboard
               nextShift={nextDisplay}
@@ -632,9 +645,100 @@ function Index() {
               />
             )}
           </div>
+          )
         )}
       </div>
     </AppShell>
+  );
+}
+
+function CheckInTakeover({
+  shift,
+  state,
+  now,
+  calendarClasses,
+  showTimeToLeave,
+  locked,
+  checkingIn,
+  onCheckIn,
+}: {
+  shift: DisplayShift;
+  state: "window" | "late";
+  now: Date;
+  calendarClasses: CalendarClassRow[];
+  showTimeToLeave: boolean;
+  locked: boolean;
+  checkingIn: boolean;
+  onCheckIn: () => void;
+}) {
+  const { result } = useTimeToLeave(shift.startAt.toISOString());
+  const leave = result?.ok ? new Date(result.leave_iso) : null;
+  const range = formatShiftRange(shift, now);
+  const count = classesForShift(calendarClasses, shift).length;
+  const late = state === "late";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const untilSec = Math.max(0, Math.ceil((shift.startAt.getTime() - now.getTime()) / 1000));
+  const countdown = `${pad(Math.floor(untilSec / 3600))}:${pad(Math.floor((untilSec % 3600) / 60))}:${pad(untilSec % 60)}`;
+  const agoMin = Math.max(0, Math.floor((now.getTime() - shift.startAt.getTime()) / 60000));
+  const ago =
+    agoMin < 60
+      ? `${agoMin} min ago`
+      : agoMin % 60 === 0
+        ? `${agoMin / 60}h ago`
+        : `${Math.floor(agoMin / 60)}h ${agoMin % 60}m ago`;
+  return (
+    <div className="flex min-h-[calc(100dvh-10rem)] flex-col items-center gap-8 pb-6 text-center">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <span className={`h-2 w-2 rounded-full ${late ? "bg-warn" : "bg-done"}`} />
+        {late ? "Check in now" : "Check-in open"}
+      </div>
+      <div>
+        <div className="text-sm text-muted-foreground">{late ? "Started" : "Shift starts in"}</div>
+        <div
+          className={`mt-1 text-6xl font-bold leading-none tabular-nums tracking-tight ${late ? "text-warn" : ""}`}
+          aria-live="polite"
+        >
+          {late ? ago : countdown}
+        </div>
+      </div>
+      <div className="flex flex-1 items-center justify-center">
+        {locked ? (
+          <p className="max-w-xs text-sm text-muted-foreground">
+            Complete your profile to enable Check In and Time to Leave.
+          </p>
+        ) : (
+          <HoldButton
+            label="Hold for 3 seconds to clock in"
+            tone={late ? "warn" : "primary"}
+            busy={checkingIn}
+            onComplete={onCheckIn}
+            size={180}
+            showCaption
+            completedCaption={`Clocked in ${fmtHM(new Date())}`}
+          />
+        )}
+      </div>
+      <Card className="w-full rounded-[22px] shadow-none">
+        <CardContent className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 p-5 text-left">
+          <div className="min-w-0">
+            <div className="text-lg font-bold">
+              {shift.startAt.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
+            </div>
+            <div className="text-sm text-muted-foreground tabular-nums">
+              {range.range} · {count} {count === 1 ? "class" : "classes"}
+            </div>
+          </div>
+          {!late && showTimeToLeave ? (
+            <div className="border-l border-border pl-4 text-right">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Leave at
+              </div>
+              <div className="text-2xl font-bold tabular-nums">{leave ? fmtHM(leave) : "—"}</div>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
