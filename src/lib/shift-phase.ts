@@ -52,3 +52,19 @@ export function phaseLabel(phase: ShiftPhase): string {
       return "No shift soon";
   }
 }
+
+export type PreCheckInState = "normal" | "window" | "late";
+
+/**
+ * Pre-check-in Dashboard state for the next shift that hasn't ended:
+ * normal until start − 1h, check-in window until start, late until end.
+ */
+export function preCheckInState(next: DisplayShift | null, now: Date): PreCheckInState {
+  if (!next) return "normal";
+  const t = now.getTime();
+  const start = next.startAt.getTime();
+  if (t >= next.endAt.getTime()) return "normal";
+  if (t >= start) return "late";
+  if (t >= start - CHECK_IN_WINDOW_MS) return "window";
+  return "normal";
+}
