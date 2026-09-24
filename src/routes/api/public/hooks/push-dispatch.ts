@@ -33,17 +33,18 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const expected =
-          process.env["SUPABASE_ANON_KEY"] ?? process.env["SUPABASE_PUBLISHABLE_KEY"];
-        const provided =
-          request.headers.get("apikey") ??
-          request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
-          "";
-        if (!expected || provided !== expected) {
+        const provided = request.headers.get("x-cron-secret") ?? "";
+        if (!provided || provided.length > 200) {
           return new Response("Unauthorized", { status: 401 });
         }
-
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: allowed } = await supabaseAdmin.rpc(
+          "verify_cron_secret" as never,
+          { _provided: provided } as never,
+        );
+        if (allowed !== true) {
+          return new Response("Unauthorized", { status: 401 });
+        }
         const { sendToOperator } = await import("@/lib/push.server");
         const { activeShiftStartSet } = await import("@/lib/notifications.server");
 
