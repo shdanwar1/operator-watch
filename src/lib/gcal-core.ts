@@ -76,7 +76,7 @@ export function normalizeIcsUrl(input: string): string | null {
   const safe = safeRemoteUrl(s);
   if (!safe) return null;
 
-  if (/\.ics(\?|$)/i.test(safe) || /\/ical\//i.test(safe)) return safe;
+  if (/\.ics(\?|$)/i.test(safe) || /\/ical\//i.test(safe)) return safeCalendarUrl(safe);
 
   try {
     const u = new URL(safe);
@@ -680,3 +680,18 @@ export function syncWindow(now: Date, includeNextMonth = false) {
   return { from, scopeEnd: dateKey(scopeEndDate), to: dateKey(parseToDate) };
 }
 
+
+/**
+ * Calendar feeds are only fetched from Google Calendar hosts. This keeps the
+ * server from being used to contact arbitrary websites.
+ */
+const CALENDAR_HOST_SUFFIXES = [".google.com", ".googleusercontent.com"];
+export function safeCalendarUrl(input: string): string | null {
+  const safe = safeRemoteUrl(input);
+  if (!safe) return null;
+  const u = new URL(safe);
+  if (u.protocol !== "https:") return null;
+  const host = u.hostname.toLowerCase();
+  if (host !== "google.com" && !CALENDAR_HOST_SUFFIXES.some((s) => host.endsWith(s))) return null;
+  return safe;
+}

@@ -9,7 +9,7 @@
  * scheduling — that stays in the domain. Behaviour, error messages and parsing
  * are exactly what `runCalendarImport` performed before this boundary existed.
  */
-import { parseIcs, safeRemoteUrl, type ParsedEvent } from "@/lib/gcal-core";
+import { parseIcs, safeCalendarUrl, type ParsedEvent } from "@/lib/gcal-core";
 import type { CalendarCommitment } from "./types";
 
 /** Provider-specific detail is preserved on `raw` during the migration. */
@@ -44,7 +44,7 @@ export const googleIcsCalendarProvider: CalendarProvider = {
   source: "google-ics",
 
   async fetchCommitments(feedUrl, window) {
-    const safeUrl = safeRemoteUrl(feedUrl);
+    const safeUrl = safeCalendarUrl(feedUrl);
     if (!safeUrl) {
       return { ok: false, error: "That calendar link is not an allowed public https address." };
     }
@@ -63,7 +63,7 @@ export const googleIcsCalendarProvider: CalendarProvider = {
         if (res.status >= 300 && res.status < 400) {
           const loc = res.headers.get("location");
           if (!loc) break;
-          const next = safeRemoteUrl(new URL(loc, target).toString());
+          const next = safeCalendarUrl(new URL(loc, target).toString());
           if (!next) {
             return { ok: false, error: "That calendar link redirects to a blocked address." };
           }
