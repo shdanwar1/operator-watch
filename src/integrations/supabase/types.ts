@@ -622,6 +622,7 @@ export type Database = {
         Args: { p_expected: Json; p_next: Json; p_shift_id: string }
         Returns: Json
       }
+      verify_cron_secret: { Args: { _provided: string }; Returns: boolean }
       verify_operator_pin: {
         Args: { p_pin: string; p_username: string }
         Returns: string
