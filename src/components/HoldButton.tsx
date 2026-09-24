@@ -15,7 +15,7 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-export type HoldButtonTone = "primary" | "danger";
+export type HoldButtonTone = "primary" | "danger" | "warn";
 
 /**
  * Calm, Touch-ID style hold-to-confirm control.
@@ -153,7 +153,8 @@ export function HoldButton({
   const r = size / 2 - stroke * 2;
   const c = 2 * Math.PI * r;
 
-  const ringColor = tone === "danger" ? "oklch(0.64 0.20 25)" : "oklch(0.62 0.16 255)";
+  const ringColor =
+    tone === "danger" ? "oklch(0.64 0.20 25)" : tone === "warn" ? "oklch(0.75 0.15 70)" : "oklch(0.62 0.16 255)";
   const successRing = "oklch(0.72 0.17 155)";
 
   const scale = done ? 1.08 : holding ? (reduced ? 1 : 1.06) : 1;
