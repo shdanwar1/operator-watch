@@ -81,15 +81,21 @@ export const registerPushSubscription = createServerFn({ method: "POST" })
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // A device belongs to exactly one operator. If this endpoint was
-    // registered by someone else (shared browser, operator switch), that
-    // association is removed before the new one is written — never kept
-    // alongside it.
-    await supabaseAdmin
+    // A device belongs to exactly one operator. An endpoint already owned by
+    // someone else may only be taken over when the caller proves possession
+    // of that same device by presenting its matching encryption keys.
+    const { data: existing, error: existingError } = await supabaseAdmin
       .from("push_subscriptions")
-      .delete()
+      .select("operator_id, p256dh, auth")
       .eq("endpoint", data.endpoint)
-      .neq("operator_id", operatorId);
+      .maybeSingle();
+    if (existingError) throw new Error(existingError.message);
+    const prior = existing as { operator_id: string; p256dh: string; auth: string } | null;
+    if (prior && prior.operator_id !== operatorId) {
+      if (prior.p256dh !== data.p256dh || prior.auth !== data.auth) {
+        throw new Error("This device could not be registered. Please try again.");
+      }
+    }
 
     const { error } = await supabaseAdmin.from("push_subscriptions").upsert(
       {
@@ -192,10 +198,12 @@ export const releasePushEndpoint = createServerFn({ method: "POST" })
   .inputValidator((data: { endpoint: string }) => ({ endpoint: String(data?.endpoint ?? "") }))
   .handler(async ({ data }) => {
     if (!/^https:\/\//.test(data.endpoint)) return { ok: true };
+    const { operatorId } = await requireOperatorId();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("push_subscriptions")
       .delete()
+      .eq("operator_id", operatorId)
       .eq("endpoint", data.endpoint);
     if (error) throw new Error(error.message);
     return { ok: true };

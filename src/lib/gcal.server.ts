@@ -12,6 +12,7 @@ import {
   detectCalendarMode,
   minToTime,
   safeRemoteUrl,
+  safeCalendarUrl,
   syncWindow,
   toMin,
   berlinDateKey,
@@ -665,7 +666,7 @@ export type CalendarHealth = { connected: boolean; ok: boolean; error?: string }
 export async function checkOperatorCalendar(username: string): Promise<CalendarHealth> {
   const { icsUrl } = await loadOperatorCalendar(username);
   if (!icsUrl) return { connected: false, ok: false, error: "No calendar link set" };
-  const safeUrl = safeRemoteUrl(icsUrl);
+  const safeUrl = safeCalendarUrl(icsUrl);
   if (!safeUrl) return { connected: true, ok: false, error: "Link is not an allowed public https address" };
   try {
     let target = safeUrl;
@@ -678,7 +679,7 @@ export async function checkOperatorCalendar(username: string): Promise<CalendarH
       if (res.status >= 300 && res.status < 400) {
         const loc = res.headers.get("location");
         if (!loc) break;
-        const next = safeRemoteUrl(new URL(loc, target).toString());
+        const next = safeCalendarUrl(new URL(loc, target).toString());
         if (!next) return { connected: true, ok: false, error: "Link redirects to a blocked address" };
         target = next;
         continue;
