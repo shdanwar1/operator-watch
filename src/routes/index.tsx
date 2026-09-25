@@ -605,7 +605,14 @@ function Index() {
             onSetClassStatus={setClassStatus}
           />
         ) : (
-          preCheckInState(nextDisplay, now) !== "normal" && nextDisplay ? (
+          preCheckInState(nextDisplay, now) !== "normal" &&
+          nextDisplay &&
+          // Already attended (checked out early) — no takeover for this shift.
+          !history.some(
+            (h) =>
+              h.scheduled_shift_id != null &&
+              nextDisplay.segments.some((seg) => seg.id === h.scheduled_shift_id),
+          ) ? (
             <CheckInTakeover
               shift={nextDisplay}
               state={preCheckInState(nextDisplay, now) as "window" | "late"}
