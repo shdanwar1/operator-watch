@@ -813,10 +813,16 @@ function NextShiftSummary({
       <Card className="rise-in rounded-[22px] shadow-none">
         <CardContent className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-4 p-5 sm:gap-6 sm:p-6">
           <div className="min-w-0">
-            <div className="text-[30px] font-bold leading-none">
-              {shift.startAt.toLocaleDateString(undefined, { weekday: "long" })}
-            </div>
-            <div className="mt-1 text-sm text-muted-foreground">{fullDateLabel(shift.startAt)}</div>
+            {shift.startAt.toDateString() === new Date().toDateString() ? (
+              <div className="text-[30px] font-bold leading-none">Today</div>
+            ) : (
+              <>
+                <div className="text-[30px] font-bold leading-none">
+                  {shift.startAt.toLocaleDateString(undefined, { weekday: "long" })}
+                </div>
+                <div className="mt-1 text-sm text-muted-foreground">{fullDateLabel(shift.startAt)}</div>
+              </>
+            )}
             <div className="mt-4 text-[22px] font-medium tabular-nums">{range.range}</div>
             <div className="mt-1.5 text-xs text-muted-foreground">
               {count} {count === 1 ? "class" : "classes"}
