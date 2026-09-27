@@ -173,6 +173,26 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           }
         }
 
+        // --- Daily 09:00 Berlin reminder: one per operator per Berlin day. ---
+        {
+          const { planDailyReminders, DAILY_REMINDER_TYPE } = await import("@/lib/daily-reminder");
+          const { data: todayShifts } = await supabaseAdmin
+            .from("scheduled_shifts")
+            .select("id, assigned_operator, specific_date, start_time, status, created_at")
+            .eq("specific_date", todayKeys[1]);
+          for (const d of planDailyReminders(new Date(now), byName, (todayShifts ?? []) as never)) {
+            jobs.push({
+              operatorId: d.operatorId,
+              key: d.key,
+              type: DAILY_REMINDER_TYPE,
+              at: d.at,
+              shiftStartMs: d.firstStart.getTime(),
+              title: d.title,
+              body: d.body,
+            });
+          }
+        }
+
         const stats = {
           candidates: jobs.length,
           claimed: 0,
