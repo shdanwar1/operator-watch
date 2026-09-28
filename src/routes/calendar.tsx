@@ -37,6 +37,8 @@ import {
 import { ChevronLeft, ChevronRight, Trash2, Save, RefreshCw } from "lucide-react";
 import { ShiftOverviewDialog } from "@/components/ShiftOverviewDialog";
 import { toast, Toaster } from "sonner";
+import { MobileCalendar } from "@/components/MobileCalendar";
+import { buildDisplayShifts, currentOrNextShift } from "@/lib/display-shifts";
 
 export const Route = createFileRoute("/calendar")({
   beforeLoad: async () => {
@@ -349,6 +351,21 @@ function CalendarPage() {
     return w;
   }, [monthStart]);
 
+  // Mobile: default selection follows the existing next-shift rule.
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const didDefault = useRef(false);
+  useEffect(() => {
+    if (didDefault.current || loading) return;
+    didDefault.current = true;
+    const n = new Date();
+    const next = currentOrNextShift(buildDisplayShifts(scheduled, n), n);
+    const target = next ? next.startAt : n;
+    setSelectedKey(dateKey(target));
+    setMonthOffset(
+      (target.getFullYear() - n.getFullYear()) * 12 + target.getMonth() - n.getMonth(),
+    );
+  }, [loading, scheduled]);
+
   const monthLabel = monthStart.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
   async function handleSave(payload: { start_time: string; end_time: string; label: string }) {
@@ -484,6 +501,32 @@ function CalendarPage() {
         </Card>
       ) : null}
 
+      <div className="lg:hidden">
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : (
+          <MobileCalendar
+            weeks={weeks}
+            monthStart={monthStart}
+            monthLabel={monthLabel}
+            today={today}
+            now={now}
+            selectedKey={selectedKey}
+            onSelect={setSelectedKey}
+            onPrev={() => setMonthOffset((n) => n - 1)}
+            onNext={() => setMonthOffset((n) => n + 1)}
+            onToday={() => {
+              setMonthOffset(0);
+              setSelectedKey(dateKey(new Date()));
+            }}
+            instancesOn={(day) => instancesFor(day, scheduled, overrides)}
+            loggedOn={(day) => loggedByDay.get(dateKey(day)) ?? []}
+            onOpenShift={(s) => setOverview(s)}
+          />
+        )}
+      </div>
+
+      <div className="hidden lg:block">
       <div className="mb-4 flex items-center gap-2">
         <Button
           variant="outline"
@@ -647,6 +690,7 @@ function CalendarPage() {
           </CardContent>
         </Card>
       )}
+      </div>
 
       <ShiftOverviewDialog
         shift={overview}
