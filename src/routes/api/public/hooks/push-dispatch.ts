@@ -23,6 +23,8 @@ const LOOKBACK_MS = 15 * 60 * 1000;
 const LOOKAHEAD_MS = 60 * 1000; // "due within this tick"
 // The shift-start reminder has a 15-minute lead.
 const SHIFT_START_LEAD_MIN = 15;
+// A failed Time to Leave lookup is retried at most every 10 minutes.
+const TTL_RETRY_BACKOFF_MS = 10 * 60 * 1000;
 
 function due(at: Date, now: number): boolean {
   const t = at.getTime();
@@ -45,8 +47,9 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         if (allowed !== true) {
           return new Response("Unauthorized", { status: 401 });
         }
-        const { sendToOperator } = await import("@/lib/push.server");
-        const { activeShiftStartSet } = await import("@/lib/notifications.server");
+        const { loadActiveSubscriptions, sendToLoadedSubscriptions } = await import(
+          "@/lib/push.server"
+        );
 
         const now = Date.now();
 
@@ -94,17 +97,25 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
         const { data: shifts } = await supabaseAdmin
           .from("scheduled_shifts")
-          .select("id, assigned_operator, specific_date, start_time, status, time_to_leave")
+          .select(
+            "id, assigned_operator, specific_date, start_time, status, time_to_leave, time_to_leave_attempted_at, created_at",
+          )
           .in("specific_date", todayKeys);
 
-        for (const shift of (shifts ?? []) as {
+        type ShiftSnap = {
           id: string;
           assigned_operator: string | null;
           specific_date: string;
           start_time: string;
           status: string;
           time_to_leave: string | null;
-        }[]) {
+          time_to_leave_attempted_at: string | null;
+          created_at: string | null;
+        };
+        // ONE scheduled_shifts read serves all four notification types.
+        const shiftRows = (shifts ?? []) as ShiftSnap[];
+
+        for (const shift of shiftRows) {
           if (!shift.assigned_operator || shift.status === "cancelled") continue;
           const operatorId = byName.get(normalizeUsername(shift.assigned_operator));
           if (!operatorId) continue;
@@ -119,10 +130,27 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           // before the shift, try to calculate and save it (no-op once saved). ---
           let timeToLeave = shift.time_to_leave;
           const untilStart = start.getTime() - now;
-          if (!timeToLeave && untilStart >= 2 * 60 * 60_000 && untilStart <= 140 * 60_000) {
+          const lastTry = shift.time_to_leave_attempted_at
+            ? Date.parse(shift.time_to_leave_attempted_at)
+            : 0;
+          if (
+            !timeToLeave &&
+            untilStart >= 2 * 60 * 60_000 &&
+            untilStart <= 140 * 60_000 &&
+            now - lastTry >= TTL_RETRY_BACKOFF_MS
+          ) {
             const { resolveTimeToLeave } = await import("@/lib/time-to-leave.server");
             const r = await resolveTimeToLeave({ operatorId }, start).catch(() => null);
-            if (r?.ok && r.source !== "fallback") timeToLeave = r.leave_iso;
+            if (r?.ok && r.source !== "fallback") {
+              timeToLeave = r.leave_iso;
+            } else {
+              // Failed: back off instead of calling VBB again next minute.
+              await supabaseAdmin
+                .from("scheduled_shifts")
+                .update({ time_to_leave_attempted_at: new Date(now).toISOString() } as never)
+                .eq("id", shift.id)
+                .is("time_to_leave", null);
+            }
           }
           if (timeToLeave) {
             const leaveAt = new Date(timeToLeave);
@@ -176,11 +204,8 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         // --- Daily 09:00 Berlin reminder: one per operator per Berlin day. ---
         {
           const { planDailyReminders, DAILY_REMINDER_TYPE } = await import("@/lib/daily-reminder");
-          const { data: todayShifts } = await supabaseAdmin
-            .from("scheduled_shifts")
-            .select("id, assigned_operator, specific_date, start_time, status, created_at")
-            .eq("specific_date", todayKeys[1]);
-          for (const d of planDailyReminders(new Date(now), byName, (todayShifts ?? []) as never)) {
+          const todayShifts = shiftRows.filter((s) => s.specific_date === todayKeys[1]);
+          for (const d of planDailyReminders(new Date(now), byName, todayShifts)) {
             jobs.push({
               operatorId: d.operatorId,
               key: d.key,
@@ -205,6 +230,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           cancelled: 0,
         };
 
+        const claimedJobs: Job[] = [];
         for (const job of jobs) {
           // Atomic claim: inserts a fresh row, or takes over a row that
           // failed / was left "sending" by a crashed run. Anything already
@@ -225,11 +251,32 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             continue;
           }
           stats.claimed += 1;
+          claimedJobs.push(job);
+        }
 
-          // Final state check, after the claim and immediately before sending:
-          // a shift cancelled or retimed in the meantime must not notify.
-          const liveStarts = await activeShiftStartSet(job.operatorId);
-          if (!liveStarts.has(job.shiftStartMs)) {
+        // Final state check, after the claims and immediately before sending:
+        // a shift cancelled, retimed or reassigned in the meantime must not
+        // notify. One batch read instead of one query per job.
+        const liveStarts = new Map<string, Set<number>>();
+        if (claimedJobs.length) {
+          const { data: fresh } = await supabaseAdmin
+            .from("scheduled_shifts")
+            .select("assigned_operator, specific_date, start_time, status")
+            .in("specific_date", todayKeys);
+          for (const s of (fresh ?? []) as ShiftSnap[]) {
+            if (s.status === "cancelled" || !s.assigned_operator) continue;
+            const opId = byName.get(normalizeUsername(s.assigned_operator));
+            const st = berlinInstant(s.specific_date, s.start_time);
+            if (!opId || !st) continue;
+            const set = liveStarts.get(opId) ?? new Set<number>();
+            set.add(st.getTime());
+            liveStarts.set(opId, set);
+          }
+        }
+        const subsByOp = await loadActiveSubscriptions(claimedJobs.map((j) => j.operatorId));
+
+        for (const job of claimedJobs) {
+          if (!liveStarts.get(job.operatorId)?.has(job.shiftStartMs)) {
             stats.cancelled += 1;
             await supabaseAdmin
               .from("push_notification_deliveries")
@@ -239,9 +286,10 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             continue;
           }
 
-          let result: Awaited<ReturnType<typeof sendToOperator>>;
+          let result: Awaited<ReturnType<typeof sendToLoadedSubscriptions>>;
           try {
-            result = await sendToOperator(job.operatorId, {
+            if (!subsByOp.has(job.operatorId)) subsByOp.set(job.operatorId, []);
+            result = await sendToLoadedSubscriptions(job.operatorId, subsByOp.get(job.operatorId)!, {
               title: job.title,
               body: job.body,
               tag: job.key,
@@ -291,12 +339,8 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             .eq("notification_key", job.key);
         }
 
-        // Reminders whose lateness window has passed can never fire again.
-        await supabaseAdmin
-          .from("push_notification_deliveries")
-          .update({ status: "expired", locked_at: null } as never)
-          .in("status", ["pending", "failed"])
-          .lt("expires_at", new Date(now).toISOString());
+        // Expired-row cleanup runs once a day (push_daily_maintenance); the
+        // claim already refuses expired rows, so nothing is needed here.
 
         return Response.json({ ok: true, ...stats });
       },
