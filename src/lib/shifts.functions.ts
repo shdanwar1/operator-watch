@@ -69,6 +69,8 @@ export type ScheduledShiftRow = {
   assigned_operator: string | null;
   status: string;
   notes: string | null;
+  /** Stored Time to Leave (source of truth); null until calculated. */
+  time_to_leave?: string | null;
 };
 
 function normalizeShift(r: Record<string, unknown>): ShiftRow {
@@ -623,7 +625,7 @@ export const updateScheduledShift = createServerFn({ method: "POST" })
     await patchShift(data.id, patch);
     try {
       const { reconcileShiftNotifications } = await import("./notifications.server");
-      await reconcileShiftNotifications();
+      await reconcileShiftNotifications(data.id);
     } catch (err) {
       console.error("[shifts] notification reconciliation failed", err);
     }
@@ -642,7 +644,7 @@ export const deleteScheduledShift = createServerFn({ method: "POST" })
     await remove(data.id);
     try {
       const { reconcileShiftNotifications } = await import("./notifications.server");
-      await reconcileShiftNotifications();
+      await reconcileShiftNotifications(data.id);
     } catch (err) {
       console.error("[shifts] notification reconciliation failed", err);
     }
@@ -723,7 +725,7 @@ export const deleteMyScheduledShift = createServerFn({ method: "POST" })
     // Pending notification state for this exact start instant.
     try {
       const { reconcileShiftNotifications } = await import("./notifications.server");
-      await reconcileShiftNotifications();
+      await reconcileShiftNotifications(shift.id);
     } catch (err) {
       console.error("[shifts] notification reconciliation failed", err);
     }

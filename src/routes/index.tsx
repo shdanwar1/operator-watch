@@ -14,7 +14,6 @@ import {
   type ScheduledShiftRow,
 } from "@/lib/shifts.functions";
 import { listDmcDirectory, type DmcOption } from "@/lib/dmc-directory.functions";
-import { useTimeToLeave } from "@/hooks/useTimeToLeave";
 
 import { clearAllCaches, operatorNamespace, readCache, writeCache } from "@/lib/local-cache";
 import { getOperatorDisplayName } from "@/lib/operators.functions";
@@ -318,7 +317,10 @@ function Index() {
   // Shift tables are not exposed to client realtime (per-operator data locked
   // down by RLS); refresh on a timer and when the tab regains focus instead.
   useEffect(() => {
-    const t = setInterval(() => debouncedLoad(), 90_000);
+    // Skipped while the tab is hidden; focus refreshes on return.
+    const t = setInterval(() => {
+      if (!document.hidden) debouncedLoad();
+    }, 90_000);
     const onFocus = () => debouncedLoad();
     window.addEventListener("focus", onFocus);
     return () => {
@@ -678,8 +680,7 @@ function CheckInTakeover({
   checkingIn: boolean;
   onCheckIn: () => void;
 }) {
-  const { result } = useTimeToLeave(shift.startAt.toISOString());
-  const leave = result?.ok ? new Date(result.leave_iso) : null;
+  const leave = storedLeave(shift);
   const range = formatShiftRange(shift, now);
   const count = classesForShift(calendarClasses, shift).length;
   const late = state === "late";
@@ -791,7 +792,6 @@ function NextShiftSummary({
   calendarClasses: CalendarClassRow[];
   showTimeToLeave: boolean;
 }) {
-  const { result, loading } = useTimeToLeave(shift?.startAt.toISOString() ?? null);
   if (!shift) {
     return (
       <Card className="rise-in max-lg:glass max-lg:rounded-[22px]">
@@ -804,7 +804,7 @@ function NextShiftSummary({
   }
   const range = formatShiftRange(shift, now);
   const count = classesForShift(calendarClasses, shift).length;
-  const leave = result?.ok ? new Date(result.leave_iso) : null;
+  const leave = storedLeave(shift);
   return (
     <section>
       <div className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -834,7 +834,7 @@ function NextShiftSummary({
                 Leave at
               </div>
               <div className="mt-1 text-[28px] font-bold leading-none tabular-nums">
-                {leave ? fmtHM(leave) : loading ? "…" : "Unavailable"}
+                {leave ? fmtHM(leave) : "—"}
               </div>
             </div>
           ) : null}
@@ -1479,4 +1479,10 @@ function LockedFeatureCard({
       </CardContent>
     </Card>
   );
+}
+
+/** Reads the stored scheduled_shifts.time_to_leave — never calculates. */
+function storedLeave(shift: DisplayShift): Date | null {
+  const iso = shift.segments[0]?.time_to_leave;
+  return iso ? new Date(iso) : null;
 }
