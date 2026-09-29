@@ -440,6 +440,7 @@ export type Database = {
           start_time: string
           status: string
           time_to_leave: string | null
+          time_to_leave_attempted_at: string | null
           time_to_leave_calculated_at: string | null
         }
         Insert: {
@@ -455,6 +456,7 @@ export type Database = {
           start_time: string
           status?: string
           time_to_leave?: string | null
+          time_to_leave_attempted_at?: string | null
           time_to_leave_calculated_at?: string | null
         }
         Update: {
@@ -470,6 +472,7 @@ export type Database = {
           start_time?: string
           status?: string
           time_to_leave?: string | null
+          time_to_leave_attempted_at?: string | null
           time_to_leave_calculated_at?: string | null
         }
         Relationships: []
@@ -588,7 +591,12 @@ export type Database = {
           username: string
         }[]
       }
+      push_daily_maintenance: { Args: never; Returns: undefined }
       push_dispatch_due: { Args: never; Returns: boolean }
+      push_key_open: {
+        Args: { p_key: string; p_operator_id: string }
+        Returns: boolean
+      }
       rename_operator: {
         Args: { p_id: string; p_username: string }
         Returns: undefined
