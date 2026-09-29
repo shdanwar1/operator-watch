@@ -65,48 +65,80 @@ export async function sendToSubscription(
  * and the caller gets the full picture (`total` = active devices at send time)
  * so it can tell "all sent" from "partly sent" from "nothing to send".
  */
-export async function sendToOperator(
-  operatorId: string,
-  payload: PushPayload,
-): Promise<{ sent: number; failed: number; gone: number; total: number; error?: string }> {
-  // Hard isolation invariant: a notification is always addressed to exactly
-  // one operator. Without a concrete operator id there is no "send to
-  // everyone" fallback — the send is simply refused.
-  if (!/^[0-9a-f-]{36}$/i.test(operatorId ?? "")) {
-    return { sent: 0, failed: 0, gone: 0, total: 0, error: "missing operator id" };
-  }
+export type SendResult = {
+  sent: number;
+  failed: number;
+  gone: number;
+  total: number;
+  error?: string;
+};
 
+type OwnedSubscription = StoredSubscription & { operator_id: string };
+
+const isOperatorId = (id: string | null | undefined) => /^[0-9a-f-]{36}$/i.test(id ?? "");
+
+/**
+ * Active subscriptions for several operators in ONE query, grouped by
+ * operator. Used by the dispatcher so each run reads each operator's devices
+ * once, however many notifications that operator has due.
+ */
+export async function loadActiveSubscriptions(
+  operatorIds: string[],
+): Promise<Map<string, OwnedSubscription[]>> {
+  const ids = [...new Set(operatorIds.filter(isOperatorId))];
+  const out = new Map<string, OwnedSubscription[]>();
+  if (!ids.length) return out;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("push_subscriptions")
     .select("id, endpoint, p256dh, auth, operator_id")
-    .eq("operator_id", operatorId)
+    .in("operator_id", ids)
     .is("disabled_at", null);
   if (error) throw new Error(error.message);
+  for (const s of (data ?? []) as OwnedSubscription[]) {
+    const list = out.get(s.operator_id) ?? [];
+    list.push(s);
+    out.set(s.operator_id, list);
+  }
+  return out;
+}
 
-  // Belt and braces: only rows that actually carry this operator's id are
-  // ever sent to, whatever the query returned.
-  const subs = ((data ?? []) as (StoredSubscription & { operator_id: string })[]).filter(
-    (s) => s.operator_id === operatorId,
-  );
+/**
+ * Sends to an operator's already-loaded devices, disabling dead endpoints.
+ * Dead devices are removed from `subs` in place so later sends in the same
+ * run skip them.
+ */
+export async function sendToLoadedSubscriptions(
+  operatorId: string,
+  subs: OwnedSubscription[],
+  payload: PushPayload,
+): Promise<SendResult> {
+  if (!isOperatorId(operatorId)) {
+    return { sent: 0, failed: 0, gone: 0, total: 0, error: "missing operator id" };
+  }
+  // Belt and braces: only rows that actually carry this operator's id.
+  const own = subs.filter((s) => s.operator_id === operatorId);
+  const total = own.length;
   let sent = 0;
   let failed = 0;
   let gone = 0;
   let lastError: string | undefined;
 
-  for (const sub of subs) {
+  for (const sub of own) {
     try {
       const res = await sendToSubscription(sub, payload);
       if (res.ok) {
         sent += 1;
       } else if (res.gone) {
-        // Dead device: retire it. Not counted as a failure — retrying it
-        // would never help, and it must not block the live devices.
+        // Dead device: retire it. Not counted as a failure.
         gone += 1;
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         await supabaseAdmin
           .from("push_subscriptions")
           .update({ disabled_at: new Date().toISOString() } as never)
           .eq("id", sub.id);
+        const i = subs.indexOf(sub);
+        if (i >= 0) subs.splice(i, 1);
       } else {
         failed += 1;
         lastError = `push service returned ${res.status}`;
@@ -117,6 +149,16 @@ export async function sendToOperator(
     }
   }
 
-  return { sent, failed, gone, total: subs.length, ...(lastError ? { error: lastError } : {}) };
+  return { sent, failed, gone, total, ...(lastError ? { error: lastError } : {}) };
+}
+
+export async function sendToOperator(operatorId: string, payload: PushPayload): Promise<SendResult> {
+  // Hard isolation invariant: a notification is always addressed to exactly
+  // one operator. No "send to everyone" fallback.
+  if (!isOperatorId(operatorId)) {
+    return { sent: 0, failed: 0, gone: 0, total: 0, error: "missing operator id" };
+  }
+  const subs = (await loadActiveSubscriptions([operatorId])).get(operatorId) ?? [];
+  return sendToLoadedSubscriptions(operatorId, subs, payload);
 }
 
