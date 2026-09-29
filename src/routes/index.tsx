@@ -834,7 +834,7 @@ function NextShiftSummary({
                 Leave at
               </div>
               <div className="mt-1 text-[28px] font-bold leading-none tabular-nums">
-                {leave ? fmtHM(leave) : loading ? "…" : "Unavailable"}
+                {leave ? fmtHM(leave) : "—"}
               </div>
             </div>
           ) : null}
