@@ -9,7 +9,6 @@
  * "notifications match the current shift state" and never creates duplicates.
  */
 import { berlinInstant } from "./push-time";
-import { sameOperator } from "@/domain/operator-identity";
 
 type ShiftRow = {
   id: string;
@@ -25,37 +24,6 @@ function berlinDay(offsetDays: number, base = Date.now()): string {
   });
 }
 
-/** Start instants (ms) of every currently deliverable shift of one operator. */
-export async function activeShiftStartSet(
-  operatorId: string,
-  windowDays = 2,
-): Promise<Set<number>> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-  const { data: op } = await supabaseAdmin
-    .from("operators")
-    .select("username, is_active")
-    .eq("id", operatorId)
-    .maybeSingle();
-  const row = op as { username: string; is_active: boolean } | null;
-  if (!row || row.is_active === false) return new Set();
-
-  const { data: shifts } = await supabaseAdmin
-    .from("scheduled_shifts")
-    .select("id, assigned_operator, specific_date, start_time, status")
-    .gte("specific_date", berlinDay(-1))
-    .lte("specific_date", berlinDay(windowDays));
-
-  const set = new Set<number>();
-  for (const s of (shifts ?? []) as ShiftRow[]) {
-    if (s.status === "cancelled" || !s.assigned_operator) continue;
-    if (!sameOperator(s.assigned_operator, row.username)) continue;
-    const start = berlinInstant(s.specific_date, s.start_time);
-    if (start) set.add(start.getTime());
-  }
-  return set;
-}
-
 /**
  * Brings the notification state in line with the current shift data.
  *
@@ -63,7 +31,7 @@ export async function activeShiftStartSet(
  *   dispatcher's claim can never resurrect them,
  * - best-effort closes a notification that was already displayed.
  */
-export async function reconcileShiftNotifications(): Promise<{
+export async function reconcileShiftNotifications(onlyShiftId?: string): Promise<{
   deliveriesCancelled: number;
 }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -80,13 +48,17 @@ export async function reconcileShiftNotifications(): Promise<{
     if (o.is_active !== false) activeIds.add(o.id);
   }
 
-  const { data: shiftRows } = await supabaseAdmin
-    .from("scheduled_shifts")
-    .select("id, assigned_operator, specific_date, start_time, status")
-    .gte("specific_date", berlinDay(-1))
-    .lte("specific_date", berlinDay(8));
-
   const startByShiftId = new Map<string, { operatorId: string; ms: number } | null>();
+  let sq = supabaseAdmin
+    .from("scheduled_shifts")
+    .select("id, assigned_operator, specific_date, start_time, status");
+  sq = onlyShiftId
+    ? sq.eq("id", onlyShiftId)
+    : sq.gte("specific_date", berlinDay(-1)).lte("specific_date", berlinDay(8));
+  const { data: shiftRows } = await sq;
+  // A deleted shift has no row: its pending keys must be cancelled.
+  if (onlyShiftId && !(shiftRows ?? []).length) startByShiftId.set(onlyShiftId, null);
+
   for (const s of (shiftRows ?? []) as ShiftRow[]) {
     const opId = s.assigned_operator ? idByName.get(s.assigned_operator.toLowerCase()) : undefined;
     const start = berlinInstant(s.specific_date, s.start_time);
@@ -95,11 +67,14 @@ export async function reconcileShiftNotifications(): Promise<{
   }
 
   // --- delivery rows that no longer match a live shift ---
-  const { data: deliveries } = await supabaseAdmin
+  let dq = supabaseAdmin
     .from("push_notification_deliveries")
     .select("id, operator_id, notification_key, status, sent_at")
     .in("status", ["pending", "sending", "failed", "sent", "partial"])
     .gte("scheduled_at", new Date(now - 6 * 60 * 60_000).toISOString());
+  // Single-shift mutation: only that shift's delivery rows are touched.
+  if (onlyShiftId) dq = dq.like("notification_key", `%:${onlyShiftId}@%`);
+  const { data: deliveries } = await dq;
 
   const rows = (deliveries ?? []) as {
     id: string;
