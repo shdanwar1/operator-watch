@@ -25,6 +25,8 @@ const LOOKAHEAD_MS = 60 * 1000; // "due within this tick"
 const SHIFT_START_LEAD_MIN = 15;
 // A failed Time to Leave lookup is retried at most every 10 minutes.
 const TTL_RETRY_BACKOFF_MS = 10 * 60 * 1000;
+/** Time to Leave is calculated for the next shift once it is within this horizon. */
+const TTL_CALC_HORIZON_MS = 24 * 60 * 60 * 1000;
 
 function due(at: Date, now: number): boolean {
   const t = at.getTime();
@@ -115,6 +117,17 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         // ONE scheduled_shifts read serves all four notification types.
         const shiftRows = (shifts ?? []) as ShiftSnap[];
 
+        // Time to Leave is only calculated for each operator's NEXT shift.
+        const nextShiftByOp = new Map<string, { id: string; at: number }>();
+        for (const s of shiftRows) {
+          if (!s.assigned_operator || s.status === "cancelled") continue;
+          const opId = byName.get(normalizeUsername(s.assigned_operator));
+          const at = berlinInstant(s.specific_date, s.start_time)?.getTime();
+          if (!opId || at == null || at <= now) continue;
+          const cur = nextShiftByOp.get(opId);
+          if (!cur || at < cur.at) nextShiftByOp.set(opId, { id: s.id, at });
+        }
+
         for (const shift of shiftRows) {
           if (!shift.assigned_operator || shift.status === "cancelled") continue;
           const operatorId = byName.get(normalizeUsername(shift.assigned_operator));
@@ -126,8 +139,9 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           if (!start) continue;
 
           // --- Leave home: reads scheduled_shifts.time_to_leave, the same
-          // stored value the Dashboard shows. While it is still null, ~2 hours
-          // before the shift, try to calculate and save it (no-op once saved). ---
+          // stored value the Dashboard shows. While it is still null and this
+          // is the operator's next shift (within 24h), calculate and save it
+          // once; failures back off 10 minutes. No-op once saved. ---
           let timeToLeave = shift.time_to_leave;
           const untilStart = start.getTime() - now;
           const lastTry = shift.time_to_leave_attempted_at
@@ -135,8 +149,9 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             : 0;
           if (
             !timeToLeave &&
-            untilStart >= 2 * 60 * 60_000 &&
-            untilStart <= 140 * 60_000 &&
+            untilStart > 0 &&
+            untilStart <= TTL_CALC_HORIZON_MS &&
+            nextShiftByOp.get(operatorId)?.id === shift.id &&
             now - lastTry >= TTL_RETRY_BACKOFF_MS
           ) {
             const { resolveTimeToLeave } = await import("@/lib/time-to-leave.server");
