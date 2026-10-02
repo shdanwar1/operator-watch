@@ -5,7 +5,7 @@
  */
 
 /** The active session alone decides whether the notes editor is usable. */
-export function notesControlAvailable(state: { active: boolean }): boolean {
+export function notesControlAvailable(state: { active?: boolean }): boolean {
   return state.active === true;
 }
 
