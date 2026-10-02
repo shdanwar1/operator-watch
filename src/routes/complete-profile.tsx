@@ -41,7 +41,7 @@ export const Route = createFileRoute("/complete-profile")({
       <div className="min-h-screen grid place-items-center p-6 text-center">
         <div className="max-w-md space-y-3">
           <h1 className="text-lg font-semibold">This page didn't load</h1>
-          <p className="text-sm text-muted-foreground">{error?.message ?? "Something went wrong."}</p>
+          <p className="text-sm text-muted-foreground">{error instanceof Error ? error.message : "Something went wrong."}</p>
           <div className="flex justify-center gap-2">
             <Button onClick={() => { router.invalidate(); reset(); }}>Try again</Button>
             <Button variant="outline" asChild><Link to="/unlock">Back to unlock</Link></Button>

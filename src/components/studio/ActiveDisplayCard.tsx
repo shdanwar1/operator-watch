@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ArrowUpRight } from "lucide-react";
-import { notesEditable, type StudioDisplayState } from "@/lib/studio-display";
+import type { StudioDisplayState } from "@/lib/studio-display";
+import { cancelNotePatch, notesControlAvailable, sendNotePatch } from "@/lib/display-notes";
 import { fmtClock } from "@/lib/class-interval";
 
 /**
@@ -22,20 +23,22 @@ export function ActiveDisplayCard({
   onOpenDisplay: () => void;
   onEndSession: () => void;
 }) {
-  const [, force] = useState(0);
-
-  // Re-evaluates the notes window against the shared timer, no second engine.
-  useEffect(() => {
-    const t = setInterval(() => force((n) => n + 1), 5000);
-    return () => clearInterval(t);
-  }, []);
-
-  const canEditNotes = notesEditable(state, new Date());
+  // Local draft only — shared state.notes holds just the published message.
+  const [draft, setDraft] = useState("");
+  const canEditNotes = notesControlAvailable(state);
+  const published = (state.notes ?? "").trim();
   const title =
     state.className || state.presetLabel || "Studio Display";
   const timeLine = state.endTime
     ? `${fmtClock(state.startTime)} – ${fmtClock(state.endTime)} · ${state.durationMin} min`
     : `${fmtClock(state.startTime)} · ${state.durationMin} min`;
+
+  const send = () => {
+    const patch = sendNotePatch(draft);
+    if (!patch) return;
+    onNotesChange(patch.notes);
+    setDraft("");
+  };
 
   return (
     <Card className="border-2 border-primary/40">
@@ -55,15 +58,41 @@ export function ActiveDisplayCard({
           <Label htmlFor="active-notes" className="text-xs">
             Notes for display
           </Label>
+          {published ? (
+            <p className="rounded-xl bg-muted px-3 py-2 text-sm">
+              <span className="text-muted-foreground">On display: </span>
+              {published}
+            </p>
+          ) : null}
           <textarea
             id="active-notes"
             rows={3}
-            value={state.notes}
+            value={draft}
             disabled={!canEditNotes}
-            onChange={(e) => onNotesChange(e.target.value)}
-            placeholder={canEditNotes ? "Welcome everyone…" : "Available during class"}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={published ? "Type a new message…" : "Type your message…"}
             className="w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
           />
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="rounded-full"
+              disabled={!canEditNotes || !draft.trim()}
+              onClick={send}
+            >
+              Send
+            </Button>
+            {published ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => onNotesChange(cancelNotePatch().notes)}
+              >
+                Cancel
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
