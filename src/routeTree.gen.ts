@@ -9,69 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UnlockRouteImport } from './routes/unlock'
-import { Route as TimetableRouteImport } from './routes/timetable'
-import { Route as StudioDisplayRouteImport } from './routes/studio-display'
-import { Route as RecordRouteImport } from './routes/record'
-import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as EarningsRouteImport } from './routes/earnings'
-import { Route as DisplayRouteImport } from './routes/display'
-import { Route as CompleteProfileRouteImport } from './routes/complete-profile'
-import { Route as CalendarRouteImport } from './routes/calendar'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as CompleteProfileRouteImport } from './routes/complete-profile'
+import { Route as DisplayRouteImport } from './routes/display'
+import { Route as EarningsRouteImport } from './routes/earnings'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as RecordRouteImport } from './routes/record'
+import { Route as StudioDisplayRouteImport } from './routes/studio-display'
+import { Route as TimetableRouteImport } from './routes/timetable'
+import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
-import { Route as AdminTimetableRouteImport } from './routes/admin.timetable'
-import { Route as AdminShiftsRouteImport } from './routes/admin.shifts'
-import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
-import { Route as AdminOperatorsRouteImport } from './routes/admin.operators'
-import { Route as AdminChecklistsRouteImport } from './routes/admin.checklists'
 import { Route as AdminCalendarRouteImport } from './routes/admin.calendar'
+import { Route as AdminChecklistsRouteImport } from './routes/admin.checklists'
+import { Route as AdminOperatorsRouteImport } from './routes/admin.operators'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminShiftsRouteImport } from './routes/admin.shifts'
+import { Route as AdminTimetableRouteImport } from './routes/admin.timetable'
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
 
-const UnlockRoute = UnlockRouteImport.update({
-  id: '/unlock',
-  path: '/unlock',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TimetableRoute = TimetableRouteImport.update({
-  id: '/timetable',
-  path: '/timetable',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StudioDisplayRoute = StudioDisplayRouteImport.update({
-  id: '/studio-display',
-  path: '/studio-display',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecordRoute = RecordRouteImport.update({
-  id: '/record',
-  path: '/record',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EarningsRoute = EarningsRouteImport.update({
-  id: '/earnings',
-  path: '/earnings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DisplayRoute = DisplayRouteImport.update({
-  id: '/display',
-  path: '/display',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CompleteProfileRoute = CompleteProfileRouteImport.update({
-  id: '/complete-profile',
-  path: '/complete-profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CalendarRoute = CalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -79,9 +39,49 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompleteProfileRoute = CompleteProfileRouteImport.update({
+  id: '/complete-profile',
+  path: '/complete-profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DisplayRoute = DisplayRouteImport.update({
+  id: '/display',
+  path: '/display',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EarningsRoute = EarningsRouteImport.update({
+  id: '/earnings',
+  path: '/earnings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecordRoute = RecordRouteImport.update({
+  id: '/record',
+  path: '/record',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudioDisplayRoute = StudioDisplayRouteImport.update({
+  id: '/studio-display',
+  path: '/studio-display',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TimetableRoute = TimetableRouteImport.update({
+  id: '/timetable',
+  path: '/timetable',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnlockRoute = UnlockRouteImport.update({
+  id: '/unlock',
+  path: '/unlock',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -89,24 +89,9 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminTimetableRoute = AdminTimetableRouteImport.update({
-  id: '/timetable',
-  path: '/timetable',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminShiftsRoute = AdminShiftsRouteImport.update({
-  id: '/shifts',
-  path: '/shifts',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminOperatorsRoute = AdminOperatorsRouteImport.update({
-  id: '/operators',
-  path: '/operators',
+const AdminCalendarRoute = AdminCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminChecklistsRoute = AdminChecklistsRouteImport.update({
@@ -114,9 +99,24 @@ const AdminChecklistsRoute = AdminChecklistsRouteImport.update({
   path: '/checklists',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminCalendarRoute = AdminCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
+const AdminOperatorsRoute = AdminOperatorsRouteImport.update({
+  id: '/operators',
+  path: '/operators',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminShiftsRoute = AdminShiftsRouteImport.update({
+  id: '/shifts',
+  path: '/shifts',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTimetableRoute = AdminTimetableRouteImport.update({
+  id: '/timetable',
+  path: '/timetable',
   getParentRoute: () => AdminRoute,
 } as any)
 const ApiPublicHooksPushDispatchRoute =
@@ -271,67 +271,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/unlock': {
-      id: '/unlock'
-      path: '/unlock'
-      fullPath: '/unlock'
-      preLoaderRoute: typeof UnlockRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/timetable': {
-      id: '/timetable'
-      path: '/timetable'
-      fullPath: '/timetable'
-      preLoaderRoute: typeof TimetableRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/studio-display': {
-      id: '/studio-display'
-      path: '/studio-display'
-      fullPath: '/studio-display'
-      preLoaderRoute: typeof StudioDisplayRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/record': {
-      id: '/record'
-      path: '/record'
-      fullPath: '/record'
-      preLoaderRoute: typeof RecordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/earnings': {
-      id: '/earnings'
-      path: '/earnings'
-      fullPath: '/earnings'
-      preLoaderRoute: typeof EarningsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/display': {
-      id: '/display'
-      path: '/display'
-      fullPath: '/display'
-      preLoaderRoute: typeof DisplayRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/complete-profile': {
-      id: '/complete-profile'
-      path: '/complete-profile'
-      fullPath: '/complete-profile'
-      preLoaderRoute: typeof CompleteProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/calendar': {
-      id: '/calendar'
-      path: '/calendar'
-      fullPath: '/calendar'
-      preLoaderRoute: typeof CalendarRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -341,11 +285,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/complete-profile': {
+      id: '/complete-profile'
+      path: '/complete-profile'
+      fullPath: '/complete-profile'
+      preLoaderRoute: typeof CompleteProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/display': {
+      id: '/display'
+      path: '/display'
+      fullPath: '/display'
+      preLoaderRoute: typeof DisplayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/earnings': {
+      id: '/earnings'
+      path: '/earnings'
+      fullPath: '/earnings'
+      preLoaderRoute: typeof EarningsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/record': {
+      id: '/record'
+      path: '/record'
+      fullPath: '/record'
+      preLoaderRoute: typeof RecordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/studio-display': {
+      id: '/studio-display'
+      path: '/studio-display'
+      fullPath: '/studio-display'
+      preLoaderRoute: typeof StudioDisplayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/timetable': {
+      id: '/timetable'
+      path: '/timetable'
+      fullPath: '/timetable'
+      preLoaderRoute: typeof TimetableRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unlock': {
+      id: '/unlock'
+      path: '/unlock'
+      fullPath: '/unlock'
+      preLoaderRoute: typeof UnlockRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -355,32 +355,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/timetable': {
-      id: '/admin/timetable'
-      path: '/timetable'
-      fullPath: '/admin/timetable'
-      preLoaderRoute: typeof AdminTimetableRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/shifts': {
-      id: '/admin/shifts'
-      path: '/shifts'
-      fullPath: '/admin/shifts'
-      preLoaderRoute: typeof AdminShiftsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/settings': {
-      id: '/admin/settings'
-      path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminSettingsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/operators': {
-      id: '/admin/operators'
-      path: '/operators'
-      fullPath: '/admin/operators'
-      preLoaderRoute: typeof AdminOperatorsRouteImport
+    '/admin/calendar': {
+      id: '/admin/calendar'
+      path: '/calendar'
+      fullPath: '/admin/calendar'
+      preLoaderRoute: typeof AdminCalendarRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/checklists': {
@@ -390,11 +369,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminChecklistsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/calendar': {
-      id: '/admin/calendar'
-      path: '/calendar'
-      fullPath: '/admin/calendar'
-      preLoaderRoute: typeof AdminCalendarRouteImport
+    '/admin/operators': {
+      id: '/admin/operators'
+      path: '/operators'
+      fullPath: '/admin/operators'
+      preLoaderRoute: typeof AdminOperatorsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/shifts': {
+      id: '/admin/shifts'
+      path: '/shifts'
+      fullPath: '/admin/shifts'
+      preLoaderRoute: typeof AdminShiftsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/timetable': {
+      id: '/admin/timetable'
+      path: '/timetable'
+      fullPath: '/admin/timetable'
+      preLoaderRoute: typeof AdminTimetableRouteImport
       parentRoute: typeof AdminRoute
     }
     '/api/public/hooks/push-dispatch': {
