@@ -189,8 +189,7 @@ export type StagePhase =
   | "idle"          // no class scheduled recently / far in future
   | "before"        // >10s before start, showing icebreakers
   | "countdown10"   // final 10s cinematic countdown before class
-  | "joining"       // first 60s of class, blue, "Waiting for Participants"
-  | "startclass"    // 60s..90s, green, "Start the Class"
+  | "startclass"    // first 30s after start+1min, green, "Start the Class"
   | "live"          // green, "Time Remaining"
   | "warn5"         // yellow
   | "warn1"         // orange
@@ -222,20 +221,22 @@ export const STAGE_COLORS = {
   red: "#dc2626",
 } as const;
 
-const JOINING_MS = 60_000;   // first minute of class
-const STARTCLASS_MS = 30_000; // next 30s "START THE CLASS"
+/** Display-only offset: the screen treats scheduled start + 1 min as "go". */
+export const DISPLAY_START_OFFSET_MS = 60_000;
+const STARTCLASS_MS = 30_000; // first 30s after display start: "START THE CLASS"
 export const QA_MS = 5 * 60_000; // 5 min Q&A after class ends
 
 export function computeStage(state: StudioDisplayState, now: Date = new Date()): StageInfo {
   const start = resolveClassStart(state, now);
   const end = new Date(start.getTime() + state.durationMin * 60_000);
+  const displayStart = start.getTime() + DISPLAY_START_OFFSET_MS;
   const nowMs = now.getTime();
-  const untilStart = start.getTime() - nowMs;
+  const untilStart = displayStart - nowMs;
   const untilEnd = end.getTime() - nowMs;
-  const sinceStart = nowMs - start.getTime();
+  const sinceStart = nowMs - displayStart;
 
-  // Before class
-  if (nowMs < start.getTime()) {
+  // Before display start
+  if (nowMs < displayStart) {
     if (untilStart <= 10_000) {
       const n = Math.max(1, Math.ceil(untilStart / 1000));
       return {
@@ -328,19 +329,7 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
       pulse: false,
     };
   }
-  if (sinceStart < JOINING_MS) {
-    return {
-      phase: "joining",
-      label: "Waiting for Participants",
-      bgColor: STAGE_COLORS.blue,
-      fg: "light",
-      timerMs: untilEnd,
-      direction: "down",
-      blink: false,
-      pulse: false,
-    };
-  }
-  if (sinceStart < JOINING_MS + STARTCLASS_MS) {
+  if (sinceStart < STARTCLASS_MS) {
     return {
       phase: "startclass",
       label: "Start the Class",

@@ -8,6 +8,7 @@ import {
   resolveClassStart,
   QA_MS,
   CLASS_INFO_CUTOFF_MS,
+  DISPLAY_START_OFFSET_MS,
   STAGE_COLORS,
   type StageInfo,
 } from "@/lib/studio-display";
@@ -218,8 +219,9 @@ function DisplayScreen() {
 
   const now = new Date();
   const stage = computeStage(state, now);
+  // Pre-class windows follow the display start (scheduled start + 1 minute).
   const startAt = resolveClassStart(state, now);
-  const untilStart = startAt.getTime() - now.getTime();
+  const untilStart = startAt.getTime() + DISPLAY_START_OFFSET_MS - now.getTime();
 
   const hasClassInfo = !!(state.className?.trim() || state.teacherName?.trim());
   // Class name + teacher until exactly 5 minutes before start, then the
@@ -252,11 +254,6 @@ function DisplayScreen() {
     );
   }
 
-  // First minute of class: ring derived from the real class start timestamp.
-  const waitProgress =
-    stage.phase === "joining"
-      ? Math.max(0, Math.min(1, 1 - (now.getTime() - startAt.getTime()) / 60_000))
-      : null;
 
   return (
     <>
@@ -304,8 +301,6 @@ function DisplayScreen() {
           <CountdownCinematic n={stage.bigNumber ?? 1} />
         ) : stage.phase === "qa" ? (
           <QAStage stage={stage} />
-        ) : waitProgress !== null ? (
-          <WaitingStage progress={waitProgress} label={stage.label} />
         ) : showPreClass ? (
           <PreClassStage
             stage={stage}
@@ -983,55 +978,6 @@ function NotesPanel({ notes }: { notes: string }) {
  * The existing blue "waiting for participants" state with a ring derived from
  * the real class start timestamp (100% at start → 0% at start + 60s).
  * No second timer: the surrounding display ticker drives the re-render.
- */
-function WaitingStage({ progress, label }: { progress: number; label: string }) {
-  const R = 46;
-  const C = 2 * Math.PI * R;
-  const dash = C * Math.max(0, Math.min(1, progress));
-
-  return (
-    <div className="relative flex h-full w-full items-center justify-center">
-      <div
-        className="relative aspect-square"
-        style={{
-          containerType: "inline-size",
-          width: "min(72vmin, 92vw)",
-          maxWidth: "100%",
-          maxHeight: "100%",
-        }}
-      >
-        <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90">
-          <circle cx="50" cy="50" r={R} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth={0.5} />
-          <circle
-            cx="50"
-            cy="50"
-            r={R}
-            fill="none"
-            stroke="rgba(255,255,255,0.95)"
-            strokeWidth={1}
-            strokeLinecap="round"
-            strokeDasharray={`${dash} ${C - dash}`}
-            style={{ transition: "stroke-dasharray 300ms linear" }}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center px-[10cqi] text-center">
-          <div
-            className="sd-wait-pulse font-medium uppercase leading-tight"
-            style={{ fontSize: "clamp(0.7rem, 6cqi, 2.4rem)", letterSpacing: "0.22em" }}
-          >
-            {label || "Waiting for Participants"}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* --------------------------- Full-screen live note --------------------------- */
-
-/**
- * Renders the operator's note as the only content on screen, at the largest
- * font size that still fits the available area (binary search on real layout).
  */
 function AutoFitNote({ text }: { text: string }) {
   const boxRef = useRef<HTMLDivElement | null>(null);
