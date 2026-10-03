@@ -222,20 +222,22 @@ export const STAGE_COLORS = {
   red: "#dc2626",
 } as const;
 
-const JOINING_MS = 60_000;   // first minute of class
-const STARTCLASS_MS = 30_000; // next 30s "START THE CLASS"
+/** Display-only offset: the screen treats scheduled start + 1 min as "go". */
+export const DISPLAY_START_OFFSET_MS = 60_000;
+const STARTCLASS_MS = 30_000; // first 30s after display start: "START THE CLASS"
 export const QA_MS = 5 * 60_000; // 5 min Q&A after class ends
 
 export function computeStage(state: StudioDisplayState, now: Date = new Date()): StageInfo {
   const start = resolveClassStart(state, now);
   const end = new Date(start.getTime() + state.durationMin * 60_000);
+  const displayStart = start.getTime() + DISPLAY_START_OFFSET_MS;
   const nowMs = now.getTime();
-  const untilStart = start.getTime() - nowMs;
+  const untilStart = displayStart - nowMs;
   const untilEnd = end.getTime() - nowMs;
-  const sinceStart = nowMs - start.getTime();
+  const sinceStart = nowMs - displayStart;
 
-  // Before class
-  if (nowMs < start.getTime()) {
+  // Before display start
+  if (nowMs < displayStart) {
     if (untilStart <= 10_000) {
       const n = Math.max(1, Math.ceil(untilStart / 1000));
       return {

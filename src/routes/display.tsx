@@ -8,6 +8,7 @@ import {
   resolveClassStart,
   QA_MS,
   CLASS_INFO_CUTOFF_MS,
+  DISPLAY_START_OFFSET_MS,
   STAGE_COLORS,
   type StageInfo,
 } from "@/lib/studio-display";
@@ -218,8 +219,9 @@ function DisplayScreen() {
 
   const now = new Date();
   const stage = computeStage(state, now);
+  // Pre-class windows follow the display start (scheduled start + 1 minute).
   const startAt = resolveClassStart(state, now);
-  const untilStart = startAt.getTime() - now.getTime();
+  const untilStart = startAt.getTime() + DISPLAY_START_OFFSET_MS - now.getTime();
 
   const hasClassInfo = !!(state.className?.trim() || state.teacherName?.trim());
   // Class name + teacher until exactly 5 minutes before start, then the
@@ -252,11 +254,6 @@ function DisplayScreen() {
     );
   }
 
-  // First minute of class: ring derived from the real class start timestamp.
-  const waitProgress =
-    stage.phase === "joining"
-      ? Math.max(0, Math.min(1, 1 - (now.getTime() - startAt.getTime()) / 60_000))
-      : null;
 
   return (
     <>
@@ -304,8 +301,6 @@ function DisplayScreen() {
           <CountdownCinematic n={stage.bigNumber ?? 1} />
         ) : stage.phase === "qa" ? (
           <QAStage stage={stage} />
-        ) : waitProgress !== null ? (
-          <WaitingStage progress={waitProgress} label={stage.label} />
         ) : showPreClass ? (
           <PreClassStage
             stage={stage}
