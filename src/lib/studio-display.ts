@@ -189,8 +189,7 @@ export type StagePhase =
   | "idle"          // no class scheduled recently / far in future
   | "before"        // >10s before start, showing icebreakers
   | "countdown10"   // final 10s cinematic countdown before class
-  | "joining"       // first 60s of class, blue, "Waiting for Participants"
-  | "startclass"    // 60s..90s, green, "Start the Class"
+  | "startclass"    // first 30s after start+1min, green, "Start the Class"
   | "live"          // green, "Time Remaining"
   | "warn5"         // yellow
   | "warn1"         // orange
@@ -330,19 +329,7 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
       pulse: false,
     };
   }
-  if (sinceStart < JOINING_MS) {
-    return {
-      phase: "joining",
-      label: "Waiting for Participants",
-      bgColor: STAGE_COLORS.blue,
-      fg: "light",
-      timerMs: untilEnd,
-      direction: "down",
-      blink: false,
-      pulse: false,
-    };
-  }
-  if (sinceStart < JOINING_MS + STARTCLASS_MS) {
+  if (sinceStart < STARTCLASS_MS) {
     return {
       phase: "startclass",
       label: "Start the Class",
