@@ -308,7 +308,8 @@ export function AttendanceSection({ username }: { username: string | null }) {
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-5">
+          <AttendanceSummaryCard summary={summary} />
           {/* Attendance history */}
           <Card className="border-border/60 shadow-sm max-lg:glass max-lg:rounded-[22px]">
             <CardContent className="p-0">
@@ -320,7 +321,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setAddingPast(true)}>
+                  <Button size="sm" variant="ghost" className="border border-border/60" onClick={() => setAddingPast(true)}>
                     <Plus className="mr-1.5 h-3.5 w-3.5" /> Add past shift
                   </Button>
                   <Button size="sm" onClick={exportPdf} disabled={summary.rows.length === 0}>
@@ -353,16 +354,16 @@ export function AttendanceSection({ username }: { username: string | null }) {
 
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="w-8 px-2 py-3" />
-                      <th className="px-5 py-3 text-left">Date</th>
-                      <th className="px-5 py-3 text-left">Scheduled</th>
-                      <th className="px-5 py-3 text-left">Check in</th>
-                      <th className="px-5 py-3 text-left">Check out</th>
-                      <th className="px-5 py-3 text-right">Worked</th>
-                      <th className="px-5 py-3 text-right">Diff</th>
-                      <th className="px-5 py-3 text-center">Type</th>
+                  <thead className="text-[11px] tracking-[0.08em] text-muted-foreground/70">
+                    <tr className="border-b">
+                      <th className="w-8 px-2 py-2" />
+                      <th className="px-5 py-2 text-left font-medium">Date</th>
+                      <th className="px-5 py-2 text-left font-medium">Scheduled</th>
+                      <th className="px-5 py-2 text-left font-medium">Check in</th>
+                      <th className="px-5 py-2 text-left font-medium">Check out</th>
+                      <th className="px-5 py-2 text-right font-medium">Worked</th>
+                      <th className="px-5 py-2 text-right font-medium">Diff</th>
+                      <th className="px-5 py-2 text-center font-medium">Type</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -390,10 +391,6 @@ export function AttendanceSection({ username }: { username: string | null }) {
                   </tbody>
                 </table>
               </div>
-
-              {summary.rows.length > 0 && (
-                <AttendanceSummaryFooter summary={summary} />
-              )}
             </CardContent>
           </Card>
         </div>
@@ -418,39 +415,49 @@ export function AttendanceSection({ username }: { username: string | null }) {
   );
 }
 
-/**
- * Integrated summary footer — sits directly below the shift rows inside the
- * attendance card. Mirrors the reference design: "Total Hours" label on the
- * left, Day / Night / Weekend breakdowns separated by vertical dividers, and
- * the grand total in a highlighted box on the right.
- */
-function AttendanceSummaryFooter({ summary }: { summary: ReturnType<typeof summarizeMonth> }) {
+/** Month summary card shown above the attendance table. */
+function AttendanceSummaryCard({ summary }: { summary: ReturnType<typeof summarizeMonth> }) {
+  const parts = [
+    { key: "day", label: "Day", min: summary.dayMin, cls: "bg-hours-day" },
+    { key: "night", label: "Night", min: summary.nightMin, cls: "bg-hours-night" },
+    { key: "weekend", label: "Weekend", min: summary.weekendMin, cls: "bg-hours-weekend" },
+  ];
+  const total = parts.reduce((a, p) => a + p.min, 0);
+  const month = summary.monthLabel.split(" ")[0];
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border bg-muted/20 px-5 py-3.5 max-lg:px-4 max-lg:py-3">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
-        Total Hours
-      </span>
-      <div className="flex flex-1 items-stretch gap-x-4 min-w-[180px]">
-        <SummaryCell label="Day Hours" value={formatHM(summary.dayMin)} />
-        <SummaryCell label="Night Hours" value={formatHM(summary.nightMin)} divided />
-        <SummaryCell label="Weekend Hours" value={formatHM(summary.weekendMin)} divided />
-      </div>
-      <div className="rounded-lg bg-muted/50 px-4 py-1.5 max-lg:px-3">
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Total</div>
-        <div className="text-base font-bold tabular-nums text-foreground max-lg:text-sm">
-          {formatHM(summary.workedMin)}
+    <Card className="overflow-hidden rounded-[22px] border-border/60 shadow-none">
+      <CardContent className="grid p-0 md:grid-cols-2">
+        <div className="p-6 max-md:p-4">
+          <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            Total worked · {month}
+          </div>
+          <div className="mt-1 text-[42px] font-bold leading-tight tabular-nums">
+            {formatHM(summary.workedMin)}
+          </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function SummaryCell({ label, value, divided = false }: { label: string; value: string; divided?: boolean }) {
-  return (
-    <div className={`flex flex-col justify-center px-4 first:pl-0 max-lg:px-3 ${divided ? "border-l border-border" : ""}`}>
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-sm font-semibold tabular-nums text-foreground">{value}</div>
-    </div>
+        <div className="border-border p-6 max-md:border-t max-md:p-4 md:border-l">
+          <div className="flex gap-10 max-md:gap-6">
+            {parts.map((p) => (
+              <div key={p.key}>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className={`h-2 w-2 rounded-full ${p.cls}`} />
+                  {p.label}
+                </div>
+                <div className="mt-1 text-base font-semibold tabular-nums">{formatHM(p.min)}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+            {total > 0 &&
+              parts.map((p) =>
+                p.min > 0 ? (
+                  <div key={p.key} className={p.cls} style={{ width: `${(p.min / total) * 100}%` }} />
+                ) : null,
+              )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -512,25 +519,24 @@ function ShiftDetailPanel({
         <p className="text-xs text-muted-foreground">No classes logged.</p>
       )}
       {row.notes && <p className="mt-2 text-sm italic text-muted-foreground">"{row.notes}"</p>}
-      <div className="mt-3 flex justify-end gap-1 max-md:mt-1">
+      <div className="mt-3 flex justify-end gap-1.5 max-md:mt-1">
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={onEdit}
           aria-label="Edit shift"
-          className="max-md:h-9 max-md:w-9 max-md:p-0"
+          className="h-8 w-8 rounded-md"
         >
-          <Pencil className="h-3.5 w-3.5 md:mr-1" />
-          <span className="max-md:hidden">Edit</span>
+          <Pencil className="h-3.5 w-3.5" />
         </Button>
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
           onClick={onDelete}
           aria-label="Delete shift"
-          className="max-md:h-9 max-md:w-9"
+          className="h-8 w-8 rounded-md"
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>
     </div>
@@ -561,7 +567,7 @@ function AttendanceTableRow({
   return (
     <>
       <tr>
-        <td className="px-2 py-3 align-middle">
+        <td className="px-2 py-2 align-middle">
           <button
             type="button"
             onClick={onToggle}
@@ -574,25 +580,25 @@ function AttendanceTableRow({
             />
           </button>
         </td>
-        <td className="px-5 py-3">{fmtDate(row.date)}</td>
-        <td className="px-5 py-3 tabular-nums text-muted-foreground">
+        <td className="px-5 py-2">{fmtDate(row.date)}</td>
+        <td className="px-5 py-2 tabular-nums text-muted-foreground">
           {row.scheduledStart && row.scheduledEnd
             ? `${fmtTime(row.scheduledStart)}–${fmtTime(row.scheduledEnd)}`
             : "—"}
         </td>
-        <td className="px-5 py-3 tabular-nums">{fmtTime(row.checkIn)}</td>
-        <td className="px-5 py-3 tabular-nums">{fmtTime(row.checkOut)}</td>
-        <td className="px-5 py-3 text-right tabular-nums">{formatHM(row.workedMin)}</td>
-        <td className={`px-5 py-3 text-right tabular-nums ${diffColor}`}>
+        <td className="px-5 py-2 tabular-nums">{fmtTime(row.checkIn)}</td>
+        <td className="px-5 py-2 tabular-nums">{fmtTime(row.checkOut)}</td>
+        <td className="px-5 py-2 text-right tabular-nums">{formatHM(row.workedMin)}</td>
+        <td className={`px-5 py-2 text-right tabular-nums ${diffColor}`}>
           {row.diffMin != null ? formatDiff(row.diffMin) : "—"}
         </td>
-        <td className="px-5 py-3">
+        <td className="px-5 py-2">
           <div className="flex flex-wrap items-center justify-center gap-1">
             {(row.categories.length ? row.categories : [row.primary]).map((c) => (
               <Badge
                 key={c}
                 variant="secondary"
-                className="border-0 text-white"
+                className="border-0 px-2 py-0 text-[10px] leading-5 text-white"
                 style={{ backgroundColor: CATEGORY_COLOR[c] }}
               >
                 {CATEGORY_LABEL[c]}
@@ -603,8 +609,10 @@ function AttendanceTableRow({
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={8} className="border-t bg-muted/20 p-0">
-            <ShiftDetailPanel row={row} onEdit={onEdit} onDelete={onDelete} />
+          <td colSpan={8} className="border-t bg-background/60 p-0">
+            <div className="pl-10">
+              <ShiftDetailPanel row={row} onEdit={onEdit} onDelete={onDelete} />
+            </div>
           </td>
         </tr>
       )}
