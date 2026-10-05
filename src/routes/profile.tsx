@@ -7,13 +7,12 @@ import { releasePushEndpoint } from "@/lib/push.functions";
 import { unsubscribeFromPush } from "@/lib/push-client";
 import { clearAllCaches } from "@/lib/local-cache";
 import {
-  updateMyProfile,
   setMyHomeAddress,
   changeMyPin,
   getMyOperatorProfile,
   type OperatorProfile,
 } from "@/lib/operators.functions";
-import { getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
+import { getMyCalendarUrl } from "@/lib/gcal.functions";
 import { getMyAutoCheckout, setMyAutoCheckout } from "@/lib/auto-checkout.functions";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -29,7 +28,7 @@ import {
 import { toast, Toaster } from "sonner";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { PushDeviceToggle } from "@/components/PushDeviceToggle";
-import { USERNAME_RE, PIN_RE } from "@/lib/validation";
+import { PIN_RE } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/profile")({
@@ -59,23 +58,38 @@ export const Route = createFileRoute("/profile")({
   component: ProfilePage,
 });
 
-function Panel({
-  title,
-  aside,
+function Panel({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="overflow-hidden rounded-[18px] border border-border bg-card">
+      <header className="border-b border-border px-5 py-3.5">
+        <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
+      </header>
+      <div className="divide-y divide-border">{children}</div>
+    </section>
+  );
+}
+
+function Row({
+  label,
+  action,
   children,
 }: {
-  title: string;
-  aside?: ReactNode;
+  label?: string;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.03)] max-lg:glass max-lg:rounded-[18px]">
-      <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-        <h2 className="text-[14px] font-semibold tracking-tight">{title}</h2>
-        {aside}
-      </header>
-      <div className="px-5 py-4">{children}</div>
-    </section>
+    <div className="flex items-center justify-between gap-3 px-5 py-3.5">
+      <div className="min-w-0 flex-1">
+        {label && (
+          <div className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+            {label}
+          </div>
+        )}
+        <div className={label ? "mt-1" : undefined}>{children}</div>
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
   );
 }
 
@@ -264,72 +278,22 @@ function ProfilePage() {
 
   const {
     profile: initialProfile,
-    icsUrl: initialIcs,
+    icsUrl,
     autoCheckout: initialAuto,
   } = Route.useLoaderData();
   const saveAutoFn = useServerFn(setMyAutoCheckout);
   const [autoCheckout, setAutoCheckout] = useState(initialAuto);
-
-  const saveProfileFn = useServerFn(updateMyProfile);
-  const saveCalFn = useServerFn(setMyCalendarUrl);
-  const reloadProfile = useServerFn(getMyOperatorProfile);
-
   const [profile, setProfile] = useState<OperatorProfile>(initialProfile);
-  const [icsUrl, setIcsUrl] = useState<string | null>(initialIcs);
-
-  const [username, setUsername] = useState(profile.username);
-  const [calDraft, setCalDraft] = useState(icsUrl ?? "");
-  const [saving, setSaving] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
   const [homeOpen, setHomeOpen] = useState(false);
 
-  async function saveAll() {
-    const nameChanged = username.trim() !== "" && username.trim() !== profile.username;
-    if (nameChanged && !USERNAME_RE.test(username.trim())) {
-      return toast.error("Username must be 2–32 letters, numbers, . _ or -");
-    }
-
-    setSaving(true);
-    try {
-      if (nameChanged) {
-        await saveProfileFn({ data: { username: username.trim() } });
-      }
-
-      if (calDraft.trim() !== (icsUrl ?? "")) {
-        const res = await saveCalFn({ data: { url: calDraft } });
-        setIcsUrl(res.icsUrl);
-        setCalDraft(res.icsUrl ?? "");
-      }
-
-      if (nameChanged) {
-        const fresh = await reloadProfile();
-        setProfile(fresh);
-        setUsername(fresh.username);
-        await router.invalidate();
-      }
-
-      toast.success("Changes saved");
-    } catch (e) {
-      toast.error(friendlyError(e));
-    } finally {
-      setSaving(false);
-    }
-  }
-
   const connected = Boolean(icsUrl);
+  const actionBtn = "h-9 rounded-[10px] px-4";
 
   return (
     <AppShell>
       <Toaster richColors position="top-center" />
-      <PageHeader
-        eyebrow="Account"
-        title="Profile"
-        action={
-          <Button size="sm" className="h-9 px-4" onClick={saveAll} disabled={saving}>
-            {saving ? "Saving…" : "Save changes"}
-          </Button>
-        }
-      />
+      <PageHeader eyebrow="Account" title="Profile" />
 
       <ResetPinDialog open={pinOpen} onOpenChange={setPinOpen} />
       <ChangeHomeDialog
@@ -340,123 +304,102 @@ function ProfilePage() {
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="mx-auto max-w-[720px] space-y-4">
         <Panel title="Operator">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Username">
-              <Input
-                className="h-10"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </Field>
-            <Field label="PIN">
-              <Button
-                variant="outline"
-                className="h-10 w-full justify-center"
-                onClick={() => setPinOpen(true)}
-              >
+          <Row label="Username">
+            <p className="truncate text-[16px] font-semibold">{profile.username}</p>
+          </Row>
+          <Row
+            label="PIN"
+            action={
+              <Button variant="outline" className={actionBtn} onClick={() => setPinOpen(true)}>
                 Reset PIN
               </Button>
-            </Field>
-          </div>
-          <div className="mt-4">
-            <Field label="Home address">
-              <div className="flex items-center gap-3">
-                <p className="min-w-0 flex-1 truncate text-[13px]">
-                  {profile.home_label ?? <span className="text-muted-foreground">Not set</span>}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 shrink-0"
-                  onClick={() => setHomeOpen(true)}
-                >
-                  Change
-                </Button>
-              </div>
-            </Field>
-          </div>
+            }
+          >
+            <p className="text-[16px] font-bold tracking-[0.2em]" aria-label="PIN hidden">
+              ••••
+            </p>
+          </Row>
+          <Row
+            label="Home address"
+            action={
+              <Button variant="outline" className={actionBtn} onClick={() => setHomeOpen(true)}>
+                Change
+              </Button>
+            }
+          >
+            <p className="truncate text-[15px]">
+              {profile.home_label ?? <span className="text-muted-foreground">Not set</span>}
+            </p>
+          </Row>
         </Panel>
 
-        <Panel
-          title="Google Calendar"
-          aside={
+        <Panel title="Google Calendar">
+          <Row label="Status">
             <span
               className={cn(
-                "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                "inline-block rounded-full px-2.5 py-0.5 text-[12px] font-medium",
                 connected ? "bg-done-soft text-done" : "bg-muted text-muted-foreground",
               )}
             >
               {connected ? "Connected" : "Not connected"}
             </span>
-          }
-        >
-          <div>
-            <Field label="Public iCal URL">
-              <Input
-                className="h-10"
-                placeholder="https://calendar.google.com/calendar/ical/…/basic.ics"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                value={calDraft}
-                onChange={(e) => setCalDraft(e.target.value)}
-              />
-            </Field>
-          </div>
+          </Row>
+          <Row label="Public iCal URL">
+            <p className="break-all text-[13px] text-muted-foreground">{icsUrl ?? "Not set"}</p>
+          </Row>
         </Panel>
 
-        <Panel title="Check out">
-          <div className="flex items-center justify-between gap-3">
-            <label htmlFor="auto-checkout" className="text-[13px]">
+        <Panel title="Shift">
+          <Row
+            action={
+              <Switch
+                id="auto-checkout"
+                checked={autoCheckout}
+                className="h-7 w-12 data-[state=checked]:bg-foreground data-[state=unchecked]:bg-muted [&>span]:h-6 [&>span]:w-6 [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=checked]:bg-background [&>span]:data-[state=unchecked]:bg-muted-foreground"
+                onCheckedChange={async (v) => {
+                  setAutoCheckout(v);
+                  try {
+                    await saveAutoFn({ data: { enabled: v } });
+                  } catch (e) {
+                    setAutoCheckout(!v);
+                    toast.error(friendlyError(e));
+                  }
+                }}
+              />
+            }
+          >
+            <label htmlFor="auto-checkout" className="text-[15px]">
               Auto check out at end of shift
             </label>
-            <Switch
-              id="auto-checkout"
-              checked={autoCheckout}
-              onCheckedChange={async (v) => {
-                setAutoCheckout(v);
-                try {
-                  await saveAutoFn({ data: { enabled: v } });
-                } catch (e) {
-                  setAutoCheckout(!v);
-                  toast.error(friendlyError(e));
-                }
-              }}
-            />
-          </div>
+          </Row>
         </Panel>
 
         <Panel title="Notifications">
           <PushDeviceToggle />
         </Panel>
 
+        <button
+          type="button"
+          onClick={async () => {
+            clearAllCaches();
+            // Release the push endpoint so the next operator on this device
+            // doesn't inherit this session's reminders (matches sidebar logout).
+            try {
+              const endpoint = await unsubscribeFromPush();
+              if (endpoint) await releaseEndpoint({ data: { endpoint } });
+            } catch {
+              /* ignore — sign-out must proceed regardless */
+            }
+            await signOut();
+            await router.navigate({ to: "/unlock" });
+          }}
+          className="press !mt-6 w-full rounded-[18px] border border-border bg-card py-4 text-[16px] font-semibold text-destructive lg:hidden"
+        >
+          Log out
+        </button>
       </div>
-
-      {/* Mobile: logout lives here since the bottom tab bar has no room for it. */}
-      <button
-        type="button"
-        onClick={async () => {
-          clearAllCaches();
-          // Release the push endpoint so the next operator on this device
-          // doesn't inherit this session's reminders (matches sidebar logout).
-          try {
-            const endpoint = await unsubscribeFromPush();
-            if (endpoint) await releaseEndpoint({ data: { endpoint } });
-          } catch {
-            /* ignore — sign-out must proceed regardless */
-          }
-          await signOut();
-          await router.navigate({ to: "/unlock" });
-        }}
-        className="press mt-4 w-full rounded-[18px] border border-border py-3.5 text-[15px] font-medium text-destructive glass lg:hidden"
-      >
-        Log out
-      </button>
     </AppShell>
   );
 }
