@@ -14,6 +14,8 @@ import {
   type OperatorProfile,
 } from "@/lib/operators.functions";
 import { getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
+import { getMyAutoCheckout, setMyAutoCheckout } from "@/lib/auto-checkout.functions";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -39,12 +41,14 @@ export const Route = createFileRoute("/profile")({
   loader: async (): Promise<{
     profile: OperatorProfile;
     icsUrl: string | null;
+    autoCheckout: boolean;
   }> => {
-    const [profile, calRes] = await Promise.all([
+    const [profile, calRes, auto] = await Promise.all([
       getMyOperatorProfile(),
       getMyCalendarUrl().catch(() => ({ icsUrl: null as string | null })),
+      getMyAutoCheckout().catch(() => ({ enabled: true })),
     ]);
-    return { profile, icsUrl: calRes.icsUrl };
+    return { profile, icsUrl: calRes.icsUrl, autoCheckout: auto.enabled };
   },
   head: () => ({
     meta: pageMeta(
@@ -261,7 +265,10 @@ function ProfilePage() {
   const {
     profile: initialProfile,
     icsUrl: initialIcs,
+    autoCheckout: initialAuto,
   } = Route.useLoaderData();
+  const saveAutoFn = useServerFn(setMyAutoCheckout);
+  const [autoCheckout, setAutoCheckout] = useState(initialAuto);
 
   const saveProfileFn = useServerFn(updateMyProfile);
   const saveCalFn = useServerFn(setMyCalendarUrl);
@@ -400,6 +407,27 @@ function ProfilePage() {
                 onChange={(e) => setCalDraft(e.target.value)}
               />
             </Field>
+          </div>
+        </Panel>
+
+        <Panel title="Check out">
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="auto-checkout" className="text-[13px]">
+              Auto check out at end of shift
+            </label>
+            <Switch
+              id="auto-checkout"
+              checked={autoCheckout}
+              onCheckedChange={async (v) => {
+                setAutoCheckout(v);
+                try {
+                  await saveAutoFn({ data: { enabled: v } });
+                } catch (e) {
+                  setAutoCheckout(!v);
+                  toast.error(friendlyError(e));
+                }
+              }}
+            />
           </div>
         </Panel>
 
