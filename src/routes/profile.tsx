@@ -271,17 +271,102 @@ function ChangeHomeDialog({
   );
 }
 
+function EditCalendarDialog({
+  open,
+  onOpenChange,
+  current,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  current: string | null;
+  onSaved: (url: string | null) => void;
+}) {
+  const saveCal = useServerFn(setMyCalendarUrl);
+  const [url, setUrl] = useState(current ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (busy) return;
+        if (v) setUrl(current ?? "");
+        setError(null);
+        onOpenChange(v);
+      }}
+    >
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Google Calendar link</DialogTitle>
+          <DialogDescription>Paste your public iCal address from Google Calendar.</DialogDescription>
+        </DialogHeader>
+        <Field label="Public iCal URL">
+          <Input
+            className="h-10"
+            placeholder="https://calendar.google.com/calendar/ical/…/basic.ics"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={url}
+            onChange={(e) => {
+              setUrl(e.target.value);
+              setError(null);
+            }}
+          />
+        </Field>
+        {error && (
+          <p role="alert" className="text-[12px] text-destructive">
+            {error}
+          </p>
+        )}
+        <DialogFooter>
+          <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            disabled={!url.trim() || busy || url.trim() === (current ?? "")}
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              try {
+                const res = await saveCal({ data: { url: url.trim() } });
+                onSaved(res.icsUrl);
+                toast.success("Calendar link updated");
+                onOpenChange(false);
+              } catch (e) {
+                setError(friendlyError(e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? "Verifying…" : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ProfilePage() {
   const router = useRouter();
   const signOut = useServerFn(signOutUser);
   const releaseEndpoint = useServerFn(releasePushEndpoint);
 
-  const { profile: initialProfile, icsUrl, autoCheckout: initialAuto } = Route.useLoaderData();
+  const {
+    profile: initialProfile,
+    icsUrl: initialIcs,
+    autoCheckout: initialAuto,
+  } = Route.useLoaderData();
   const saveAutoFn = useServerFn(setMyAutoCheckout);
   const [autoCheckout, setAutoCheckout] = useState(initialAuto);
   const [profile, setProfile] = useState<OperatorProfile>(initialProfile);
+  const [icsUrl, setIcsUrl] = useState<string | null>(initialIcs);
   const [pinOpen, setPinOpen] = useState(false);
   const [homeOpen, setHomeOpen] = useState(false);
+  const [calOpen, setCalOpen] = useState(false);
 
   const connected = Boolean(icsUrl);
   const actionBtn = "h-9 rounded-[10px] px-4";
@@ -298,6 +383,12 @@ function ProfilePage() {
         onSaved={(res) =>
           setProfile((p) => ({ ...p, home_label: res.label, home_lat: res.lat, home_lng: res.lng }))
         }
+      />
+      <EditCalendarDialog
+        open={calOpen}
+        onOpenChange={setCalOpen}
+        current={icsUrl}
+        onSaved={setIcsUrl}
       />
 
       <div className="mx-auto max-w-[720px] space-y-4">
@@ -332,7 +423,14 @@ function ProfilePage() {
         </Panel>
 
         <Panel title="Google Calendar">
-          <Row label="Status">
+          <Row
+            label="Status"
+            action={
+              <Button variant="outline" className={actionBtn} onClick={() => setCalOpen(true)}>
+                Edit
+              </Button>
+            }
+          >
             <span
               className={cn(
                 "inline-block rounded-full px-2.5 py-0.5 text-[12px] font-medium",
@@ -341,9 +439,6 @@ function ProfilePage() {
             >
               {connected ? "Connected" : "Not connected"}
             </span>
-          </Row>
-          <Row label="Public iCal URL">
-            <p className="break-all text-[13px] text-muted-foreground">{icsUrl ?? "Not set"}</p>
           </Row>
         </Panel>
 
