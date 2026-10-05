@@ -12,7 +12,7 @@ import {
   getMyOperatorProfile,
   type OperatorProfile,
 } from "@/lib/operators.functions";
-import { getMyCalendarUrl } from "@/lib/gcal.functions";
+import { getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
 import { getMyAutoCheckout, setMyAutoCheckout } from "@/lib/auto-checkout.functions";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -300,7 +300,9 @@ function EditCalendarDialog({
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Google Calendar link</DialogTitle>
-          <DialogDescription>Paste your public iCal address from Google Calendar.</DialogDescription>
+          <DialogDescription>
+            Paste your public iCal address from Google Calendar.
+          </DialogDescription>
         </DialogHeader>
         <Field label="Public iCal URL">
           <Input
