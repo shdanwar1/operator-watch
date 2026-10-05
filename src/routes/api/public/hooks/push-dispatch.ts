@@ -55,6 +55,15 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
         const now = Date.now();
 
+        // Auto check-out runs first and independently of reminders.
+        let autoCheckedOut = 0;
+        try {
+          const { runAutoCheckout } = await import("@/lib/auto-checkout.server");
+          autoCheckedOut = await runAutoCheckout(new Date(now));
+        } catch (e) {
+          console.error("auto-checkout sweep failed", e);
+        }
+
         const { data: operators, error: opErr } = await supabaseAdmin
           .from("operators")
           .select("id, username")
@@ -357,7 +366,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         // Expired-row cleanup runs once a day (push_daily_maintenance); the
         // claim already refuses expired rows, so nothing is needed here.
 
-        return Response.json({ ok: true, ...stats });
+        return Response.json({ ok: true, autoCheckedOut, ...stats });
       },
     },
   },
