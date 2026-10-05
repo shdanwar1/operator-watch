@@ -434,35 +434,16 @@ export const checkOutShift = createServerFn({ method: "POST" })
       },
       now,
     );
-    // Server-side gate: a direct request cannot bypass the End Shift checklist.
-    assertEndChecklistComplete((existing as { checklists?: unknown }).checklists);
-
-    const patch: ShiftPatch = { check_out_at: now.toISOString() };
-    if (data.classes !== undefined) {
-      patch.classes = data.classes;
-      patch.live_streams_count = data.classes.length;
-    }
-
-    const { data: closed, error } = await supabaseAdmin
-      .from("shifts")
-      .update(patch as never)
-      .eq("id", data.id)
-      .is("check_out_at", null)
-      .select("id")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
+    // Server-side gate (inside closeShift): the End Shift checklist must be done.
+    const { closeShift } = await import("./shift-close.server");
+    const closed = await closeShift({
+      shiftId: data.id,
+      checklists: (existing as { checklists?: unknown }).checklists,
+      scheduledShiftId: existing.scheduled_shift_id ? String(existing.scheduled_shift_id) : null,
+      checkOutAt: now,
+      classes: data.classes,
+    });
     if (!closed) throw new Error("This shift is already checked out");
-
-    // Checkout is the authoritative completion event for a scheduled shift.
-    // Class rows stay untouched so admins keep full history.
-    const scheduledId = existing.scheduled_shift_id ? String(existing.scheduled_shift_id) : null;
-    if (scheduledId) {
-      await supabaseAdmin
-        .from("scheduled_shifts")
-        .update({ status: "completed" } as never)
-        .eq("id", scheduledId)
-        .neq("status", "cancelled");
-    }
 
     return { ok: true as const, check_out_at: now.toISOString() };
   });
