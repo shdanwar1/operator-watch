@@ -28,8 +28,10 @@ import {
 import { currentDevice, type DeviceInfo } from "@/lib/device-info";
 
 const SUBSCRIBE_ERRORS: Record<string, string> = {
-  needs_install: "On iPhone and iPad, add the app to your Home Screen first, then enable notifications.",
-  denied: "Notifications are blocked for this site. Allow them in your browser settings, then try again.",
+  needs_install:
+    "On iPhone and iPad, add the app to your Home Screen first, then enable notifications.",
+  denied:
+    "Notifications are blocked for this site. Allow them in your browser settings, then try again.",
   unsupported: "This browser doesn't support background notifications.",
   no_key: "Notifications aren't configured yet.",
   failed: "Couldn't create a notification subscription on this device.",
@@ -64,7 +66,10 @@ export function PushDeviceToggle() {
   const refresh = useCallback(async () => {
     setDevice(currentDevice());
     setSupport(pushSupport());
-    const [status, local] = await Promise.all([fetchStatus(), currentPushEndpoint().catch(() => null)]);
+    const [status, local] = await Promise.all([
+      fetchStatus(),
+      currentPushEndpoint().catch(() => null),
+    ]);
     setDevices(status.devices);
     setEndpoint(local);
   }, [fetchStatus]);
@@ -85,7 +90,11 @@ export function PushDeviceToggle() {
       const { publicKey } = await fetchKey();
       const res = await subscribeToPush(publicKey);
       if (!res.ok) {
-        setError(res.detail ? `${SUBSCRIBE_ERRORS[res.reason]} (${res.detail})` : SUBSCRIBE_ERRORS[res.reason]);
+        setError(
+          res.detail
+            ? `${SUBSCRIBE_ERRORS[res.reason]} (${res.detail})`
+            : SUBSCRIBE_ERRORS[res.reason],
+        );
         return;
       }
       const saved = await register({
@@ -145,7 +154,9 @@ export function PushDeviceToggle() {
       const res = await test();
       if (res.total === 0) toast.error("No device is registered for notifications yet");
       else if (res.sent > 0)
-        toast.success(res.failed > 0 ? `Test sent to ${res.sent} of ${res.total} devices` : "Test sent");
+        toast.success(
+          res.failed > 0 ? `Test sent to ${res.sent} of ${res.total} devices` : "Test sent",
+        );
       else toast.error("Couldn't deliver the test to any device");
     } catch (e) {
       toast.error(errorText(e, "Couldn't send a test"));
@@ -173,7 +184,13 @@ export function PushDeviceToggle() {
             <div className="text-[15px] font-semibold">{device?.label ?? "…"}</div>
             {hint && <div className="mt-0.5 text-[13px] text-muted-foreground">{hint}</div>}
           </div>
-          <span className={thisOn ? "shrink-0 text-[13px] text-done" : "shrink-0 text-[13px] text-muted-foreground"}>
+          <span
+            className={
+              thisOn
+                ? "shrink-0 text-[13px] text-done"
+                : "shrink-0 text-[13px] text-muted-foreground"
+            }
+          >
             {thisOn ? "On" : status === "Notifications unavailable" ? "Unavailable" : "Off"}
           </span>
         </div>
@@ -226,7 +243,9 @@ export function PushDeviceToggle() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Clear all notification devices?</DialogTitle>
-            <DialogDescription>This will disable notifications on all registered devices.</DialogDescription>
+            <DialogDescription>
+              This will disable notifications on all registered devices.
+            </DialogDescription>
           </DialogHeader>
           {error && <div className="text-[13px] text-destructive">{error}</div>}
           <DialogFooter>

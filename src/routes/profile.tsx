@@ -276,11 +276,7 @@ function ProfilePage() {
   const signOut = useServerFn(signOutUser);
   const releaseEndpoint = useServerFn(releasePushEndpoint);
 
-  const {
-    profile: initialProfile,
-    icsUrl,
-    autoCheckout: initialAuto,
-  } = Route.useLoaderData();
+  const { profile: initialProfile, icsUrl, autoCheckout: initialAuto } = Route.useLoaderData();
   const saveAutoFn = useServerFn(setMyAutoCheckout);
   const [autoCheckout, setAutoCheckout] = useState(initialAuto);
   const [profile, setProfile] = useState<OperatorProfile>(initialProfile);
