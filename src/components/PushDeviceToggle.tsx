@@ -28,8 +28,10 @@ import {
 import { currentDevice, type DeviceInfo } from "@/lib/device-info";
 
 const SUBSCRIBE_ERRORS: Record<string, string> = {
-  needs_install: "On iPhone and iPad, add the app to your Home Screen first, then enable notifications.",
-  denied: "Notifications are blocked for this site. Allow them in your browser settings, then try again.",
+  needs_install:
+    "On iPhone and iPad, add the app to your Home Screen first, then enable notifications.",
+  denied:
+    "Notifications are blocked for this site. Allow them in your browser settings, then try again.",
   unsupported: "This browser doesn't support background notifications.",
   no_key: "Notifications aren't configured yet.",
   failed: "Couldn't create a notification subscription on this device.",
@@ -64,7 +66,10 @@ export function PushDeviceToggle() {
   const refresh = useCallback(async () => {
     setDevice(currentDevice());
     setSupport(pushSupport());
-    const [status, local] = await Promise.all([fetchStatus(), currentPushEndpoint().catch(() => null)]);
+    const [status, local] = await Promise.all([
+      fetchStatus(),
+      currentPushEndpoint().catch(() => null),
+    ]);
     setDevices(status.devices);
     setEndpoint(local);
   }, [fetchStatus]);
@@ -85,7 +90,11 @@ export function PushDeviceToggle() {
       const { publicKey } = await fetchKey();
       const res = await subscribeToPush(publicKey);
       if (!res.ok) {
-        setError(res.detail ? `${SUBSCRIBE_ERRORS[res.reason]} (${res.detail})` : SUBSCRIBE_ERRORS[res.reason]);
+        setError(
+          res.detail
+            ? `${SUBSCRIBE_ERRORS[res.reason]} (${res.detail})`
+            : SUBSCRIBE_ERRORS[res.reason],
+        );
         return;
       }
       const saved = await register({
@@ -145,7 +154,9 @@ export function PushDeviceToggle() {
       const res = await test();
       if (res.total === 0) toast.error("No device is registered for notifications yet");
       else if (res.sent > 0)
-        toast.success(res.failed > 0 ? `Test sent to ${res.sent} of ${res.total} devices` : "Test sent");
+        toast.success(
+          res.failed > 0 ? `Test sent to ${res.sent} of ${res.total} devices` : "Test sent",
+        );
       else toast.error("Couldn't deliver the test to any device");
     } catch (e) {
       toast.error(errorText(e, "Couldn't send a test"));
@@ -164,17 +175,27 @@ export function PushDeviceToggle() {
     hint = support.needsInstall ? SUBSCRIBE_ERRORS.needs_install : SUBSCRIBE_ERRORS.unsupported;
   }
 
+  const thisOn = enabled;
   return (
-    <div className="py-3">
-      <div className="text-[12px] uppercase tracking-wide text-muted-foreground">This device</div>
-      <div className="mt-1 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-[15px]">{device?.label ?? "…"}</div>
-          <div className={enabled ? "text-[13px] text-done" : "text-[13px] text-muted-foreground"}>{status}</div>
-          {hint && <div className="mt-0.5 text-[12px] text-muted-foreground">{hint}</div>}
+    <>
+      <div className="px-5 py-3.5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[15px] font-semibold">{device?.label ?? "…"}</div>
+            {hint && <div className="mt-0.5 text-[13px] text-muted-foreground">{hint}</div>}
+          </div>
+          <span
+            className={
+              thisOn
+                ? "shrink-0 text-[13px] text-done"
+                : "shrink-0 text-[13px] text-muted-foreground"
+            }
+          >
+            {thisOn ? "On" : status === "Notifications unavailable" ? "Unavailable" : "Off"}
+          </span>
         </div>
         {!isDesktop && support?.supported && (
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="mt-2.5 flex items-center gap-2">
             {enabled ? (
               <>
                 <Button size="sm" variant="outline" onClick={() => void sendTest()}>
@@ -191,44 +212,40 @@ export function PushDeviceToggle() {
             )}
           </div>
         )}
+        {error && (
+          <div role="alert" className="mt-2 text-[13px] text-destructive">
+            {error}
+          </div>
+        )}
       </div>
 
-      {error && (
-        <div role="alert" className="mt-2 text-[13px] text-destructive">
-          {error}
+      {others.map((d) => (
+        <div key={d.endpoint} className="flex items-start justify-between gap-3 px-5 py-3.5">
+          <div className="min-w-0 truncate text-[15px] font-semibold">{d.label}</div>
+          <span className="shrink-0 text-[13px] text-done">On</span>
         </div>
-      )}
-
-      {others.length > 0 && (
-        <div className="mt-4">
-          <div className="text-[12px] uppercase tracking-wide text-muted-foreground">Other devices</div>
-          <ul className="mt-1 divide-y divide-border">
-            {others.map((d) => (
-              <li key={d.endpoint} className="py-2">
-                <div className="text-[15px]">{d.label}</div>
-                <div className="text-[13px] text-done">Notifications On</div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      ))}
 
       {devices.length > 0 && (
-        <button
-          type="button"
-          className="press mt-3 text-[13px] text-destructive"
-          disabled={busy}
-          onClick={() => setConfirmClear(true)}
-        >
-          Clear all devices
-        </button>
+        <div className="px-5 py-3">
+          <button
+            type="button"
+            className="press text-[14px] text-destructive"
+            disabled={busy}
+            onClick={() => setConfirmClear(true)}
+          >
+            Clear all devices
+          </button>
+        </div>
       )}
 
       <Dialog open={confirmClear} onOpenChange={(o) => !busy && setConfirmClear(o)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Clear all notification devices?</DialogTitle>
-            <DialogDescription>This will disable notifications on all registered devices.</DialogDescription>
+            <DialogDescription>
+              This will disable notifications on all registered devices.
+            </DialogDescription>
           </DialogHeader>
           {error && <div className="text-[13px] text-destructive">{error}</div>}
           <DialogFooter>
@@ -241,6 +258,6 @@ export function PushDeviceToggle() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
