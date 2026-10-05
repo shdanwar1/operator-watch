@@ -47,6 +47,26 @@ export const setMyCalendarUrl = createServerFn({ method: "POST" })
         "Could not read that link. Paste the public ICS URL (ends in .ics) from Google Calendar → Settings → Integrate calendar → Public address in iCal format.",
       );
     }
+    if (normalized) {
+      // Verify the link really opens a public calendar before saving it.
+      const bad = new Error(
+        "This link doesn't open a public Google Calendar. Check that the calendar is public and copy the iCal address again.",
+      );
+      let body = "";
+      try {
+        const { followRedirectsSafely } = await import("./safe-fetch.server");
+        const target = await followRedirectsSafely(normalized);
+        const res = await fetch(target, {
+          redirect: "manual",
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (res.status !== 200) throw bad;
+        body = (await res.text()).slice(0, 200);
+      } catch {
+        throw bad;
+      }
+      if (!body.trimStart().startsWith("BEGIN:VCALENDAR")) throw bad;
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("operators")
