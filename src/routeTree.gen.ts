@@ -28,6 +28,7 @@ import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminShiftsRouteImport } from './routes/admin.shifts'
 import { Route as AdminTimetableRouteImport } from './routes/admin.timetable'
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
+import { Route as ApiPublicHooksTimetableSyncRouteImport } from './routes/api/public/hooks/timetable-sync'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -125,6 +126,12 @@ const ApiPublicHooksPushDispatchRoute =
     path: '/api/public/hooks/push-dispatch',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksTimetableSyncRoute =
+  ApiPublicHooksTimetableSyncRouteImport.update({
+    id: '/api/public/hooks/timetable-sync',
+    path: '/api/public/hooks/timetable-sync',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/admin/timetable': typeof AdminTimetableRoute
   '/admin/': typeof AdminIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
+  '/api/public/hooks/timetable-sync': typeof ApiPublicHooksTimetableSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -166,6 +174,7 @@ export interface FileRoutesByTo {
   '/admin/timetable': typeof AdminTimetableRoute
   '/admin': typeof AdminIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
+  '/api/public/hooks/timetable-sync': typeof ApiPublicHooksTimetableSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -188,6 +197,7 @@ export interface FileRoutesById {
   '/admin/timetable': typeof AdminTimetableRoute
   '/admin/': typeof AdminIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
+  '/api/public/hooks/timetable-sync': typeof ApiPublicHooksTimetableSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
     | '/admin/timetable'
     | '/admin/'
     | '/api/public/hooks/push-dispatch'
+    | '/api/public/hooks/timetable-sync'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -231,6 +242,7 @@ export interface FileRouteTypes {
     | '/admin/timetable'
     | '/admin'
     | '/api/public/hooks/push-dispatch'
+    | '/api/public/hooks/timetable-sync'
   id:
     | '__root__'
     | '/'
@@ -252,6 +264,7 @@ export interface FileRouteTypes {
     | '/admin/timetable'
     | '/admin/'
     | '/api/public/hooks/push-dispatch'
+    | '/api/public/hooks/timetable-sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -267,6 +280,7 @@ export interface RootRouteChildren {
   TimetableRoute: typeof TimetableRoute
   UnlockRoute: typeof UnlockRoute
   ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
+  ApiPublicHooksTimetableSyncRoute: typeof ApiPublicHooksTimetableSyncRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -404,6 +418,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksPushDispatchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/timetable-sync': {
+      id: '/api/public/hooks/timetable-sync'
+      path: '/api/public/hooks/timetable-sync'
+      fullPath: '/api/public/hooks/timetable-sync'
+      preLoaderRoute: typeof ApiPublicHooksTimetableSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -442,6 +463,7 @@ const rootRouteChildren: RootRouteChildren = {
   TimetableRoute: TimetableRoute,
   UnlockRoute: UnlockRoute,
   ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
+  ApiPublicHooksTimetableSyncRoute: ApiPublicHooksTimetableSyncRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
