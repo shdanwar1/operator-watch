@@ -44,24 +44,15 @@ export type TimetableRefreshResult =
   | { ok: false; error: string };
 
 /**
- * Fetch → validate → commit. Any failure before the commit leaves the stored
- * timetable exactly as it was.
+ * Fetch → validate → commit, via the shared sync engine (also used by the
+ * daily 05:00 job). Any failure before the commit leaves the stored timetable
+ * exactly as it was.
  */
 export const refreshLiveTimetable = createServerFn({ method: "POST" }).handler(
   async (): Promise<TimetableRefreshResult> => {
     await requireAdmin();
-    const { dmcPublicTimetableProvider } = await import("@/domain/dmc-timetable-provider.server");
-    const result = await dmcPublicTimetableProvider.fetchTimetable();
-    if (!result.ok) return { ok: false, error: result.error };
-
-    const { commitSnapshot } = await import("@/domain/timetable-repository.server");
-    const committed = await commitSnapshot(result.snapshot);
-    return {
-      ok: true,
-      ...committed,
-      anomalies: result.anomalies,
-      refreshedAt: result.snapshot.fetchedAt,
-    };
+    const { runTimetableSync } = await import("@/domain/timetable-sync.server");
+    return runTimetableSync();
   },
 );
 
