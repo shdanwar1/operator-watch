@@ -26,7 +26,7 @@ const SHIFT_START_LEAD_MIN = 15;
 // A failed Time to Leave lookup is retried at most every 10 minutes.
 const TTL_RETRY_BACKOFF_MS = 10 * 60 * 1000;
 /** Time to Leave is calculated for the next shift once it is within this horizon. */
-const TTL_CALC_HORIZON_MS = 24 * 60 * 60 * 1000;
+const TTL_CALC_HORIZON_MS = 14 * 24 * 60 * 60 * 1000;
 
 function due(at: Date, now: number): boolean {
   const t = at.getTime();
@@ -126,15 +126,54 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         // ONE scheduled_shifts read serves all four notification types.
         const shiftRows = (shifts ?? []) as ShiftSnap[];
 
-        // Time to Leave is only calculated for each operator's NEXT shift.
-        const nextShiftByOp = new Map<string, { id: string; at: number }>();
-        for (const s of shiftRows) {
-          if (!s.assigned_operator || s.status === "cancelled") continue;
-          const opId = byName.get(normalizeUsername(s.assigned_operator));
-          const at = berlinInstant(s.specific_date, s.start_time)?.getTime();
-          if (!opId || at == null || at <= now) continue;
-          const cur = nextShiftByOp.get(opId);
-          if (!cur || at < cur.at) nextShiftByOp.set(opId, { id: s.id, at });
+        // --- Time to Leave: each active operator's NEXT future shift (up to
+        // 14 days ahead) gets it calculated once and saved to
+        // scheduled_shifts.time_to_leave. Saved -> never touched again.
+        // Failure -> stays null, retried after a 10-minute backoff. ---
+        const savedTtl = new Map<string, string>();
+        {
+          const horizonKey = new Date(now + TTL_CALC_HORIZON_MS).toLocaleDateString("en-CA", {
+            timeZone: "Europe/Berlin",
+          });
+          const { data: upcoming } = await supabaseAdmin
+            .from("scheduled_shifts")
+            .select(
+              "id, assigned_operator, specific_date, start_time, status, time_to_leave, time_to_leave_attempted_at, created_at",
+            )
+            .gte("specific_date", todayKeys[0])
+            .lte("specific_date", horizonKey)
+            .neq("status", "cancelled");
+          const nextByOp = new Map<string, { row: ShiftSnap; at: number }>();
+          for (const s of (upcoming ?? []) as ShiftSnap[]) {
+            if (!s.assigned_operator) continue;
+            const opId = byName.get(normalizeUsername(s.assigned_operator));
+            const at = berlinInstant(s.specific_date, s.start_time)?.getTime();
+            if (!opId || at == null || at <= now) continue;
+            const cur = nextByOp.get(opId);
+            if (!cur || at < cur.at) nextByOp.set(opId, { row: s, at });
+          }
+          for (const [operatorId, { row, at }] of nextByOp) {
+            if (row.time_to_leave) continue;
+            const lastTry = row.time_to_leave_attempted_at
+              ? Date.parse(row.time_to_leave_attempted_at)
+              : 0;
+            if (now - lastTry < TTL_RETRY_BACKOFF_MS) continue;
+            const { resolveTimeToLeave } = await import("@/lib/time-to-leave.server");
+            const r = await resolveTimeToLeave({ operatorId }, new Date(at)).catch((e) => {
+              console.error("[push-dispatch] time to leave failed", row.id, e);
+              return null;
+            });
+            if (r?.ok && r.source !== "fallback") {
+              savedTtl.set(row.id, r.leave_iso);
+            } else {
+              console.warn("[push-dispatch] time to leave unavailable", row.id, r);
+              await supabaseAdmin
+                .from("scheduled_shifts")
+                .update({ time_to_leave_attempted_at: new Date(now).toISOString() } as never)
+                .eq("id", row.id)
+                .is("time_to_leave", null);
+            }
+          }
         }
 
         for (const shift of shiftRows) {
@@ -142,40 +181,14 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           const operatorId = byName.get(normalizeUsername(shift.assigned_operator));
           if (!operatorId) continue;
           const op = byId.get(operatorId);
-          if (!op || !op) continue;
+          if (!op) continue;
 
           const start = berlinInstant(shift.specific_date, shift.start_time);
           if (!start) continue;
 
-          // --- Leave home: reads scheduled_shifts.time_to_leave, the same
-          // stored value the Dashboard shows. While it is still null and this
-          // is the operator's next shift (within 24h), calculate and save it
-          // once; failures back off 10 minutes. No-op once saved. ---
-          let timeToLeave = shift.time_to_leave;
-          const untilStart = start.getTime() - now;
-          const lastTry = shift.time_to_leave_attempted_at
-            ? Date.parse(shift.time_to_leave_attempted_at)
-            : 0;
-          if (
-            !timeToLeave &&
-            untilStart > 0 &&
-            untilStart <= TTL_CALC_HORIZON_MS &&
-            nextShiftByOp.get(operatorId)?.id === shift.id &&
-            now - lastTry >= TTL_RETRY_BACKOFF_MS
-          ) {
-            const { resolveTimeToLeave } = await import("@/lib/time-to-leave.server");
-            const r = await resolveTimeToLeave({ operatorId }, start).catch(() => null);
-            if (r?.ok && r.source !== "fallback") {
-              timeToLeave = r.leave_iso;
-            } else {
-              // Failed: back off instead of calling VBB again next minute.
-              await supabaseAdmin
-                .from("scheduled_shifts")
-                .update({ time_to_leave_attempted_at: new Date(now).toISOString() } as never)
-                .eq("id", shift.id)
-                .is("time_to_leave", null);
-            }
-          }
+          // --- Leave home: reads the stored scheduled_shifts.time_to_leave
+          // (the same value the Dashboard shows). No travel lookup here. ---
+          const timeToLeave = savedTtl.get(shift.id) ?? shift.time_to_leave;
           if (timeToLeave) {
             const leaveAt = new Date(timeToLeave);
             const notifyAt = leaveNotificationAt(leaveAt, now);

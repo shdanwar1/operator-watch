@@ -8,6 +8,13 @@
       "when": 1791198378641,
       "tag": "0000_auto_checkout_due",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791299816519,
+      "tag": "0001_ttl_gate_14_days",
+      "breakpoints": true
     }
   ]
 }
