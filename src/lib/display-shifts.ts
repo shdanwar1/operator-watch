@@ -178,9 +178,12 @@ export function resolveCheckInTarget(
   scheduled: ScheduledShiftRow[],
   now: Date,
   leadMs: number = CHECK_IN_LEAD_MS,
+  isDone?: (s: DisplayShift) => boolean,
 ): DisplayShift | null {
   const t = now.getTime();
-  const live = buildDisplayShifts(scheduled, now).filter((s) => s.endAt.getTime() > t);
+  const live = buildDisplayShifts(scheduled, now).filter(
+    (s) => s.endAt.getTime() > t && !(isDone?.(s) ?? false),
+  );
   const active = live.find((s) => s.startAt.getTime() <= t);
   if (active) return active;
   const next = live[0];

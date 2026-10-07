@@ -398,13 +398,22 @@ function Index() {
   // Continuous "display shifts": raw rows split at midnight are merged back
   // into the single operator shift they represent.
   const displayShifts = buildDisplayShifts(scheduled, now);
-  const upcomingDisplay = displayShifts.filter((s) => s.endAt.getTime() > now.getTime());
+  // Shifts already checked out of (or completed) are finished, even before
+  // their scheduled end.
+  const doneIds = new Set<string>([
+    ...history.filter((h) => h.check_out_at && h.scheduled_shift_id).map((h) => h.scheduled_shift_id as string),
+    ...scheduled.filter((s) => s.status === "completed").map((s) => s.id),
+  ]);
+  const isDone = (s: { segments: { id: string }[] }) => s.segments.some((seg) => doneIds.has(seg.id));
+  const upcomingDisplay = displayShifts.filter(
+    (s) => s.endAt.getTime() > now.getTime() && !isDone(s),
+  );
   const nextDisplay = upcomingDisplay[0] ?? null;
 
-  // The check-in target is derived from the current time only: the running
-  // shift, else the next one if it starts within two hours. A shift whose end
-  // has passed is never resolved again, whatever was checked in before.
-  const openTarget = resolveCheckInTarget(scheduled, now);
+  // The check-in target is derived from the current time: the running
+  // shift, else the next one if it starts within two hours. Ended or
+  // already-attended shifts are never targeted.
+  const openTarget = resolveCheckInTarget(scheduled, now, undefined, isDone);
   const openScheduled = openTarget?.segments[0] ?? null;
 
   // Reminders are delivered by the server as background Web Push (see
@@ -557,6 +566,14 @@ function Index() {
       });
 
       toast.success("Checked out");
+      const closed = { ...active, check_out_at: new Date().toISOString() } as Shift;
+      setHistory((h) => [closed, ...h.filter((r) => r.id !== closed.id)]);
+      if (active.scheduled_shift_id) {
+        const sid = active.scheduled_shift_id;
+        setScheduled((rows) =>
+          rows.map((r) => (r.id === sid && r.status !== "cancelled" ? { ...r, status: "completed" } : r)),
+        );
+      }
       setActive(null);
       load();
     } catch (e) {
