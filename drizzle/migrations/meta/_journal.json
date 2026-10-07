@@ -15,6 +15,13 @@
       "when": 1791299816519,
       "tag": "0001_ttl_gate_14_days",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791376906760,
+      "tag": "0002_auto_checkout_end_window",
+      "breakpoints": true
     }
   ]
 }

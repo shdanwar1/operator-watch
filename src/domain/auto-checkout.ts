@@ -1,19 +1,13 @@
 /**
  * Auto check-out rules — pure, no database.
  *
- * - End Shift checklist incomplete (or switch off) → never.
- * - Completed at/before the scheduled end → check out AT the scheduled end.
- * - Completed after the scheduled end → check out 10 minutes after completion.
+ * At each shift's scheduled end: if the End Shift checklist is complete,
+ * check out at the scheduled end. Otherwise leave it open (manual check-out).
  */
 import { isShiftChecklists } from "./checklists";
 
-export const AUTO_CHECKOUT_GRACE_MS = 10 * 60 * 1000;
-
-/** Operator preference; a missing value means ON. */
-export function autoCheckoutEnabled(prefs: unknown): boolean {
-  if (!prefs || typeof prefs !== "object") return true;
-  return (prefs as { autoCheckout?: unknown }).autoCheckout !== false;
-}
+/** Catch-up window after the scheduled end, so a delayed timer tick is not missed. */
+export const AUTO_CHECKOUT_WINDOW_MS = 5 * 60 * 1000;
 
 /** Convert a Berlin wall-clock date + time to a UTC instant (DST-safe). */
 export function berlinToUtc(date: string, time: string): Date {
@@ -70,18 +64,20 @@ export function endChecklistCompletedAt(checklists: unknown): Date | null {
 }
 
 /**
- * The instant the shift should be auto checked out, or null when it must
- * stay open. The caller acts only once `now >= result`.
+ * Check-out instant (= scheduled end) when the shift must be auto checked
+ * out now, else null. Only acts within the window right after the end;
+ * older shifts are never revisited.
  */
 export function autoCheckoutAt(input: {
   checkOutAt: string | null;
   checklists: unknown;
   scheduledEnd: Date;
-  enabled: boolean;
+  now: Date;
 }): Date | null {
-  if (input.checkOutAt || !input.enabled) return null;
-  const done = endChecklistCompletedAt(input.checklists);
-  if (!done) return null;
-  if (done.getTime() <= input.scheduledEnd.getTime()) return input.scheduledEnd;
-  return new Date(done.getTime() + AUTO_CHECKOUT_GRACE_MS);
+  if (input.checkOutAt) return null;
+  const end = input.scheduledEnd.getTime();
+  const now = input.now.getTime();
+  if (now < end || now >= end + AUTO_CHECKOUT_WINDOW_MS) return null;
+  if (!endChecklistCompletedAt(input.checklists)) return null;
+  return input.scheduledEnd;
 }

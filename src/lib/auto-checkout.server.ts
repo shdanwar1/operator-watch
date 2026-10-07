@@ -1,59 +1,56 @@
 /**
- * Server-side auto check-out sweep, run from the every-minute timer.
- * Works without any browser open. Bounded batch, idempotent.
+ * Server-side auto check-out, run from the every-minute timer.
+ * Only shifts whose scheduled end has just passed are checked. Idempotent.
  */
-import { autoCheckoutAt, autoCheckoutEnabled, scheduledEndAt } from "@/domain/auto-checkout";
+import { AUTO_CHECKOUT_WINDOW_MS, autoCheckoutAt, scheduledEndAt } from "@/domain/auto-checkout";
 import { isShiftChecklists } from "@/domain/checklists";
-import { normalizeUsername } from "@/domain/operator-identity";
 import type { ShiftClass } from "./shifts.functions";
 import { closeShift } from "./shift-close.server";
 
-const BATCH = 25;
-// Scan window: ineligible rows (unfinished checklist, not yet ended) must not
-// crowd out eligible ones, so scan wide (newest first) and close up to BATCH.
-const SCAN = 500;
+function berlinDate(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(d);
+}
 
 export async function runAutoCheckout(now: Date = new Date()): Promise<number> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: open, error } = await supabaseAdmin
-    .from("shifts")
-    .select("id, operator_name, check_in_at, check_out_at, scheduled_shift_id, checklists, classes")
-    .is("check_out_at", null)
-    .not("scheduled_shift_id", "is", null)
-    .order("check_in_at", { ascending: false })
-    .limit(SCAN);
-  if (error || !open?.length) return 0;
+  const today = berlinDate(now);
+  const yesterday = berlinDate(new Date(now.getTime() - 86_400_000));
+  const { data: scheds, error } = await supabaseAdmin
+    .from("scheduled_shifts")
+    .select("id, specific_date, start_time, end_time, status")
+    .in("specific_date", [yesterday, today])
+    .neq("status", "cancelled");
+  if (error || !scheds?.length) return 0;
 
-  const schedIds = open.map((s) => String(s.scheduled_shift_id));
-  const [{ data: scheds }, { data: ops }] = await Promise.all([
-    supabaseAdmin
-      .from("scheduled_shifts")
-      .select("id, specific_date, start_time, end_time")
-      .in("id", schedIds),
-    supabaseAdmin.from("operators").select("username, prefs"),
-  ]);
-  const schedById = new Map((scheds ?? []).map((s) => [String(s.id), s]));
-  const prefsByName = new Map(
-    (ops ?? []).map((o) => [normalizeUsername(String(o.username)), o.prefs]),
-  );
+  const endById = new Map<string, Date>();
+  for (const s of scheds) {
+    const end = scheduledEndAt({
+      specific_date: String(s.specific_date),
+      start_time: String(s.start_time),
+      end_time: String(s.end_time),
+    });
+    const t = now.getTime() - end.getTime();
+    if (t >= 0 && t < AUTO_CHECKOUT_WINDOW_MS) endById.set(String(s.id), end);
+  }
+  if (endById.size === 0) return 0;
+
+  const { data: open } = await supabaseAdmin
+    .from("shifts")
+    .select("id, check_in_at, check_out_at, scheduled_shift_id, checklists, classes")
+    .is("check_out_at", null)
+    .in("scheduled_shift_id", [...endById.keys()]);
 
   let closedCount = 0;
-  for (const s of open) {
-    if (closedCount >= BATCH) break;
-    const sched = schedById.get(String(s.scheduled_shift_id));
-    if (!sched) continue;
+  for (const s of open ?? []) {
+    const end = endById.get(String(s.scheduled_shift_id));
+    if (!end) continue;
     const at = autoCheckoutAt({
       checkOutAt: s.check_out_at ? String(s.check_out_at) : null,
       checklists: s.checklists,
-      scheduledEnd: scheduledEndAt({
-        specific_date: String(sched.specific_date),
-        start_time: String(sched.start_time),
-        end_time: String(sched.end_time),
-      }),
-      enabled: autoCheckoutEnabled(prefsByName.get(normalizeUsername(String(s.operator_name)))),
+      scheduledEnd: end,
+      now,
     });
-    if (!at || at.getTime() > now.getTime()) continue;
-    // Never close before check-in.
+    if (!at) continue;
     const checkIn = new Date(String(s.check_in_at)).getTime();
     const checkOutAt = new Date(Math.max(at.getTime(), checkIn));
     try {

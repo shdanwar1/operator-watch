@@ -14,8 +14,6 @@ import {
   type OperatorProfile,
 } from "@/lib/operators.functions";
 import { getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
-import { getMyAutoCheckout, setMyAutoCheckout } from "@/lib/auto-checkout.functions";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -41,14 +39,12 @@ export const Route = createFileRoute("/profile")({
   loader: async (): Promise<{
     profile: OperatorProfile;
     icsUrl: string | null;
-    autoCheckout: boolean;
   }> => {
-    const [profile, calRes, auto] = await Promise.all([
+    const [profile, calRes] = await Promise.all([
       getMyOperatorProfile(),
       getMyCalendarUrl().catch(() => ({ icsUrl: null as string | null })),
-      getMyAutoCheckout().catch(() => ({ enabled: true })),
     ]);
-    return { profile, icsUrl: calRes.icsUrl, autoCheckout: auto.enabled };
+    return { profile, icsUrl: calRes.icsUrl };
   },
   head: () => ({
     meta: pageMeta(
@@ -430,10 +426,7 @@ function ProfilePage() {
   const {
     profile: initialProfile,
     icsUrl: initialIcs,
-    autoCheckout: initialAuto,
   } = Route.useLoaderData();
-  const saveAutoFn = useServerFn(setMyAutoCheckout);
-  const [autoCheckout, setAutoCheckout] = useState(initialAuto);
   const [profile, setProfile] = useState<OperatorProfile>(initialProfile);
   const [icsUrl, setIcsUrl] = useState<string | null>(initialIcs);
   const [pinOpen, setPinOpen] = useState(false);
@@ -528,31 +521,6 @@ function ProfilePage() {
             >
               {connected ? "Connected" : "Not connected"}
             </span>
-          </Row>
-        </Panel>
-
-        <Panel title="Shift">
-          <Row
-            action={
-              <Switch
-                id="auto-checkout"
-                checked={autoCheckout}
-                className="h-7 w-12 data-[state=checked]:bg-foreground data-[state=unchecked]:bg-muted [&>span]:h-6 [&>span]:w-6 [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=checked]:bg-background [&>span]:data-[state=unchecked]:bg-muted-foreground"
-                onCheckedChange={async (v) => {
-                  setAutoCheckout(v);
-                  try {
-                    await saveAutoFn({ data: { enabled: v } });
-                  } catch (e) {
-                    setAutoCheckout(!v);
-                    toast.error(friendlyError(e));
-                  }
-                }}
-              />
-            }
-          >
-            <label htmlFor="auto-checkout" className="text-[15px]">
-              Auto check out at end of shift
-            </label>
           </Row>
         </Panel>
 
