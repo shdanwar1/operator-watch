@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { autoCheckoutAt, autoCheckoutEnabled, scheduledEndAt } from "./auto-checkout";
+import { autoCheckoutAt, scheduledEndAt } from "./auto-checkout";
 
 const sched = { specific_date: "2026-10-05", start_time: "18:30:00", end_time: "22:30:00" };
 const end = scheduledEndAt(sched);
@@ -18,35 +18,30 @@ describe("auto check-out", () => {
   it("scheduled end is Berlin time (CEST)", () => {
     expect(end.toISOString()).toBe("2026-10-05T20:30:00.000Z");
   });
-  it("completed before end → at scheduled end", () => {
-    const at = autoCheckoutAt({ checkOutAt: null, checklists: snap("2026-10-05T20:20:00Z"), scheduledEnd: end, enabled: true });
-    expect(at?.toISOString()).toBe(end.toISOString());
+  const at = (now: string, cl = snap("2026-10-05T20:20:00Z"), out: string | null = null) =>
+    autoCheckoutAt({ checkOutAt: out, checklists: cl, scheduledEnd: end, now: new Date(now) });
+  it("due exactly at end → checks out at scheduled end", () => {
+    expect(at("2026-10-05T20:30:00Z")?.toISOString()).toBe(end.toISOString());
   });
-  it("completed exactly at end → at scheduled end", () => {
-    const at = autoCheckoutAt({ checkOutAt: null, checklists: snap(end.toISOString()), scheduledEnd: end, enabled: true });
-    expect(at?.toISOString()).toBe(end.toISOString());
+  it("due within catch-up window", () => {
+    expect(at("2026-10-05T20:34:00Z")?.toISOString()).toBe(end.toISOString());
   });
-  it("completed after end → +10 minutes", () => {
-    const at = autoCheckoutAt({ checkOutAt: null, checklists: snap("2026-10-05T20:36:00Z"), scheduledEnd: end, enabled: true });
-    expect(at?.toISOString()).toBe("2026-10-05T20:46:00.000Z");
+  it("not before end", () => {
+    expect(at("2026-10-05T20:29:00Z")).toBeNull();
   });
-  it("incomplete → never", () => {
-    expect(autoCheckoutAt({ checkOutAt: null, checklists: snap(null, false), scheduledEnd: end, enabled: true })).toBeNull();
+  it("old shift after window is ignored", () => {
+    expect(at("2026-10-05T20:40:00Z")).toBeNull();
   });
-  it("switch off → never", () => {
-    expect(autoCheckoutAt({ checkOutAt: null, checklists: snap("2026-10-05T20:20:00Z"), scheduledEnd: end, enabled: false })).toBeNull();
+  it("incomplete checklist → stays open", () => {
+    expect(at("2026-10-05T20:30:00Z", snap(null, false))).toBeNull();
   });
-  it("already checked out → never", () => {
-    expect(autoCheckoutAt({ checkOutAt: "2026-10-05T20:27:00Z", checklists: snap("2026-10-05T20:20:00Z"), scheduledEnd: end, enabled: true })).toBeNull();
+  it("already checked out → nothing", () => {
+    expect(at("2026-10-05T20:30:00Z", undefined, "2026-10-05T20:27:00Z")).toBeNull();
   });
   it("overnight shift ends next day", () => {
     expect(scheduledEndAt({ specific_date: "2026-10-05", start_time: "22:00", end_time: "02:00" }).toISOString()).toBe("2026-10-06T00:00:00.000Z");
   });
   it("DST end day uses winter offset", () => {
     expect(scheduledEndAt({ specific_date: "2026-10-25", start_time: "18:30", end_time: "22:30" }).toISOString()).toBe("2026-10-25T21:30:00.000Z");
-  });
-  it("preference defaults to on", () => {
-    expect(autoCheckoutEnabled({})).toBe(true);
-    expect(autoCheckoutEnabled({ autoCheckout: false })).toBe(false);
   });
 });
