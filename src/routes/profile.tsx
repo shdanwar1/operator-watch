@@ -8,6 +8,7 @@ import { unsubscribeFromPush } from "@/lib/push-client";
 import { clearAllCaches } from "@/lib/local-cache";
 import {
   setMyHomeAddress,
+  updateMyProfile,
   changeMyPin,
   getMyOperatorProfile,
   type OperatorProfile,
@@ -28,7 +29,7 @@ import {
 import { toast, Toaster } from "sonner";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { PushDeviceToggle } from "@/components/PushDeviceToggle";
-import { PIN_RE } from "@/lib/validation";
+import { PIN_RE, USERNAME_RE } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/profile")({
@@ -301,7 +302,7 @@ function EditCalendarDialog({
         <DialogHeader>
           <DialogTitle>Google Calendar link</DialogTitle>
           <DialogDescription>
-            Paste your public iCal address from Google Calendar.
+            Paste your public iCal address from Google Calendar. Clear the box to disconnect.
           </DialogDescription>
         </DialogHeader>
         <Field label="Public iCal URL">
@@ -328,14 +329,14 @@ function EditCalendarDialog({
             Cancel
           </Button>
           <Button
-            disabled={!url.trim() || busy || url.trim() === (current ?? "")}
+            disabled={busy || url.trim() === (current ?? "")}
             onClick={async () => {
               setBusy(true);
               setError(null);
               try {
                 const res = await saveCal({ data: { url: url.trim() } });
                 onSaved(res.icsUrl);
-                toast.success("Calendar link updated");
+                toast.success(res.icsUrl ? "Calendar link updated" : "Calendar disconnected");
                 onOpenChange(false);
               } catch (e) {
                 setError(friendlyError(e));
@@ -344,7 +345,76 @@ function EditCalendarDialog({
               }
             }}
           >
-            {busy ? "Verifying…" : "Save"}
+            {busy ? (url.trim() ? "Verifying…" : "Saving…") : url.trim() ? "Save" : "Disconnect"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ChangeUsernameDialog({
+  open,
+  onOpenChange,
+  current,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  current: string;
+  onSaved: (username: string) => void;
+}) {
+  const saveFn = useServerFn(updateMyProfile);
+  const [name, setName] = useState(current);
+  const [busy, setBusy] = useState(false);
+  const t = name.trim();
+  const error = t && !USERNAME_RE.test(t) ? "Username must be 2–32 letters, numbers, . _ or -" : null;
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (busy) return;
+        if (v) setName(current);
+        onOpenChange(v);
+      }}
+    >
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Change username</DialogTitle>
+          <DialogDescription>Use your new username at your next sign-in.</DialogDescription>
+        </DialogHeader>
+        <Field label="Username">
+          <Input
+            className="h-10"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </Field>
+        {error && <p className="text-[12px] text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            disabled={busy || !USERNAME_RE.test(t) || t === current}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await saveFn({ data: { username: t } });
+                onSaved(t);
+                toast.success("Username updated");
+                onOpenChange(false);
+              } catch (e) {
+                toast.error(friendlyError(e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -369,6 +439,7 @@ function ProfilePage() {
   const [pinOpen, setPinOpen] = useState(false);
   const [homeOpen, setHomeOpen] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
+  const [nameOpen, setNameOpen] = useState(false);
 
   const connected = Boolean(icsUrl);
   const actionBtn = "h-9 rounded-[10px] px-4";
@@ -379,6 +450,15 @@ function ProfilePage() {
       <PageHeader eyebrow="Account" title="Profile" />
 
       <ResetPinDialog open={pinOpen} onOpenChange={setPinOpen} />
+      <ChangeUsernameDialog
+        open={nameOpen}
+        onOpenChange={setNameOpen}
+        current={profile.username}
+        onSaved={(username) => {
+          setProfile((p) => ({ ...p, username }));
+          void router.invalidate();
+        }}
+      />
       <ChangeHomeDialog
         open={homeOpen}
         onOpenChange={setHomeOpen}
@@ -395,7 +475,14 @@ function ProfilePage() {
 
       <div className="mx-auto max-w-[720px] space-y-4">
         <Panel title="Operator">
-          <Row label="Username">
+          <Row
+            label="Username"
+            action={
+              <Button variant="outline" className={actionBtn} onClick={() => setNameOpen(true)}>
+                Change
+              </Button>
+            }
+          >
             <p className="truncate text-[16px] font-semibold">{profile.username}</p>
           </Row>
           <Row
