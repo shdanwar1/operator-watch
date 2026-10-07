@@ -9,6 +9,9 @@ import type { ShiftClass } from "./shifts.functions";
 import { closeShift } from "./shift-close.server";
 
 const BATCH = 25;
+// Scan window: ineligible rows (unfinished checklist, not yet ended) must not
+// crowd out eligible ones, so scan wide (newest first) and close up to BATCH.
+const SCAN = 500;
 
 export async function runAutoCheckout(now: Date = new Date()): Promise<number> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -17,7 +20,8 @@ export async function runAutoCheckout(now: Date = new Date()): Promise<number> {
     .select("id, operator_name, check_in_at, check_out_at, scheduled_shift_id, checklists, classes")
     .is("check_out_at", null)
     .not("scheduled_shift_id", "is", null)
-    .limit(BATCH);
+    .order("check_in_at", { ascending: false })
+    .limit(SCAN);
   if (error || !open?.length) return 0;
 
   const schedIds = open.map((s) => String(s.scheduled_shift_id));
@@ -35,6 +39,7 @@ export async function runAutoCheckout(now: Date = new Date()): Promise<number> {
 
   let closedCount = 0;
   for (const s of open) {
+    if (closedCount >= BATCH) break;
     const sched = schedById.get(String(s.scheduled_shift_id));
     if (!sched) continue;
     const at = autoCheckoutAt({

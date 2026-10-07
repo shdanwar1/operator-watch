@@ -361,6 +361,8 @@ function CalendarPage() {
     const next = currentOrNextShift(buildDisplayShifts(scheduled, n), n);
     const target = next ? next.startAt : n;
     setSelectedKey(dateKey(target));
+    // Month jump is mobile-only; desktop keeps opening on the current month.
+    if (!window.matchMedia("(max-width: 1023px)").matches) return;
     setMonthOffset(
       (target.getFullYear() - n.getFullYear()) * 12 + target.getMonth() - n.getMonth(),
     );
