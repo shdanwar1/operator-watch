@@ -14,7 +14,6 @@ import {
   type OperatorProfile,
 } from "@/lib/operators.functions";
 import { getMyCalendarUrl, setMyCalendarUrl } from "@/lib/gcal.functions";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
