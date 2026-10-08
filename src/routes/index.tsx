@@ -291,9 +291,21 @@ function Index() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [, setTick] = useState(0);
 
+  // Re-render every second for live countdowns — but not while the tab is
+  // hidden (nobody sees it); returning to the tab repaints immediately.
   useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), 1000);
-    return () => clearInterval(t);
+    const bump = () => setTick((n) => n + 1);
+    const t = setInterval(() => {
+      if (!document.hidden) bump();
+    }, 1000);
+    const onVisible = () => {
+      if (!document.hidden) bump();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   useEffect(() => {
