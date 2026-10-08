@@ -23,7 +23,6 @@ import {
   ChevronRight,
   Delete,
   ShieldCheck,
-  User as UserIcon,
 } from "lucide-react";
 
 type Profile = { id: string; username: string; is_admin: boolean };
@@ -479,5 +478,3 @@ function PinKey({
   );
 }
 
-// helper to satisfy `UserIcon` import used only for defensive typing
-void UserIcon;
