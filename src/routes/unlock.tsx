@@ -123,6 +123,8 @@ function Unlock() {
       } else {
         setSiteErr(true);
       }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unlock failed. Try again.");
     } finally {
       setSiteLoading(false);
     }
@@ -199,7 +201,12 @@ function Unlock() {
             profiles={profiles}
             onPick={pickProfile}
             onLock={async () => {
-              await lockSite();
+              try {
+                await lockSite();
+              } catch {
+                toast.error("Could not lock the studio. Try again.");
+                return;
+              }
               setStage("site");
               setProfiles([]);
               setSelected(null);
