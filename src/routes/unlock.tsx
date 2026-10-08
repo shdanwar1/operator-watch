@@ -36,8 +36,9 @@ export const Route = createFileRoute("/unlock")({
     }
     return { status };
   },
-  loader: async () => {
-    const status = await getGateStatus();
+  loader: async ({ context }) => {
+    // Reuse the status beforeLoad already fetched — no second server round trip.
+    const { status } = context;
     let profiles: Profile[] = [];
     if (status.siteUnlocked) {
       try {
