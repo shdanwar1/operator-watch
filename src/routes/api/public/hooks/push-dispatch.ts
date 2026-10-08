@@ -55,14 +55,6 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
         const now = Date.now();
 
-        // Auto check-out runs first and independently of reminders.
-        let autoCheckedOut = 0;
-        try {
-          const { runAutoCheckout } = await import("@/lib/auto-checkout.server");
-          autoCheckedOut = await runAutoCheckout(new Date(now));
-        } catch (e) {
-          console.error("auto-checkout sweep failed", e);
-        }
 
         const { data: operators, error: opErr } = await supabaseAdmin
           .from("operators")
@@ -106,12 +98,25 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           return d.toLocaleDateString("en-CA", { timeZone: "Europe/Berlin" });
         });
 
-        const { data: shifts } = await supabaseAdmin
+        const { data: shifts, error: shiftsErr } = await supabaseAdmin
           .from("scheduled_shifts")
           .select(
-            "id, assigned_operator, specific_date, start_time, status, time_to_leave, time_to_leave_attempted_at, created_at",
+            "id, assigned_operator, specific_date, start_time, end_time, status, time_to_leave, time_to_leave_attempted_at, created_at",
           )
           .in("specific_date", todayKeys);
+
+        // Auto check-out runs independently of reminders and reuses this read
+        // (yesterday/today/tomorrow covers its yesterday+today window).
+        let autoCheckedOut = 0;
+        try {
+          const { runAutoCheckout } = await import("@/lib/auto-checkout.server");
+          autoCheckedOut = await runAutoCheckout(
+            new Date(now),
+            shiftsErr ? undefined : ((shifts ?? []) as never),
+          );
+        } catch (e) {
+          console.error("auto-checkout sweep failed", e);
+        }
 
         type ShiftSnap = {
           id: string;
