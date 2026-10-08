@@ -11,16 +11,42 @@ function berlinDate(d: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(d);
 }
 
-export async function runAutoCheckout(now: Date = new Date()): Promise<number> {
+type SchedRow = {
+  id: string;
+  specific_date: string;
+  start_time: string;
+  end_time: string;
+  status: string | null;
+};
+
+/**
+ * `preloaded` lets the dispatcher pass scheduled_shifts rows it already read
+ * (must cover at least yesterday + today, Berlin) so this skips its own read.
+ */
+export async function runAutoCheckout(
+  now: Date = new Date(),
+  preloaded?: SchedRow[],
+): Promise<number> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const today = berlinDate(now);
   const yesterday = berlinDate(new Date(now.getTime() - 86_400_000));
-  const { data: scheds, error } = await supabaseAdmin
-    .from("scheduled_shifts")
-    .select("id, specific_date, start_time, end_time, status")
-    .in("specific_date", [yesterday, today])
-    .neq("status", "cancelled");
-  if (error || !scheds?.length) return 0;
+  let scheds: SchedRow[];
+  if (preloaded) {
+    scheds = preloaded.filter(
+      (s) =>
+        s.status !== "cancelled" &&
+        (String(s.specific_date) === today || String(s.specific_date) === yesterday),
+    );
+  } else {
+    const { data, error } = await supabaseAdmin
+      .from("scheduled_shifts")
+      .select("id, specific_date, start_time, end_time, status")
+      .in("specific_date", [yesterday, today])
+      .neq("status", "cancelled");
+    if (error) return 0;
+    scheds = (data ?? []) as SchedRow[];
+  }
+  if (!scheds.length) return 0;
 
   const endById = new Map<string, Date>();
   for (const s of scheds) {
