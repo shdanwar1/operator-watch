@@ -60,7 +60,16 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           .from("operators")
           .select("id, username")
           .eq("is_active", true);
-        if (opErr) return Response.json({ error: opErr.message }, { status: 500 });
+        if (opErr) {
+          // Auto check-out stays independent of reminders: run it standalone.
+          try {
+            const { runAutoCheckout } = await import("@/lib/auto-checkout.server");
+            await runAutoCheckout(new Date(now));
+          } catch (e) {
+            console.error("auto-checkout sweep failed", e);
+          }
+          return Response.json({ error: opErr.message }, { status: 500 });
+        }
 
         type OpRow = {
           id: string;
