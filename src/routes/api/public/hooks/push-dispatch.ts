@@ -310,11 +310,15 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         // notify. One batch read instead of one query per job.
         const liveStarts = new Map<string, Set<number>>();
         if (claimedJobs.length) {
-          const { data: fresh } = await supabaseAdmin
+          const { data: fresh, error: freshErr } = await supabaseAdmin
             .from("scheduled_shifts")
             .select("assigned_operator, specific_date, start_time, status")
             .in("specific_date", todayKeys);
-          for (const s of (fresh ?? []) as ShiftSnap[]) {
+          // A failed re-read must not cancel every claimed reminder: fall back
+          // to the snapshot read moments ago at the top of this run.
+          if (freshErr) console.error("[push-dispatch] final state check failed", freshErr.message);
+          const rows = freshErr ? shiftRows : ((fresh ?? []) as ShiftSnap[]);
+          for (const s of rows) {
             if (s.status === "cancelled" || !s.assigned_operator) continue;
             const opId = byName.get(normalizeUsername(s.assigned_operator));
             const st = berlinInstant(s.specific_date, s.start_time);
