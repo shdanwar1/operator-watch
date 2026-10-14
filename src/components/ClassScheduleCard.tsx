@@ -7,7 +7,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ExternalLink, CalendarDays, MoreHorizontal, Check, X } from "lucide-react";
+import { ExternalLink, CalendarDays, MoreHorizontal, Check, X, Copy } from "lucide-react";
+import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { temporaryClassSearch } from "@/lib/studio-presets";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,44 @@ function atDate(date: string, time: string) {
 }
 
 export type ClassStatus = "completed" | "live" | "upcoming" | "cancelled";
+
+/** YYMMDD_HH-MM_Teacher Name_Class Name — no file extension. */
+export function classFilenameOf(c: {
+  specific_date: string;
+  start_time: string;
+  teacherName: string;
+  className: string;
+}): string {
+  const [y, m, d] = c.specific_date.split("-");
+  const [h, min] = c.start_time.split(":");
+  return `${y.slice(2)}${m}${d}_${h}-${min}_${c.teacherName}_${c.className}`;
+}
+
+/** Clipboard write with a legacy fallback; returns whether it succeeded. */
+async function copyText(text: string): Promise<boolean> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // fall through to the legacy path
+    }
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Effective lifecycle state of a class row: the operator's explicit state wins,
@@ -199,6 +238,21 @@ export function ClassScheduleCard({
                       </Link>
                     </Button>
                   )}
+
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    aria-label="Copy class filename"
+                    title="Copy class filename"
+                    onClick={async () => {
+                      const ok = await copyText(classFilenameOf(c));
+                      if (ok) toast.success("Filename copied");
+                      else toast.error("Could not copy filename");
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
 
                   {onSetStatus && (
                     <DropdownMenu>
