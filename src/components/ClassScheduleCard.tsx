@@ -239,6 +239,21 @@ export function ClassScheduleCard({
                     </Button>
                   )}
 
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    aria-label="Copy class filename"
+                    title="Copy class filename"
+                    onClick={async () => {
+                      const ok = await copyText(classFilenameOf(c));
+                      if (ok) toast.success("Filename copied");
+                      else toast.error("Could not copy filename");
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+
                   {onSetStatus && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
