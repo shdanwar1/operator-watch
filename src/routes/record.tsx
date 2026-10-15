@@ -1,6 +1,5 @@
 import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { Toaster } from "sonner";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { getGateStatus } from "@/lib/gate.functions";
 import { getOperatorDisplayName } from "@/lib/operators.functions";
@@ -34,7 +33,6 @@ function RecordPage() {
   const { username } = Route.useLoaderData();
   return (
     <AppShell>
-      <Toaster richColors position="top-center" />
       <PageHeader title="Record" />
       <AttendanceSection username={username} />
     </AppShell>

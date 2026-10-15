@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { IcsHelpButton } from "@/components/IcsHelpButton";
 
 import { Home, CalendarDays, Save, ArrowRight, User } from "lucide-react";
@@ -111,7 +111,6 @@ function CompleteProfile() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Toaster richColors position="top-center" />
       <div className="mx-auto flex min-h-screen max-w-lg items-center justify-center px-4 py-10">
         <Card className="w-full border-border/60 shadow-xl">
           <CardContent className="space-y-6 p-6 sm:p-8">

@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { PushDeviceToggle } from "@/components/PushDeviceToggle";
 import { PIN_RE, USERNAME_RE } from "@/lib/validation";
@@ -439,7 +439,6 @@ function ProfilePage() {
 
   return (
     <AppShell>
-      <Toaster richColors position="top-center" />
       <PageHeader eyebrow="Account" title="Profile" />
 
       <ResetPinDialog open={pinOpen} onOpenChange={setPinOpen} />
