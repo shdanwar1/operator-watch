@@ -1,5 +1,4 @@
 import { createFileRoute, redirect, Outlet } from "@tanstack/react-router";
-import { Toaster } from "sonner";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { getGateStatus } from "@/lib/gate.functions";
 
@@ -21,7 +20,6 @@ function AdminLayout() {
   return (
     <AdminShell>
       <Outlet />
-      <Toaster position="top-center" />
     </AdminShell>
   );
 }

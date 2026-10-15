@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { ChevronLeft, ChevronRight, Trash2, Save, RefreshCw } from "lucide-react";
 import { ShiftOverviewDialog } from "@/components/ShiftOverviewDialog";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { MobileCalendar } from "@/components/MobileCalendar";
 import { buildDisplayShifts, currentOrNextShift } from "@/lib/display-shifts";
 
@@ -417,7 +417,6 @@ function CalendarPage() {
 
   return (
     <AppShell>
-      <Toaster richColors position="top-center" />
 
       <PageHeader
         title="Calendar"

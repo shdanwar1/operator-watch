@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { Plus, X, Clock, LogIn, AlertTriangle, Lock } from "lucide-react";
 import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
@@ -597,7 +597,6 @@ function Index() {
 
   return (
     <AppShell username={username} onAir={!!active} onSignOut={handleSignOut}>
-      <Toaster richColors position="top-center" />
       {syncing && (
         <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full border border-border/60 bg-card/90 px-3 py-1.5 text-xs text-muted-foreground shadow-sm backdrop-blur">
           <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
