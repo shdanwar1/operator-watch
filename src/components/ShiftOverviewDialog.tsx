@@ -23,7 +23,7 @@ import {
 } from "@/lib/gcal.functions";
 import type { ScheduledShiftRow } from "@/lib/shifts.functions";
 import { addDayKey, crossesMidnight, fmtClock, fmtDayShort, validateInterval } from "@/lib/class-interval";
-import { Monitor, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,8 +35,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { deleteMyScheduledShift } from "@/lib/shifts.functions";
-import { Link } from "@tanstack/react-router";
-import { temporaryClassSearch } from "@/lib/studio-presets";
 import { toast } from "sonner";
 
 type Draft = {
