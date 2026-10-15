@@ -1,7 +1,6 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -19,6 +18,10 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 });
 
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
+  // DMC authenticates with its own two-stage gate (shared site password +
+  // operator PIN, see src/lib/gate.functions.ts) carried in a signed cookie.
+  // No server function reads a Supabase user session, so client RPCs carry no
+  // bearer token and no per-call session lookup is needed.
+  functionMiddleware: [],
   requestMiddleware: [errorMiddleware],
 }));

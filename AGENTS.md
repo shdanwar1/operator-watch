@@ -8,3 +8,7 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+## Architecture
+
+- Server functions authenticate only through the signed gate cookie (`src/lib/gate.functions.ts`); `functionMiddleware` in `src/start.ts` stays empty and no server function may require a Supabase user session, because DMC operators never hold one — a bearer-token middleware would add an async session lookup to every operator action for nothing.
