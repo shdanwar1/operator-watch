@@ -307,27 +307,10 @@ export function ShiftOverviewDialog({
                       </div>
                       <div className="text-sm font-medium">{c.className}</div>
                       <div className="text-sm text-muted-foreground">{c.teacherName}</div>
-                      {c.status === "cancelled" ? (
+                      {c.status === "cancelled" && (
                         <Badge variant="outline" className="mt-1 text-[10px]">
                           Cancelled
                         </Badge>
-                      ) : (
-                        <Link
-                          to="/studio-display"
-                          search={temporaryClassSearch({
-                            classId: c.id,
-                            className: c.className,
-                            teacherName: c.teacherName === "—" ? "" : c.teacherName,
-                            date: c.specific_date,
-                            startTime: hhmm(c.start_time),
-                            endTime: hhmm(c.end_time),
-                          })}
-                          onClick={onClose}
-                          className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline max-lg:hidden"
-                        >
-                          <Monitor className="h-3.5 w-3.5" />
-                          Go to Studio Display
-                        </Link>
                       )}
                     </div>
                   );
