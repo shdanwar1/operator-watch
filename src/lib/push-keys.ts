@@ -7,10 +7,16 @@
  */
 
 export const NOTIFICATION_TYPES = {
+  shiftHourReminder: "shift_hour_reminder",
   shiftStartReminder: "shift_start",
   shiftStartCheckIn: "shift_start_check_in",
   leaveHome: "leave_home",
 } as const;
+
+/** One hour before this particular shift instance; independent of other reminders. */
+export function shiftHourReminderKey(shiftId: string, shiftStart: Date): string {
+  return `hour:${shiftId}@${shiftStart.toISOString()}`;
+}
 
 /** "Shift starts in 15 minutes". */
 export function startReminderKey(shiftId: string, shiftStart: Date): string {
