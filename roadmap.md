@@ -1,3 +1,9 @@
+# Run credit optimization
+- [ ] Replace static morning reminders with idempotent one-hour-before reminders and update the dispatch eligibility predicate.
+- [ ] Verify focused tests and database predicate boundaries.
+- [ ] Move maintenance to 20:00/20:15 Berlin — blocked: existing timers must be managed through Cloud Jobs; no supported schedule tools available.
+- [ ] Generate shift-window schedules, advisory-lock trigger, and sync-end refresh — blocked: hand-authored HTTP scheduling through SQL/migrations is unsupported for this existing project.
+
 # Timetable update
 - [x] Shared time grid, Berlin clock, preserved boundaries
 - [x] Shared admin/operator view and authenticated read access
