@@ -8,6 +8,7 @@ import {
 } from "@/lib/push-keys";
 import { LEAVE_NOTIFY_LEAD_MIN, leaveNotificationAt } from "@/lib/time-to-leave";
 import { normalizeUsername } from "@/domain/operator-identity";
+import { planShiftHourReminders } from "@/lib/shift-hour-reminder";
 
 /**
  * Scheduled push dispatcher.
@@ -252,21 +253,9 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           }
         }
 
-        // --- Daily 09:00 Berlin reminder: one per operator per Berlin day. ---
-        {
-          const { planDailyReminders, DAILY_REMINDER_TYPE } = await import("@/lib/daily-reminder");
-          const todayShifts = shiftRows.filter((s) => s.specific_date === todayKeys[1]);
-          for (const d of planDailyReminders(new Date(now), byName, todayShifts)) {
-            jobs.push({
-              operatorId: d.operatorId,
-              key: d.key,
-              type: DAILY_REMINDER_TYPE,
-              at: d.at,
-              shiftStartMs: d.firstStart.getTime(),
-              title: d.title,
-              body: d.body,
-            });
-          }
+        // One hour before each shift, including starts after Berlin midnight.
+        for (const reminder of planShiftHourReminders(new Date(now), byName, shiftRows)) {
+          jobs.push({ ...reminder, type: NOTIFICATION_TYPES.shiftHourReminder });
         }
 
         const stats = {
@@ -343,8 +332,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
 
           let result: Awaited<ReturnType<typeof sendToLoadedSubscriptions>>;
           try {
-            if (!subsByOp.has(job.operatorId)) subsByOp.set(job.operatorId, []);
-            result = await sendToLoadedSubscriptions(job.operatorId, subsByOp.get(job.operatorId)!, {
+            result = await sendToLoadedSubscriptions(job.operatorId, subsByOp.get(job.operatorId) ?? [], {
               title: job.title,
               body: job.body,
               tag: job.key,
