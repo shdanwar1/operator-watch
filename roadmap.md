@@ -1,8 +1,9 @@
 # Run credit optimization
-- [ ] Replace static morning reminders with idempotent one-hour-before reminders and update the dispatch eligibility predicate.
-- [ ] Verify focused tests and database predicate boundaries.
+- [x] Replace static morning reminders with idempotent one-hour-before reminders and update the dispatch eligibility predicate; reconcile hour keys after retiming/cancellation.
+- [x] Verify reminder boundaries with focused tests (30 passed), full suite (300 passed), applied database definition, and automatic build OK. Real phone delivery remains unverified.
 - [ ] Move maintenance to 20:00/20:15 Berlin — blocked: existing timers must be managed through Cloud Jobs; no supported schedule tools available.
 - [ ] Generate shift-window schedules, advisory-lock trigger, and sync-end refresh — blocked: hand-authored HTTP scheduling through SQL/migrations is unsupported for this existing project.
+- [ ] Resolve shift-window safety before activation: a fixed 90-minute opening can miss departure alerts for commutes longer than 75 minutes and delays the existing 14-day Time to Leave preparation.
 
 # Timetable update
 - [x] Shared time grid, Berlin clock, preserved boundaries
