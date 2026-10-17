@@ -16,9 +16,10 @@ export const Route = createFileRoute("/record")({
     const status = await getGateStatus();
     if (!status.unlocked) throw redirect({ to: "/unlock" });
     if (status.isAdmin) throw redirect({ to: "/admin" });
+    return { status };
   },
-  loader: async () => {
-    const { username } = await getGateStatus();
+  loader: async ({ context }) => {
+    const { username } = context.status;
     if (!username) return { username: null as string | null };
     const canonical = await getOperatorDisplayName({ data: { username } });
     return { username: canonical ?? username };
