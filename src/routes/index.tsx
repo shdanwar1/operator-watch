@@ -9,6 +9,7 @@ import {
   createShift,
   autoCheckInShift,
   checkOutShift,
+  setAutoCheckoutAtEnd,
   updateShift as updateShiftFn,
   type ShiftRow,
   type ScheduledShiftRow,
@@ -32,7 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, X, Clock, LogIn, AlertTriangle, Lock } from "lucide-react";
+import { Plus, X, Clock, LogIn, AlertTriangle, Lock, Check } from "lucide-react";
 import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { ChecklistPanel } from "@/components/checklist/ChecklistPanel";
@@ -1197,7 +1198,7 @@ function ActiveShiftPanel({
     try {
       await setAutoFn({ data: { id: shift.id, enabled: next } });
       if (next && shiftEnd)
-        toast.success(`Auto check-out set for ${format(shiftEnd, "HH:mm")}`);
+        toast.success(`Auto check-out set for ${hhmm(shiftEnd)}`);
     } catch (e) {
       setAutoOn(!next);
       toast.error(e instanceof Error ? e.message : "Could not update auto check-out");
@@ -1406,7 +1407,7 @@ function ActiveShiftPanel({
                   <>
                     <span className="block text-sm font-medium">
                       Auto check-out scheduled for{" "}
-                      <span className="font-semibold tabular-nums">{format(shiftEnd, "HH:mm")}</span>
+                      <span className="font-semibold tabular-nums">{hhmm(shiftEnd)}</span>
                     </span>
                     <span className="mt-1 block text-xs text-muted-foreground">
                       Shift details & classes will be saved to records.
@@ -1418,7 +1419,7 @@ function ActiveShiftPanel({
                 ) : (
                   <span className="block text-sm font-medium">
                     Auto check-out at shift end (
-                    <span className="font-semibold tabular-nums">{format(shiftEnd, "HH:mm")}</span>)
+                    <span className="font-semibold tabular-nums">{hhmm(shiftEnd)}</span>)
                   </span>
                 )}
               </span>
@@ -1593,4 +1594,12 @@ function LockedFeatureCard({
 function storedLeave(shift: DisplayShift): Date | null {
   const iso = shift.segments[0]?.time_to_leave;
   return iso ? new Date(iso) : null;
+}
+
+function hhmm(d: Date): string {
+  return d.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Berlin",
+  });
 }
