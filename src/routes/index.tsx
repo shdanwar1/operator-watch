@@ -67,9 +67,10 @@ export const Route = createFileRoute("/")({
     const status = await getGateStatus();
     if (!status.unlocked) throw redirect({ to: "/unlock" });
     if (status.isAdmin) throw redirect({ to: "/admin" });
+    return status;
   },
-  loader: async () => {
-    const { username } = await getGateStatus();
+  loader: async ({ context }) => {
+    const { username } = context as Awaited<ReturnType<typeof getGateStatus>>;
     if (!username)
       return { username: null as string | null, profile: null as MyProfileStatus | null };
     const [canonical, profile] = await Promise.all([
