@@ -1383,25 +1383,71 @@ function ActiveShiftPanel({
         onToggleItem={(itemId, completed) => toggleItem({ section: "end" }, itemId, completed)}
       />
 
-      <Card className="max-lg:glass max-lg:rounded-[22px]">
-        <CardContent className="flex flex-col items-center gap-2 p-5">
-          <HoldButton
-            label="Hold to check out"
-            hint={endComplete ? "Hold for check out" : undefined}
-            tone="danger"
-            busy={checkingOut}
-            disabled={!endComplete}
-            onComplete={handleHoldComplete}
-            size={84}
-            resetSignal={resetSignal}
-          />
-          {!endComplete && (
-            <p className="text-center text-xs text-muted-foreground">
-              Complete the End Shift Checklist before checking out.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {(canAuto || autoActive) && shiftEnd && (
+        <Card className="max-lg:glass max-lg:rounded-[22px]">
+          <CardContent className="p-0">
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={autoOn}
+              disabled={autoBusy || checkingOut}
+              onClick={toggleAuto}
+              className="flex min-h-12 w-full items-start gap-3 rounded-[inherit] p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 sm:p-5"
+            >
+              <span
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+                  autoOn ? "border-done bg-done text-background" : "border-muted-foreground"
+                }`}
+              >
+                {autoOn && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+              </span>
+              <span className="min-w-0 flex-1">
+                {autoOn ? (
+                  <>
+                    <span className="block text-sm font-medium">
+                      Auto check-out scheduled for{" "}
+                      <span className="font-semibold tabular-nums">{format(shiftEnd, "HH:mm")}</span>
+                    </span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      Shift details & classes will be saved to records.
+                    </span>
+                    <span className="mt-1 block text-xs text-muted-foreground underline underline-offset-2">
+                      Tap to cancel scheduled check-out
+                    </span>
+                  </>
+                ) : (
+                  <span className="block text-sm font-medium">
+                    Auto check-out at shift end (
+                    <span className="font-semibold tabular-nums">{format(shiftEnd, "HH:mm")}</span>)
+                  </span>
+                )}
+              </span>
+            </button>
+          </CardContent>
+        </Card>
+      )}
+
+      {!autoActive && (
+        <Card className="max-lg:glass max-lg:rounded-[22px]">
+          <CardContent className="flex flex-col items-center gap-2 p-5">
+            <HoldButton
+              label="Hold to check out"
+              hint={endComplete ? "Hold for check out" : undefined}
+              tone="danger"
+              busy={checkingOut}
+              disabled={!endComplete}
+              onComplete={handleHoldComplete}
+              size={84}
+              resetSignal={resetSignal}
+            />
+            {!endComplete && (
+              <p className="text-center text-xs text-muted-foreground">
+                Complete the End Shift Checklist before checking out.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* One dialog instance for every confirmation step. Swapping between
           separate mounted dialogs (early → camera) left the modal layer in a
