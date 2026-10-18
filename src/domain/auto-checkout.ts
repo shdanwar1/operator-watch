@@ -50,17 +50,14 @@ export function scheduledEndAt(s: {
 }
 
 /** When the End Shift checklist became fully complete, or null if it isn't. */
-export function endChecklistCompletedAt(checklists: unknown): Date | null {
-  if (!isShiftChecklists(checklists)) return null;
+/**
+ * True when every End Shift item is ticked. Completion times are stored as
+ * "HH:MM" display strings, so they are not used for eligibility.
+ */
+export function endChecklistComplete(checklists: unknown): boolean {
+  if (!isShiftChecklists(checklists)) return false;
   const items = checklists.end.items;
-  if (items.length === 0 || !items.every((i) => i.completed)) return null;
-  let latest = 0;
-  for (const i of items) {
-    const t = i.completedAt ? new Date(i.completedAt).getTime() : NaN;
-    if (Number.isNaN(t)) return null;
-    latest = Math.max(latest, t);
-  }
-  return new Date(latest);
+  return items.length > 0 && items.every((i) => i.completed === true);
 }
 
 /**
@@ -78,6 +75,6 @@ export function autoCheckoutAt(input: {
   const end = input.scheduledEnd.getTime();
   const now = input.now.getTime();
   if (now < end || now >= end + AUTO_CHECKOUT_WINDOW_MS) return null;
-  if (!endChecklistCompletedAt(input.checklists)) return null;
+  if (!endChecklistComplete(input.checklists)) return null;
   return input.scheduledEnd;
 }

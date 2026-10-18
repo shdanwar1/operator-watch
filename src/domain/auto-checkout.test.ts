@@ -38,6 +38,9 @@ describe("auto check-out", () => {
   it("already checked out → nothing", () => {
     expect(at("2026-10-05T20:30:00Z", undefined, "2026-10-05T20:27:00Z")).toBeNull();
   });
+  it("real HH:MM completion times still check out at end", () => {
+    expect(at("2026-10-05T20:30:00Z", snap("22:26"))?.toISOString()).toBe(end.toISOString());
+  });
   it("overnight shift ends next day", () => {
     expect(scheduledEndAt({ specific_date: "2026-10-05", start_time: "22:00", end_time: "02:00" }).toISOString()).toBe("2026-10-06T00:00:00.000Z");
   });
