@@ -1179,6 +1179,39 @@ function ActiveShiftPanel({
   // Shift progress: from check-in (or scheduled start) to the scheduled end.
   const shiftStart = times?.startAt ?? checkInAt;
   const shiftEnd = times?.endAt ?? null;
+
+  // Operator opt-in: auto check out at the scheduled end (server enforces too).
+  const setAutoFn = useServerFn(setAutoCheckoutAtEnd);
+  const [autoOn, setAutoOn] = useState<boolean>(
+    !!(shift as { auto_checkout_at_end?: boolean }).auto_checkout_at_end,
+  );
+  const [autoBusy, setAutoBusy] = useState(false);
+  const autoFired = useRef(false);
+  const canAuto = endComplete && !!shiftEnd && now.getTime() < shiftEnd.getTime();
+  const autoActive = autoOn && endComplete && !!shiftEnd;
+  async function toggleAuto() {
+    if (autoBusy) return;
+    const next = !autoOn;
+    setAutoBusy(true);
+    setAutoOn(next);
+    try {
+      await setAutoFn({ data: { id: shift.id, enabled: next } });
+      if (next && shiftEnd)
+        toast.success(`Auto check-out set for ${format(shiftEnd, "HH:mm")}`);
+    } catch (e) {
+      setAutoOn(!next);
+      toast.error(e instanceof Error ? e.message : "Could not update auto check-out");
+    } finally {
+      setAutoBusy(false);
+    }
+  }
+  useEffect(() => {
+    if (!autoActive || !shiftEnd || checkingOut || autoFired.current) return;
+    if (now.getTime() >= shiftEnd.getTime()) {
+      autoFired.current = true;
+      onCheckOut();
+    }
+  }, [autoActive, shiftEnd, now, checkingOut, onCheckOut]);
   const shiftPct = shiftEnd
     ? Math.max(
         0,
