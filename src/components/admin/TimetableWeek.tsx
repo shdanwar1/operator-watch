@@ -9,9 +9,10 @@ import { berlinClock, cardGeometry, HOUR_HEIGHT, layoutCards } from '@/component
 function Clock({ week }: { week: BoardDay[] }) {
   const [clock, setClock] = useState<ReturnType<typeof berlinClock> | null>(null);
   useEffect(() => {
-    const tick = () => setClock(berlinClock(new Date()));
+    const tick = () => { if (!document.hidden) setClock(berlinClock(new Date())); };
     tick(); const timer = setInterval(tick, 60_000);
-    return () => clearInterval(timer);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", tick); };
   }, []);
   if (!clock || !week.some(day => day.date === clock.date)) return null;
   return <div className="tt-now" style={{ top: clock.top }} aria-label={`Current Berlin time ${clock.label}`}><span>{clock.label}</span><i /></div>;
@@ -20,8 +21,10 @@ export function TimetableWeekSkeleton() { return <Skeleton className="h-[520px] 
 export function TimetableWeek({ week }: { week: BoardDay[] }) {
   const [today, setToday] = useState('');
   useEffect(() => {
-    const tick = () => setToday(berlinClock(new Date()).date);
-    tick(); const timer = setInterval(tick, 60_000); return () => clearInterval(timer);
+    const tick = () => { if (!document.hidden) setToday(berlinClock(new Date()).date); };
+    tick(); const timer = setInterval(tick, 60_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", tick); };
   }, []);
   return <div className="tt-grid">
     <div className="tt-axis-head" />
