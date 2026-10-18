@@ -60,10 +60,12 @@ export async function runAutoCheckout(
   }
   if (endById.size === 0) return 0;
 
+  // Only shifts whose operator explicitly ticked "Auto check-out at shift end".
   const { data: open } = await supabaseAdmin
     .from("shifts")
     .select("id, check_in_at, check_out_at, scheduled_shift_id, checklists, classes")
     .is("check_out_at", null)
+    .eq("auto_checkout_at_end", true)
     .in("scheduled_shift_id", [...endById.keys()]);
 
   let closedCount = 0;

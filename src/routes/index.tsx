@@ -9,6 +9,7 @@ import {
   createShift,
   autoCheckInShift,
   checkOutShift,
+  setAutoCheckoutAtEnd,
   updateShift as updateShiftFn,
   type ShiftRow,
   type ScheduledShiftRow,
@@ -32,7 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, X, Clock, LogIn, AlertTriangle, Lock } from "lucide-react";
+import { Plus, X, Clock, LogIn, AlertTriangle, Lock, Check } from "lucide-react";
 import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { ChecklistPanel } from "@/components/checklist/ChecklistPanel";
@@ -1179,6 +1180,39 @@ function ActiveShiftPanel({
   // Shift progress: from check-in (or scheduled start) to the scheduled end.
   const shiftStart = times?.startAt ?? checkInAt;
   const shiftEnd = times?.endAt ?? null;
+
+  // Operator opt-in: auto check out at the scheduled end (server enforces too).
+  const setAutoFn = useServerFn(setAutoCheckoutAtEnd);
+  const [autoOn, setAutoOn] = useState<boolean>(
+    !!(shift as { auto_checkout_at_end?: boolean }).auto_checkout_at_end,
+  );
+  const [autoBusy, setAutoBusy] = useState(false);
+  const autoFired = useRef(false);
+  const canAuto = endComplete && !!shiftEnd && now.getTime() < shiftEnd.getTime();
+  const autoActive = autoOn && endComplete && !!shiftEnd;
+  async function toggleAuto() {
+    if (autoBusy) return;
+    const next = !autoOn;
+    setAutoBusy(true);
+    setAutoOn(next);
+    try {
+      await setAutoFn({ data: { id: shift.id, enabled: next } });
+      if (next && shiftEnd)
+        toast.success(`Auto check-out set for ${hhmm(shiftEnd)}`);
+    } catch (e) {
+      setAutoOn(!next);
+      toast.error(e instanceof Error ? e.message : "Could not update auto check-out");
+    } finally {
+      setAutoBusy(false);
+    }
+  }
+  useEffect(() => {
+    if (!autoActive || !shiftEnd || checkingOut || autoFired.current) return;
+    if (now.getTime() >= shiftEnd.getTime()) {
+      autoFired.current = true;
+      onCheckOut();
+    }
+  }, [autoActive, shiftEnd, now, checkingOut, onCheckOut]);
   const shiftPct = shiftEnd
     ? Math.max(
         0,
@@ -1350,25 +1384,71 @@ function ActiveShiftPanel({
         onToggleItem={(itemId, completed) => toggleItem({ section: "end" }, itemId, completed)}
       />
 
-      <Card className="max-lg:glass max-lg:rounded-[22px]">
-        <CardContent className="flex flex-col items-center gap-2 p-5">
-          <HoldButton
-            label="Hold to check out"
-            hint={endComplete ? "Hold for check out" : undefined}
-            tone="danger"
-            busy={checkingOut}
-            disabled={!endComplete}
-            onComplete={handleHoldComplete}
-            size={84}
-            resetSignal={resetSignal}
-          />
-          {!endComplete && (
-            <p className="text-center text-xs text-muted-foreground">
-              Complete the End Shift Checklist before checking out.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {(canAuto || autoActive) && shiftEnd && (
+        <Card className="max-lg:glass max-lg:rounded-[22px]">
+          <CardContent className="p-0">
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={autoOn}
+              disabled={autoBusy || checkingOut}
+              onClick={toggleAuto}
+              className="flex min-h-12 w-full items-start gap-3 rounded-[inherit] p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 sm:p-5"
+            >
+              <span
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+                  autoOn ? "border-done bg-done text-background" : "border-muted-foreground"
+                }`}
+              >
+                {autoOn && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+              </span>
+              <span className="min-w-0 flex-1">
+                {autoOn ? (
+                  <>
+                    <span className="block text-sm font-medium">
+                      Auto check-out scheduled for{" "}
+                      <span className="font-semibold tabular-nums">{hhmm(shiftEnd)}</span>
+                    </span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      Shift details & classes will be saved to records.
+                    </span>
+                    <span className="mt-1 block text-xs text-muted-foreground underline underline-offset-2">
+                      Tap to cancel scheduled check-out
+                    </span>
+                  </>
+                ) : (
+                  <span className="block text-sm font-medium">
+                    Auto check-out at shift end (
+                    <span className="font-semibold tabular-nums">{hhmm(shiftEnd)}</span>)
+                  </span>
+                )}
+              </span>
+            </button>
+          </CardContent>
+        </Card>
+      )}
+
+      {!autoActive && (
+        <Card className="max-lg:glass max-lg:rounded-[22px]">
+          <CardContent className="flex flex-col items-center gap-2 p-5">
+            <HoldButton
+              label="Hold to check out"
+              hint={endComplete ? "Hold for check out" : undefined}
+              tone="danger"
+              busy={checkingOut}
+              disabled={!endComplete}
+              onComplete={handleHoldComplete}
+              size={84}
+              resetSignal={resetSignal}
+            />
+            {!endComplete && (
+              <p className="text-center text-xs text-muted-foreground">
+                Complete the End Shift Checklist before checking out.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* One dialog instance for every confirmation step. Swapping between
           separate mounted dialogs (early → camera) left the modal layer in a
@@ -1514,4 +1594,12 @@ function LockedFeatureCard({
 function storedLeave(shift: DisplayShift): Date | null {
   const iso = shift.segments[0]?.time_to_leave;
   return iso ? new Date(iso) : null;
+}
+
+function hhmm(d: Date): string {
+  return d.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Berlin",
+  });
 }

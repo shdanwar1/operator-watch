@@ -448,6 +448,39 @@ export const checkOutShift = createServerFn({ method: "POST" })
     return { ok: true as const, check_out_at: now.toISOString() };
   });
 
+/** Operator opt-in: auto check out this shift at its scheduled end. */
+export const setAutoCheckoutAtEnd = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string; enabled: boolean }) => {
+    if (!data?.id) throw new Error("id required");
+    return { id: String(data.id), enabled: data.enabled === true };
+  })
+  .handler(async ({ data }) => {
+    const { username, isAdmin } = await requireGate();
+    if (!username || isAdmin) throw new Response("Forbidden", { status: 403 });
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("shifts")
+      .select("id, operator_name, check_out_at, checklists")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Response("Shift not found", { status: 404 });
+    if (!sameOperator(String(row.operator_name ?? ""), username))
+      throw new Response("Forbidden", { status: 403 });
+    if (row.check_out_at) throw new Error("This shift is already checked out");
+    if (data.enabled) {
+      const { assertEndChecklistComplete } = await import("./checkout-validation");
+      assertEndChecklistComplete(row.checklists);
+    }
+    const { error: upErr } = await supabaseAdmin
+      .from("shifts")
+      .update({ auto_checkout_at_end: data.enabled } as never)
+      .eq("id", data.id)
+      .is("check_out_at", null);
+    if (upErr) throw new Error(upErr.message);
+    return { ok: true as const, enabled: data.enabled };
+  });
+
 export const deleteShift = createServerFn({ method: "POST" })
   .inputValidator((data: { id: string }) => {
     if (!data?.id) throw new Error("id required");
