@@ -1,0 +1,1 @@
+ALTER TABLE public.shifts ADD COLUMN IF NOT EXISTS auto_checkout_at_end boolean NOT NULL DEFAULT false;

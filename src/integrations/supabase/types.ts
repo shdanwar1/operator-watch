@@ -479,6 +479,7 @@ export type Database = {
       }
       shifts: {
         Row: {
+          auto_checkout_at_end: boolean
           check_in_at: string
           check_out_at: string | null
           checklists: Json | null
@@ -491,6 +492,7 @@ export type Database = {
           scheduled_shift_id: string | null
         }
         Insert: {
+          auto_checkout_at_end?: boolean
           check_in_at?: string
           check_out_at?: string | null
           checklists?: Json | null
@@ -503,6 +505,7 @@ export type Database = {
           scheduled_shift_id?: string | null
         }
         Update: {
+          auto_checkout_at_end?: boolean
           check_in_at?: string
           check_out_at?: string | null
           checklists?: Json | null

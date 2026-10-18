@@ -29,6 +29,13 @@
       "when": 1792138375844,
       "tag": "0003_align_one_hour_reminder_dispatch_eligibility",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792322579441,
+      "tag": "0004_shift_auto_checkout_optin",
+      "breakpoints": true
     }
   ]
 }
