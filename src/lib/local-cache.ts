@@ -20,17 +20,6 @@ type Envelope<T> = {
   value: T;
 };
 
-function storageAvailable(): boolean {
-  try {
-    const t = "__studio_cache_test__";
-    window.localStorage.setItem(t, "1");
-    window.localStorage.removeItem(t);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Reads a cached value. Returns null if nothing is cached, storage isn't
  * available (private browsing, disabled storage, SSR), or the cached
@@ -38,7 +27,7 @@ function storageAvailable(): boolean {
  * to the normal loading path, never an error.
  */
 export function readCache<T>(key: string): T | null {
-  if (typeof window === "undefined" || !storageAvailable()) return null;
+  if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(PREFIX + key);
     if (!raw) return null;
@@ -52,7 +41,7 @@ export function readCache<T>(key: string): T | null {
 
 /** Writes a value, replacing whatever was cached for this key. Best-effort. */
 export function writeCache<T>(key: string, value: T): void {
-  if (typeof window === "undefined" || !storageAvailable()) return;
+  if (typeof window === "undefined") return;
   try {
     const envelope: Envelope<T> = { v: VERSION, savedAt: Date.now(), value };
     window.localStorage.setItem(PREFIX + key, JSON.stringify(envelope));
@@ -64,7 +53,7 @@ export function writeCache<T>(key: string, value: T): void {
 
 /** Removes a single cached entry (e.g. on sign-out for that operator). */
 export function clearCache(key: string): void {
-  if (typeof window === "undefined" || !storageAvailable()) return;
+  if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(PREFIX + key);
   } catch {
@@ -74,7 +63,7 @@ export function clearCache(key: string): void {
 
 /** Removes every cached entry for one operator — call this on sign-out. */
 export function clearCacheForOperator(username: string): void {
-  if (typeof window === "undefined" || !storageAvailable()) return;
+  if (typeof window === "undefined") return;
   try {
     const prefix = PREFIX + operatorNamespace(username);
     const toRemove: string[] = [];
@@ -94,7 +83,7 @@ export function clearCacheForOperator(username: string): void {
  * into the next person's session.
  */
 export function clearAllCaches(): void {
-  if (typeof window === "undefined" || !storageAvailable()) return;
+  if (typeof window === "undefined") return;
   try {
     const toRemove: string[] = [];
     for (let i = 0; i < window.localStorage.length; i++) {
