@@ -33,7 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, X, Clock, LogIn, AlertTriangle, Lock, Check, RefreshCw } from "lucide-react";
+import { Plus, X, Clock, LogIn, AlertTriangle, Lock, Check, RefreshCw, Navigation as TravelIcon } from "lucide-react";
 import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { ChecklistPanel } from "@/components/checklist/ChecklistPanel";
