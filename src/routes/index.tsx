@@ -53,6 +53,7 @@ import { AppShell, SectionTitle } from "@/components/AppShell";
 import { HoldButton } from "@/components/HoldButton";
 import { StudioActivation } from "@/components/StudioActivation";
 import { MonthlyHours } from "@/components/MonthlyHours";
+import { CATEGORY_LABEL, classifyMinute, type HourCategory } from "@/lib/attendance";
 import { preCheckInState } from "@/lib/shift-phase";
 import {
   buildDisplayShifts,
@@ -957,8 +958,12 @@ function NextShiftSummary({
               </>
             )}
             <div className="mt-4 text-[22px] font-medium tabular-nums">{range.range}</div>
-            <div className="mt-1.5 text-xs text-muted-foreground">
-              {count} {count === 1 ? "class" : "classes"}
+            <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+              <ShiftTypeDot at={shift.startAt} withLabel />
+              <span aria-hidden>·</span>
+              <span>
+                {count} {count === 1 ? "class" : "classes"}
+              </span>
             </div>
           </div>
           {showTimeToLeave ? (
@@ -974,6 +979,27 @@ function NextShiftSummary({
         </CardContent>
       </Card>
     </section>
+  );
+}
+
+const CATEGORY_DOT: Record<HourCategory, string> = {
+  day: "bg-hours-day",
+  night: "bg-hours-night",
+  weekend: "bg-hours-weekend",
+};
+
+/** Day / Night / Weekend marker — same rule and colours as the Calendar. */
+function ShiftTypeDot({ at, withLabel = false }: { at: Date; withLabel?: boolean }) {
+  const cat = classifyMinute(at);
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1.5">
+      <span aria-hidden className={`h-2 w-2 rounded-full ${CATEGORY_DOT[cat]}`} />
+      {withLabel ? (
+        <span>{CATEGORY_LABEL[cat]}</span>
+      ) : (
+        <span className="sr-only">{CATEGORY_LABEL[cat]} shift</span>
+      )}
+    </span>
   );
 }
 
@@ -998,7 +1024,8 @@ function UpcomingShifts({ shifts, now }: { shifts: DisplayShift[]; now: Date }) 
                   key={`${shift.startAt.toISOString()}-${shift.endAt.toISOString()}`}
                   className="flex items-center justify-between gap-4 border-b border-border px-5 py-3.5 last:border-b-0"
                 >
-                  <span className="text-sm font-medium">
+                  <span className="flex min-w-0 items-center gap-2.5 text-sm font-medium">
+                    <ShiftTypeDot at={shift.startAt} />
                     {shift.startAt.toLocaleDateString(undefined, {
                       weekday: "short",
                       day: "2-digit",
