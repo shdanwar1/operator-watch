@@ -625,7 +625,9 @@ function Index() {
 
       <div className={`mx-auto w-full space-y-6 ${active ? "max-w-3xl" : "max-w-[520px]"}`}>
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <DashboardSkeleton />
+        ) : loadError ? (
+          <DashboardError message={loadError} onRetry={() => load()} />
         ) : active ? (
           <ActiveShiftPanel
             shift={active}
