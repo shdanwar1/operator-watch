@@ -43,7 +43,10 @@ export async function runAutoCheckout(
       .select("id, specific_date, start_time, end_time, status")
       .in("specific_date", [yesterday, today])
       .neq("status", "cancelled");
-    if (error) return 0;
+    if (error) {
+      console.error("auto-checkout schedule read failed", error.message);
+      return 0;
+    }
     scheds = (data ?? []) as SchedRow[];
   }
   if (!scheds.length) return 0;
@@ -61,12 +64,17 @@ export async function runAutoCheckout(
   if (endById.size === 0) return 0;
 
   // Only shifts whose operator explicitly ticked "Auto check-out at shift end".
-  const { data: open } = await supabaseAdmin
+  const { data: open, error: openErr } = await supabaseAdmin
     .from("shifts")
     .select("id, check_in_at, check_out_at, scheduled_shift_id, checklists, classes")
     .is("check_out_at", null)
     .eq("auto_checkout_at_end", true)
     .in("scheduled_shift_id", [...endById.keys()]);
+  // A failed read must be visible in logs, not look like "nothing due".
+  if (openErr) {
+    console.error("auto-checkout open-shift read failed", openErr.message);
+    return 0;
+  }
 
   let closedCount = 0;
   for (const s of open ?? []) {
