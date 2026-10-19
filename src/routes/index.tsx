@@ -33,7 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, X, Clock, LogIn, AlertTriangle, Lock, Check, RefreshCw } from "lucide-react";
+import { Plus, X, Clock, LogIn, AlertTriangle, Lock, Check, RefreshCw, Navigation as TravelIcon } from "lucide-react";
 import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { ChecklistPanel } from "@/components/checklist/ChecklistPanel";
@@ -971,26 +971,15 @@ function NextShiftSummary({
             </div>
           </div>
           {showTimeToLeave ? (
-            <>
-              <div className="flex min-w-[108px] flex-col justify-center border-l border-border pl-4 sm:min-w-40 sm:pl-6 lg:hidden">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  Leave at
-                </div>
-                <div className="mt-1 text-[28px] font-bold leading-none tabular-nums">
-                  {leave ? fmtHM(leave) : "—"}
-                </div>
+            <div className="flex min-w-[108px] flex-col justify-center border-l border-border pl-4 sm:min-w-40 sm:pl-6">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                <TravelIcon className="h-3.5 w-3.5 text-primary" aria-hidden />
+                Leave at
               </div>
-              <div className="hidden items-center lg:flex">
-                <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full border-[6px] border-primary">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
-                    Leave at
-                  </div>
-                  <div className="mt-1 text-2xl font-bold leading-none tabular-nums">
-                    {leave ? fmtHM(leave) : "—"}
-                  </div>
-                </div>
+              <div className="mt-1 text-[28px] font-bold leading-none tabular-nums">
+                {leave ? fmtHM(leave) : "—"}
               </div>
-            </>
+            </div>
           ) : null}
         </CardContent>
       </Card>
