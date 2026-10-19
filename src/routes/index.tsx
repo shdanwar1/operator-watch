@@ -973,7 +973,7 @@ function NextShiftSummary({
           {showTimeToLeave ? (
             <div className="flex min-w-[108px] flex-col justify-center border-l border-border pl-4 sm:min-w-40 sm:pl-6">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                <Navigation className="h-3.5 w-3.5 text-primary" aria-hidden />
+                <TravelIcon className="h-3.5 w-3.5 text-primary" aria-hidden />
                 Leave at
               </div>
               <div className="mt-1 text-[28px] font-bold leading-none tabular-nums">
