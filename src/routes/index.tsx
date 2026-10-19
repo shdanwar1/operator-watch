@@ -348,6 +348,7 @@ function Index() {
   // updates the already-visible content in place instead of blanking the
   // page — that repeated blanking, not the sync itself, was the "freeze".
   const hasLoadedOnce = useRef(!!cachedDashboard);
+  const [loadError, setLoadError] = useState<string | null>(null);
   async function load() {
     if (!hasLoadedOnce.current) setLoading(true);
     try {
@@ -374,11 +375,15 @@ function Index() {
           calendarClasses: calRows,
         });
       }
+      hasLoadedOnce.current = true;
+      setLoadError(null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to load");
+      const msg = e instanceof Error ? e.message : "Failed to load";
+      // Nothing on screen yet: show an in-place retry instead of a blank page.
+      if (!hasLoadedOnce.current) setLoadError(msg);
+      else toast.error(msg);
     } finally {
       setLoading(false);
-      hasLoadedOnce.current = true;
     }
   }
 
