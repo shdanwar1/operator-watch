@@ -12,8 +12,13 @@ export function MonthlyHours({
   scheduled: ScheduledShiftRow[];
 }) {
   const summary = summarizeMonth(shifts, scheduled, new Date());
-  const progress =
-    summary.scheduledMin > 0 ? Math.min(100, (summary.workedMin / summary.scheduledMin) * 100) : 0;
+  // Bar segments show how worked hours split across categories,
+  // scaled against scheduled (or worked, if it exceeds scheduled).
+  const barDenominator = Math.max(summary.scheduledMin, summary.workedMin);
+  const segments = (["day", "night", "weekend"] as const).map((category) => ({
+    category,
+    pct: barDenominator > 0 ? Math.min(100, (summary[`${category}Min`] / barDenominator) * 100) : 0,
+  }));
   const monthName = new Date().toLocaleDateString(undefined, { month: "long" });
 
   return (
@@ -33,7 +38,21 @@ export function MonthlyHours({
             <HourValue label="Scheduled" minutes={summary.scheduledMin} prominent />
           </div>
           <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
+            <div className="flex h-full">
+              {segments.map((segment) => (
+                <div
+                  key={segment.category}
+                  className={
+                    segment.category === "day"
+                      ? "bg-hours-day"
+                      : segment.category === "night"
+                        ? "bg-hours-night"
+                        : "bg-hours-weekend"
+                  }
+                  style={{ width: `${segment.pct}%` }}
+                />
+              ))}
+            </div>
           </div>
           <div className="mt-5 grid grid-cols-3 gap-3 border-t border-border pt-4">
             {(["day", "night", "weekend"] as const).map((category) => (
