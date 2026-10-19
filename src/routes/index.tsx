@@ -624,7 +624,7 @@ function Index() {
         <ProfileIncompleteBanner missing={profileStatus?.missing ?? []} />
       )}
 
-      <div className={`mx-auto w-full space-y-6 ${active ? "max-w-3xl" : "max-w-[520px]"}`}>
+      <div className={`mx-auto w-full space-y-6 ${active ? "max-w-3xl" : "max-w-[520px] lg:max-w-6xl"}`}>
         {loading ? (
           <DashboardSkeleton />
         ) : loadError ? (
@@ -902,15 +902,19 @@ function InactiveDashboard({
   showTimeToLeave: boolean;
 }) {
   return (
-    <div className="space-y-7">
-      <NextShiftSummary
-        shift={nextShift}
-        now={now}
-        calendarClasses={calendarClasses}
-        showTimeToLeave={showTimeToLeave}
-      />
-      <UpcomingShifts shifts={upcoming} now={now} />
-      <MonthlyHours shifts={shifts} scheduled={scheduled} />
+    <div className="space-y-7 lg:grid lg:grid-cols-12 lg:items-start lg:gap-6 lg:space-y-0">
+      <div className="space-y-7 lg:col-span-7">
+        <NextShiftSummary
+          shift={nextShift}
+          now={now}
+          calendarClasses={calendarClasses}
+          showTimeToLeave={showTimeToLeave}
+        />
+        <UpcomingShifts shifts={upcoming} now={now} />
+      </div>
+      <div className="lg:col-span-5">
+        <MonthlyHours shifts={shifts} scheduled={scheduled} />
+      </div>
     </div>
   );
 }
@@ -967,14 +971,26 @@ function NextShiftSummary({
             </div>
           </div>
           {showTimeToLeave ? (
-            <div className="flex min-w-[108px] flex-col justify-center border-l border-border pl-4 sm:min-w-40 sm:pl-6">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Leave at
+            <>
+              <div className="flex min-w-[108px] flex-col justify-center border-l border-border pl-4 sm:min-w-40 sm:pl-6 lg:hidden">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Leave at
+                </div>
+                <div className="mt-1 text-[28px] font-bold leading-none tabular-nums">
+                  {leave ? fmtHM(leave) : "—"}
+                </div>
               </div>
-              <div className="mt-1 text-[28px] font-bold leading-none tabular-nums">
-                {leave ? fmtHM(leave) : "—"}
+              <div className="hidden items-center lg:flex">
+                <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full border-[6px] border-primary">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+                    Leave at
+                  </div>
+                  <div className="mt-1 text-2xl font-bold leading-none tabular-nums">
+                    {leave ? fmtHM(leave) : "—"}
+                  </div>
+                </div>
               </div>
-            </div>
+            </>
           ) : null}
         </CardContent>
       </Card>
