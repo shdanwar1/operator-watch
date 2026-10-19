@@ -70,17 +70,19 @@ export function buildClassDisplayUrl(input: {
 
 
 /**
- * True when a popup window would leave the app (installed web app on iOS) or
- * simply isn't a usable surface (touch devices). In those cases the display is
- * opened in the same window instead of a second browser window.
+ * True when a popup window would leave the app — touch devices (iPhone, iPad,
+ * Android), installed or not. iOS hands popups to the system browser and
+ * Android can't manage the two-window arrangement, so there the display opens
+ * in the same window instead.
+ *
+ * Desktop is excluded on purpose: macOS Safari Web Apps report standalone but
+ * fully support multi-window, so "Open Display" opens a real separate window
+ * there, matching Chrome.
  */
 export function prefersInAppDisplay(): boolean {
   if (typeof window === "undefined") return false;
-  const standalone =
-    window.matchMedia?.("(display-mode: standalone)").matches ||
-    (window.navigator as unknown as { standalone?: boolean }).standalone === true;
   const coarse = window.matchMedia?.("(pointer: coarse)").matches ?? false;
-  return Boolean(standalone || coarse);
+  return Boolean(coarse);
 }
 
 export function readStudioDisplayState(): StudioDisplayState {
