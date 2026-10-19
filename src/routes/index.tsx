@@ -33,7 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, X, Clock, LogIn, AlertTriangle, Lock, Check } from "lucide-react";
+import { Plus, X, Clock, LogIn, AlertTriangle, Lock, Check, RefreshCw } from "lucide-react";
 import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { ChecklistPanel } from "@/components/checklist/ChecklistPanel";
@@ -695,6 +695,102 @@ function Index() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+function SkeletonBar({ className = "" }: { className?: string }) {
+  return <div className={`rounded-md bg-muted motion-safe:animate-pulse ${className}`} />;
+}
+
+/** Mirrors the Next shift / Upcoming / Monthly hours geometry so nothing jumps on load. */
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-7" role="status" aria-live="polite" aria-busy="true">
+      <span className="sr-only">Loading your dashboard</span>
+      <section>
+        <SkeletonBar className="mb-3 h-3 w-20" />
+        <Card className="rounded-[22px] shadow-none">
+          <CardContent className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-4 p-5 sm:gap-6 sm:p-6">
+            <div className="min-w-0 space-y-3">
+              <SkeletonBar className="h-7 w-32" />
+              <SkeletonBar className="h-3.5 w-24" />
+              <SkeletonBar className="mt-4 h-5 w-36" />
+              <SkeletonBar className="h-3 w-16" />
+            </div>
+            <div className="flex min-w-[108px] flex-col justify-center gap-2 border-l border-border pl-4 sm:min-w-40 sm:pl-6">
+              <SkeletonBar className="h-2.5 w-14" />
+              <SkeletonBar className="h-7 w-20" />
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <SkeletonBar className="h-3 w-20" />
+          <SkeletonBar className="h-7 w-24 rounded-full" />
+        </div>
+        <Card className="rounded-[22px] shadow-none">
+          <CardContent className="p-0">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between gap-4 border-b border-border px-5 py-3.5 last:border-b-0"
+              >
+                <SkeletonBar className="h-4 w-24" />
+                <SkeletonBar className="h-4 w-28" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </section>
+      <section>
+        <SkeletonBar className="mb-3 h-3 w-28" />
+        <Card className="rounded-[22px] shadow-none">
+          <CardContent className="space-y-5 p-5 sm:p-6">
+            <div className="grid grid-cols-2 gap-5">
+              <SkeletonBar className="h-9 w-24" />
+              <SkeletonBar className="h-9 w-24" />
+            </div>
+            <SkeletonBar className="h-1.5 w-full rounded-full" />
+            <div className="grid grid-cols-3 gap-3 border-t border-border pt-4">
+              {[0, 1, 2].map((i) => (
+                <SkeletonBar key={i} className="h-8 w-full" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+    </div>
+  );
+}
+
+function DashboardError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Card className="rounded-[22px] shadow-none" role="alert">
+      <CardContent className="flex flex-col items-center gap-3 px-5 py-10 text-center">
+        <AlertTriangle className="h-6 w-6 text-warn" aria-hidden />
+        <h2 className="text-base font-semibold">Couldn't load your shifts</h2>
+        <p className="max-w-xs text-sm text-muted-foreground">
+          Check your connection and try again. ({message})
+        </p>
+        <Button
+          className="mt-2 min-h-11 rounded-full px-6"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await onRetry();
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <RefreshCw className={`mr-2 h-4 w-4 ${busy ? "motion-safe:animate-spin" : ""}`} />
+          {busy ? "Retrying…" : "Try again"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
