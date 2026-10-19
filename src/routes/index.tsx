@@ -1047,6 +1047,18 @@ function UpcomingShifts({ shifts, now }: { shifts: DisplayShift[]; now: Date }) 
                       day: "2-digit",
                       month: "short",
                     })}
+                    {(() => {
+                      const d0 = new Date(now);
+                      d0.setHours(0, 0, 0, 0);
+                      const d1 = new Date(shift.startAt);
+                      d1.setHours(0, 0, 0, 0);
+                      const days = Math.round((d1.getTime() - d0.getTime()) / 86_400_000);
+                      return (
+                        <span className="hidden rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground lg:inline">
+                          {days <= 0 ? "Today" : days === 1 ? "Tomorrow" : `in ${days} days`}
+                        </span>
+                      );
+                    })()}
                   </span>
                   <span className="text-sm tabular-nums text-muted-foreground">{range.range}</span>
                 </div>
