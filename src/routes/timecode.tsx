@@ -60,7 +60,7 @@ function draftKey(cid: string) {
 }
 
 function TimecodePage() {
-  const { cid, cn, tn, cd, cs, ce } = Route.useSearch();
+  const { cid, cn: clsName, tn, cd, cs, ce } = Route.useSearch();
   const [state, setState] = useState<TimecodeState>(EMPTY_TIMECODE);
   const [loaded, setLoaded] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -105,7 +105,7 @@ function TimecodePage() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       saveClassTimecode({
-        data: { classId: cid, className: cn, teacherName: tn, date: cd, state: next },
+        data: { classId: cid, className: clsName, teacherName: tn, date: cd, state: next },
       }).catch(() => toast.error("Could not save — kept on this device"));
     }, 400);
   }
@@ -138,7 +138,7 @@ function TimecodePage() {
   const exportEdl = () => {
     const [y, m, d] = (cd ?? "").split("-");
     const [h, min] = (cs ?? "00:00").split(":");
-    const base = `${(y ?? "").slice(2)}${m ?? ""}${d ?? ""}_${h}-${min}_${tn ?? ""}_${cn ?? "Class"}`.replace(/\s+/g, "_");
+    const base = `${(y ?? "").slice(2)}${m ?? ""}${d ?? ""}_${h}-${min}_${tn ?? ""}_${clsName ?? "Class"}`.replace(/\s+/g, "_");
     const blob = new Blob([buildEdl(base, state.markers)], { type: "text/plain" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -168,7 +168,7 @@ function TimecodePage() {
           </Button>
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-semibold">{cn ?? "Ballet class"}</h1>
+          <h1 className="truncate text-lg font-semibold">{clsName ?? "Ballet class"}</h1>
           <p className="truncate text-xs text-muted-foreground">
             {[tn, cd, cs && ce ? `${cs}–${ce}` : null].filter(Boolean).join(" · ")}
           </p>
