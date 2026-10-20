@@ -159,7 +159,10 @@ function TimecodePage() {
     const f = framesAt(elapsedMsOf(state, Date.now()));
     commit({
       ...state,
-      markers: [...state.markers, { id: crypto.randomUUID(), frames: f, kind, note: note.trim() || defNote }],
+      markers: [
+        ...state.markers,
+        { id: crypto.randomUUID(), frames: f, kind, note: note.trim() || defNote, at: Date.now() },
+      ],
     });
     setNote("");
   };

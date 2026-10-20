@@ -20,6 +20,8 @@ export type TimecodeMarker = {
   frames: number;
   kind: MarkerKind;
   note: string;
+  /** Wall-clock epoch ms when the marker was tapped (absent on older markers). */
+  at?: number;
 };
 
 export type TimecodeState = {
