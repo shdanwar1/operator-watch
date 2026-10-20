@@ -2,100 +2,87 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { ChecklistRecords } from "@/components/admin/ChecklistRecords";
+import { ChecklistScorecard } from "@/components/admin/ChecklistScorecard";
 import { ChecklistTemplateList } from "@/components/admin/ChecklistTemplateList";
-import { visibleChecklistRecords } from "@/components/admin/checklist-records-view";
-import { adminListChecklistRecords } from "@/lib/checklist-records.functions";
-import { filterChecklistRecords } from "@/lib/checklist-records";
-import { berlinDateKey } from "@/lib/gcal-core";
+import { adminChecklistScores } from "@/lib/checklist-records.functions";
+import type { ScorePeriod } from "@/domain/checklist-scoring";
 import { pageMeta } from "@/lib/page-titles";
 
 export const Route = createFileRoute("/admin/checklists")({
   head: () => ({
     meta: pageMeta(
-      "Checklist Records — Studio Admin",
-      "Read-only shift checklist records and Berlin completion times for Studio administrators.",
+      "Checklists — Studio Admin",
+      "Operator checklist completeness and punctuality scores, plus master checklist editing.",
     ),
   }),
   component: AdminChecklists,
 });
 
+const PERIODS: { value: ScorePeriod; label: string }[] = [
+  { value: "30d", label: "Last 30 days" },
+  { value: "all", label: "All time" },
+];
+
 function AdminChecklists() {
-  const [date, setDate] = useState(() => berlinDateKey(new Date()));
-  const [operator, setOperator] = useState("all");
-  const fetchRecords = useServerFn(adminListChecklistRecords);
+  const [period, setPeriod] = useState<ScorePeriod>("30d");
+  const fetchScores = useServerFn(adminChecklistScores);
   const query = useQuery({
-    queryKey: ["admin", "checklist-records", date],
-    queryFn: () => fetchRecords({ data: { date } }),
-    enabled: Boolean(date),
+    queryKey: ["admin", "checklist-scores", period],
+    queryFn: () => fetchScores({ data: { period } }),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-  const qualifyingRows = visibleChecklistRecords(query.data ?? []);
-  const rows = filterChecklistRecords(qualifyingRows, operator);
-  const operators = Array.from(new Set(qualifyingRows.map((row) => row.operator_name))).sort();
   return (
-    <section className="mx-auto max-w-6xl space-y-5">
-      <header>
-        <h1 className="text-2xl font-semibold">Checklists</h1>
-        <p className="mt-1 text-sm text-muted-foreground">View shift checklist records</p>
+    <section className="mx-auto max-w-4xl space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Checklists</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Operator completeness and punctuality
+          </p>
+        </div>
+        <div
+          role="tablist"
+          aria-label="Score period"
+          className="flex rounded-lg border border-border bg-muted/40 p-0.5"
+        >
+          {PERIODS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="tab"
+              aria-selected={period === option.value}
+              onClick={() => setPeriod(option.value)}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                period === option.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </header>
-      <div className="grid max-w-xl grid-cols-2 gap-3 sm:gap-4">
-        <div className="min-w-0 space-y-1.5">
-          <Label htmlFor="record-date">Date</Label>
-          <Input
-            id="record-date"
-            type="date"
-            value={date}
-            onChange={(event) => {
-              setDate(event.target.value);
-              setOperator("all");
-            }}
-          />
-        </div>
-        <div className="min-w-0 space-y-1.5">
-          <Label htmlFor="record-operator">Operator</Label>
-          <Select value={operator} onValueChange={setOperator}>
-            <SelectTrigger id="record-operator">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All operators</SelectItem>
-              {operators.map((name) => (
-                <SelectItem key={name} value={name}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <h2 className="text-xs font-semibold uppercase text-muted-foreground">Shifts</h2>
+
       {query.isError ? (
         <div role="alert" className="space-y-2 text-sm">
-          <p>Could not load checklist records.</p>
+          <p>Could not load checklist scores.</p>
           <Button variant="outline" onClick={() => query.refetch()}>
             Try again
           </Button>
         </div>
-      ) : query.isPending && date ? (
+      ) : query.isPending ? (
         <p role="status" className="text-sm text-muted-foreground">
-          Loading records…
+          Loading scores…
         </p>
-      ) : rows.length ? (
-        <ChecklistRecords records={rows} />
+      ) : query.data.length ? (
+        <ChecklistScorecard scores={query.data} period={period} />
       ) : (
-        <p className="text-sm text-muted-foreground">No checklist records found.</p>
+        <p className="text-sm text-muted-foreground">
+          No closed shifts with checklists in this period.
+        </p>
       )}
 
       <div className="space-y-3 border-t border-border pt-6">
