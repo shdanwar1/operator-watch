@@ -52,6 +52,13 @@ const shift = (overrides: Partial<ScoreShiftInput> = {}): ScoreShiftInput => ({
   ...overrides,
 });
 
+/** Fresh snapshot with an unchecked End unit (2 of 3 units complete). */
+const weakEnd = (): ShiftChecklists => {
+  const weak = snapshot();
+  weak.end.items = [item("e1", null)];
+  return weak;
+};
+
 describe("clock projection", () => {
   it("parses HH:MM and rejects legacy values", () => {
     expect(parseClockMinutes("18:42")).toBe(18 * 60 + 42);
