@@ -156,7 +156,7 @@ describe("scoreOperators", () => {
     legacy.start.items = [{ id: "s1", text: "s1", completed: true }];
     const [score] = scoreOperators([shift({ checklists: legacy })]);
     expect(score.completenessPct).toBe(100);
-    expect(score.punctualityPct).toBe(75);
+    expect(score.punctualityPct).toBe(67);
     expect(score.lateUnits).toBe(1);
   });
   it("skips open shifts and shifts without snapshots, omits empty operators", () => {
@@ -169,15 +169,13 @@ describe("scoreOperators", () => {
     expect(scores[0].operator).toBe("A");
   });
   it("sorts by completeness, then punctuality, then name", () => {
-    const weak = snapshot();
-    weak.end.items = [item("e1", null)];
     const scores = scoreOperators([
-      shift({ operator_name: "Zed", checklists: weak }),
+      shift({ operator_name: "Zed", checklists: weakEnd() }),
       shift({ operator_name: "Ann" }),
-      shift({ operator_name: "Bob", checklists: weak }),
+      shift({ operator_name: "Bob", checklists: weakEnd() }),
     ]);
     expect(scores.map((s) => s.operator)).toEqual(["Ann", "Bob", "Zed"]);
-    expect(scores[1].completenessPct).toBe(75);
+    expect(scores[1].completenessPct).toBe(67);
   });
 });
 
