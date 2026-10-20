@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
-import type { TimecodeState } from "./timecode";
+import { durationBetween, type TimecodeState } from "./timecode";
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
