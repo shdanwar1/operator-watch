@@ -8,6 +8,7 @@ import {
   LogOut,
   Monitor,
   PanelLeft,
+  Timer,
   User,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -28,6 +29,7 @@ const NAV: { label: string; to: string; icon: typeof LayoutDashboard; exact?: bo
 const SIDEBAR_NAV = [
   ...NAV,
   { label: "Display", to: "/studio-display", icon: Monitor },
+  { label: "Timecodes", to: "/timecode", icon: Timer },
 ];
 
 /** Mobile tab bar: the three primary destinations plus Display and Profile. */
