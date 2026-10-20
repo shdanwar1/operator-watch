@@ -210,7 +210,7 @@ function TimecodePage() {
               if (e.key === "Escape") setTcEdit(null);
             }}
             aria-label="Set timecode"
-            className="w-full bg-transparent text-center font-mono text-5xl font-semibold tabular-nums outline-none ring-1 ring-primary rounded-lg sm:text-7xl"
+            className="w-full bg-transparent text-center tc-num text-5xl font-semibold outline-none ring-1 ring-primary rounded-lg sm:text-7xl"
           />
         ) : (
           <button
@@ -218,7 +218,7 @@ function TimecodePage() {
             disabled={running}
             onClick={() => setTcEdit(formatTimecode(frames))}
             title={running ? "Pause to edit" : "Click to type the recording's timecode"}
-            className="group inline-flex items-center gap-3 font-mono text-5xl font-semibold tabular-nums sm:text-7xl"
+            className="group inline-flex items-center gap-3 tc-num text-5xl font-semibold sm:text-7xl"
           >
             {formatTimecode(frames)}
             {!running && <Pencil className="h-5 w-5 text-muted-foreground opacity-60 group-hover:opacity-100" />}
@@ -285,7 +285,7 @@ function TimecodePage() {
         {sorted.map((m) => (
           <div key={m.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
             <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", KIND_DOT[m.kind])} />
-            <span className="font-mono text-sm tabular-nums">{formatTimecode(m.frames)}</span>
+            <span className="tc-num text-sm">{formatTimecode(m.frames)}</span>
             <span className="w-20 shrink-0 text-xs text-muted-foreground">{m.kind}</span>
             <Input
               className="h-8 flex-1"
@@ -359,7 +359,7 @@ function TimecodeLibrary() {
                   <Timer className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{r.className ?? "Ballet class"}</p>
-                    <p className="truncate font-mono text-[11px] text-muted-foreground">
+                    <p className="truncate tc-num text-[11px] text-muted-foreground">
                       {name}.edl · {r.state.markers.length} markers
                     </p>
                   </div>
