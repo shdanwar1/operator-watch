@@ -18,6 +18,7 @@ import { Route as EarningsRouteImport } from './routes/earnings'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RecordRouteImport } from './routes/record'
 import { Route as StudioDisplayRouteImport } from './routes/studio-display'
+import { Route as TimecodeRouteImport } from './routes/timecode'
 import { Route as TimetableRouteImport } from './routes/timetable'
 import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
@@ -73,6 +74,11 @@ const RecordRoute = RecordRouteImport.update({
 const StudioDisplayRoute = StudioDisplayRouteImport.update({
   id: '/studio-display',
   path: '/studio-display',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TimecodeRoute = TimecodeRouteImport.update({
+  id: '/timecode',
+  path: '/timecode',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TimetableRoute = TimetableRouteImport.update({
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/record': typeof RecordRoute
   '/studio-display': typeof StudioDisplayRoute
+  '/timecode': typeof TimecodeRoute
   '/timetable': typeof TimetableRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/record': typeof RecordRoute
   '/studio-display': typeof StudioDisplayRoute
+  '/timecode': typeof TimecodeRoute
   '/timetable': typeof TimetableRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
@@ -187,6 +195,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/record': typeof RecordRoute
   '/studio-display': typeof StudioDisplayRoute
+  '/timecode': typeof TimecodeRoute
   '/timetable': typeof TimetableRoute
   '/unlock': typeof UnlockRoute
   '/admin/calendar': typeof AdminCalendarRoute
@@ -211,6 +220,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/record'
     | '/studio-display'
+    | '/timecode'
     | '/timetable'
     | '/unlock'
     | '/admin/calendar'
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/record'
     | '/studio-display'
+    | '/timecode'
     | '/timetable'
     | '/unlock'
     | '/admin/calendar'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/record'
     | '/studio-display'
+    | '/timecode'
     | '/timetable'
     | '/unlock'
     | '/admin/calendar'
@@ -277,6 +289,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   RecordRoute: typeof RecordRoute
   StudioDisplayRoute: typeof StudioDisplayRoute
+  TimecodeRoute: typeof TimecodeRoute
   TimetableRoute: typeof TimetableRoute
   UnlockRoute: typeof UnlockRoute
   ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
@@ -346,6 +359,13 @@ declare module '@tanstack/react-router' {
       path: '/studio-display'
       fullPath: '/studio-display'
       preLoaderRoute: typeof StudioDisplayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/timecode': {
+      id: '/timecode'
+      path: '/timecode'
+      fullPath: '/timecode'
+      preLoaderRoute: typeof TimecodeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/timetable': {
@@ -460,6 +480,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   RecordRoute: RecordRoute,
   StudioDisplayRoute: StudioDisplayRoute,
+  TimecodeRoute: TimecodeRoute,
   TimetableRoute: TimetableRoute,
   UnlockRoute: UnlockRoute,
   ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
