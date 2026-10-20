@@ -84,3 +84,49 @@ export const saveClassTimecode = createServerFn({ method: "POST" })
     if (error) throw new Error("Could not save timecode");
     return { ok: true };
   });
+
+export type PastTimecode = {
+  classId: string;
+  className: string | null;
+  teacherName: string | null;
+  date: string | null;
+  start: string | null;
+  end: string | null;
+  updatedAt: string;
+  state: TimecodeState;
+};
+
+/** All saved timecode sessions, newest first. */
+export const listPastTimecodes = createServerFn({ method: "POST" }).handler(
+  async (): Promise<PastTimecode[]> => {
+    await requireOperator();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("class_timecodes")
+      .select("class_id, class_name, teacher_name, class_date, state, updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(300);
+    if (error) throw new Error("Could not load timecodes");
+    const ids = (rows ?? []).map((r) => r.class_id);
+    const times = new Map<string, { start: string; end: string }>();
+    if (ids.length) {
+      const { data: cls } = await supabaseAdmin
+        .from("calendar_classes")
+        .select("id, start_time, end_time")
+        .in("id", ids);
+      for (const c of cls ?? []) times.set(c.id, { start: c.start_time.slice(0, 5), end: c.end_time.slice(0, 5) });
+    }
+    return (rows ?? [])
+      .map((r) => ({
+        classId: r.class_id,
+        className: r.class_name,
+        teacherName: r.teacher_name,
+        date: r.class_date,
+        start: times.get(r.class_id)?.start ?? null,
+        end: times.get(r.class_id)?.end ?? null,
+        updatedAt: r.updated_at,
+        state: r.state as unknown as TimecodeState,
+      }))
+      .filter((r) => Array.isArray(r.state?.markers) && r.state.markers.length > 0);
+  },
+);

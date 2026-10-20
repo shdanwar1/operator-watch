@@ -9,9 +9,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ExternalLink, CalendarDays, MoreHorizontal, Check, X, Copy, Timer } from "lucide-react";
 import { isBalletClass } from "@/lib/timecode";
-import { prefersInAppDisplay } from "@/lib/studio-display";
 import { toast } from "sonner";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { temporaryClassSearch } from "@/lib/studio-presets";
 import { cn } from "@/lib/utils";
 import type { CalendarClassRow } from "@/lib/gcal.functions";
@@ -121,6 +120,7 @@ export function ClassScheduleCard({
   /** Extra content rendered on its own line inside a class row (e.g. its checklist). */
   renderClassExtra?: (c: CalendarClassRow, status: ClassStatus) => React.ReactNode;
 }) {
+  const navigate = useNavigate();
   if (classes.length === 0) return null;
 
   const states = classes.map((c) => classStatusOf(c, now));
@@ -246,7 +246,7 @@ export function ClassScheduleCard({
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8"
+                        className="h-8 w-8 max-lg:hidden"
                         aria-label="Open timecode"
                         title="Open timecode"
                         onClick={() => {
@@ -258,10 +258,7 @@ export function ClassScheduleCard({
                             cs: c.start_time.slice(0, 5),
                             ce: c.end_time.slice(0, 5),
                           });
-                          const url = `/timecode?${q.toString()}`;
-                          if (prefersInAppDisplay()) window.location.assign(url);
-                          else if (!window.open(url, `timecode-${c.id}`, "width=900,height=1000"))
-                            window.location.assign(url);
+                          void navigate({ href: `/timecode?${q.toString()}` });
                         }}
                       >
                         <Timer className="h-4 w-4" />

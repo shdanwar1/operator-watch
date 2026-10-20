@@ -1,20 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { ArrowLeft, Download, Pause, Play, Trash2 } from "lucide-react";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { ArrowLeft, Download, Pause, Pencil, Play, Timer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getGateStatus } from "@/lib/gate.functions";
-import { getClassTimecode, saveClassTimecode } from "@/lib/timecode.functions";
+import { getClassTimecode, listPastTimecodes, saveClassTimecode, type PastTimecode } from "@/lib/timecode.functions";
+import { AppShell } from "@/components/AppShell";
 import {
   EMPTY_TIMECODE,
   MARKER_KINDS,
   buildEdl,
+  elapsedForFrames,
   elapsedMsOf,
+  parseTimecode,
+  timecodeFilename,
   formatTimecode,
   framesAt,
   type MarkerKind,
   type TimecodeState,
 } from "@/lib/timecode";
-import { prefersInAppDisplay } from "@/lib/studio-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -65,10 +68,8 @@ function TimecodePage() {
   const [loaded, setLoaded] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [note, setNote] = useState("");
-  const [inApp, setInApp] = useState(false);
+  const [tcEdit, setTcEdit] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => setInApp(prefersInAppDisplay()), []);
 
   useEffect(() => {
     if (!cid) return;
@@ -110,19 +111,36 @@ function TimecodePage() {
     }, 400);
   }
 
-  if (!cid) {
-    return <div className="p-8 text-sm text-muted-foreground">Open Timecode from a Ballet class card.</div>;
-  }
+  if (!cid) return <TimecodeLibrary />;
 
   const running = state.runningSince != null;
   const started = running || state.elapsedMs > 0 || state.markers.length > 0;
   const elapsed = elapsedMsOf(state, running ? now : Date.now());
   const frames = framesAt(elapsed);
 
+  /** Apply a typed timecode; returns false when invalid. */
+  const applyTyped = (): boolean => {
+    if (tcEdit == null) return true;
+    const f = parseTimecode(tcEdit);
+    if (f == null) {
+      toast.error("Enter timecode as HH:MM:SS:FF");
+      return false;
+    }
+    setTcEdit(null);
+    commit({ ...state, runningSince: null, elapsedMs: elapsedForFrames(f) });
+    return true;
+  };
+
   const toggle = () => {
     const t = Date.now();
-    if (running) commit({ ...state, runningSince: null, elapsedMs: elapsedMsOf(state, t) });
-    else commit({ ...state, runningSince: t });
+    if (running) return commit({ ...state, runningSince: null, elapsedMs: elapsedMsOf(state, t) });
+    if (tcEdit != null) {
+      const f = parseTimecode(tcEdit);
+      if (f == null) return void toast.error("Enter timecode as HH:MM:SS:FF");
+      setTcEdit(null);
+      return commit({ ...state, elapsedMs: elapsedForFrames(f), runningSince: t });
+    }
+    commit({ ...state, runningSince: t });
   };
 
   const mark = (kind: MarkerKind, defNote: string) => {
@@ -135,17 +153,8 @@ function TimecodePage() {
     setNote("");
   };
 
-  const exportEdl = () => {
-    const [y, m, d] = (cd ?? "").split("-");
-    const [h, min] = (cs ?? "00:00").split(":");
-    const base = `${(y ?? "").slice(2)}${m ?? ""}${d ?? ""}_${h}-${min}_${tn ?? ""}_${clsName ?? "Class"}`.replace(/\s+/g, "_");
-    const blob = new Blob([buildEdl(base, state.markers)], { type: "text/plain" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${base}.edl`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
+  const exportEdl = () =>
+    downloadEdl(timecodeFilename({ date: cd, start: cs, teacher: tn, className: clsName }), state.markers);
 
   // Class length in frames for the start→end rail; fall back to the furthest marker.
   const classMin = (() => {
@@ -160,13 +169,14 @@ function TimecodePage() {
   const sorted = [...state.markers].sort((a, b) => b.frames - a.frames);
 
   return (
-    <div className="mx-auto min-h-screen max-w-3xl space-y-6 p-4 sm:p-8">
+    <AppShell>
+    <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-8">
       <header className="flex items-center gap-3">
-        {inApp && (
-          <Button size="icon" variant="ghost" onClick={() => history.back()} aria-label="Back">
+        <Button size="icon" variant="ghost" asChild aria-label="All timecodes" title="All timecodes">
+          <Link to="/timecode" search={{ cid: undefined, cn: undefined, tn: undefined, cd: undefined, cs: undefined, ce: undefined }}>
             <ArrowLeft className="h-5 w-5" />
-          </Button>
-        )}
+          </Link>
+        </Button>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-semibold">{clsName ?? "Ballet class"}</h1>
           <p className="truncate text-xs text-muted-foreground">
@@ -179,8 +189,33 @@ function TimecodePage() {
       </header>
 
       <section className="rounded-2xl border border-border bg-card p-6 text-center">
-        <div className="font-mono text-5xl font-semibold tabular-nums sm:text-7xl">{formatTimecode(frames)}</div>
-        <p className="mt-1 text-[11px] uppercase tracking-widest text-muted-foreground">25 fps · non-drop</p>
+        {tcEdit != null ? (
+          <input
+            autoFocus
+            value={tcEdit}
+            onChange={(e) => setTcEdit(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") applyTyped();
+              if (e.key === "Escape") setTcEdit(null);
+            }}
+            aria-label="Set timecode"
+            className="w-full bg-transparent text-center font-mono text-5xl font-semibold tabular-nums outline-none ring-1 ring-primary rounded-lg sm:text-7xl"
+          />
+        ) : (
+          <button
+            type="button"
+            disabled={running}
+            onClick={() => setTcEdit(formatTimecode(frames))}
+            title={running ? "Pause to edit" : "Click to type the recording's timecode"}
+            className="group inline-flex items-center gap-3 font-mono text-5xl font-semibold tabular-nums sm:text-7xl"
+          >
+            {formatTimecode(frames)}
+            {!running && <Pencil className="h-5 w-5 text-muted-foreground opacity-60 group-hover:opacity-100" />}
+          </button>
+        )}
+        <p className="mt-1 text-[11px] uppercase tracking-widest text-muted-foreground">
+          25 fps · non-drop{!running ? " · click the time to set it" : ""}
+        </p>
         <Button className="mt-5" size="lg" onClick={toggle} disabled={!loaded}>
           {running ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
           {running ? "Pause" : started ? "Resume" : "Start timecode"}
@@ -263,5 +298,82 @@ function TimecodePage() {
         ))}
       </section>
     </div>
+    </AppShell>
+  );
+}
+
+function downloadEdl(base: string, markers: TimecodeState["markers"]) {
+  const name = base.replace(/\s+/g, "_");
+  const blob = new Blob([buildEdl(name, markers)], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${name}.edl`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function TimecodeLibrary() {
+  const [rows, setRows] = useState<PastTimecode[] | null>(null);
+  useEffect(() => {
+    listPastTimecodes()
+      .then(setRows)
+      .catch(() => {
+        toast.error("Could not load timecodes");
+        setRows([]);
+      });
+  }, []);
+  return (
+    <AppShell>
+      <div className="mx-auto max-w-3xl space-y-5 p-4 sm:p-8">
+        <header>
+          <h1 className="text-lg font-semibold">Timecodes</h1>
+          <p className="text-xs text-muted-foreground">
+            Start a timecode from the timer icon on a Ballet class card. Saved timecodes appear here.
+          </p>
+        </header>
+        {rows == null ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : rows.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+            No saved timecodes yet.
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {rows.map((r) => {
+              const name = timecodeFilename({ date: r.date, start: r.start, teacher: r.teacherName, className: r.className });
+              return (
+                <li key={r.classId} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+                  <Timer className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{r.className ?? "Ballet class"}</p>
+                    <p className="truncate font-mono text-[11px] text-muted-foreground">
+                      {name}.edl · {r.state.markers.length} markers
+                    </p>
+                  </div>
+                  <Button size="sm" variant="ghost" asChild>
+                    <Link
+                      to="/timecode"
+                      search={{
+                        cid: r.classId,
+                        cn: r.className ?? undefined,
+                        tn: r.teacherName ?? undefined,
+                        cd: r.date ?? undefined,
+                        cs: r.start ?? undefined,
+                        ce: r.end ?? undefined,
+                      }}
+                    >
+                      Open
+                    </Link>
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => downloadEdl(name, r.state.markers)}>
+                    <Download className="mr-1.5 h-4 w-4" /> EDL
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </AppShell>
   );
 }
