@@ -503,7 +503,7 @@ function ProfilePage() {
           </Row>
         </Panel>
 
-        <Panel title="Google Calendar">
+        {false && (<Panel title="Google Calendar">
           <Row
             label="Status"
             action={

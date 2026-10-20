@@ -420,56 +420,6 @@ function CalendarPage() {
 
       <PageHeader
         title="Calendar"
-        action={
-          <div className="flex items-center gap-1.5">
-            {showSyncStatus && (
-              <span
-                className="mr-1 hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex"
-                title={
-                  confirmedError
-                    ? (health?.error ??
-                      (health?.connected
-                        ? "Google Calendar link error"
-                        : "Google Calendar not connected"))
-                    : undefined
-                }
-              >
-                <span
-                  aria-hidden
-                  className={cn(
-                    "inline-block size-2 rounded-full",
-                    confirmedError
-                      ? "bg-red-500"
-                      : health === null
-                        ? "bg-muted-foreground/40"
-                        : "bg-emerald-500",
-                  )}
-                />
-                {syncStatusLabel}
-              </span>
-            )}
-
-            {hasGoogleCalendar ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => runSync()}
-                disabled={syncing}
-                title="Sync shifts from your Google Calendar"
-              >
-                <RefreshCw className={`h-4 w-4 sm:mr-1 ${syncing ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline">{syncing ? "Syncing…" : "Sync"}</span>
-              </Button>
-            ) : (
-              <Button asChild variant="outline" size="sm" title="Set up your Google Calendar link">
-                <Link to="/profile">
-                  <RefreshCw className="h-4 w-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Connect calendar</span>
-                </Link>
-              </Button>
-            )}
-          </div>
-        }
       />
 
       {debug && matchLogs.length ? (
