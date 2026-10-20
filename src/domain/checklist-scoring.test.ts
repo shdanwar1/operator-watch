@@ -85,21 +85,22 @@ describe("scoreOperators", () => {
       lateUnits: 0,
     });
   });
+  // The fixture shift has 3 units: Start, one class, End.
   it("marks a late Start unit: complete but not punctual", () => {
     const late = snapshot();
     late.start.items[1] = item("s2", "18:50"); // 20 min after check-in, deadline +15
     const [score] = scoreOperators([shift({ checklists: late })]);
     expect(score.completenessPct).toBe(100);
-    // 3 of 4 units punctual; the late start unit counts as late.
-    expect(score.punctualityPct).toBe(75);
+    // 2 of 3 units punctual; the late start unit counts as late.
+    expect(score.punctualityPct).toBe(67);
     expect(score.lateUnits).toBe(1);
   });
   it("marks an incomplete End unit as not complete and not late", () => {
     const partial = snapshot();
     partial.end.items.push(item("e2", null));
     const [score] = scoreOperators([shift({ checklists: partial })]);
-    expect(score.completenessPct).toBe(75); // 3 of 4 units complete
-    expect(score.punctualityPct).toBe(75);
+    expect(score.completenessPct).toBe(67); // 2 of 3 units complete
+    expect(score.punctualityPct).toBe(67);
     expect(score.lateUnits).toBe(0);
   });
   it("enforces per-heading class deadlines", () => {
@@ -107,7 +108,7 @@ describe("scoreOperators", () => {
     // "Class Starts" ticked 3 min after start (deadline +2) -> late.
     late.classes[0].items[2] = item("b3", "19:03", "Class Starts");
     const [score] = scoreOperators([shift({ checklists: late })]);
-    expect(score.punctualityPct).toBe(75);
+    expect(score.punctualityPct).toBe(67);
     expect(score.lateUnits).toBe(1);
   });
   it("handles overnight classes past midnight", () => {
