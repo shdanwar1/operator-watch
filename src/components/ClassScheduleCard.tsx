@@ -120,6 +120,7 @@ export function ClassScheduleCard({
   /** Extra content rendered on its own line inside a class row (e.g. its checklist). */
   renderClassExtra?: (c: CalendarClassRow, status: ClassStatus) => React.ReactNode;
 }) {
+  const navigate = useNavigate();
   if (classes.length === 0) return null;
 
   const states = classes.map((c) => classStatusOf(c, now));
@@ -245,7 +246,7 @@ export function ClassScheduleCard({
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8"
+                        className="h-8 w-8 max-lg:hidden"
                         aria-label="Open timecode"
                         title="Open timecode"
                         onClick={() => {
