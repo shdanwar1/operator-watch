@@ -302,8 +302,10 @@
   animation: sd-countdown 1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Studio Display — one numeric face for every timer on every screen */
-.sd-num {
+/* One numeric face — SF Pro with tabular figures — for every timer in the app
+   (Studio Display screens and the Timecode page). */
+.sd-num,
+.tc-num {
   font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "ss01" 1, "cv02" 0, "cv03" 0, "cv04" 0, "cv11" 0;
