@@ -52,10 +52,21 @@ export const Route = createFileRoute("/timecode")({
 });
 
 const KIND_DOT: Record<MarkerKind, string> = {
-  Correction: "bg-primary",
-  Special: "bg-done",
+  Correction: "bg-[#4f7cff]",
+  Tip: "bg-[#ef5b5b]",
+  Special: "bg-[#3fae82]",
+  Dance: "bg-[#8b6cf0]",
+  End: "bg-muted-foreground",
   Highlight: "bg-live",
-  End: "bg-alert",
+};
+
+/** Full-colour button styles matching the marker reference. */
+const KIND_BUTTON: Partial<Record<MarkerKind, string>> = {
+  Correction: "bg-[#4f7cff]/15 text-[#7b9dff] hover:bg-[#4f7cff]/25",
+  Tip: "bg-[#ef5b5b]/15 text-[#f27c7c] hover:bg-[#ef5b5b]/25",
+  Special: "bg-[#3fae82]/15 text-[#5cc79b] hover:bg-[#3fae82]/25",
+  Dance: "bg-[#8b6cf0]/15 text-[#a98ff5] hover:bg-[#8b6cf0]/25",
+  End: "bg-secondary text-foreground hover:bg-secondary/80",
 };
 
 function draftKey(cid: string) {
@@ -229,16 +240,18 @@ function TimecodePage() {
           onChange={(e) => setNote(e.target.value)}
           maxLength={500}
         />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-5 gap-2">
           {MARKER_KINDS.map((k) => (
             <button
               key={k.kind}
               type="button"
               disabled={!running}
               onClick={() => mark(k.kind, k.note)}
-              className="flex h-20 flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card text-sm font-medium transition active:scale-95 disabled:opacity-40"
+              className={cn(
+                "flex h-14 items-center justify-center rounded-md text-sm font-semibold transition active:scale-95 disabled:opacity-40",
+                KIND_BUTTON[k.kind],
+              )}
             >
-              <span className={cn("h-3 w-3 rounded-full", KIND_DOT[k.kind])} />
               {k.kind}
             </button>
           ))}

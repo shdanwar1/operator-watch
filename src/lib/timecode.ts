@@ -2,14 +2,18 @@
 export const FPS = 25;
 export const START_FRAMES = 60 * 60 * FPS; // 01:00:00:00
 
-export type MarkerKind = "Correction" | "Special" | "Highlight" | "End";
+/** "Highlight" is kept only so older saved markers still load and export. */
+export type MarkerKind = "Correction" | "Tip" | "Special" | "Dance" | "End" | "Highlight";
 
 export const MARKER_KINDS: { kind: MarkerKind; color: string; note: string }[] = [
   { kind: "Correction", color: "Blue", note: "Start" },
+  { kind: "Tip", color: "Red", note: "Start" },
   { kind: "Special", color: "Green", note: "Start" },
-  { kind: "Highlight", color: "Yellow", note: "Start" },
+  { kind: "Dance", color: "Purple", note: "Start" },
   { kind: "End", color: "Blue", note: "Of" },
 ];
+
+const LEGACY_COLORS: Partial<Record<MarkerKind, string>> = { Highlight: "Yellow" };
 
 export type TimecodeMarker = {
   id: string;
@@ -71,7 +75,7 @@ export function formatTimecode(frames: number): string {
 }
 
 function colorOf(kind: MarkerKind): string {
-  return MARKER_KINDS.find((k) => k.kind === kind)?.color ?? "Blue";
+  return MARKER_KINDS.find((k) => k.kind === kind)?.color ?? LEGACY_COLORS[kind] ?? "Blue";
 }
 
 /** EditingTools / DaVinci Resolve marker EDL, events ordered by timecode. */
