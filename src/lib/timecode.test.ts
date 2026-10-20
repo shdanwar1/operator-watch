@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEdl, formatTimecode, framesAt, isBalletClass } from "./timecode";
+import { buildEdl, durationBetween, formatTimecode, framesAt, isBalletClass } from "./timecode";
 
 describe("timecode", () => {
   it("starts at 01:00:00:00", () => {
