@@ -9,6 +9,7 @@ import {
   EMPTY_TIMECODE,
   MARKER_KINDS,
   buildEdl,
+  classBoundaryMarkers,
   elapsedForFrames,
   elapsedMsOf,
   parseTimecode,
@@ -149,9 +150,9 @@ function TimecodePage() {
       const f = parseTimecode(tcEdit);
       if (f == null) return void toast.error("Enter timecode as HH:MM:SS:FF");
       setTcEdit(null);
-      return commit({ ...state, elapsedMs: elapsedForFrames(f), runningSince: t });
+      return commit({ ...state, elapsedMs: elapsedForFrames(f), runningSince: t, anchor: { at: t, frames: f } });
     }
-    commit({ ...state, runningSince: t });
+    commit({ ...state, runningSince: t, anchor: { at: t, frames: framesAt(state.elapsedMs) } });
   };
 
   const mark = (kind: MarkerKind, defNote: string) => {
@@ -167,8 +168,6 @@ function TimecodePage() {
     setNote("");
   };
 
-  const exportEdl = () =>
-    downloadEdl(timecodeFilename({ date: cd, start: cs, teacher: tn, className: clsName }), state.markers);
 
   // Rail spans the real scheduled class window (e.g. 15:45 → 16:45), not the timecode.
   const classMin = (() => {
@@ -194,7 +193,11 @@ function TimecodePage() {
     railStart == null ? 0 : Math.min(100, Math.max(0, ((t - railStart) / railMs) * 100));
   const hhmm = (t: number) =>
     new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
-  const sorted = [...state.markers].sort((a, b) => b.frames - a.frames);
+  const autoMarkers = classBoundaryMarkers(state.anchor, railStart, railStart == null ? null : railStart + railMs);
+  const allMarkers = [...state.markers, ...autoMarkers];
+  const exportEdl = () =>
+    downloadEdl(timecodeFilename({ date: cd, start: cs, teacher: tn, className: clsName }), allMarkers);
+  const sorted = [...allMarkers].sort((a, b) => b.frames - a.frames);
 
   return (
     <AppShell>
@@ -211,7 +214,7 @@ function TimecodePage() {
             {[tn, cd, cs && ce ? `${cs}–${ce}` : null].filter(Boolean).join(" · ")}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={exportEdl} disabled={state.markers.length === 0}>
+        <Button variant="outline" size="sm" onClick={exportEdl} disabled={allMarkers.length === 0}>
           <Download className="mr-1.5 h-4 w-4" /> Export EDL
         </Button>
       </header>
@@ -280,7 +283,7 @@ function TimecodePage() {
           <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
           <span className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-muted-foreground" />
           <span className="absolute right-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-muted-foreground" />
-          {state.markers.map((m) => {
+          {allMarkers.map((m) => {
             const t = markerAt(m);
             return (
               <span
@@ -300,13 +303,17 @@ function TimecodePage() {
 
       <section className="space-y-2">
         <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Markers ({state.markers.length})
+          Markers ({allMarkers.length})
         </h2>
         {sorted.map((m) => (
           <div key={m.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
             <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", KIND_DOT[m.kind])} />
             <span className="tc-num text-sm">{formatTimecode(m.frames)}</span>
             <span className="w-20 shrink-0 text-xs text-muted-foreground">{m.kind}</span>
+            {m.id.startsWith("auto-") ? (
+              <span className="flex-1 text-sm">{m.note} <span className="text-xs text-muted-foreground">· automatic</span></span>
+            ) : (
+            <>
             <Input
               className="h-8 flex-1"
               value={m.note}
@@ -327,6 +334,8 @@ function TimecodePage() {
             >
               <Trash2 className="h-4 w-4" />
             </Button>
+            </>
+            )}
           </div>
         ))}
       </section>
