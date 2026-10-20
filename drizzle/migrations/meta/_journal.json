@@ -36,6 +36,13 @@
       "when": 1792322579441,
       "tag": "0004_shift_auto_checkout_optin",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792503959136,
+      "tag": "0005_create_class_timecodes",
+      "breakpoints": true
     }
   ]
 }

@@ -7,7 +7,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ExternalLink, CalendarDays, MoreHorizontal, Check, X, Copy } from "lucide-react";
+import { ExternalLink, CalendarDays, MoreHorizontal, Check, X, Copy, Timer } from "lucide-react";
+import { isBalletClass } from "@/lib/timecode";
+import { prefersInAppDisplay } from "@/lib/studio-display";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { temporaryClassSearch } from "@/lib/studio-presets";
@@ -238,6 +240,33 @@ export function ClassScheduleCard({
                       </Link>
                     </Button>
                   )}
+
+                  {!isCancelled &&
+                    isBalletClass({ className: c.className, durationMinutes: durationOf(c) }) && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        aria-label="Open timecode"
+                        title="Open timecode"
+                        onClick={() => {
+                          const q = new URLSearchParams({
+                            cid: c.id,
+                            cn: c.className,
+                            tn: c.teacherName,
+                            cd: c.specific_date,
+                            cs: c.start_time.slice(0, 5),
+                            ce: c.end_time.slice(0, 5),
+                          });
+                          const url = `/timecode?${q.toString()}`;
+                          if (prefersInAppDisplay()) window.location.assign(url);
+                          else if (!window.open(url, `timecode-${c.id}`, "width=900,height=1000"))
+                            window.location.assign(url);
+                        }}
+                      >
+                        <Timer className="h-4 w-4" />
+                      </Button>
+                    )}
 
                   <Button
                     size="icon"

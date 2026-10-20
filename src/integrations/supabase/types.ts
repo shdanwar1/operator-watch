@@ -99,6 +99,36 @@ export type Database = {
           },
         ]
       }
+      class_timecodes: {
+        Row: {
+          class_date: string | null
+          class_id: string
+          class_name: string | null
+          operator: string
+          state: Json
+          teacher_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          class_date?: string | null
+          class_id: string
+          class_name?: string | null
+          operator: string
+          state?: Json
+          teacher_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          class_date?: string | null
+          class_id?: string
+          class_name?: string | null
+          operator?: string
+          state?: Json
+          teacher_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       deleted_shift_events: {
         Row: {
           created_at: string
