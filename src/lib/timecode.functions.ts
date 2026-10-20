@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
-import type { TimecodeState } from "./timecode";
+import { durationBetween, type TimecodeState } from "./timecode";
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
@@ -131,6 +131,10 @@ export const listPastTimecodes = createServerFn({ method: "POST" }).handler(
         updatedAt: r.updated_at,
         state: r.state as unknown as TimecodeState,
       }))
-      .filter((r) => Array.isArray(r.state?.markers) && r.state.markers.length > 0);
+      .filter((r) => Array.isArray(r.state?.markers) && r.state.markers.length > 0)
+      // Ballet-only: a save whose class is a known length other than 60 minutes is
+      // no longer listed. The row itself is kept, so nothing is lost if a class
+      // length changes; saves with no class row left are still shown.
+      .filter((r) => !(r.start && r.end && durationBetween(r.start, r.end) !== 60));
   },
 );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEdl, formatTimecode, framesAt, isBalletClass } from "./timecode";
+import { buildEdl, durationBetween, formatTimecode, framesAt, isBalletClass } from "./timecode";
 
 describe("timecode", () => {
   it("starts at 01:00:00:00", () => {
@@ -23,9 +23,24 @@ describe("timecode", () => {
     ]);
     expect(edl).toContain("002  001      V     C        01:00:01:00");
   });
-  it("only ballet classes get timecode", () => {
+  it("only 60-minute classes get timecode", () => {
     expect(isBalletClass({ className: "Pilates Flow", durationMinutes: 45 })).toBe(false);
+    // A ballet name on a workout-length class must not open the timecode tool.
+    expect(
+      isBalletClass({
+        className: "Stretch & Strength (Ballet-inspired workout)",
+        durationMinutes: 45,
+      }),
+    ).toBe(false);
     expect(isBalletClass({ className: "Pop Barre", durationMinutes: 60 })).toBe(true);
+    // A 60-minute class is ballet even when the title says nothing about ballet.
+    expect(isBalletClass({ className: "Contemporary Flow", durationMinutes: 60 })).toBe(true);
+    expect(isBalletClass({ className: "Ballet Barre", durationMinutes: 30 })).toBe(false);
+  });
+  it("measures class length from the clock, wrapping past midnight", () => {
+    expect(durationBetween("15:45", "16:45")).toBe(60);
+    expect(durationBetween("20:15", "21:00")).toBe(45);
+    expect(durationBetween("23:30", "00:30")).toBe(60);
   });
 });
 

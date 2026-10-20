@@ -115,7 +115,20 @@ export function buildEdl(title: string, markers: TimecodeMarker[]): string {
   return lines.join("\n");
 }
 
-/** Ballet = 60-minute class or a ballet/barre name. */
+/**
+ * Ballet = a 60-minute class. DMC's canonical standard: 45 minutes is a
+ * Workout, 60 minutes is Ballet. Titles are never trusted — a 45-minute
+ * "Stretch & Strength (Ballet-inspired workout)" is not a ballet class.
+ */
 export function isBalletClass(c: { className: string; durationMinutes: number }): boolean {
-  return c.durationMinutes === 60 || /ballet|barre/i.test(c.className);
+  return c.durationMinutes === 60;
+}
+
+/** Class length in minutes from "HH:MM" start/end, wrapping past midnight. */
+export function durationBetween(start: string, end: string): number {
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  let mins = eh * 60 + em - (sh * 60 + sm);
+  if (mins <= 0) mins += 24 * 60;
+  return mins;
 }
