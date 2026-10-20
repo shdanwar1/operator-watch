@@ -159,7 +159,10 @@ function TimecodePage() {
     const f = framesAt(elapsedMsOf(state, Date.now()));
     commit({
       ...state,
-      markers: [...state.markers, { id: crypto.randomUUID(), frames: f, kind, note: note.trim() || defNote }],
+      markers: [
+        ...state.markers,
+        { id: crypto.randomUUID(), frames: f, kind, note: note.trim() || defNote, at: Date.now() },
+      ],
     });
     setNote("");
   };
@@ -167,7 +170,7 @@ function TimecodePage() {
   const exportEdl = () =>
     downloadEdl(timecodeFilename({ date: cd, start: cs, teacher: tn, className: clsName }), state.markers);
 
-  // Class length in frames for the start→end rail; fall back to the furthest marker.
+  // Rail spans the real scheduled class window (e.g. 15:45 → 16:45), not the timecode.
   const classMin = (() => {
     if (!cs || !ce) return 60;
     const [sh, sm] = cs.split(":").map(Number);
@@ -176,7 +179,21 @@ function TimecodePage() {
     if (v <= 0) v += 1440;
     return v;
   })();
-  const span = Math.max(classMin * 60 * 25, ...state.markers.map((m) => m.frames - framesAt(0)), 1);
+  const railStart = (() => {
+    if (!cd || !cs) return null;
+    const [y, mo, d] = cd.split("-").map(Number);
+    const [h, mi] = cs.split(":").map(Number);
+    return new Date(y, mo - 1, d, h, mi).getTime();
+  })();
+  const railMs = classMin * 60_000;
+  const nowMs = running ? now : Date.now();
+  /** Wall-clock time of a marker; older markers are inferred from the clock's offset. */
+  const markerAt = (m: { frames: number; at?: number }) =>
+    m.at ?? nowMs - ((frames - m.frames) * 1000) / 25;
+  const railPct = (t: number) =>
+    railStart == null ? 0 : Math.min(100, Math.max(0, ((t - railStart) / railMs) * 100));
+  const hhmm = (t: number) =>
+    new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
   const sorted = [...state.markers].sort((a, b) => b.frames - a.frames);
 
   return (
@@ -263,18 +280,21 @@ function TimecodePage() {
           <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
           <span className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-muted-foreground" />
           <span className="absolute right-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-muted-foreground" />
-          {state.markers.map((m) => (
-            <span
-              key={m.id}
-              title={formatTimecode(m.frames)}
-              className={cn("absolute top-1/2 h-3 w-1 -translate-y-1/2 rounded", KIND_DOT[m.kind])}
-              style={{ left: `${Math.min(100, ((m.frames - framesAt(0)) / span) * 100)}%` }}
-            />
-          ))}
+          {state.markers.map((m) => {
+            const t = markerAt(m);
+            return (
+              <span
+                key={m.id}
+                title={`${formatTimecode(m.frames)} · ${hhmm(t)}`}
+                className={cn("absolute top-1/2 h-3 w-1 -translate-y-1/2 rounded", KIND_DOT[m.kind])}
+                style={{ left: `${railPct(t)}%` }}
+              />
+            );
+          })}
         </div>
-        <div className="flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
-          <span>Start</span>
-          <span>End</span>
+        <div className="flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground tc-num">
+          <span>{cs ? `${cs} Start` : "Start"}</span>
+          <span>{ce ? `${ce} End` : "End"}</span>
         </div>
       </section>
 
