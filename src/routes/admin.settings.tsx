@@ -19,6 +19,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PinDialog } from "@/components/admin/PinDialog";
+import { adminGetRotation, adminSetRotation } from "@/lib/rotation.functions";
+import { rotationForMonth } from "@/domain/shift-rotation";
 import { adminChangeOwnPin } from "@/lib/operators.functions";
 import { adminChangeSitePassword, getGateStatus } from "@/lib/gate.functions";
 import {
@@ -370,3 +372,66 @@ function CheckoutSection() {
   );
 }
 
+
+const BUCKET_LABELS = {
+  day: "Day shifts (Mon–Thu)",
+  night: "Night shifts (Mon–Thu 21:00+, Fri evening)",
+  weekend: "Weekend shifts (Fri morning, Sat, Sun)",
+} as const;
+
+function RotationSection() {
+  const qc = useQueryClient();
+  const load = useServerFn(adminGetRotation);
+  const save = useServerFn(adminSetRotation);
+  const { data } = useQuery({ queryKey: ["admin-rotation"], queryFn: () => load() });
+  const [draft, setDraft] = useState<Record<"day" | "night" | "weekend", string | null> | null>(null);
+  const [saving, setSaving] = useState(false);
+  if (!data) return <Card><CardContent className="p-4 text-sm text-muted-foreground">Loading…</CardContent></Card>;
+  const month = new Date().toISOString().slice(0, 7);
+  const current = draft ?? rotationForMonth(data.rotation, month);
+  const buckets = ["day", "night", "weekend"] as const;
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-4">
+        <p className="text-sm text-muted-foreground">
+          This month's assignment. Shifts are built from the live timetable and rotate automatically every month.
+        </p>
+        {buckets.map((b) => (
+          <div key={b} className="flex items-center justify-between gap-3">
+            <Label htmlFor={`rot-${b}`} className="text-sm">{BUCKET_LABELS[b]}</Label>
+            <select
+              id={`rot-${b}`}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              value={current[b] ?? ""}
+              onChange={(e) => setDraft({ ...current, [b]: e.target.value || null })}
+            >
+              <option value="">Unassigned</option>
+              {data.operators.map((o: string) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+        ))}
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            disabled={!draft || saving}
+            onClick={async () => {
+              setSaving(true);
+              try {
+                const r = await save({ data: current });
+                toast.success(`Rotation saved — ${r.shifts} shifts planned`);
+                setDraft(null);
+                await qc.invalidateQueries({ queryKey: ["admin-rotation"] });
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Could not save rotation");
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            {saving ? "Saving…" : "Save & regenerate"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
