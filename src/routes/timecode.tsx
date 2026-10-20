@@ -280,18 +280,21 @@ function TimecodePage() {
           <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
           <span className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-muted-foreground" />
           <span className="absolute right-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-muted-foreground" />
-          {state.markers.map((m) => (
-            <span
-              key={m.id}
-              title={formatTimecode(m.frames)}
-              className={cn("absolute top-1/2 h-3 w-1 -translate-y-1/2 rounded", KIND_DOT[m.kind])}
-              style={{ left: `${Math.min(100, ((m.frames - framesAt(0)) / span) * 100)}%` }}
-            />
-          ))}
+          {state.markers.map((m) => {
+            const t = markerAt(m);
+            return (
+              <span
+                key={m.id}
+                title={`${formatTimecode(m.frames)} · ${hhmm(t)}`}
+                className={cn("absolute top-1/2 h-3 w-1 -translate-y-1/2 rounded", KIND_DOT[m.kind])}
+                style={{ left: `${railPct(t)}%` }}
+              />
+            );
+          })}
         </div>
-        <div className="flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
-          <span>Start</span>
-          <span>End</span>
+        <div className="flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground tc-num">
+          <span>{cs ? `${cs} Start` : "Start"}</span>
+          <span>{ce ? `${ce} End` : "End"}</span>
         </div>
       </section>
 
