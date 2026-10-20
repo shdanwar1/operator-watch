@@ -173,7 +173,7 @@ function TimecodePage() {
     <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-8">
       <header className="flex items-center gap-3">
         <Button size="icon" variant="ghost" asChild aria-label="All timecodes" title="All timecodes">
-          <Link to="/timecode" search={{}}>
+          <Link to="/timecode" search={{ cid: undefined, cn: undefined, tn: undefined, cd: undefined, cs: undefined, ce: undefined }}>
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
