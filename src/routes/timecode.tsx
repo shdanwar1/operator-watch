@@ -170,7 +170,7 @@ function TimecodePage() {
   const exportEdl = () =>
     downloadEdl(timecodeFilename({ date: cd, start: cs, teacher: tn, className: clsName }), state.markers);
 
-  // Class length in frames for the start→end rail; fall back to the furthest marker.
+  // Rail spans the real scheduled class window (e.g. 15:45 → 16:45), not the timecode.
   const classMin = (() => {
     if (!cs || !ce) return 60;
     const [sh, sm] = cs.split(":").map(Number);
@@ -179,7 +179,21 @@ function TimecodePage() {
     if (v <= 0) v += 1440;
     return v;
   })();
-  const span = Math.max(classMin * 60 * 25, ...state.markers.map((m) => m.frames - framesAt(0)), 1);
+  const railStart = (() => {
+    if (!cd || !cs) return null;
+    const [y, mo, d] = cd.split("-").map(Number);
+    const [h, mi] = cs.split(":").map(Number);
+    return new Date(y, mo - 1, d, h, mi).getTime();
+  })();
+  const railMs = classMin * 60_000;
+  const nowMs = running ? now : Date.now();
+  /** Wall-clock time of a marker; older markers are inferred from the clock's offset. */
+  const markerAt = (m: { frames: number; at?: number }) =>
+    m.at ?? nowMs - ((frames - m.frames) * 1000) / 25;
+  const railPct = (t: number) =>
+    railStart == null ? 0 : Math.min(100, Math.max(0, ((t - railStart) / railMs) * 100));
+  const hhmm = (t: number) =>
+    new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
   const sorted = [...state.markers].sort((a, b) => b.frames - a.frames);
 
   return (
