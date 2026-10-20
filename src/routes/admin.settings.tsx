@@ -65,6 +65,11 @@ function AdminSettings() {
       </section>
 
       <section className="space-y-2">
+        <SectionLabel>Shift rotation</SectionLabel>
+        <RotationSection />
+      </section>
+
+      <section className="space-y-2">
         <SectionLabel>Studio</SectionLabel>
         <StudioSection />
       </section>
