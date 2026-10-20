@@ -503,7 +503,7 @@ function ProfilePage() {
           </Row>
         </Panel>
 
-        <Panel title="Google Calendar">
+        {false && (<Panel title="Google Calendar">
           <Row
             label="Status"
             action={
@@ -521,7 +521,7 @@ function ProfilePage() {
               {connected ? "Connected" : "Not connected"}
             </span>
           </Row>
-        </Panel>
+        </Panel>)}
 
         <Panel title="Notifications">
           <PushDeviceToggle />

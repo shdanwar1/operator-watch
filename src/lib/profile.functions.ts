@@ -47,7 +47,7 @@ function computeMissing(row: {
 }): ProfileMissing[] {
   const missing: ProfileMissing[] = [];
   if (row.home_lat == null || row.home_lng == null) missing.push("home");
-  if (!row.calendar_ics_url || !row.calendar_ics_url.trim()) missing.push("calendar");
+  // Google Calendar is retired: shifts come from the live timetable.
   return missing;
 }
 

@@ -24,6 +24,9 @@ export async function runTimetableSync(): Promise<TimetableSyncResult> {
 
   const { commitSnapshot } = await import("./timetable-repository.server");
   const committed = await commitSnapshot(result.snapshot);
+  // Operator shifts are derived from the timetable (Google sync is retired).
+  const { generateTimetableShifts } = await import("./shift-generation.server");
+  await generateTimetableShifts();
   return {
     ok: true,
     ...committed,
