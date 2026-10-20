@@ -521,7 +521,7 @@ function ProfilePage() {
               {connected ? "Connected" : "Not connected"}
             </span>
           </Row>
-        </Panel>
+        </Panel>)}
 
         <Panel title="Notifications">
           <PushDeviceToggle />
