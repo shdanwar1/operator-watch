@@ -66,6 +66,9 @@ export const saveClassTimecode = createServerFn({ method: "POST" })
             note: String(m.note ?? "").slice(0, 500),
             ...(typeof m.at === "number" && Number.isFinite(m.at) ? { at: m.at } : {}),
           })),
+          ...(s.anchor && Number.isFinite(Number(s.anchor.at)) && Number.isFinite(Number(s.anchor.frames))
+            ? { anchor: { at: Number(s.anchor.at), frames: Math.max(0, Math.floor(Number(s.anchor.frames))) } }
+            : {}),
         } as TimecodeState,
       };
     },

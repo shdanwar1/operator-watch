@@ -30,7 +30,27 @@ export type TimecodeState = {
   /** Elapsed ms accumulated before the current run. */
   elapsedMs: number;
   markers: TimecodeMarker[];
+  /** Last known wall-clock ↔ timecode pairing, set whenever the clock starts. */
+  anchor?: { at: number; frames: number };
 };
+
+/** Timecode frames for a wall-clock instant using the stored anchor. */
+export function framesForWallClock(anchor: { at: number; frames: number }, t: number): number {
+  return Math.max(0, anchor.frames + Math.round(((t - anchor.at) * FPS) / 1000));
+}
+
+/** Automatic Class Start / Class End markers placed at the scheduled times. */
+export function classBoundaryMarkers(
+  anchor: TimecodeState["anchor"],
+  startMs: number | null,
+  endMs: number | null,
+): TimecodeMarker[] {
+  if (!anchor || startMs == null || endMs == null) return [];
+  return [
+    { id: "auto-class-start", frames: framesForWallClock(anchor, startMs), kind: "Special", note: "Class Start", at: startMs },
+    { id: "auto-class-end", frames: framesForWallClock(anchor, endMs), kind: "End", note: "Class End", at: endMs },
+  ];
+}
 
 export const EMPTY_TIMECODE: TimecodeState = { runningSince: null, elapsedMs: 0, markers: [] };
 
