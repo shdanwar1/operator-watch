@@ -49,10 +49,10 @@ export const Route = createFileRoute("/timecode")({
 });
 
 const KIND_DOT: Record<MarkerKind, string> = {
-  Correction: "bg-day",
-  Special: "bg-weekend",
+  Correction: "bg-primary",
+  Special: "bg-done",
   Highlight: "bg-live",
-  End: "bg-night",
+  End: "bg-alert",
 };
 
 function draftKey(cid: string) {
