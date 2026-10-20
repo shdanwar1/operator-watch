@@ -28,3 +28,22 @@ describe("timecode", () => {
     expect(isBalletClass({ className: "Pop Barre", durationMinutes: 60 })).toBe(true);
   });
 });
+
+import { elapsedForFrames, parseTimecode, timecodeFilename } from "./timecode";
+describe("manual timecode entry", () => {
+  it("parses typed timecode and resumes from it", () => {
+    const f = parseTimecode("01:15:30:12")!;
+    expect(formatTimecode(f)).toBe("01:15:30:12");
+    expect(formatTimecode(framesAt(elapsedForFrames(f)))).toBe("01:15:30:12");
+    expect(parseTimecode("00:59:59:24")).toBe(3599 * 25 + 24);
+    expect(formatTimecode(framesAt(elapsedForFrames(parseTimecode("00:30:00:00")!)))).toBe("00:30:00:00");
+  });
+  it("rejects invalid input", () => {
+    expect(parseTimecode("01:60:00:00")).toBeNull();
+    expect(parseTimecode("01:00:00:25")).toBeNull();
+    expect(parseTimecode("abc")).toBeNull();
+  });
+  it("names files like the class", () => {
+    expect(timecodeFilename({ date: "2026-10-20", start: "14:30", teacher: "Marco", className: "Ballet" })).toBe("261020_14-30_Marco_Ballet");
+  });
+});

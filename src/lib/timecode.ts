@@ -32,9 +32,31 @@ export function elapsedMsOf(s: TimecodeState, now: number): number {
   return s.elapsedMs + (s.runningSince != null ? Math.max(0, now - s.runningSince) : 0);
 }
 
-/** Wall-clock elapsed → absolute timecode frames. */
+/** Wall-clock elapsed → absolute timecode frames (elapsed may be negative after a manual set). */
 export function framesAt(elapsedMs: number): number {
-  return START_FRAMES + Math.floor((Math.max(0, elapsedMs) * FPS) / 1000);
+  return Math.max(0, START_FRAMES + Math.floor((elapsedMs * FPS) / 1000));
+}
+
+/** Absolute frames → elapsed ms on the 01:00:00:00-anchored clock. */
+export function elapsedForFrames(frames: number): number {
+  return ((frames - START_FRAMES) * 1000) / FPS;
+}
+
+/** Parse "HH:MM:SS:FF" (also accepts 8 bare digits); null when invalid. */
+export function parseTimecode(input: string): number | null {
+  const s = input.trim();
+  const m = /^(\d{1,2})[:;.](\d{1,2})[:;.](\d{1,2})[:;.](\d{1,2})$/.exec(s) ?? /^(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(s);
+  if (!m) return null;
+  const [hh, mm, ss, ff] = m.slice(1).map(Number);
+  if (hh > 23 || mm > 59 || ss > 59 || ff >= FPS) return null;
+  return ((hh * 60 + mm) * 60 + ss) * FPS + ff;
+}
+
+/** YYMMDD_HH-MM_Teacher_Class — same as the class filename. */
+export function timecodeFilename(c: { date?: string | null; start?: string | null; teacher?: string | null; className?: string | null }): string {
+  const [y = "", m = "", d = ""] = (c.date ?? "").split("-");
+  const [h = "00", min = "00"] = (c.start ?? "00:00").split(":");
+  return `${y.slice(2)}${m}${d}_${h}-${min}_${c.teacher ?? ""}_${c.className || "Class"}`;
 }
 
 export function formatTimecode(frames: number): string {
