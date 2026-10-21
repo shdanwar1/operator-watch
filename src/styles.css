@@ -281,10 +281,10 @@
 .sd-ballet-moving .sd-ballet-selector {
   box-shadow: 0 0 calc(6px + var(--switch-progress) * 18px) color-mix(in srgb, currentColor 70%, transparent);
   will-change: left, filter;
-  animation: sd-switch-oscillate 1s cubic-bezier(.37,0,.63,1) infinite;
+  animation: sd-switch-oscillate 2s cubic-bezier(.37,0,.63,1) infinite;
 }
 .sd-ballet-moving .sd-ballet-labels-selected {
-  animation: sd-switch-oscillate-labels 1s cubic-bezier(.37,0,.63,1) infinite;
+  animation: sd-switch-oscillate-labels 2s cubic-bezier(.37,0,.63,1) infinite;
 }
 .sd-ballet-moving .sd-ballet-labels:not(.sd-ballet-labels-selected) span:last-child {
   opacity: calc(0.6 + var(--switch-progress) * 0.4);
