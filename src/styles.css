@@ -281,10 +281,27 @@
 .sd-ballet-moving .sd-ballet-selector {
   box-shadow: 0 0 calc(6px + var(--switch-progress) * 18px) color-mix(in srgb, currentColor 70%, transparent);
   will-change: left, filter;
-  animation: sd-switch-oscillate 2s cubic-bezier(.37,0,.63,1) infinite;
+  animation: sd-switch-oscillate 2s cubic-bezier(.45,0,.55,1) infinite;
+}
+.sd-ballet-moving .sd-ballet-selector::after {
+  content: "\203A\203A\203A";
+  position: absolute;
+  top: 50%;
+  right: 10%;
+  font-size: 1.5em;
+  line-height: 1;
+  letter-spacing: -0.12em;
+  color: var(--stage-background);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000);
+  mask-image: linear-gradient(to right, transparent, #000);
+  animation: sd-switch-arrows 2s step-end infinite;
+}
+@keyframes sd-switch-arrows {
+  0% { transform: translateY(-55%) scaleX(1); right: 10%; left: auto; }
+  50% { transform: translateY(-55%) scaleX(-1); right: auto; left: 10%; }
 }
 .sd-ballet-moving .sd-ballet-labels-selected {
-  animation: sd-switch-oscillate-labels 2s cubic-bezier(.37,0,.63,1) infinite;
+  animation: sd-switch-oscillate-labels 2s cubic-bezier(.45,0,.55,1) infinite;
 }
 .sd-ballet-moving .sd-ballet-labels:not(.sd-ballet-labels-selected) span:last-child {
   opacity: calc(0.6 + var(--switch-progress) * 0.4);
@@ -292,7 +309,8 @@
 .sd-ballet-arrived { animation: sd-switch-pop 700ms cubic-bezier(.34,1.56,.64,1) 1; }
 @keyframes sd-switch-oscillate {
   0%, 100% { left: 4px; filter: blur(0); }
-  25%, 75% { filter: blur(1.5px); }
+  12%, 38%, 62%, 88% { filter: blur(1px); }
+  25%, 75% { filter: blur(2.5px); }
   50% { left: 50%; filter: blur(0); }
 }
 @keyframes sd-switch-oscillate-labels {
@@ -311,6 +329,7 @@
 @media (prefers-reduced-motion: reduce) {
   .sd-ballet-selector, .sd-ballet-labels-selected { transition: none; }
   .sd-ballet-moving, .sd-ballet-arrived { animation: none; transform: none; }
+  .sd-ballet-moving .sd-ballet-selector::after { display: none; }
   .sd-ballet-moving .sd-ballet-selector, .sd-ballet-moving .sd-ballet-labels-selected { animation: none; will-change: auto; filter: none; }
 }
 
