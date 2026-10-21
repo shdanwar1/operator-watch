@@ -263,7 +263,7 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
   }
   return {
     ...stage,
-    label: centerIntro ? "Switch to Center" : stage.label,
+    label: stage.phase === "live" && stage.timerMs <= centerMs + BALLET_SWITCH_LEAD_MS && stage.timerMs > centerMs - BALLET_CENTER_INTRO_MS ? "Switch to Center" : stage.label,
     bgColor,
     ballet: { segment: inCenter ? "center" : "barre", switchProgress, centerIntro },
   };

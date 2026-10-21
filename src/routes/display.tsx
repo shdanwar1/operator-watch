@@ -604,7 +604,7 @@ function TimerBlock({ stage, compact = false }: { stage: StageInfo; compact?: bo
           className="sd-fade"
           size={labelSize}
           tracking={urgent ? "0.26em" : "0.34em"}
-          opacity={urgent || stage.ballet?.centerIntro ? 0.9 : 0.65}
+          opacity={urgent || stage.label === "Switch to Center" ? 0.9 : 0.65}
         >
           {stage.label}
         </StageLabel>
@@ -624,7 +624,7 @@ function TimerBlock({ stage, compact = false }: { stage: StageInfo; compact?: bo
 function BarreCenterSwitch({ stage }: { stage: StageInfo }) {
   const ballet = stage.ballet;
   if (!ballet) return null;
-  const moving = ballet.switchProgress > 0 && ballet.switchProgress < 1;
+  const moving = stage.phase === "live" && stage.timerMs <= 21 * 60_000 && stage.timerMs > 20 * 60_000;
   return (
     <div
       role="img"
