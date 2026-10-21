@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeStage, formatMMSS, DEFAULT_STUDIO_DISPLAY_STATE, STAGE_COLORS, isBalletSession } from "./studio-display";
+import { computeStage, formatMMSS, DEFAULT_STUDIO_DISPLAY_STATE, STAGE_COLORS, isBalletSession, pendulumProgress } from "./studio-display";
 const st = (d: number) => ({ ...DEFAULT_STUDIO_DISPLAY_STATE, startTime: "10:00", durationMin: d, classDate: "2026-10-05" });
 const at = (t: string) => new Date(`2026-10-05T${t}`);
 describe("studio display +1 min start", () => {
@@ -46,13 +46,13 @@ describe("Ballet end-relative BARRE to CENTER guidance", () => {
     const stage = computeStage(st(60), at("10:01:00"));
     expect(stage.phase).toBe("startclass");
     expect(stage.bgColor).toBe(STAGE_COLORS.green);
-    expect(stage.ballet).toEqual({ segment: "barre", switchProgress: 0, centerIntro: false });
+    expect(stage.ballet).toEqual({ segment: "barre", switchProgress: 0, centerIntro: false, pendulum: false });
   });
   it("rests on Barre with 30 minutes remaining", () => {
     const stage = computeStage(st(60), at("10:30:00"));
     expect(stage.phase).toBe("live");
     expect(stage.bgColor).toBe(STAGE_COLORS.green);
-    expect(stage.ballet).toEqual({ segment: "barre", switchProgress: 0, centerIntro: false });
+    expect(stage.ballet).toEqual({ segment: "barre", switchProgress: 0, centerIntro: false, pendulum: false });
   });
   it("slides evenly over the last minute of Barre while fading green to indigo", () => {
     for (const [time, progress] of [["10:39:00", 0], ["10:39:30", 0.5], ["10:39:59", 59 / 60]] as const) {
@@ -81,7 +81,7 @@ describe("Ballet end-relative BARRE to CENTER guidance", () => {
       expect(stage.phase).toBe("live");
       expect(stage.label).toBe(intro ? "Switch to Center" : "Time Remaining");
       expect(stage.bgColor).toBe(STAGE_COLORS.indigo);
-      expect(stage.ballet).toEqual({ segment: "center", switchProgress: 1, centerIntro: intro });
+      expect(stage.ballet).toEqual({ segment: "center", switchProgress: 1, centerIntro: intro, pendulum: false });
     }
     expect(formatMMSS(computeStage(st(60), at("10:40:00")).timerMs)).toBe("20:00");
   });
@@ -107,5 +107,23 @@ describe("Ballet end-relative BARRE to CENTER guidance", () => {
         expect(stage.bgColor).not.toBe(STAGE_COLORS.indigo);
       }
     }
+  });
+});
+
+describe("Ballet pendulum", () => {
+  it("crosses 29 times, ~2.07 s each, landing on CENTER", () => {
+    expect(pendulumProgress(0)).toBe(0);
+    expect(pendulumProgress(1)).toBeCloseTo(1);
+    expect(pendulumProgress(1 / 29)).toBeCloseTo(1);
+    expect(pendulumProgress(2 / 29)).toBeCloseTo(0);
+    let first = -1;
+    for (let i = 0; i <= 6000; i++) { if (pendulumProgress(i / 6000) > 0.99999) { first = i / 6000; break; } }
+    expect(first * 60).toBeGreaterThan(2.0);
+    expect(first * 60).toBeLessThan(2.1);
+  });
+  it("swings only from 21:00 to 20:00 remaining", () => {
+    expect(computeStage(st(60), at("10:38:59")).ballet?.pendulum).toBe(false);
+    expect(computeStage(st(60), at("10:39:01")).ballet?.pendulum).toBe(true);
+    expect(computeStage(st(60), at("10:40:00")).ballet?.pendulum).toBe(false);
   });
 });

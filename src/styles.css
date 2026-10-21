@@ -255,11 +255,10 @@
   position: absolute;
   top: 4px;
   bottom: 4px;
-  left: calc(4px + var(--switch-progress) * (50% - 4px));
+  left: calc(4px + var(--pos, 0) * (50% - 4px));
   width: calc(50% - 4px);
   border-radius: 9999px;
   background: currentColor;
-  transition: left 300ms linear;
 }
 .sd-ballet-labels {
   position: absolute;
@@ -270,67 +269,32 @@
 }
 .sd-ballet-labels-selected {
   color: var(--stage-background);
-  clip-path: inset(4px calc(50% - var(--switch-progress) * (50% - 4px)) 4px calc(4px + var(--switch-progress) * (50% - 4px)) round 9999px);
-  transition: clip-path 300ms linear;
+  clip-path: inset(4px calc(50% - var(--pos, 0) * (50% - 4px)) 4px calc(4px + var(--pos, 0) * (50% - 4px)) round 9999px);
 }
-.sd-ballet-switch { transition: transform 400ms ease, box-shadow 400ms ease; }
-.sd-ballet-moving {
-  transform: scale(1.12);
-  animation: sd-switch-pulse 1.2s ease-in-out infinite;
-}
-.sd-ballet-moving .sd-ballet-selector {
-  box-shadow: 0 0 calc(6px + var(--switch-progress) * 18px) color-mix(in srgb, currentColor 70%, transparent);
-  will-change: left, filter;
-  animation: sd-switch-oscillate 2s cubic-bezier(.45,0,.55,1) infinite;
-}
-.sd-ballet-moving .sd-ballet-selector::after {
-  content: "\203A\203A\203A";
+.sd-ballet-arrow {
   position: absolute;
+  left: 50%;
   top: 50%;
-  right: 10%;
+  transform: translate(-50%, -55%);
+  display: flex;
   font-size: 1.5em;
   line-height: 1;
   letter-spacing: -0.12em;
-  color: var(--stage-background);
-  -webkit-mask-image: linear-gradient(to right, transparent, #000);
-  mask-image: linear-gradient(to right, transparent, #000);
-  animation: sd-switch-arrows 2s step-end infinite;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
 }
-@keyframes sd-switch-arrows {
-  0% { transform: translateY(-55%) scaleX(1); right: 10%; left: auto; }
-  50% { transform: translateY(-55%) scaleX(-1); right: auto; left: 10%; }
-}
-.sd-ballet-moving .sd-ballet-labels-selected {
-  animation: sd-switch-oscillate-labels 2s cubic-bezier(.45,0,.55,1) infinite;
-}
-.sd-ballet-moving .sd-ballet-labels:not(.sd-ballet-labels-selected) span:last-child {
-  opacity: calc(0.6 + var(--switch-progress) * 0.4);
-}
-.sd-ballet-arrived { animation: sd-switch-pop 700ms cubic-bezier(.34,1.56,.64,1) 1; }
-@keyframes sd-switch-oscillate {
-  0%, 100% { left: 4px; filter: blur(0); }
-  12%, 38%, 62%, 88% { filter: blur(1px); }
-  25%, 75% { filter: blur(2.5px); }
-  50% { left: 50%; filter: blur(0); }
-}
-@keyframes sd-switch-oscillate-labels {
-  0%, 100% { clip-path: inset(4px 50% 4px 4px round 9999px); }
-  50% { clip-path: inset(4px 4px 4px 50% round 9999px); }
-}
-@keyframes sd-switch-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); }
-  50% { box-shadow: 0 0 0 6px color-mix(in srgb, currentColor 22%, transparent); }
-}
-@keyframes sd-switch-pop {
-  0% { transform: scale(1.12); box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 60%, transparent); }
-  40% { transform: scale(1.25); box-shadow: 0 0 28px 10px color-mix(in srgb, currentColor 35%, transparent); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
+.sd-ballet-arrow i { font-style: normal; }
+.sd-ballet-moving .sd-ballet-arrow { opacity: 1; }
+.sd-ballet-moving .sd-ballet-arrow i { animation: sd-chevron-wave 900ms linear infinite; }
+.sd-ballet-moving .sd-ballet-arrow i:nth-child(2) { animation-delay: 170ms; }
+.sd-ballet-moving .sd-ballet-arrow i:nth-child(3) { animation-delay: 340ms; }
+@keyframes sd-chevron-wave {
+  0%, 100% { opacity: 0.3; }
+  30% { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sd-ballet-selector, .sd-ballet-labels-selected { transition: none; }
-  .sd-ballet-moving, .sd-ballet-arrived { animation: none; transform: none; }
-  .sd-ballet-moving .sd-ballet-selector::after { display: none; }
-  .sd-ballet-moving .sd-ballet-selector, .sd-ballet-moving .sd-ballet-labels-selected { animation: none; will-change: auto; filter: none; }
+  .sd-ballet-moving .sd-ballet-arrow i { animation: none; opacity: 1; }
 }
 
 

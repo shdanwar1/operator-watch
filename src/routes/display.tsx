@@ -10,6 +10,9 @@ import {
   CLASS_INFO_CUTOFF_MS,
   DISPLAY_START_OFFSET_MS,
   STAGE_COLORS,
+  BALLET_CENTER_MIN,
+  BALLET_SWITCH_LEAD_MS,
+  pendulumProgress,
   type StageInfo,
 } from "@/lib/studio-display";
 
@@ -623,18 +626,44 @@ function TimerBlock({ stage, compact = false }: { stage: StageInfo; compact?: bo
 
 function BarreCenterSwitch({ stage }: { stage: StageInfo }) {
   const ballet = stage.ballet;
+  const pendulum = Boolean(ballet?.pendulum);
+  const timerMs = stage.timerMs;
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!pendulum || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      el.style.setProperty("--pos", String(ballet && ballet.switchProgress >= 1 ? 1 : 0));
+      return;
+    }
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = () => {
+      const remaining = timerMs - (performance.now() - t0);
+      const f = 1 - (remaining - BALLET_CENTER_MIN * 60_000) / BALLET_SWITCH_LEAD_MS;
+      el.style.setProperty("--pos", String(pendulumProgress(f)));
+      raf = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(raf);
+  }, [pendulum, timerMs, ballet?.switchProgress]);
   if (!ballet) return null;
-  const moving = stage.phase === "live" && stage.timerMs <= 21 * 60_000 && stage.timerMs > 20 * 60_000;
+  const arrow = (
+    <span className="sd-ballet-arrow" aria-hidden>
+      <i>{"\u203A"}</i><i>{"\u203A"}</i><i>{"\u203A"}</i>
+    </span>
+  );
   return (
     <div
+      ref={ref}
       role="img"
       aria-label={ballet.segment === "barre" ? "Barre" : "Center"}
-      className={`sd-ballet-switch${moving ? " sd-ballet-moving" : ""}${ballet.centerIntro ? " sd-ballet-arrived" : ""}`}
-      style={{ "--switch-progress": ballet.switchProgress, "--stage-background": stage.bgColor } as React.CSSProperties}
+      className={`sd-ballet-switch${pendulum ? " sd-ballet-moving" : ""}`}
+      style={{ "--stage-background": stage.bgColor } as React.CSSProperties}
     >
       <div className="sd-ballet-selector" aria-hidden />
-      <div className="sd-ballet-labels" aria-hidden><span>BARRE</span><span>CENTER</span></div>
-      <div className="sd-ballet-labels sd-ballet-labels-selected" aria-hidden><span>BARRE</span><span>CENTER</span></div>
+      <div className="sd-ballet-labels" aria-hidden><span>BARRE</span><span>CENTER</span>{arrow}</div>
+      <div className="sd-ballet-labels sd-ballet-labels-selected" aria-hidden><span>BARRE</span><span>CENTER</span>{arrow}</div>
     </div>
   );
 }
