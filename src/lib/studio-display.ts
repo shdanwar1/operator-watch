@@ -275,7 +275,7 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
     ...stage,
     label: stage.phase === "live" && stage.timerMs <= centerMs + BALLET_SWITCH_LEAD_MS && stage.timerMs > centerMs - BALLET_CENTER_INTRO_MS ? "Switch to Center" : stage.label,
     bgColor,
-    ballet: { segment: inCenter ? "center" : "barre", switchProgress, centerIntro },
+    ballet: { segment: inCenter ? "center" : "barre", switchProgress, centerIntro, pendulum: stage.phase === "live" && !inCenter && switchProgress > 0 },
   };
 }
 
