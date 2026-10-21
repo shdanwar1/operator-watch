@@ -394,7 +394,8 @@ function SurfaceChrome({ color }: { color: string }) {
     const prevContent = meta.content;
     // Safari's title bar ignores var()/color-mix(), so pass it a plain resolved colour.
     const probe = document.createElement("div");
-    probe.style.cssText = `position:absolute;visibility:hidden;transition:none;background-color:${color}`;
+    // Match the top edge of the display, which has a 5% white tint over the colour.
+    probe.style.cssText = `position:absolute;visibility:hidden;transition:none;background-color:color-mix(in srgb, ${color}, #ffffff 5%)`;
     document.body.appendChild(probe);
     const resolved = getComputedStyle(probe).backgroundColor || color;
     probe.remove();
