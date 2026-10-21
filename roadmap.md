@@ -1,7 +1,7 @@
 # Run credit optimization
 ## Ballet Studio Display update
-- [ ] Add end-relative Ballet segment guidance without changing shared state or Workout timers.
-- [ ] Verify timing tests and the real display at desktop, portrait and 480×220 sizes.
+- [x] Add end-relative Ballet segment guidance without changing shared state or Workout timers.
+- [x] Verify timing tests and the real display at desktop, portrait and 480×220 sizes — 346 tests passed, automatic build OK, reload/Live Notes/Workout verified with no runtime errors.
 
 - [x] Replace static morning reminders with idempotent one-hour-before reminders and update the dispatch eligibility predicate; reconcile hour keys after retiming/cancellation.
 - [x] Verify reminder boundaries with focused tests (30 passed), full suite (300 passed), applied database definition, and automatic build OK. Real phone delivery remains unverified.
