@@ -280,18 +280,20 @@
 }
 .sd-ballet-moving .sd-ballet-selector {
   box-shadow: 0 0 calc(6px + var(--switch-progress) * 18px) color-mix(in srgb, currentColor 70%, transparent);
-  animation: sd-switch-oscillate 2s ease-in-out infinite;
+  will-change: left, filter;
+  animation: sd-switch-oscillate 1s cubic-bezier(.37,0,.63,1) infinite;
 }
 .sd-ballet-moving .sd-ballet-labels-selected {
-  animation: sd-switch-oscillate-labels 2s ease-in-out infinite;
+  animation: sd-switch-oscillate-labels 1s cubic-bezier(.37,0,.63,1) infinite;
 }
 .sd-ballet-moving .sd-ballet-labels:not(.sd-ballet-labels-selected) span:last-child {
   opacity: calc(0.6 + var(--switch-progress) * 0.4);
 }
 .sd-ballet-arrived { animation: sd-switch-pop 700ms cubic-bezier(.34,1.56,.64,1) 1; }
 @keyframes sd-switch-oscillate {
-  0%, 100% { left: 4px; }
-  50% { left: 50%; }
+  0%, 100% { left: 4px; filter: blur(0); }
+  25%, 75% { filter: blur(1.5px); }
+  50% { left: 50%; filter: blur(0); }
 }
 @keyframes sd-switch-oscillate-labels {
   0%, 100% { clip-path: inset(4px 50% 4px 4px round 9999px); }
@@ -309,7 +311,7 @@
 @media (prefers-reduced-motion: reduce) {
   .sd-ballet-selector, .sd-ballet-labels-selected { transition: none; }
   .sd-ballet-moving, .sd-ballet-arrived { animation: none; transform: none; }
-  .sd-ballet-moving .sd-ballet-selector, .sd-ballet-moving .sd-ballet-labels-selected { animation: none; }
+  .sd-ballet-moving .sd-ballet-selector, .sd-ballet-moving .sd-ballet-labels-selected { animation: none; will-change: auto; filter: none; }
 }
 
 
