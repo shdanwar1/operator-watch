@@ -10,6 +10,9 @@ import {
   CLASS_INFO_CUTOFF_MS,
   DISPLAY_START_OFFSET_MS,
   STAGE_COLORS,
+  BALLET_CENTER_MIN,
+  BALLET_SWITCH_LEAD_MS,
+  pendulumProgress,
   type StageInfo,
 } from "@/lib/studio-display";
 
@@ -625,8 +628,8 @@ function BarreCenterSwitch({ stage }: { stage: StageInfo }) {
   const ballet = stage.ballet;
   const pendulum = Boolean(ballet?.pendulum);
   const timerMs = stage.timerMs;
-  const ref = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
     const el = ref.current;
     if (!el) return;
     if (!pendulum || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
