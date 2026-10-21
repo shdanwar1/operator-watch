@@ -1,5 +1,6 @@
 // Studio Display shared state — synced across control panel & display window
 // via BroadcastChannel + localStorage. No backend required.
+import { checklistTypeForDuration } from "@/domain/checklists";
 
 /** How the entered clock time is resolved to a real datetime. */
 export type TimerMode = "next" | "running";
@@ -212,6 +213,11 @@ export type StageInfo = {
   bigNumber?: number;
   // total duration of current phase (for progress rings)
   totalMs?: number;
+  ballet?: {
+    segment: "barre" | "center";
+    switchProgress: number;
+    centerIntro: boolean;
+  };
 };
 
 export const STAGE_COLORS = {
@@ -221,7 +227,18 @@ export const STAGE_COLORS = {
   yellow: "#facc15",
   orange: "#f97316",
   red: "#dc2626",
+  indigo: "var(--sd-center)",
 } as const;
+
+export const BALLET_CENTER_MIN = 20;
+export const BALLET_SWITCH_LEAD_MS = 60_000;
+export const BALLET_CENTER_INTRO_MS = 30_000;
+
+export function isBalletSession(state: StudioDisplayState): boolean {
+  if (state.presetLabel === "Ballet") return true;
+  if (state.presetLabel === "Workout") return false;
+  return checklistTypeForDuration(state.durationMin) === "ballet";
+}
 
 /** Display-only offset: the screen treats scheduled start + 1 min as "go". */
 export const DISPLAY_START_OFFSET_MS = 60_000;
@@ -229,6 +246,24 @@ const STARTCLASS_MS = 30_000; // first 30s after display start: "START THE CLASS
 export const QA_MS = 5 * 60_000; // 5 min Q&A after class ends
 
 export function computeStage(state: StudioDisplayState, now: Date = new Date()): StageInfo {
+  const stage = computeBaseStage(state, now);
+  if (!isBalletSession(state) || !["startclass", "live", "warn5", "warn1", "final30"].includes(stage.phase)) {
+    return stage;
+  }
+  const centerMs = BALLET_CENTER_MIN * 60_000;
+  const inCenter = stage.timerMs <= centerMs;
+  return {
+    ...stage,
+    bgColor: stage.phase === "live" && inCenter ? STAGE_COLORS.indigo : stage.bgColor,
+    ballet: {
+      segment: inCenter ? "center" : "barre",
+      switchProgress: Math.max(0, Math.min(1, 1 - (stage.timerMs - centerMs) / BALLET_SWITCH_LEAD_MS)),
+      centerIntro: stage.phase === "live" && inCenter && stage.timerMs > centerMs - BALLET_CENTER_INTRO_MS,
+    },
+  };
+}
+
+function computeBaseStage(state: StudioDisplayState, now: Date): StageInfo {
   const start = resolveClassStart(state, now);
   const end = new Date(start.getTime() + state.durationMin * 60_000);
   const displayStart = start.getTime() + DISPLAY_START_OFFSET_MS;
