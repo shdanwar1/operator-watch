@@ -396,8 +396,21 @@ function SurfaceChrome({ color }: { color: string }) {
     const probe = document.createElement("div");
     probe.style.cssText = `position:absolute;visibility:hidden;transition:none;background-color:${color}`;
     document.body.appendChild(probe);
-    meta.content = getComputedStyle(probe).backgroundColor || color;
+    const resolved = getComputedStyle(probe).backgroundColor || color;
     probe.remove();
+    let hex = resolved;
+    try {
+      const ctx = document.createElement("canvas").getContext("2d");
+      if (ctx) {
+        ctx.fillStyle = resolved;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+        hex = `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+      }
+    } catch {
+      /* keep resolved */
+    }
+    meta.content = hex;
 
     return () => {
       html.style.backgroundColor = prev.html;
