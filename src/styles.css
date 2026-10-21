@@ -234,6 +234,55 @@
   container-type: size;
 }
 
+:root {
+  --sd-center: #4b45cf;
+  --sd-switch-track: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.sd-ballet-switch {
+  position: relative;
+  flex-shrink: 0;
+  height: clamp(1.6rem, 4.6vmin, 3.5rem);
+  width: clamp(9rem, 36vmin, 24rem);
+  margin-top: clamp(0rem, 0.2vmin, 0.25rem);
+  border-radius: 9999px;
+  background: var(--sd-switch-track);
+  font-size: clamp(0.55rem, 1.2vmin, 1rem);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.sd-ballet-selector {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: calc(4px + var(--switch-progress) * (50% - 4px));
+  width: calc(50% - 4px);
+  border-radius: 9999px;
+  background: currentColor;
+  transition: left 300ms linear;
+}
+.sd-ballet-labels {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+}
+.sd-ballet-labels-selected {
+  color: var(--stage-background);
+  clip-path: inset(4px calc(50% - var(--switch-progress) * (50% - 4px)) 4px calc(4px + var(--switch-progress) * (50% - 4px)) round 9999px);
+  transition: clip-path 300ms linear;
+}
+.sd-center-word {
+  font-size: var(--center-size);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sd-ballet-selector, .sd-ballet-labels-selected { transition: none; }
+}
+
 
 /* Realistic hourglass — sand stream + urgent pulse */
 @keyframes hg-stream-flow {
