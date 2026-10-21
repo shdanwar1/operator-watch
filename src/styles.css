@@ -273,14 +273,30 @@
   clip-path: inset(4px calc(50% - var(--switch-progress) * (50% - 4px)) 4px calc(4px + var(--switch-progress) * (50% - 4px)) round 9999px);
   transition: clip-path 300ms linear;
 }
-.sd-center-word {
-  font-size: var(--center-size);
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 1;
+.sd-ballet-switch { transition: transform 400ms ease, box-shadow 400ms ease; }
+.sd-ballet-moving {
+  transform: scale(1.12);
+  animation: sd-switch-pulse 1.2s ease-in-out infinite;
+}
+.sd-ballet-moving .sd-ballet-selector {
+  box-shadow: 0 0 calc(6px + var(--switch-progress) * 18px) color-mix(in srgb, currentColor 70%, transparent);
+}
+.sd-ballet-moving .sd-ballet-labels:not(.sd-ballet-labels-selected) span:last-child {
+  opacity: calc(0.6 + var(--switch-progress) * 0.4);
+}
+.sd-ballet-arrived { animation: sd-switch-pop 700ms cubic-bezier(.34,1.56,.64,1) 1; }
+@keyframes sd-switch-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, currentColor 22%, transparent); }
+}
+@keyframes sd-switch-pop {
+  0% { transform: scale(1.12); box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 60%, transparent); }
+  40% { transform: scale(1.25); box-shadow: 0 0 28px 10px color-mix(in srgb, currentColor 35%, transparent); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
 }
 @media (prefers-reduced-motion: reduce) {
   .sd-ballet-selector, .sd-ballet-labels-selected { transition: none; }
+  .sd-ballet-moving, .sd-ballet-arrived { animation: none; transform: none; }
 }
 
 

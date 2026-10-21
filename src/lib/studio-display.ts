@@ -252,14 +252,20 @@ export function computeStage(state: StudioDisplayState, now: Date = new Date()):
   }
   const centerMs = BALLET_CENTER_MIN * 60_000;
   const inCenter = stage.timerMs <= centerMs;
+  const switchProgress = Math.max(0, Math.min(1, 1 - (stage.timerMs - centerMs) / BALLET_SWITCH_LEAD_MS));
+  const centerIntro = stage.phase === "live" && inCenter && stage.timerMs > centerMs - BALLET_CENTER_INTRO_MS;
+  let bgColor = stage.bgColor;
+  if (stage.phase === "live") {
+    if (inCenter) bgColor = STAGE_COLORS.indigo;
+    else if (switchProgress > 0) {
+      bgColor = `color-mix(in oklab, ${STAGE_COLORS.green}, ${STAGE_COLORS.indigo} ${(switchProgress * 100).toFixed(1)}%)`;
+    }
+  }
   return {
     ...stage,
-    bgColor: stage.phase === "live" && inCenter ? STAGE_COLORS.indigo : stage.bgColor,
-    ballet: {
-      segment: inCenter ? "center" : "barre",
-      switchProgress: Math.max(0, Math.min(1, 1 - (stage.timerMs - centerMs) / BALLET_SWITCH_LEAD_MS)),
-      centerIntro: stage.phase === "live" && inCenter && stage.timerMs > centerMs - BALLET_CENTER_INTRO_MS,
-    },
+    label: centerIntro ? "Switch to Center" : stage.label,
+    bgColor,
+    ballet: { segment: inCenter ? "center" : "barre", switchProgress, centerIntro },
   };
 }
 
