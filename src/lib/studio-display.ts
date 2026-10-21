@@ -217,6 +217,8 @@ export type StageInfo = {
     segment: "barre" | "center";
     switchProgress: number;
     centerIntro: boolean;
+    /** True from 21:00 to 20:00 remaining while the selector swings. */
+    pendulum: boolean;
   };
 };
 
@@ -233,6 +235,14 @@ export const STAGE_COLORS = {
 export const BALLET_CENTER_MIN = 20;
 export const BALLET_SWITCH_LEAD_MS = 60_000;
 export const BALLET_CENTER_INTRO_MS = 30_000;
+/** Odd number of BARRE↔CENTER crossings in the last Barre minute (~2.07 s each), so it lands on CENTER. */
+export const BALLET_PENDULUM_SWEEPS = 29;
+
+/** Selector position 0 (BARRE) … 1 (CENTER) for fraction f (0…1) of the last Barre minute. */
+export function pendulumProgress(f: number): number {
+  const x = Math.max(0, Math.min(1, f));
+  return 0.5 - 0.5 * Math.cos(Math.PI * BALLET_PENDULUM_SWEEPS * x);
+}
 
 export function isBalletSession(state: StudioDisplayState): boolean {
   if (state.presetLabel === "Ballet") return true;
