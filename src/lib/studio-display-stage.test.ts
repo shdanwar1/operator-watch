@@ -54,18 +54,20 @@ describe("Ballet end-relative BARRE to CENTER guidance", () => {
     expect(stage.bgColor).toBe(STAGE_COLORS.green);
     expect(stage.ballet).toEqual({ segment: "barre", switchProgress: 0, centerIntro: false });
   });
-  it("slides evenly over the last minute of Barre while staying green", () => {
+  it("slides evenly over the last minute of Barre while fading green to indigo", () => {
     for (const [time, progress] of [["10:39:00", 0], ["10:39:30", 0.5], ["10:39:59", 59 / 60]] as const) {
       const stage = computeStage(st(60), at(time));
       expect(stage.ballet?.switchProgress).toBeCloseTo(progress);
-      expect(stage.bgColor).toBe(STAGE_COLORS.green);
     }
+    expect(computeStage(st(60), at("10:38:59")).bgColor).toBe(STAGE_COLORS.green);
+    expect(computeStage(st(60), at("10:39:00")).bgColor).toBe(STAGE_COLORS.green);
+    expect(computeStage(st(60), at("10:39:30")).bgColor).toBe(`color-mix(in oklab, ${STAGE_COLORS.green}, ${STAGE_COLORS.indigo} 50.0%)`);
   });
-  it("announces Center for exactly 30 seconds at 20 minutes remaining", () => {
+  it("labels Switch to Center for exactly 30 seconds at 20 minutes remaining", () => {
     for (const [time, intro] of [["10:40:00", true], ["10:40:29", true], ["10:40:30", false]] as const) {
       const stage = computeStage(st(60), at(time));
       expect(stage.phase).toBe("live");
-      expect(stage.label).toBe("Time Remaining");
+      expect(stage.label).toBe(intro ? "Switch to Center" : "Time Remaining");
       expect(stage.bgColor).toBe(STAGE_COLORS.indigo);
       expect(stage.ballet).toEqual({ segment: "center", switchProgress: 1, centerIntro: intro });
     }
