@@ -596,37 +596,26 @@ function TimerBlock({ stage, compact = false }: { stage: StageInfo; compact?: bo
 
   // Urgency is carried by type weight and label presence, not extra chrome.
   const urgent = stage.phase === "warn1" || stage.phase === "final30";
-  const centerIntro = stage.ballet?.centerIntro === true;
-
   return (
     <div className="flex flex-col items-center justify-center gap-[clamp(0.5rem,1.8vmin,1.75rem)] text-center">
-      {stage.label && !centerIntro && (
+      {stage.label && (
         <StageLabel
           key={stage.label}
           className="sd-fade"
           size={labelSize}
           tracking={urgent ? "0.26em" : "0.34em"}
-          opacity={urgent ? 0.9 : 0.65}
+          opacity={urgent || stage.ballet?.centerIntro ? 0.9 : 0.65}
         >
           {stage.label}
         </StageLabel>
       )}
-      {centerIntro ? (
-        <>
-          <div className="sd-num sd-center-word" style={{ "--center-size": compact ? "clamp(2.6rem, 12.35vmin, 13.65rem)" : "clamp(3.25rem, 18.2vmin, 23.4rem)" } as React.CSSProperties}>
-            CENTER
-          </div>
-          <StageLabel size={labelSize} tracking="0" opacity={0.85}>
-            Time Remaining {formatMMSS(stage.timerMs)}
-          </StageLabel>
-        </>
-      ) : <TimerDigits
+      <TimerDigits
         value={formatMMSS(stage.timerMs)}
         size={timerSize}
         weight={urgent ? 400 : 250}
         tracking="-0.04em"
         className={stage.blink ? "sd-blink" : ""}
-      />}
+      />
       {stage.ballet && <BarreCenterSwitch stage={stage} />}
     </div>
   );
@@ -635,11 +624,12 @@ function TimerBlock({ stage, compact = false }: { stage: StageInfo; compact?: bo
 function BarreCenterSwitch({ stage }: { stage: StageInfo }) {
   const ballet = stage.ballet;
   if (!ballet) return null;
+  const moving = ballet.switchProgress > 0 && ballet.switchProgress < 1;
   return (
     <div
       role="img"
       aria-label={ballet.segment === "barre" ? "Barre" : "Center"}
-      className="sd-ballet-switch"
+      className={`sd-ballet-switch${moving ? " sd-ballet-moving" : ""}${ballet.centerIntro ? " sd-ballet-arrived" : ""}`}
       style={{ "--switch-progress": ballet.switchProgress, "--stage-background": stage.bgColor } as React.CSSProperties}
     >
       <div className="sd-ballet-selector" aria-hidden />
