@@ -63,7 +63,19 @@ describe("Ballet end-relative BARRE to CENTER guidance", () => {
     expect(computeStage(st(60), at("10:39:00")).bgColor).toBe(STAGE_COLORS.green);
     expect(computeStage(st(60), at("10:39:30")).bgColor).toBe(`color-mix(in oklab, ${STAGE_COLORS.green}, ${STAGE_COLORS.indigo} 50.0%)`);
   });
-  it("labels Switch to Center for exactly 30 seconds at 20 minutes remaining", () => {
+  it("labels the Ballet transition from 21:00 through 19:30 remaining for exactly 90 seconds", () => {
+    for (const [time, label] of [
+      ["10:38:59", "Time Remaining"],
+      ["10:39:00", "Switch to Center"],
+      ["10:39:30", "Switch to Center"],
+      ["10:40:00", "Switch to Center"],
+      ["10:40:29", "Switch to Center"],
+      ["10:40:30", "Time Remaining"],
+    ] as const) {
+      expect(computeStage(st(60), at(time)).label).toBe(label);
+    }
+  });
+  it("keeps the Center arrival phase limited to 30 seconds", () => {
     for (const [time, intro] of [["10:40:00", true], ["10:40:29", true], ["10:40:30", false]] as const) {
       const stage = computeStage(st(60), at(time));
       expect(stage.phase).toBe("live");
