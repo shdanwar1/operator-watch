@@ -392,7 +392,12 @@ function SurfaceChrome({ color }: { color: string }) {
       created = true;
     }
     const prevContent = meta.content;
-    meta.content = color;
+    // Safari's title bar ignores var()/color-mix(), so pass it a plain resolved colour.
+    const probe = document.createElement("div");
+    probe.style.cssText = `position:absolute;visibility:hidden;transition:none;background-color:${color}`;
+    document.body.appendChild(probe);
+    meta.content = getComputedStyle(probe).backgroundColor || color;
+    probe.remove();
 
     return () => {
       html.style.backgroundColor = prev.html;
