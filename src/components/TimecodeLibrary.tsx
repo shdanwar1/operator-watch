@@ -31,7 +31,7 @@ export function TimecodeLibrary({ downloadEdl }: { downloadEdl: (name: string, m
           const classId = key.slice(9);
           if (saved.some(r => r.classId === classId)) continue;
           const state = JSON.parse(localStorage.getItem(key) ?? "null") as TimecodeState | null;
-          if (!Array.isArray(state?.markers)) continue;
+          if (!state || !Array.isArray(state.markers)) continue;
           saved.push({ classId, className: "Ballet draft", teacherName: null, date: null, start: null, end: null, updatedAt: "", state, localOnly: true });
         }
       } catch { /* Saved sessions remain usable if device storage is unavailable. */ }
