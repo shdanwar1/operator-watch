@@ -1,4 +1,16 @@
 import { describe, expect, it } from "vitest";
+import { classProgress } from "./timecode";
+
+describe("scheduled timeline progress", () => {
+  it("uses the scheduled start and end, clamped outside the class window", () => {
+    const start = new Date("2026-10-22T14:00:00Z").getTime();
+    expect(classProgress(start - 1000, start, 3_600_000)).toBe(0);
+    expect(classProgress(start + 1_800_000, start, 3_600_000)).toBe(50);
+    expect(classProgress(start + 3_600_000, start, 3_600_000)).toBe(100);
+    expect(classProgress(start + 7_200_000, start, 3_600_000)).toBe(100);
+    expect(classProgress(start, null, 3_600_000)).toBe(0);
+  });
+});
 import { buildEdl, durationBetween, formatTimecode, framesAt, isBalletClass } from "./timecode";
 
 describe("timecode", () => {
