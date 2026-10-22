@@ -28,6 +28,14 @@ import {
 type Profile = { id: string; username: string; is_admin: boolean };
 
 export const Route = createFileRoute("/unlock")({
+  head: () => ({ meta: [
+    { title: "Unlock Studio · DMC" },
+    { name: "description", content: "Secure operator access to the DMC Studio Suite." },
+    { property: "og:title", content: "Unlock Studio · DMC" },
+    { property: "og:description", content: "Secure operator access to the DMC Studio Suite." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   beforeLoad: async () => {
     const status = await getGateStatus();
     if (status.unlocked) {

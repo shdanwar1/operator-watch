@@ -44,7 +44,10 @@ export function TimecodeLibrary({ downloadEdl }: { downloadEdl: (name: string, m
     setDeleting(true);
     try {
       if (!pending.localOnly) await remove({ data: { classId: pending.classId } });
-      try { localStorage.removeItem(`timecode:${pending.classId}`); } catch { toast.error("Saved timecode deleted, but this device's draft could not be cleared"); }
+      try { localStorage.removeItem(`timecode:${pending.classId}`); } catch {
+        if (pending.localOnly) throw new Error("Could not clear draft");
+        toast.error("Saved timecode deleted, but this device's draft could not be cleared");
+      }
       setRows(current => current?.filter(r => r.classId !== pending.classId) ?? []);
       setPending(null);
       toast.success("Timecode deleted");
