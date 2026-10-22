@@ -80,10 +80,6 @@ function TimecodePage() {
   const markerRows = useRef(new Map<string, HTMLDivElement>());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => () => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-  }, []);
-
   useEffect(() => {
     if (!cid) return;
     let local: TimecodeState | null = null;

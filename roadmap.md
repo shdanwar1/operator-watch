@@ -1,8 +1,9 @@
 # Run credit optimization
 ## Timecode Studio timeline and library
-- [ ] Add scheduled-time progress, Now playhead, and marker selection.
-- [ ] Enrich saved sessions and add confirmed deletion of saved and local drafts.
-- [ ] Verify focused tests and authenticated browser flow.
+- [x] Add scheduled-time progress, Now playhead, and marker selection.
+- [x] Enrich saved sessions and add confirmed deletion of saved and local drafts.
+- [x] Focused tests: 14 passed; automatic preview checks OK.
+- [ ] Authenticated browser flow — blocked: the configured site password is rejected by the live unlock screen.
 
 ## Ballet Studio Display update
 - [x] Add end-relative Ballet segment guidance without changing shared state or Workout timers.
