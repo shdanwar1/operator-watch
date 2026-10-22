@@ -1,4 +1,9 @@
 # Run credit optimization
+## Timecode Studio timeline and library
+- [ ] Add scheduled-time progress, Now playhead, and marker selection.
+- [ ] Enrich saved sessions and add confirmed deletion of saved and local drafts.
+- [ ] Verify focused tests and authenticated browser flow.
+
 ## Ballet Studio Display update
 - [x] Add end-relative Ballet segment guidance without changing shared state or Workout timers.
 - [x] Verify timing tests and the real display at desktop, portrait and 480×220 sizes — 346 tests passed, automatic build OK, reload/Live Notes/Workout verified with no runtime errors.
