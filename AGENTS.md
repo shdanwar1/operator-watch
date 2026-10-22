@@ -11,6 +11,8 @@
 
 ## Architecture
 
+- Timecode timeline progress derives from scheduled wall-clock bounds, not recording elapsed time; saved-session deletion uses the existing shared gate-operator boundary and also clears the current device draft.
+
 - Ballet Studio Display guidance is derived only from remaining class time in the pure stage calculation; never persist segment state or add a second timer, so reloads and mid-class launches stay accurate.
 
 - Shift-relative reminder planning uses `src/lib/shift-hour-reminder.ts` and distinct per-shift start-instant keys in `push-keys.ts`; keep the database `push_dispatch_due()` predicate aligned so the timer wakes for every reminder type.
