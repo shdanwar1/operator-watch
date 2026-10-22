@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { ArrowLeft, Download, Pause, Pencil, Play, Timer, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Pause, Pencil, Play, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getGateStatus } from "@/lib/gate.functions";
-import { getClassTimecode, listPastTimecodes, saveClassTimecode, type PastTimecode } from "@/lib/timecode.functions";
+import { getClassTimecode, saveClassTimecode } from "@/lib/timecode.functions";
+import { TimecodeTimeline, MARKER_DOT } from "@/components/TimecodeTimeline";
+import { TimecodeLibrary } from "@/components/TimecodeLibrary";
 import { AppShell } from "@/components/AppShell";
 import {
   EMPTY_TIMECODE,
@@ -41,9 +43,9 @@ export const Route = createFileRoute("/timecode")({
   },
   head: () => ({
     meta: [
-      { title: "Timecode" },
+      { title: "Timecode Studio · DMC" },
       { name: "description", content: "Mark highlight moments of a ballet class and export an EDL." },
-      { property: "og:title", content: "Timecode" },
+      { property: "og:title", content: "Timecode Studio · DMC" },
       { property: "og:description", content: "Mark ballet class moments and export an EDL." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -52,21 +54,14 @@ export const Route = createFileRoute("/timecode")({
   component: TimecodePage,
 });
 
-const KIND_DOT: Record<MarkerKind, string> = {
-  Correction: "bg-[#4f7cff]",
-  Tip: "bg-[#ef5b5b]",
-  Special: "bg-[#3fae82]",
-  Dance: "bg-[#8b6cf0]",
-  End: "bg-muted-foreground",
-  Highlight: "bg-live",
-};
+const KIND_DOT = MARKER_DOT;
 
 /** Full-colour button styles matching the marker reference. */
 const KIND_BUTTON: Partial<Record<MarkerKind, string>> = {
-  Correction: "bg-[#4f7cff]/15 text-[#7b9dff] hover:bg-[#4f7cff]/25",
-  Tip: "bg-[#ef5b5b]/15 text-[#f27c7c] hover:bg-[#ef5b5b]/25",
-  Special: "bg-[#3fae82]/15 text-[#5cc79b] hover:bg-[#3fae82]/25",
-  Dance: "bg-[#8b6cf0]/15 text-[#a98ff5] hover:bg-[#8b6cf0]/25",
+  Correction: "bg-marker-correction/15 text-marker-correction hover:bg-marker-correction/25",
+  Tip: "bg-marker-tip/15 text-marker-tip hover:bg-marker-tip/25",
+  Special: "bg-marker-special/15 text-marker-special hover:bg-marker-special/25",
+  Dance: "bg-marker-dance/15 text-marker-dance hover:bg-marker-dance/25",
   End: "bg-secondary text-foreground hover:bg-secondary/80",
 };
 
@@ -81,6 +76,8 @@ function TimecodePage() {
   const [now, setNow] = useState(() => Date.now());
   const [note, setNote] = useState("");
   const [tcEdit, setTcEdit] = useState<string | null>(null);
+  const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
+  const markerRows = useRef(new Map<string, HTMLDivElement>());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -102,8 +99,7 @@ function TimecodePage() {
   }, [cid]);
 
   useEffect(() => {
-    if (state.runningSince == null) return;
-    const t = setInterval(() => setNow(Date.now()), 40);
+    const t = setInterval(() => setNow(Date.now()), state.runningSince == null ? 1000 : 40);
     return () => clearInterval(t);
   }, [state.runningSince]);
 
@@ -123,7 +119,7 @@ function TimecodePage() {
     }, 400);
   }
 
-  if (!cid) return <TimecodeLibrary />;
+  if (!cid) return <TimecodeLibrary downloadEdl={downloadEdl} />;
 
   const running = state.runningSince != null;
   const started = running || state.elapsedMs > 0 || state.markers.length > 0;
@@ -185,14 +181,10 @@ function TimecodePage() {
     return new Date(y, mo - 1, d, h, mi).getTime();
   })();
   const railMs = classMin * 60_000;
-  const nowMs = running ? now : Date.now();
+  const nowMs = now;
   /** Wall-clock time of a marker; older markers are inferred from the clock's offset. */
   const markerAt = (m: { frames: number; at?: number }) =>
     m.at ?? nowMs - ((frames - m.frames) * 1000) / 25;
-  const railPct = (t: number) =>
-    railStart == null ? 0 : Math.min(100, Math.max(0, ((t - railStart) / railMs) * 100));
-  const hhmm = (t: number) =>
-    new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
   const autoMarkers = classBoundaryMarkers(state.anchor, railStart, railStart == null ? null : railStart + railMs);
   const allMarkers = [...state.markers, ...autoMarkers];
   const exportEdl = () =>
@@ -278,35 +270,25 @@ function TimecodePage() {
         </div>
       </section>
 
-      <section className="space-y-1">
-        <div className="relative h-6">
-          <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
-          <span className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-muted-foreground" />
-          <span className="absolute right-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-muted-foreground" />
-          {allMarkers.map((m) => {
-            const t = markerAt(m);
-            return (
-              <span
-                key={m.id}
-                title={`${formatTimecode(m.frames)} · ${hhmm(t)}`}
-                className={cn("absolute top-1/2 h-3 w-1 -translate-y-1/2 rounded", KIND_DOT[m.kind])}
-                style={{ left: `${railPct(t)}%` }}
-              />
-            );
-          })}
-        </div>
-        <div className="flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground tc-num">
-          <span>{cs ? `${cs} Start` : "Start"}</span>
-          <span>{ce ? `${ce} End` : "End"}</span>
-        </div>
-      </section>
+      <TimecodeTimeline markers={allMarkers} start={railStart} durationMs={railMs} now={now}
+        startLabel={cs && `${cs} Start`} endLabel={ce && `${ce} End`} markerAt={markerAt} selected={selectedMarker}
+        onSelect={(id, jump) => {
+          setSelectedMarker(id);
+          if (jump) {
+            const row = markerRows.current.get(id);
+            row?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+            row?.focus({ preventScroll: true });
+          }
+        }} />
 
       <section className="space-y-2">
         <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Markers ({allMarkers.length})
         </h2>
         {sorted.map((m) => (
-          <div key={m.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+          <div key={m.id} tabIndex={-1} data-marker-id={m.id}
+            ref={node => { if (node) markerRows.current.set(m.id, node); else markerRows.current.delete(m.id); }}
+            className={cn("flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3 scroll-mt-20 transition-colors outline-none", selectedMarker === m.id && "border-live/60 bg-live-soft ring-1 ring-live/30")} >
             <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", KIND_DOT[m.kind])} />
             <span className="tc-num text-sm">{formatTimecode(m.frames)}</span>
             <span className="w-20 shrink-0 text-xs text-muted-foreground">{m.kind}</span>
@@ -315,7 +297,7 @@ function TimecodePage() {
             ) : (
             <>
             <Input
-              className="h-8 flex-1"
+              className="h-8 min-w-24 flex-1"
               value={m.note}
               maxLength={500}
               onChange={(e) =>
@@ -354,68 +336,3 @@ function downloadEdl(base: string, markers: TimecodeState["markers"]) {
   URL.revokeObjectURL(a.href);
 }
 
-function TimecodeLibrary() {
-  const [rows, setRows] = useState<PastTimecode[] | null>(null);
-  useEffect(() => {
-    listPastTimecodes()
-      .then(setRows)
-      .catch(() => {
-        toast.error("Could not load timecodes");
-        setRows([]);
-      });
-  }, []);
-  return (
-    <AppShell>
-      <div className="mx-auto max-w-3xl space-y-5 p-4 sm:p-8">
-        <header>
-          <h1 className="text-lg font-semibold">Timecodes</h1>
-          <p className="text-xs text-muted-foreground">
-            Start a timecode from the timer icon on a Ballet class card. Saved timecodes appear here.
-          </p>
-        </header>
-        {rows == null ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : rows.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-            No saved timecodes yet.
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {rows.map((r) => {
-              const name = timecodeFilename({ date: r.date, start: r.start, teacher: r.teacherName, className: r.className });
-              return (
-                <li key={r.classId} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
-                  <Timer className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{r.className ?? "Ballet class"}</p>
-                    <p className="truncate tc-num text-[11px] text-muted-foreground">
-                      {name}.edl · {r.state.markers.length} markers
-                    </p>
-                  </div>
-                  <Button size="sm" variant="ghost" asChild>
-                    <Link
-                      to="/timecode"
-                      search={{
-                        cid: r.classId,
-                        cn: r.className ?? undefined,
-                        tn: r.teacherName ?? undefined,
-                        cd: r.date ?? undefined,
-                        cs: r.start ?? undefined,
-                        ce: r.end ?? undefined,
-                      }}
-                    >
-                      Open
-                    </Link>
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => downloadEdl(name, r.state.markers)}>
-                    <Download className="mr-1.5 h-4 w-4" /> EDL
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </AppShell>
-  );
-}
