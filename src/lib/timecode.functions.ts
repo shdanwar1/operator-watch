@@ -100,6 +100,17 @@ export type PastTimecode = {
   state: TimecodeState;
 };
 
+/** Sessions are shared by operators, matching existing read/save access. */
+export const deleteClassTimecode = createServerFn({ method: "POST" })
+  .inputValidator((d: { classId: string }) => ({ classId: id(d?.classId) }))
+  .handler(async ({ data }) => {
+    await requireOperator();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("class_timecodes").delete().eq("class_id", data.classId);
+    if (error) throw new Error("Could not delete timecode");
+    return { ok: true };
+  });
+
 /** All saved timecode sessions, newest first. */
 export const listPastTimecodes = createServerFn({ method: "POST" }).handler(
   async (): Promise<PastTimecode[]> => {
@@ -131,7 +142,7 @@ export const listPastTimecodes = createServerFn({ method: "POST" }).handler(
         updatedAt: r.updated_at,
         state: r.state as unknown as TimecodeState,
       }))
-      .filter((r) => Array.isArray(r.state?.markers) && r.state.markers.length > 0)
+      .filter((r) => Array.isArray(r.state?.markers))
       // Ballet-only: a save whose class is a known length other than 60 minutes is
       // no longer listed. The row itself is kept, so nothing is lost if a class
       // length changes; saves with no class row left are still shown.

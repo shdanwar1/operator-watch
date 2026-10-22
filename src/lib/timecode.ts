@@ -132,3 +132,21 @@ export function durationBetween(start: string, end: string): number {
   if (mins <= 0) mins += 24 * 60;
   return mins;
 }
+
+/** Scheduled wall-clock progress, independent of recording Pause/Resume. */
+export function classProgress(now: number, start: number | null, durationMs: number): number {
+  if (start == null || durationMs <= 0) return 0;
+  return Math.min(100, Math.max(0, ((now - start) / durationMs) * 100));
+}
+
+export function timecodeDateLabel(date: string | null, now = new Date()): string {
+  if (!date) return "Undated";
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  if (date === key(today)) return "Today";
+  if (date === key(yesterday)) return "Yesterday";
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", ...(y !== now.getFullYear() ? { year: "numeric" } : {}) });
+}

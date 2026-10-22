@@ -76,6 +76,10 @@
   --color-hours-day: var(--hours-day);
   --color-hours-night: var(--hours-night);
   --color-hours-weekend: var(--hours-weekend);
+  --color-marker-correction: var(--hours-day);
+  --color-marker-tip: var(--status-problem);
+  --color-marker-special: var(--hours-weekend);
+  --color-marker-dance: var(--hours-night);
 
   /* Glass — translucent mobile surfaces (iOS-style). */
   --color-glass: var(--glass);
@@ -372,6 +376,10 @@
   font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "ss01" 1, "cv02" 0, "cv03" 0, "cv04" 0, "cv11" 0;
+}
+
+.tc-playhead {
+  box-shadow: 0 0 10px 2px color-mix(in oklab, var(--status-current) 40%, transparent);
 }
 
 /* Studio Display — hairlines that fade at both ends instead of hard borders */
