@@ -189,8 +189,8 @@ function TimecodePage() {
   const autoMarkers = classBoundaryMarkers(state.anchor, railStart, railStart == null ? null : railStart + railMs);
   const allMarkers = [...state.markers, ...autoMarkers];
   const isExpired = railStart != null && now > railStart + railMs + 10 * 60_000;
-  // Recording start: first Start press, else inferred from the last anchor.
-  const recStart = state.recordingStartedAt ?? (state.anchor ? state.anchor.at - elapsedForFrames(state.anchor.frames) : null);
+  // Recording start = wall-clock moment the timecode read 01:00:00:00 (rolled back from the anchor).
+  const recStart = state.anchor ? state.anchor.at - elapsedForFrames(state.anchor.frames) : null;
   const saveMarkerTime = () => {
     if (!markerEdit) return;
     const f = parseTimecode(markerEdit.value);
