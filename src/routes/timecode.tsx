@@ -190,6 +190,7 @@ function TimecodePage() {
   const exportEdl = () =>
     downloadEdl(timecodeFilename({ date: cd, start: cs, teacher: tn, className: clsName }), allMarkers);
   const sorted = [...allMarkers].sort((a, b) => b.frames - a.frames);
+  const isExpired = railStart != null && now > railStart + railMs + 10 * 60_000;
 
   return (
     <AppShell>
@@ -239,10 +240,14 @@ function TimecodePage() {
         <p className="mt-1 text-[11px] uppercase tracking-widest text-muted-foreground">
           25 fps · non-drop{!running ? " · click the time to set it" : ""}
         </p>
-        <Button className="mt-5" size="lg" onClick={toggle} disabled={!loaded}>
-          {running ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
-          {running ? "Pause" : started ? "Resume" : "Start timecode"}
-        </Button>
+        {isExpired && !running ? (
+          <p className="mt-5 text-sm font-medium text-muted-foreground">Concluded</p>
+        ) : (
+          <Button className="mt-5" size="lg" onClick={toggle} disabled={!loaded}>
+            {running ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
+            {running ? "Pause" : started ? "Resume" : "Start timecode"}
+          </Button>
+        )}
       </section>
 
       <section className="space-y-3">
