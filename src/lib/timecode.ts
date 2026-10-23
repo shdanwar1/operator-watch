@@ -32,6 +32,8 @@ export type TimecodeState = {
   markers: TimecodeMarker[];
   /** Last known wall-clock ↔ timecode pairing, set whenever the clock starts. */
   anchor?: { at: number; frames: number };
+  /** Wall-clock epoch ms of the very first Start (timeline indication only). */
+  recordingStartedAt?: number;
 };
 
 /** Timecode frames for a wall-clock instant using the stored anchor. */

@@ -76,6 +76,7 @@ function TimecodePage() {
   const [now, setNow] = useState(() => Date.now());
   const [note, setNote] = useState("");
   const [tcEdit, setTcEdit] = useState<string | null>(null);
+  const [markerEdit, setMarkerEdit] = useState<{ id: string; value: string } | null>(null);
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
   const markerRows = useRef(new Map<string, HTMLDivElement>());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -146,13 +147,13 @@ function TimecodePage() {
       const f = parseTimecode(tcEdit);
       if (f == null) return void toast.error("Enter timecode as HH:MM:SS:FF");
       setTcEdit(null);
-      return commit({ ...state, elapsedMs: elapsedForFrames(f), runningSince: t, anchor: { at: t, frames: f } });
+      return commit({ ...state, elapsedMs: elapsedForFrames(f), runningSince: t, anchor: { at: t, frames: f }, recordingStartedAt: state.recordingStartedAt ?? t });
     }
-    commit({ ...state, runningSince: t, anchor: { at: t, frames: framesAt(state.elapsedMs) } });
+    commit({ ...state, runningSince: t, anchor: { at: t, frames: framesAt(state.elapsedMs) }, recordingStartedAt: state.recordingStartedAt ?? t });
   };
 
   const mark = (kind: MarkerKind, defNote: string) => {
-    if (!running) return;
+    if (!running || isExpired) return;
     const f = framesAt(elapsedMsOf(state, Date.now()));
     commit({
       ...state,
@@ -187,10 +188,24 @@ function TimecodePage() {
     m.at ?? nowMs - ((frames - m.frames) * 1000) / 25;
   const autoMarkers = classBoundaryMarkers(state.anchor, railStart, railStart == null ? null : railStart + railMs);
   const allMarkers = [...state.markers, ...autoMarkers];
+  const isExpired = railStart != null && now > railStart + railMs + 10 * 60_000;
+  // Recording start: first Start press, else inferred from the last anchor.
+  const recStart = state.recordingStartedAt ?? (state.anchor ? state.anchor.at - elapsedForFrames(state.anchor.frames) : null);
+  const saveMarkerTime = () => {
+    if (!markerEdit) return;
+    const f = parseTimecode(markerEdit.value);
+    if (f == null) return void toast.error("Enter timecode as HH:MM:SS:FF");
+    commit({
+      ...state,
+      markers: state.markers.map((x) =>
+        x.id === markerEdit.id ? { ...x, frames: f, at: markerAt(x) + ((f - x.frames) * 1000) / 25 } : x,
+      ),
+    });
+    setMarkerEdit(null);
+  };
   const exportEdl = () =>
     downloadEdl(timecodeFilename({ date: cd, start: cs, teacher: tn, className: clsName }), allMarkers);
   const sorted = [...allMarkers].sort((a, b) => b.frames - a.frames);
-  const isExpired = railStart != null && now > railStart + railMs + 10 * 60_000;
 
   return (
     <AppShell>
@@ -262,7 +277,7 @@ function TimecodePage() {
             <button
               key={k.kind}
               type="button"
-              disabled={!running}
+              disabled={!running || isExpired}
               onClick={() => mark(k.kind, k.note)}
               className={cn(
                 "flex h-14 items-center justify-center rounded-md text-sm font-semibold transition active:scale-95 disabled:opacity-40",
@@ -276,7 +291,7 @@ function TimecodePage() {
       </section>
 
       <TimecodeTimeline markers={allMarkers} start={railStart} durationMs={railMs} now={now}
-        startLabel={cs && `${cs} Start`} endLabel={ce && `${ce} End`} markerAt={markerAt} selected={selectedMarker}
+        startLabel={cs && `${cs} Start`} endLabel={ce && `${ce} End`} markerAt={markerAt} running={running} recordingStart={recStart} selected={selectedMarker}
         onSelect={(id, jump) => {
           setSelectedMarker(id);
           if (jump) {
@@ -295,7 +310,18 @@ function TimecodePage() {
             ref={node => { if (node) markerRows.current.set(m.id, node); else markerRows.current.delete(m.id); }}
             className={cn("flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3 scroll-mt-20 transition-colors outline-none", selectedMarker === m.id && "border-live/60 bg-live-soft ring-1 ring-live/30")} >
             <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", KIND_DOT[m.kind])} />
-            <span className="tc-num text-sm">{formatTimecode(m.frames)}</span>
+            {markerEdit?.id === m.id ? (
+              <input autoFocus value={markerEdit.value} aria-label="Edit marker timecode"
+                onChange={(e) => setMarkerEdit({ id: m.id, value: e.target.value })}
+                onKeyDown={(e) => { if (e.key === "Enter") saveMarkerTime(); if (e.key === "Escape") setMarkerEdit(null); }}
+                onBlur={() => setMarkerEdit(null)}
+                className="w-28 rounded bg-transparent px-1 tc-num text-sm outline-none ring-1 ring-primary" />
+            ) : m.id.startsWith("auto-") ? (
+              <span className="tc-num text-sm">{formatTimecode(m.frames)}</span>
+            ) : (
+              <button type="button" title="Click to edit the time" onClick={() => setMarkerEdit({ id: m.id, value: formatTimecode(m.frames) })}
+                className="tc-num text-sm underline-offset-4 hover:underline">{formatTimecode(m.frames)}</button>
+            )}
             <span className="w-20 shrink-0 text-xs text-muted-foreground">{m.kind}</span>
             {m.id.startsWith("auto-") ? (
               <span className="flex-1 text-sm">{m.note} <span className="text-xs text-muted-foreground">· automatic</span></span>
