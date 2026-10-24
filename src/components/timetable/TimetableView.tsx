@@ -23,11 +23,13 @@ export function TimetableView({ admin = false }: { admin?: boolean }) {
   // Navigation is restricted to the weeks intersecting the current Berlin month.
   const today = berlinDate();
   const { year, month } = currentBerlinMonth();
-  const weekStarts = useMemo(() => monthNavigableWeekStarts(year, month), [year, month]);
-  const todayIndex = useMemo(
-    () => navigableWeekIndexForDate(today, year, month),
-    [today, year, month],
-  );
+  // Only the current week and the remaining weeks of the month are navigable.
+  const weekStarts = useMemo(() => {
+    const all = monthNavigableWeekStarts(year, month);
+    const current = Math.max(0, navigableWeekIndexForDate(today, year, month));
+    return all.slice(current);
+  }, [today, year, month]);
+  const todayIndex = 0;
   const [weekIndex, setWeekIndex] = useState(todayIndex);
 
   const { data, isPending, error } = useQuery({

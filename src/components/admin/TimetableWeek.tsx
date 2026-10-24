@@ -19,10 +19,16 @@ function Clock({ week }: { week: BoardDay[] }) {
   return <div className="tt-now" style={{ top: clock.top }} aria-label={`Current Berlin time ${clock.label}`}><span>{clock.label}</span><i /></div>;
 }
 export function TimetableWeekSkeleton() { return <Skeleton className="h-[520px] min-w-[1120px]" />; }
+function classEndKey(card: { date: string; endTime: string; endsNextDay: boolean }) {
+  const [y, m, d] = card.date.split('-').map(Number);
+  const date = card.endsNextDay ? new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10) : card.date;
+  return `${date} ${card.endTime}`;
+}
 export function TimetableWeek({ week }: { week: BoardDay[] }) {
   const [today, setToday] = useState('');
+  const [now, setNow] = useState('');
   useEffect(() => {
-    const tick = () => { if (!document.hidden) setToday(berlinClock(new Date()).date); };
+    const tick = () => { if (!document.hidden) { const c = berlinClock(new Date()); setToday(c.date); setNow(`${c.date} ${c.label}`); } };
     tick(); const timer = setInterval(tick, 60_000);
     document.addEventListener("visibilitychange", tick);
     return () => { clearInterval(timer); document.removeEventListener("visibilitychange", tick); };
@@ -39,11 +45,13 @@ export function TimetableWeek({ week }: { week: BoardDay[] }) {
           <ul>{layoutCards(day.inMonth ? day.cards : []).map(({ card, lane, lanes }) => {
             const color = card.assigned ? opColor(card.operatorName) : null;
             const resumes = card.cancelled ? backOnLabel(card.resumesOn) : resumesOnLabel(card.resumesOn);
-            return <li key={`${card.date}-${card.sourceSlotId}`} className={cn('tt-card', !card.active && 'tt-suspended')} data-operator-color={color?.name ?? 'neutral'} style={{ ...cardGeometry(card), left: `calc(${lane / lanes * 100}% + 3px)`, width: `calc(${100 / lanes}% - 6px)` }} title={`${card.startTime}–${card.endTime} · ${card.className} · ${card.instructorName} · ${card.operatorName ?? 'Unassigned'}`}>
+            const completed = card.active && now !== '' && classEndKey(card) <= now;
+            return <li key={`${card.date}-${card.sourceSlotId}`} className={cn('tt-card', (!card.active || completed) && 'tt-suspended')} data-operator-color={color?.name ?? 'neutral'} style={{ ...cardGeometry(card), left: `calc(${lane / lanes * 100}% + 3px)`, width: `calc(${100 / lanes}% - 6px)` }} title={`${card.startTime}–${card.endTime} · ${card.className} · ${card.instructorName} · ${card.operatorName ?? 'Unassigned'}`}>
               <time>{card.startTime}–{card.endTime}{card.endsNextDay ? ' +1 day' : ''}</time>
               <p className="tt-class-name">{card.className}</p>
               <p className="tt-instructor">{card.instructorName}{card.substitute ? ' · Sub' : ''}</p>
               <p className="tt-operator"><i /><span>{card.assigned ? card.operatorName : 'Unassigned'}</span></p>
+              {completed && <p className="tt-instructor">Completed</p>}
               {!card.active && <p className="tt-instructor">{card.cancelled ? 'Cancelled' : 'Suspended'}{resumes ? ` · ${resumes}` : ''}</p>}
             </li>;
           })}</ul>
