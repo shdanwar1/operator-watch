@@ -154,5 +154,8 @@ export const listPastTimecodes = createServerFn({ method: "POST" }).handler(
       // no longer listed. The row itself is kept, so nothing is lost if a class
       // length changes; saves with no class row left are still shown.
       .filter((r) => !(r.start && r.end && durationBetween(r.start, r.end) !== 60));
+    const shown = new Set(visible.map((r) => r.classId));
+    const hiddenIds = (allRows ?? []).map((r) => r.class_id).filter((cid) => !shown.has(cid));
+    return { rows: visible, hiddenIds };
   },
 );
