@@ -16,6 +16,7 @@ import type {
   DmcTimetableSlot,
   DmcTimetableSnapshot,
 } from "./timetable";
+import { normalizeOverrides, type DmcScheduleOverride } from "./schedule-overrides";
 
 export const TIMETABLE_META_KEY = "dmc_timetable";
 
@@ -38,6 +39,7 @@ export type StoredTimetable = {
   classes: DmcClassDefinition[];
   instructors: DmcInstructorDefinition[];
   slots: DmcTimetableSlot[];
+  overrides: DmcScheduleOverride[];
   lastRefreshedAt: string | null;
 };
 
@@ -207,6 +209,7 @@ export async function commitSnapshot(snapshot: DmcTimetableSnapshot): Promise<Co
         slots: snapshot.slots.length,
         classes: snapshot.classes.length,
         instructors: snapshot.instructors.length,
+        overrides: snapshot.overrides ?? [],
       },
     },
     { onConflict: "key" },
@@ -277,11 +280,12 @@ export async function loadStoredTimetable(): Promise<StoredTimetable> {
     resumesOn: r.resumes_on,
   }));
 
-  const meta = (metaRes.data?.value ?? null) as { last_refreshed_at?: string } | null;
+  const meta = (metaRes.data?.value ?? null) as { last_refreshed_at?: string; overrides?: unknown } | null;
   return {
     classes,
     instructors,
     slots,
+    overrides: normalizeOverrides(meta?.overrides),
     lastRefreshedAt: meta?.last_refreshed_at ?? null,
   };
 }

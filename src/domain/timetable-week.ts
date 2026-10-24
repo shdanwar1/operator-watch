@@ -14,6 +14,7 @@ import type {
 } from "./timetable";
 import { normalizeUsername } from "./operator-identity";
 import { isTimetableSlotOperationalOnDate } from "./timetable-resolver";
+import { indexOverrides, resolveOccurrence, type DmcScheduleOverride } from "./schedule-overrides";
 import {
   addMinutesLocal,
   minutesOfDay,
@@ -47,6 +48,10 @@ export type BoardCard = TimetableCard & {
   /** Current operator, or null when nobody is assigned. */
   operatorName: string | null;
   assigned: boolean;
+  /** Cancelled for this date only by a per-date override. */
+  cancelled: boolean;
+  /** A substitute teaches this date. */
+  substitute: boolean;
 };
 
 export type BoardDay = {
@@ -287,6 +292,8 @@ export function buildOperatorBoard(input: {
   shifts: ShiftAssignmentRow[];
   /** DMC source class id → `dmc_classes.id`, as referenced by occurrences. */
   classIdBySource: Record<string, string>;
+  /** Per-date cancellations / substitutes; each applies to its own date only. */
+  overrides?: DmcScheduleOverride[];
   /**
    * Operational month, "YYYY-MM". Dates outside it render no classes at all:
    * the column stays in the week, but the timetable is strictly month-scoped.
@@ -296,6 +303,7 @@ export function buildOperatorBoard(input: {
   const classBySource = new Map(input.classes.map((c) => [c.sourceClassId, c]));
   const instructorBySource = new Map(input.instructors.map((i) => [i.sourceInstructorId, i]));
   const shiftsById = new Map(input.shifts.map((s) => [s.id, s]));
+  const overrideIndex = indexOverrides(input.overrides);
 
   // date | dmc class id | HH:MM → occurrence
   const occurrenceByKey = new Map<string, ClassOccurrence>();
@@ -316,7 +324,8 @@ export function buildOperatorBoard(input: {
     const inScope = !input.assignmentMonth || monthKeyOf(date) === input.assignmentMonth;
     const cards: BoardCard[] = (inScope ? (slotsByDay.get(dayLocal) ?? []) : []).map((slot) => {
       const cls = classBySource.get(slot.sourceClassId);
-      const instructor = instructorBySource.get(slot.sourceInstructorId);
+      const resolved = resolveOccurrence({ slot, date, index: overrideIndex, instructors: input.instructors });
+      const instructor = instructorBySource.get(resolved.idInstructor);
       const end = addMinutesLocal(slot.startTimeLocal, slot.durationMinutes);
       const name = instructorName(instructor);
       const dmcClassId = input.classIdBySource[slot.sourceClassId];
@@ -342,8 +351,10 @@ export function buildOperatorBoard(input: {
         endTime: end.time,
         endsNextDay: end.nextDay,
         durationMinutes: slot.durationMinutes,
-        active: isTimetableSlotOperationalOnDate(slot, date),
-        resumesOn: slot.resumesOn,
+        active: !resolved.cancelled && isTimetableSlotOperationalOnDate(slot, date),
+        resumesOn: resolved.resumesOn,
+        cancelled: resolved.cancelled,
+        substitute: resolved.substitute,
         date,
         operatorName,
         assigned: normalizeUsername(operatorName) !== "",

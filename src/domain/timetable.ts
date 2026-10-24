@@ -14,6 +14,8 @@
  * parsed for weekday or time.
  */
 
+import type { DmcScheduleOverride } from "./schedule-overrides";
+
 /** Stable catalogue information about a class. No scheduling state here. */
 export type DmcClassDefinition = {
   sourceClassId: string;
@@ -55,6 +57,8 @@ export type DmcTimetableSnapshot = {
   classes: DmcClassDefinition[];
   instructors: DmcInstructorDefinition[];
   slots: DmcTimetableSlot[];
+  /** Per-date exceptions; empty when the source publishes none. */
+  overrides?: DmcScheduleOverride[];
   fetchedAt: string;
 };
 

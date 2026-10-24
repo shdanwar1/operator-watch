@@ -13,6 +13,7 @@
 import { groupClassesIntoShifts } from "./shift-planning";
 import { isTimetableSlotOperationalOnDate } from "./timetable-resolver";
 import type { DmcTimetableSlot } from "./timetable";
+import { indexOverrides, resolveOccurrence, type DmcScheduleOverride } from "./schedule-overrides";
 
 export type ShiftBucket = "day" | "night" | "weekend";
 export const SHIFT_BUCKETS: ShiftBucket[] = ["day", "night", "weekend"];
@@ -113,12 +114,18 @@ export function planTimetableShifts(input: {
   from: string;
   to: string;
   rotation: ShiftRotation;
+  overrides?: DmcScheduleOverride[];
+  instructorIds?: string[];
 }): PlannedShift[] {
+  const index = indexOverrides(input.overrides);
+  const instructors = (input.instructorIds ?? []).map((sourceInstructorId) => ({ sourceInstructorId }));
   const byBucket: Record<ShiftBucket, PlannedClass[]> = { day: [], night: [], weekend: [] };
   for (let date = input.from; date <= input.to; date = addDays(date, 1)) {
     const wd = weekday(date);
     for (const s of input.slots) {
       if (s.dayLocal !== wd || !isTimetableSlotOperationalOnDate(s, date)) continue;
+      const occ = resolveOccurrence({ slot: s, date, index, instructors });
+      if (occ.cancelled) continue; // cancelled for this date: no shift work
       const start = toMin(s.startTimeLocal);
       byBucket[classifyClass(wd, s.startTimeLocal)].push({
         uid: `tt:${s.sourceSlotId}:${date}`,
@@ -126,7 +133,7 @@ export function planTimetableShifts(input: {
         startTime: hms(start),
         endTime: hms(start + s.durationMinutes),
         sourceClassId: s.sourceClassId,
-        sourceInstructorId: s.sourceInstructorId,
+        sourceInstructorId: occ.idInstructor,
       });
     }
   }

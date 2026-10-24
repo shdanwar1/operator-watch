@@ -43,14 +43,21 @@ export async function generateTimetableShifts(): Promise<GenerationResult> {
 
   const { loadStoredTimetable } = await import("./timetable-repository.server");
   const { loadDmcIdsBySourceId } = await import("./dmc-directory.server");
-  const [{ slots }, rotation, ids] = await Promise.all([
+  const [{ slots, overrides, instructors }, rotation, ids] = await Promise.all([
     loadStoredTimetable(),
     readRotation(),
     loadDmcIdsBySourceId(),
   ]);
   if (slots.length === 0) return { shifts: 0, removed: 0, classes: 0 };
 
-  const plans = planTimetableShifts({ slots, from: today, to, rotation }).filter(
+  const plans = planTimetableShifts({
+    slots,
+    from: today,
+    to,
+    rotation,
+    overrides,
+    instructorIds: instructors.map((i) => i.sourceInstructorId),
+  }).filter(
     (p) => p.date >= today && p.operator,
   );
 

@@ -3,6 +3,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { opColor } from '@/lib/admin-utils';
 import { resumesOnLabel } from '@/domain/timetable-view';
+import { backOnLabel } from '@/domain/schedule-overrides';
 import type { BoardDay } from '@/domain/timetable-week';
 import { berlinClock, cardGeometry, HOUR_HEIGHT, layoutCards } from '@/components/timetable/grid';
 
@@ -37,13 +38,13 @@ export function TimetableWeek({ week }: { week: BoardDay[] }) {
         {week.map(day => <section key={day.date} aria-label={`${day.weekday} ${day.dateLabel}`} className={cn('tt-day', day.date === today && 'tt-today')}>
           <ul>{layoutCards(day.inMonth ? day.cards : []).map(({ card, lane, lanes }) => {
             const color = card.assigned ? opColor(card.operatorName) : null;
-            const resumes = resumesOnLabel(card.resumesOn);
+            const resumes = card.cancelled ? backOnLabel(card.resumesOn) : resumesOnLabel(card.resumesOn);
             return <li key={`${card.date}-${card.sourceSlotId}`} className={cn('tt-card', !card.active && 'tt-suspended')} data-operator-color={color?.name ?? 'neutral'} style={{ ...cardGeometry(card), left: `calc(${lane / lanes * 100}% + 3px)`, width: `calc(${100 / lanes}% - 6px)` }} title={`${card.startTime}–${card.endTime} · ${card.className} · ${card.instructorName} · ${card.operatorName ?? 'Unassigned'}`}>
               <time>{card.startTime}–{card.endTime}{card.endsNextDay ? ' +1 day' : ''}</time>
               <p className="tt-class-name">{card.className}</p>
-              <p className="tt-instructor">{card.instructorName}</p>
+              <p className="tt-instructor">{card.instructorName}{card.substitute ? ' · Sub' : ''}</p>
               <p className="tt-operator"><i /><span>{card.assigned ? card.operatorName : 'Unassigned'}</span></p>
-              {!card.active && <p className="tt-instructor">Suspended{resumes ? ` · ${resumes}` : ''}</p>}
+              {!card.active && <p className="tt-instructor">{card.cancelled ? 'Cancelled' : 'Suspended'}{resumes ? ` · ${resumes}` : ''}</p>}
             </li>;
           })}</ul>
         </section>)}
