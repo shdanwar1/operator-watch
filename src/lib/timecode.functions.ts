@@ -111,9 +111,9 @@ export const deleteClassTimecode = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** All saved timecode sessions, newest first. */
+/** All saved timecode sessions, newest first, plus ids the list deliberately hides. */
 export const listPastTimecodes = createServerFn({ method: "POST" }).handler(
-  async (): Promise<PastTimecode[]> => {
+  async (): Promise<{ rows: PastTimecode[]; hiddenIds: string[] }> => {
     await requireOperator();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
@@ -122,6 +122,13 @@ export const listPastTimecodes = createServerFn({ method: "POST" }).handler(
       .order("updated_at", { ascending: false })
       .limit(300);
     if (error) throw new Error("Could not load timecodes");
+    // Ids of every saved session, so the device library never resurfaces a
+    // server-hidden session (non-ballet class, or beyond the 300-row cap) as
+    // an unnamed local-only draft.
+    const { data: allRows, error: idsError } = await supabaseAdmin
+      .from("class_timecodes")
+      .select("class_id");
+    if (idsError) throw new Error("Could not load timecodes");
     const ids = (rows ?? []).map((r) => r.class_id);
     const times = new Map<string, { start: string; end: string }>();
     if (ids.length) {
@@ -131,7 +138,7 @@ export const listPastTimecodes = createServerFn({ method: "POST" }).handler(
         .in("id", ids);
       for (const c of cls ?? []) times.set(c.id, { start: c.start_time.slice(0, 5), end: c.end_time.slice(0, 5) });
     }
-    return (rows ?? [])
+    const visible = (rows ?? [])
       .map((r) => ({
         classId: r.class_id,
         className: r.class_name,
@@ -147,5 +154,8 @@ export const listPastTimecodes = createServerFn({ method: "POST" }).handler(
       // no longer listed. The row itself is kept, so nothing is lost if a class
       // length changes; saves with no class row left are still shown.
       .filter((r) => !(r.start && r.end && durationBetween(r.start, r.end) !== 60));
+    const shown = new Set(visible.map((r) => r.classId));
+    const hiddenIds = (allRows ?? []).map((r) => r.class_id).filter((cid) => !shown.has(cid));
+    return { rows: visible, hiddenIds };
   },
 );
