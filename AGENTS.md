@@ -20,3 +20,5 @@
 - Server functions authenticate only through the signed gate cookie (`src/lib/gate.functions.ts`); `functionMiddleware` in `src/start.ts` stays empty and no server function may require a Supabase user session, because DMC operators never hold one — a bearer-token middleware would add an async session lookup to every operator action for nothing.
 
 - Operator shifts are generated only from the stored DMC timetable by `src/domain/shift-generation.server.ts` (pure rules in `shift-rotation.ts`, `tt:` identities), run after every timetable sync and admin rotation save; Google Calendar sync is retired so there is one source of truth.
+
+- Per-date schedule overrides (cancellations, substitutes) are resolved only by `src/domain/schedule-overrides.ts` and stored with the timetable meta in `app_settings`; weekly suspensions always win, so one resolver keeps board and shift planning consistent.
