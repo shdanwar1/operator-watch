@@ -75,6 +75,7 @@ export function TimetableView({ admin = false }: { admin?: boolean }) {
         slots: data?.timetable.slots ?? [],
         classes: data?.timetable.classes ?? [],
         instructors: data?.timetable.instructors ?? [],
+        overrides: data?.timetable.overrides ?? [],
         occurrences: data?.occurrences ?? [],
         shifts: data?.shifts ?? [],
         classIdBySource: data?.classIdBySource ?? {},

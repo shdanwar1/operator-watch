@@ -22,6 +22,7 @@ import {
   type DmcTimetableSnapshot,
   type DmcWeekday,
 } from "./timetable";
+import { normalizeOverrides } from "./schedule-overrides";
 
 export type NormalizeResult =
   | { ok: true; snapshot: DmcTimetableSnapshot; anomalies: DmcTimetableAnomaly[] }
@@ -204,7 +205,13 @@ export function normalizeDmcPayload(payload: unknown, fetchedAt: string): Normal
 
   return {
     ok: true,
-    snapshot: { classes: classList, instructors: instructorList, slots: slotList, fetchedAt },
+    snapshot: {
+      classes: classList,
+      instructors: instructorList,
+      slots: slotList,
+      overrides: normalizeOverrides((payload as Record<string, unknown>)["overrides"]),
+      fetchedAt,
+    },
     anomalies,
   };
 }
