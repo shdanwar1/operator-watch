@@ -138,7 +138,7 @@ export const listPastTimecodes = createServerFn({ method: "POST" }).handler(
         .in("id", ids);
       for (const c of cls ?? []) times.set(c.id, { start: c.start_time.slice(0, 5), end: c.end_time.slice(0, 5) });
     }
-    return (rows ?? [])
+    const visible = (rows ?? [])
       .map((r) => ({
         classId: r.class_id,
         className: r.class_name,
