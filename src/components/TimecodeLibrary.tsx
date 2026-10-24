@@ -23,13 +23,15 @@ export function TimecodeLibrary({ downloadEdl }: { downloadEdl: (name: string, m
   async function load() {
     setError(false);
     try {
-      const saved: LibraryRow[] = await list();
+      const { rows: saved, hiddenIds } = await list();
+      const hidden = new Set(hiddenIds);
+      const result: LibraryRow[] = saved;
       try {
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
           if (!key?.startsWith("timecode:")) continue;
           const classId = key.slice(9);
-          if (saved.some(r => r.classId === classId)) continue;
+          if (hidden.has(classId) || result.some(r => r.classId === classId)) continue;
           const state = JSON.parse(localStorage.getItem(key) ?? "null") as TimecodeState | null;
           if (!state || !Array.isArray(state.markers)) continue;
           saved.push({ classId, className: "Ballet draft", teacherName: null, date: null, start: null, end: null, updatedAt: "", state, localOnly: true });
