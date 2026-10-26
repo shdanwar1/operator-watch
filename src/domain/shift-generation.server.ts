@@ -46,7 +46,7 @@ export async function readRotationAdjustments(): Promise<RotationAdjustment[]> {
 export async function generateTimetableShifts(notBefore?: string): Promise<GenerationResult> {
   const db = await admin();
   const today = notBefore && notBefore > berlinDateKey() ? notBefore : berlinDateKey();
-  const to = endOfNextMonth(today);
+  const to = endOfNextMonth(berlinDateKey());
   const spill = new Date(Date.parse(`${to}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
 
   const { loadStoredTimetable } = await import("./timetable-repository.server");

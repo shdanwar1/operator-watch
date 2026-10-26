@@ -60,3 +60,8 @@ it("does not replan frozen class identities", () => {
   const plans = planTimetableShifts({ slots: [slot("a", 1, "15:00")], from: "2026-11-02", to: "2026-11-02", rotation: DEFAULT_ROTATION, excludedClassUids: new Set(["tt:a:2026-11-02"]) });
   expect(plans).toEqual([]);
 });
+it.each([[4, "14:30"], [4, "15:45"], [5, "21:30"], [5, "22:45"], [6, "18:30"], [6, "19:30"], [0, "16:00"], [0, "17:15"]] as const)("Ruth %s %s produces no November classes after the inclusive cutoff", (day, time) => {
+  const ruth = { ...slot("ruth", day, time), activeUntil: "2026-11-01" };
+  const plans = planTimetableShifts({ slots: [ruth], from: "2026-11-02", to: "2026-11-30", rotation: DEFAULT_ROTATION, adjustments: NOVEMBER_ADJUSTMENTS });
+  expect(plans).toEqual([]);
+});
