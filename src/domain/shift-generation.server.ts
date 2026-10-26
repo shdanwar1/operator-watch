@@ -7,6 +7,7 @@
 import { berlinDateKey } from "@/lib/gcal-core";
 import * as shiftRepo from "./shift-repository.server";
 import { DEFAULT_ROTATION, planTimetableShifts, type ShiftRotation } from "./shift-rotation";
+import type { RotationAdjustment } from "./rotation-adjustments";
 
 export const ROTATION_SETTING_KEY = "shift_rotation";
 
@@ -35,31 +36,28 @@ function endOfNextMonth(today: string) {
 
 export type GenerationResult = { shifts: number; removed: number; classes: number };
 
-export async function generateTimetableShifts(): Promise<GenerationResult> {
+export async function readRotationAdjustments(): Promise<RotationAdjustment[]> {
   const db = await admin();
-  const today = berlinDateKey();
+  const { data, error } = await db.from("rotation_adjustments").select("*").order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as RotationAdjustment[];
+}
+
+export async function generateTimetableShifts(notBefore?: string): Promise<GenerationResult> {
+  const db = await admin();
+  const today = notBefore && notBefore > berlinDateKey() ? notBefore : berlinDateKey();
   const to = endOfNextMonth(today);
   const spill = new Date(Date.parse(`${to}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
 
   const { loadStoredTimetable } = await import("./timetable-repository.server");
   const { loadDmcIdsBySourceId } = await import("./dmc-directory.server");
-  const [{ slots, overrides, instructors }, rotation, ids] = await Promise.all([
+  const [{ slots, overrides, instructors }, rotation, ids, adjustments] = await Promise.all([
     loadStoredTimetable(),
     readRotation(),
     loadDmcIdsBySourceId(),
+    readRotationAdjustments(),
   ]);
   if (slots.length === 0) return { shifts: 0, removed: 0, classes: 0 };
-
-  const plans = planTimetableShifts({
-    slots,
-    from: today,
-    to,
-    rotation,
-    overrides,
-    instructorIds: instructors.map((i) => i.sourceInstructorId),
-  }).filter(
-    (p) => p.date >= today && p.operator,
-  );
 
   // Existing generated + legacy Google rows from today on.
   const [ttRows, gRows] = await Promise.all([
@@ -69,10 +67,23 @@ export async function generateTimetableShifts(): Promise<GenerationResult> {
   const allIds = [...ttRows, ...gRows].map((r) => r.id);
   const worked = new Set<string>();
   if (allIds.length) {
-    const { data } = await db.from("shifts").select("scheduled_shift_id").in("scheduled_shift_id", allIds);
+    const { data, error } = await db.from("shifts").select("scheduled_shift_id").in("scheduled_shift_id", allIds);
+    if (error) throw new Error(error.message);
     for (const w of data ?? []) if (w.scheduled_shift_id) worked.add(w.scheduled_shift_id as string);
   }
   const frozen = (r: { id: string; status: string }) => worked.has(r.id) || r.status === "completed";
+  const frozenRows = ttRows.filter(frozen);
+  const frozenIds = new Set(frozenRows.map((r) => r.id));
+  const excludedClassUids = new Set<string>();
+  if (frozenIds.size) {
+    const { data, error } = await db.from("calendar_classes").select("uid").in("scheduled_shift_id", [...frozenIds]);
+    if (error) throw new Error(error.message);
+    for (const row of data ?? []) excludedClassUids.add(row.uid);
+  }
+  const plans = planTimetableShifts({
+    slots, from: today, to: spill, rotation, overrides, adjustments, excludedClassUids,
+    instructorIds: instructors.map((i) => i.sourceInstructorId),
+  }).filter((p) => p.date >= today && p.date <= to && p.operator);
 
   const desired = new Map(plans.map((p) => [p.uid, p]));
   const stale = [
@@ -84,13 +95,15 @@ export async function generateTimetableShifts(): Promise<GenerationResult> {
     await shiftRepo.removeMany(stale);
   }
 
-  const existing = new Map(ttRows.filter((r) => !stale.includes(r.id)).map((r) => [r.external_event_id!, r]));
+  const existing = new Map(ttRows.filter((r) => !stale.includes(r.id)).flatMap((r) => r.external_event_id ? [[r.external_event_id, r] as const] : []));
   const classRows: {
     operator: string; uid: string; dmc_class_id: string | null; dmc_instructor_id: string | null;
     specific_date: string; start_time: string; end_time: string; status: string; scheduled_shift_id: string;
   }[] = [];
 
   for (const p of plans) {
+    const operator = p.operator;
+    if (!operator) continue;
     const row = existing.get(p.uid);
     if (row && frozen(row)) continue;
     const payload = {
@@ -111,7 +124,7 @@ export async function generateTimetableShifts(): Promise<GenerationResult> {
     }
     for (const c of p.classes) {
       classRows.push({
-        operator: p.operator!,
+        operator,
         uid: c.uid,
         dmc_class_id: ids.classIdBySource.get(c.sourceClassId) ?? null,
         dmc_instructor_id: ids.instructorIdBySource.get(c.sourceInstructorId) ?? null,
