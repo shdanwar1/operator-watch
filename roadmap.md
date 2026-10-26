@@ -1,9 +1,10 @@
 # Run credit optimization
 ## November rotation adjustments
-- [ ] Add stored, admin-managed adjustments and Ruth's inclusive pause cutoff.
-- [ ] Resolve assignment by shift day and operator before grouping; preserve worked shifts.
-- [ ] Seed the two November adjustments, regenerate future schedules, and test acceptance boundaries and guards.
-- [ ] Verify the live admin flow and automatic build result.
+- [x] Add stored, admin-managed adjustments and Ruth's inclusive pause cutoff.
+- [x] Resolve assignment by shift day and operator before grouping; preserve worked shifts.
+- [x] Seed the two November adjustments, regenerate future schedules, and test acceptance boundaries and guards.
+- [x] Automatic build OK; 430 tests pass; two shared-engine regenerations return 63 shifts / 234 classes, no further removals; stored Ruth occurrences from Nov 2 = zero; Dec 1 midnight/01:00 classes belong to Shad.
+- [ ] Live admin add/remove flow — blocked: configured site password is rejected by the real unlock screen; no admin gate session available.
 ## Timecode Studio timeline and library
 - [x] Add scheduled-time progress, Now playhead, and marker selection.
 - [x] Enrich saved sessions and add confirmed deletion of saved and local drafts.
