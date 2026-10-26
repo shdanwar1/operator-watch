@@ -1,4 +1,9 @@
 # Run credit optimization
+## November rotation adjustments
+- [ ] Add stored, admin-managed adjustments and Ruth's inclusive pause cutoff.
+- [ ] Resolve assignment by shift day and operator before grouping; preserve worked shifts.
+- [ ] Seed the two November adjustments, regenerate future schedules, and test acceptance boundaries and guards.
+- [ ] Verify the live admin flow and automatic build result.
 ## Timecode Studio timeline and library
 - [x] Add scheduled-time progress, Now playhead, and marker selection.
 - [x] Enrich saved sessions and add confirmed deletion of saved and local drafts.
