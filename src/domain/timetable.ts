@@ -51,6 +51,8 @@ export type DmcTimetableSlot = {
   active: boolean;
   /** Informational only — never triggers automatic reactivation. */
   resumesOn: string | null;
+  /** Inclusive Berlin date cutoff; local scheduling configuration. */
+  activeUntil?: string | null;
 };
 
 export type DmcTimetableSnapshot = {
