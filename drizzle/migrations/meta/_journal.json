@@ -43,6 +43,13 @@
       "when": 1792503959136,
       "tag": "0005_create_class_timecodes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793010663128,
+      "tag": "0006_rotation_adjustments_and_active_until",
+      "breakpoints": true
     }
   ]
 }

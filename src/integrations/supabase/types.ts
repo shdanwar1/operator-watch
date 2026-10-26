@@ -228,6 +228,7 @@ export type Database = {
       dmc_timetable_slots: {
         Row: {
           active: boolean
+          active_until: string | null
           created_at: string
           day_local: number
           duration_minutes: number
@@ -242,6 +243,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          active_until?: string | null
           created_at?: string
           day_local: number
           duration_minutes: number
@@ -256,6 +258,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          active_until?: string | null
           created_at?: string
           day_local?: number
           duration_minutes?: number
@@ -455,6 +458,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      rotation_adjustments: {
+        Row: {
+          bucket: string | null
+          created_at: string
+          id: string
+          note: string | null
+          operator: string
+          start_from: string | null
+          start_to: string | null
+          valid_from: string
+          valid_until: string
+          weekday: number | null
+        }
+        Insert: {
+          bucket?: string | null
+          created_at?: string
+          id?: string
+          note?: string | null
+          operator: string
+          start_from?: string | null
+          start_to?: string | null
+          valid_from: string
+          valid_until: string
+          weekday?: number | null
+        }
+        Update: {
+          bucket?: string | null
+          created_at?: string
+          id?: string
+          note?: string | null
+          operator?: string
+          start_from?: string | null
+          start_to?: string | null
+          valid_from?: string
+          valid_until?: string
+          weekday?: number | null
+        }
+        Relationships: []
       }
       scheduled_shifts: {
         Row: {
