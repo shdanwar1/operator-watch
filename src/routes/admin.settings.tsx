@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PinDialog } from "@/components/admin/PinDialog";
+import { RotationAdjustments } from "@/components/admin/RotationAdjustments";
 import { adminGetRotation, adminSetRotation } from "@/lib/rotation.functions";
 import { rotationForMonth } from "@/domain/shift-rotation";
 import { adminChangeOwnPin } from "@/lib/operators.functions";
@@ -387,10 +388,11 @@ function RotationSection() {
   const [draft, setDraft] = useState<Record<"day" | "night" | "weekend", string | null> | null>(null);
   const [saving, setSaving] = useState(false);
   if (!data) return <Card><CardContent className="p-4 text-sm text-muted-foreground">Loading…</CardContent></Card>;
-  const month = new Date().toISOString().slice(0, 7);
+  const month = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()).slice(0, 7);
   const current = draft ?? rotationForMonth(data.rotation, month);
   const buckets = ["day", "night", "weekend"] as const;
   return (
+    <div className="space-y-2">
     <Card>
       <CardContent className="space-y-3 p-4">
         <p className="text-sm text-muted-foreground">
@@ -433,5 +435,7 @@ function RotationSection() {
         </div>
       </CardContent>
     </Card>
+    <RotationAdjustments operators={data.operators} />
+    </div>
   );
 }

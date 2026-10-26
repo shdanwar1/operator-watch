@@ -71,6 +71,14 @@ describe("localDurationMinutes", () => {
 });
 
 describe("isTimetableSlotOperationalOnDate", () => {
+  it("keeps Ruth's last date, stops from 2 November, and leaves other teachers unaffected", () => {
+    const ruth = slot({ activeUntil: "2026-11-01", sourceInstructorId: "ruth" });
+    expect(isTimetableSlotOperationalOnDate(ruth, "2026-11-01")).toBe(true);
+    expect(isTimetableSlotOperationalOnDate(ruth, "2026-11-02")).toBe(false);
+    expect(isTimetableSlotOperationalOnDate(ruth, "2026-12-01")).toBe(false);
+    expect(isTimetableSlotOperationalOnDate(slot({ sourceInstructorId: "other" }), "2026-11-02")).toBe(true);
+    expect(isTimetableSlotOperationalOnDate({ ...ruth, active: false, resumesOn: "2026-11-10" }, "2026-11-10")).toBe(false);
+  });
   it("keeps active source slots operational with or without a resume date", () => {
     expect(isTimetableSlotOperationalOnDate(slot(), "2026-09-20")).toBe(true);
     expect(isTimetableSlotOperationalOnDate(slot({ resumesOn: "2026-09-21" }), "2026-09-20")).toBe(
