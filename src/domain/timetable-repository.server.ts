@@ -71,6 +71,7 @@ type SlotRow = {
   duration_minutes: number;
   active: boolean;
   resumes_on: string | null;
+  active_until?: string | null;
 };
 
 function classRow(c: DmcClassDefinition): ClassRow {
@@ -278,6 +279,7 @@ export async function loadStoredTimetable(): Promise<StoredTimetable> {
     durationMinutes: r.duration_minutes,
     active: r.active,
     resumesOn: r.resumes_on,
+    activeUntil: r.active_until ?? null,
   }));
 
   const meta = (metaRes.data?.value ?? null) as { last_refreshed_at?: string; overrides?: unknown } | null;

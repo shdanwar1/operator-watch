@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
 import type { ShiftRotation } from "@/domain/shift-rotation";
+import { z } from "zod";
+import { adjustmentSchema, validateAdjustment } from "@/domain/rotation-adjustments";
 
 type GateSession = { siteUnlocked?: boolean; username?: string; isAdmin?: boolean };
 
@@ -17,6 +19,38 @@ async function requireAdmin() {
     throw new Response("Admin access required", { status: 403 });
   }
 }
+
+export const adminListRotationAdjustments = createServerFn({ method: "GET" }).handler(async () => {
+  await requireAdmin();
+  const { readRotationAdjustments } = await import("@/domain/shift-generation.server");
+  return readRotationAdjustments();
+});
+
+export const adminAddRotationAdjustment = createServerFn({ method: "POST" })
+  .inputValidator((data) => adjustmentSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: operators, error: listError } = await supabaseAdmin.from("operators")
+      .select("username").eq("is_active", true).eq("is_admin", false);
+    if (listError) throw new Error(listError.message);
+    const row = validateAdjustment(data, (operators ?? []).map((o) => o.username));
+    const { error } = await supabaseAdmin.from("rotation_adjustments").insert(row);
+    if (error) throw new Error(error.message);
+    const { generateTimetableShifts } = await import("@/domain/shift-generation.server");
+    return generateTimetableShifts();
+  });
+
+export const adminRemoveRotationAdjustment = createServerFn({ method: "POST" })
+  .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("rotation_adjustments").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    const { generateTimetableShifts } = await import("@/domain/shift-generation.server");
+    return generateTimetableShifts();
+  });
 
 export const adminGetRotation = createServerFn({ method: "GET" }).handler(async () => {
   await requireAdmin();

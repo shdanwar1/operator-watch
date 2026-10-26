@@ -13,7 +13,8 @@
 import { groupClassesIntoShifts } from "./shift-planning";
 import { isTimetableSlotOperationalOnDate } from "./timetable-resolver";
 import type { DmcTimetableSlot } from "./timetable";
-import { indexOverrides, resolveOccurrence, type DmcScheduleOverride } from "./schedule-overrides";
+import { berlinWallToInstant, indexOverrides, resolveOccurrence, type DmcScheduleOverride } from "./schedule-overrides";
+import type { RotationAdjustment } from "./rotation-adjustments";
 
 export type ShiftBucket = "day" | "night" | "weekend";
 export const SHIFT_BUCKETS: ShiftBucket[] = ["day", "night", "weekend"];
@@ -69,6 +70,26 @@ export function rotationForMonth(r: ShiftRotation, month: string): Record<ShiftB
   return { day: at(0), night: at(1), weekend: at(2) };
 }
 
+export function classShiftDay(date: string, startTime: string): string {
+  return toMin(startTime) < NIGHT_END ? addDays(date, -1) : date;
+}
+
+export function resolveClassOperator(input: {
+  date: string; startTime: string; rotation: ShiftRotation; adjustments?: RotationAdjustment[];
+}): { bucket: ShiftBucket; operator: string | null; shiftDay: string } {
+  const day = weekday(input.date);
+  const bucket = classifyClass(day, input.startTime);
+  const shiftDay = classShiftDay(input.date, input.startTime);
+  const at = berlinWallToInstant(input.date, input.startTime);
+  const time = input.startTime.slice(0, 5);
+  const match = [...(input.adjustments ?? [])].filter((a) =>
+    at >= Date.parse(a.valid_from) && at < Date.parse(a.valid_until) &&
+    (!a.bucket || a.bucket === bucket) && (a.weekday === null || a.weekday === day) &&
+    (!a.start_from || time >= a.start_from.slice(0, 5)) && (!a.start_to || time < a.start_to.slice(0, 5)),
+  ).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id.localeCompare(a.id))[0];
+  return { bucket, shiftDay, operator: match?.operator ?? rotationForMonth(input.rotation, shiftDay.slice(0, 7))[bucket] };
+}
+
 export type PlannedClass = {
   uid: string;
   date: string;
@@ -116,10 +137,12 @@ export function planTimetableShifts(input: {
   rotation: ShiftRotation;
   overrides?: DmcScheduleOverride[];
   instructorIds?: string[];
+  adjustments?: RotationAdjustment[];
+  excludedClassUids?: Set<string>;
 }): PlannedShift[] {
   const index = indexOverrides(input.overrides);
   const instructors = (input.instructorIds ?? []).map((sourceInstructorId) => ({ sourceInstructorId }));
-  const byBucket: Record<ShiftBucket, PlannedClass[]> = { day: [], night: [], weekend: [] };
+  const assignedGroups = new Map<string, { bucket: ShiftBucket; operator: string | null; classes: PlannedClass[] }>();
   for (let date = input.from; date <= input.to; date = addDays(date, 1)) {
     const wd = weekday(date);
     for (const s of input.slots) {
@@ -127,7 +150,16 @@ export function planTimetableShifts(input: {
       const occ = resolveOccurrence({ slot: s, date, index, instructors });
       if (occ.cancelled) continue; // cancelled for this date: no shift work
       const start = toMin(s.startTimeLocal);
-      byBucket[classifyClass(wd, s.startTimeLocal)].push({
+      const uid = `tt:${s.sourceSlotId}:${date}`;
+      if (input.excludedClassUids?.has(uid)) continue;
+      const assignment = resolveClassOperator({ date, startTime: s.startTimeLocal, rotation: input.rotation, adjustments: input.adjustments });
+      const key = JSON.stringify([assignment.bucket, assignment.shiftDay, assignment.operator]);
+      let assigned = assignedGroups.get(key);
+      if (!assigned) {
+        assigned = { bucket: assignment.bucket, operator: assignment.operator, classes: [] };
+        assignedGroups.set(key, assigned);
+      }
+      assigned.classes.push({
         uid: `tt:${s.sourceSlotId}:${date}`,
         date,
         startTime: hms(start),
@@ -139,8 +171,7 @@ export function planTimetableShifts(input: {
   }
 
   const out: PlannedShift[] = [];
-  for (const bucket of SHIFT_BUCKETS) {
-    const classes = byBucket[bucket];
+  for (const { bucket, operator, classes } of assignedGroups.values()) {
     const byUid = new Map(classes.map((c) => [c.uid, c]));
     const groups = groupClassesIntoShifts(
       classes.map((c) => ({ key: c.uid, date: c.date, startMin: toMin(c.startTime), endMin: toMin(c.endTime) })),
@@ -153,10 +184,14 @@ export function planTimetableShifts(input: {
         date: g.date,
         startTime,
         endTime: hms(g.endMin),
-        operator: rotationForMonth(input.rotation, g.date.slice(0, 7))[bucket],
-        classes: g.classKeys.map((k) => byUid.get(k)!),
+        operator,
+        classes: g.classKeys.flatMap((k) => { const c = byUid.get(k); return c ? [c] : []; }),
       });
     }
   }
+  // Keep legacy identities stable; distinguish simultaneous split-operator groups.
+  const counts = new Map<string, number>();
+  for (const p of out) counts.set(p.uid, (counts.get(p.uid) ?? 0) + 1);
+  for (const p of out) if ((counts.get(p.uid) ?? 0) > 1) p.uid += `:${encodeURIComponent(p.operator ?? "unassigned")}`;
   return out.sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
 }

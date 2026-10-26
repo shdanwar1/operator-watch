@@ -95,9 +95,10 @@ export function buildTimetableIndex(input: TimetableInput): TimetableIndex {
  * calendar date. Dates stay as YYYY-MM-DD values; no UTC instant is created.
  */
 export function isTimetableSlotOperationalOnDate(
-  slot: Pick<DmcTimetableSlot, "active" | "resumesOn">,
+  slot: Pick<DmcTimetableSlot, "active" | "resumesOn" | "activeUntil">,
   date: string,
 ): boolean {
+  if (slot.activeUntil && date > slot.activeUntil) return false;
   if (slot.active) return true;
   if (!slot.resumesOn) return false;
 

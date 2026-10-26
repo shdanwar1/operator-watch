@@ -20,5 +20,10 @@
 - Server functions authenticate only through the signed gate cookie (`src/lib/gate.functions.ts`); `functionMiddleware` in `src/start.ts` stays empty and no server function may require a Supabase user session, because DMC operators never hold one — a bearer-token middleware would add an async session lookup to every operator action for nothing.
 
 - Operator shifts are generated only from the stored DMC timetable by `src/domain/shift-generation.server.ts` (pure rules in `shift-rotation.ts`, `tt:` identities), run after every timetable sync and admin rotation save; Google Calendar sync is retired so there is one source of truth.
+  Resolve dated rotation adjustments and shift-day ownership before grouping by bucket/operator/shift day; exclude worked class identities before replanning so regeneration cannot duplicate frozen work. Expand through the next-day spill for complete month-end night shifts.
+
+- Local inclusive timetable cutoffs are stored on recurring slots and omitted from source upsert payloads, so sync preserves pause configuration; all dated expansion uses the shared operational-slot predicate.
+
+- Rotation adjustments are service-role-only rows reached through admin gate-cookie server functions; shared pure validation and stable one-time seed identities keep operator and validity rules consistent.
 
 - Per-date schedule overrides (cancellations, substitutes) are resolved only by `src/domain/schedule-overrides.ts` and stored with the timetable meta in `app_settings`; weekly suspensions always win, so one resolver keeps board and shift planning consistent.
