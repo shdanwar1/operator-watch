@@ -15,6 +15,10 @@ async function requireAdmin() {
     maxAge: 60 * 60 * 24 * 30,
     cookie: { httpOnly: true, secure: true, sameSite: "lax", path: "/" },
   });
+  if (!session.data.siteUnlocked || !session.data.isAdmin) {
+    throw new Response("Admin access required", { status: 403 });
+  }
+}
 
 export const adminListRotationAdjustments = createServerFn({ method: "GET" }).handler(async () => {
   await requireAdmin();
@@ -47,10 +51,6 @@ export const adminRemoveRotationAdjustment = createServerFn({ method: "POST" })
     const { generateTimetableShifts } = await import("@/domain/shift-generation.server");
     return generateTimetableShifts();
   });
-  if (!session.data.siteUnlocked || !session.data.isAdmin) {
-    throw new Response("Admin access required", { status: 403 });
-  }
-}
 
 export const adminGetRotation = createServerFn({ method: "GET" }).handler(async () => {
   await requireAdmin();
