@@ -1,8 +1,9 @@
 # Run credit optimization
 ## Automation Health
-- [ ] Add bounded, admin-only automatic-process status storage and reporting.
-- [ ] Add Admin Settings health view without changing timings or shift rules.
-- [ ] Test outcome/freshness/access rules and verify the real admin view when access permits.
+- [x] Add bounded, admin-only automatic-process status storage and reporting; migrations 0007–0009 applied.
+- [x] Add Admin Settings health view without changing timings or shift rules.
+- [x] Outcome/freshness/access and failure-isolation tests pass; full suite 453 tests, automatic build OK.
+- [ ] Real signed-in admin readback and automatic-run verification — blocked: configured site password rejected at Unlock; no admin gate session. SQL-tool execution of service-role-only status RPC was denied; concurrency behavior reviewed in SQL but not exercised against the live database.
 ## November rotation adjustments
 - [x] Add stored, admin-managed adjustments and Ruth's inclusive pause cutoff.
 - [x] Resolve assignment by shift day and operator before grouping; preserve worked shifts.
