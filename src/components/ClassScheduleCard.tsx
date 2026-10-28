@@ -249,7 +249,7 @@ export function ClassScheduleCard({
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 max-lg:hidden"
+                        className="h-8 w-8 shrink-0 max-lg:hidden"
                         aria-label="Open timecode"
                         title="Open timecode"
                         onClick={() => {
@@ -271,7 +271,7 @@ export function ClassScheduleCard({
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-8 w-8"
+                    className="h-8 w-8 shrink-0"
                     aria-label="Copy class filename"
                     title="Copy class filename"
                     onClick={async () => {
@@ -289,7 +289,7 @@ export function ClassScheduleCard({
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-8 w-8"
+                          className="h-8 w-8 shrink-0"
                           aria-label="Class actions"
                         >
                           <MoreHorizontal className="h-4 w-4" />
