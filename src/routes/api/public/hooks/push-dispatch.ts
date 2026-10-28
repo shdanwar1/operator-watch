@@ -9,6 +9,7 @@ import {
 import { LEAVE_NOTIFY_LEAD_MIN, leaveNotificationAt } from "@/lib/time-to-leave";
 import { normalizeUsername } from "@/domain/operator-identity";
 import { planShiftHourReminders } from "@/lib/shift-hour-reminder";
+import type { AutomationReport } from "@/domain/automation-health";
 
 /**
  * Scheduled push dispatcher.
@@ -50,18 +51,19 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         if (allowed !== true) {
           return new Response("Unauthorized", { status: 401 });
         }
-        const { loadActiveSubscriptions, sendToLoadedSubscriptions } = await import(
-          "@/lib/push.server"
-        );
-
         const now = Date.now();
-
+        const { recordAutomationHealth } = await import("@/lib/automation-health.server");
+        const report: AutomationReport = { outcome: "failed", counters: {}, stages: {}, errorCode: "dispatch_failed" };
+        let preparationFailures = 0;
+        try {
+        const { loadActiveSubscriptions, sendToLoadedSubscriptions } = await import("@/lib/push.server");
 
         const { data: operators, error: opErr } = await supabaseAdmin
           .from("operators")
           .select("id, username")
           .eq("is_active", true);
         if (opErr) {
+          report.errorCode = "operator_read_failed";
           // Auto check-out stays independent of reminders: run it standalone.
           try {
             const { runAutoCheckout } = await import("@/lib/auto-checkout.server");
@@ -114,6 +116,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             "id, assigned_operator, specific_date, start_time, end_time, status, time_to_leave, time_to_leave_attempted_at, created_at",
           )
           .in("specific_date", todayKeys);
+        if (shiftsErr) preparationFailures++;
 
         // Auto check-out runs independently of reminders and reuses this read
         // (yesterday/today/tomorrow covers its yesterday+today window).
@@ -150,7 +153,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           const horizonKey = new Date(now + TTL_CALC_HORIZON_MS).toLocaleDateString("en-CA", {
             timeZone: "Europe/Berlin",
           });
-          const { data: upcoming } = await supabaseAdmin
+          const { data: upcoming, error: upcomingError } = await supabaseAdmin
             .from("scheduled_shifts")
             .select(
               "id, assigned_operator, specific_date, start_time, status, time_to_leave, time_to_leave_attempted_at, created_at",
@@ -158,6 +161,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             .gte("specific_date", todayKeys[0])
             .lte("specific_date", horizonKey)
             .neq("status", "cancelled");
+          if (upcomingError) preparationFailures++;
           const nextByOp = new Map<string, { row: ShiftSnap; at: number }>();
           for (const s of (upcoming ?? []) as ShiftSnap[]) {
             if (!s.assigned_operator) continue;
@@ -286,6 +290,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             p_expires_at: expiresAt,
           } as never);
           const claimed = Array.isArray(claim) ? claim[0] : claim;
+          if (claimErr) preparationFailures++;
           if (claimErr || !claimed) {
             stats.skipped += 1;
             continue;
@@ -305,7 +310,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             .in("specific_date", todayKeys);
           // A failed re-read must not cancel every claimed reminder: fall back
           // to the snapshot read moments ago at the top of this run.
-          if (freshErr) console.error("[push-dispatch] final state check failed", freshErr.message);
+          if (freshErr) { preparationFailures++; console.error("[push-dispatch] final state check failed", freshErr.message); }
           const rows = freshErr ? shiftRows : ((fresh ?? []) as ShiftSnap[]);
           for (const s of rows) {
             if (s.status === "cancelled" || !s.assigned_operator) continue;
@@ -322,11 +327,12 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         for (const job of claimedJobs) {
           if (!liveStarts.get(job.operatorId)?.has(job.shiftStartMs)) {
             stats.cancelled += 1;
-            await supabaseAdmin
+            const { error: cancelledSaveError } = await supabaseAdmin
               .from("push_notification_deliveries")
               .update({ status: "cancelled", locked_at: null } as never)
               .eq("operator_id", job.operatorId)
               .eq("notification_key", job.key);
+            if (cancelledSaveError) preparationFailures++;
             continue;
           }
 
@@ -368,7 +374,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           else if (status === "failed") stats.failed += 1;
           else stats.no_subscription += 1;
 
-          await supabaseAdmin
+          const { error: deliverySaveError } = await supabaseAdmin
             .from("push_notification_deliveries")
             .update({
               status,
@@ -380,12 +386,19 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             } as never)
             .eq("operator_id", job.operatorId)
             .eq("notification_key", job.key);
+          if (deliverySaveError) preparationFailures++;
         }
 
         // Expired-row cleanup runs once a day (push_daily_maintenance); the
         // claim already refuses expired rows, so nothing is needed here.
 
+        report.counters = { candidates: stats.candidates, sent: stats.sent, failed: stats.failed, partial: stats.partial, no_device: stats.no_subscription, preparation_failures: preparationFailures };
+        report.outcome = preparationFailures || stats.failed || stats.partial ? "partial" : stats.sent ? "success" : "noop";
+        report.errorCode = report.outcome === "partial" ? "dispatch_partial" : null;
         return Response.json({ ok: true, autoCheckedOut, ...stats });
+        } finally {
+          await recordAutomationHealth("push_dispatch", now, report);
+        }
       },
     },
   },
