@@ -76,3 +76,8 @@ Validation: 169 tests passed; automatic build OK; isolated desktop/narrow grid v
 - [x] Keep the existing Calendar and Records pages unchanged and link to their current routes.
 - [x] Typecheck and automatic build verification completed.
 - [ ] Authenticated responsive browser rendering is blocked because the configured site password is rejected by the live gate.
+
+## Operator Dashboard full-width layout
+- [x] Widen the active-shift panel to the full content column on desktop (capped at 1280px); mobile keeps its narrow measure.
+- [x] Show full class names (wrap to two lines instead of one-line cutoff) and keep times, badges and action buttons from compressing.
+- [x] Verified the real class rows at 1440px and 390px; full suite 453 tests pass, automatic build OK.
