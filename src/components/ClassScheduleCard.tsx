@@ -222,7 +222,7 @@ export function ClassScheduleCard({
                     <Button
                       size="sm"
                       variant={st === "live" ? "default" : "outline"}
-                      className="max-lg:hidden"
+                      className="shrink-0 max-lg:hidden"
                       asChild
                     >
                       {/* The class is handed to the Studio Display control page,
