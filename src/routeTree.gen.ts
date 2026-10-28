@@ -15,7 +15,6 @@ import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as CompleteProfileRouteImport } from './routes/complete-profile'
 import { Route as DisplayRouteImport } from './routes/display'
 import { Route as EarningsRouteImport } from './routes/earnings'
-import { Route as PreviewcheckRouteImport } from './routes/previewcheck'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RecordRouteImport } from './routes/record'
 import { Route as StudioDisplayRouteImport } from './routes/studio-display'
@@ -60,11 +59,6 @@ const DisplayRoute = DisplayRouteImport.update({
 const EarningsRoute = EarningsRouteImport.update({
   id: '/earnings',
   path: '/earnings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PreviewcheckRoute = PreviewcheckRouteImport.update({
-  id: '/previewcheck',
-  path: '/previewcheck',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -152,7 +146,6 @@ export interface FileRoutesByFullPath {
   '/complete-profile': typeof CompleteProfileRoute
   '/display': typeof DisplayRoute
   '/earnings': typeof EarningsRoute
-  '/previewcheck': typeof PreviewcheckRoute
   '/profile': typeof ProfileRoute
   '/record': typeof RecordRoute
   '/studio-display': typeof StudioDisplayRoute
@@ -175,7 +168,6 @@ export interface FileRoutesByTo {
   '/complete-profile': typeof CompleteProfileRoute
   '/display': typeof DisplayRoute
   '/earnings': typeof EarningsRoute
-  '/previewcheck': typeof PreviewcheckRoute
   '/profile': typeof ProfileRoute
   '/record': typeof RecordRoute
   '/studio-display': typeof StudioDisplayRoute
@@ -200,7 +192,6 @@ export interface FileRoutesById {
   '/complete-profile': typeof CompleteProfileRoute
   '/display': typeof DisplayRoute
   '/earnings': typeof EarningsRoute
-  '/previewcheck': typeof PreviewcheckRoute
   '/profile': typeof ProfileRoute
   '/record': typeof RecordRoute
   '/studio-display': typeof StudioDisplayRoute
@@ -226,7 +217,6 @@ export interface FileRouteTypes {
     | '/complete-profile'
     | '/display'
     | '/earnings'
-    | '/previewcheck'
     | '/profile'
     | '/record'
     | '/studio-display'
@@ -249,7 +239,6 @@ export interface FileRouteTypes {
     | '/complete-profile'
     | '/display'
     | '/earnings'
-    | '/previewcheck'
     | '/profile'
     | '/record'
     | '/studio-display'
@@ -273,7 +262,6 @@ export interface FileRouteTypes {
     | '/complete-profile'
     | '/display'
     | '/earnings'
-    | '/previewcheck'
     | '/profile'
     | '/record'
     | '/studio-display'
@@ -298,7 +286,6 @@ export interface RootRouteChildren {
   CompleteProfileRoute: typeof CompleteProfileRoute
   DisplayRoute: typeof DisplayRoute
   EarningsRoute: typeof EarningsRoute
-  PreviewcheckRoute: typeof PreviewcheckRoute
   ProfileRoute: typeof ProfileRoute
   RecordRoute: typeof RecordRoute
   StudioDisplayRoute: typeof StudioDisplayRoute
@@ -351,13 +338,6 @@ declare module '@tanstack/react-router' {
       path: '/earnings'
       fullPath: '/earnings'
       preLoaderRoute: typeof EarningsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/previewcheck': {
-      id: '/previewcheck'
-      path: '/previewcheck'
-      fullPath: '/previewcheck'
-      preLoaderRoute: typeof PreviewcheckRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -497,7 +477,6 @@ const rootRouteChildren: RootRouteChildren = {
   CompleteProfileRoute: CompleteProfileRoute,
   DisplayRoute: DisplayRoute,
   EarningsRoute: EarningsRoute,
-  PreviewcheckRoute: PreviewcheckRoute,
   ProfileRoute: ProfileRoute,
   RecordRoute: RecordRoute,
   StudioDisplayRoute: StudioDisplayRoute,
