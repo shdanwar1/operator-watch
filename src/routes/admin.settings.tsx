@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { PinDialog } from "@/components/admin/PinDialog";
 import { RotationAdjustments } from "@/components/admin/RotationAdjustments";
+import { AutomationHealth } from "@/components/admin/AutomationHealth";
 import { adminGetRotation, adminSetRotation } from "@/lib/rotation.functions";
 import { rotationForMonth } from "@/domain/shift-rotation";
 import { adminChangeOwnPin } from "@/lib/operators.functions";
@@ -81,6 +82,7 @@ function AdminSettings() {
         <SectionLabel>System</SectionLabel>
         <CheckoutSection />
       </section>
+      <AutomationHealth />
     </div>
   );
 }

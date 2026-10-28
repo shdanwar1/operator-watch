@@ -50,6 +50,27 @@
       "when": 1793010663128,
       "tag": "0006_rotation_adjustments_and_active_until",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793172296194,
+      "tag": "0007_automation_health",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793172386934,
+      "tag": "0008_normalize_health_error_codes",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793172474681,
+      "tag": "0009_bound_automation_health_payloads",
+      "breakpoints": true
     }
   ]
 }

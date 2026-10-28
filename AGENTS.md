@@ -11,6 +11,8 @@
 
 ## Architecture
 
+- Automation health stores one sanitized latest result per existing process via an ordered, heartbeat-throttled service-role RPC; admin reads require the signed gate cookie, and telemetry failures never change process outcomes, so observability cannot block studio operations.
+
 - Timecode timeline progress derives from scheduled wall-clock bounds, not recording elapsed time; saved-session deletion uses the existing shared gate-operator boundary and also clears the current device draft.
 
 - Ballet Studio Display guidance is derived only from remaining class time in the pure stage calculation; never persist segment state or add a second timer, so reloads and mid-class launches stay accurate.
