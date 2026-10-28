@@ -189,24 +189,29 @@ export function ClassScheduleCard({
                     <div className="font-medium">{fmt(c.start_time)}</div>
                     <div className="text-muted-foreground">– {fmt(c.end_time)}</div>
                   </div>
-                  <div className="min-w-0 flex-1">
+                  {/* `grow` + a real basis (not flex-1's 0% basis) so the row
+                      wraps instead of squeezing the name into a sliver. */}
+                  <div className="min-w-0 grow basis-[160px]">
                     <div
+                      title={c.className}
                       className={cn(
-                        "flex items-center gap-1.5 truncate text-sm font-medium",
+                        "line-clamp-2 break-words text-sm leading-snug font-medium",
                         isCancelled && "line-through",
                       )}
                     >
                       {c.className}
                     </div>
-                    <div className="truncate text-xs text-muted-foreground">{c.teacherName}</div>
+                    <div title={c.teacherName} className="truncate text-xs text-muted-foreground">
+                      {c.teacherName}
+                    </div>
                   </div>
-                  <div className="hidden text-xs text-muted-foreground sm:block">
+                  <div className="hidden shrink-0 text-xs text-muted-foreground sm:block">
                     {durationOf(c)} min
                   </div>
                   <Badge
                     variant="outline"
                     className={cn(
-                      "text-[10px]",
+                      "shrink-0 text-[10px]",
                       st === "completed" && "border-done/70 bg-done/10 text-done hover:bg-done/15",
                       st === "live" && "border-live/70 bg-live text-background hover:bg-live",
                       st === "upcoming" && "border-border bg-background text-foreground",
@@ -219,7 +224,7 @@ export function ClassScheduleCard({
                     <Button
                       size="sm"
                       variant={st === "live" ? "default" : "outline"}
-                      className="max-lg:hidden"
+                      className="shrink-0 max-lg:hidden"
                       asChild
                     >
                       {/* The class is handed to the Studio Display control page,
@@ -246,7 +251,7 @@ export function ClassScheduleCard({
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 max-lg:hidden"
+                        className="h-8 w-8 shrink-0 max-lg:hidden"
                         aria-label="Open timecode"
                         title="Open timecode"
                         onClick={() => {
@@ -268,7 +273,7 @@ export function ClassScheduleCard({
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-8 w-8"
+                    className="h-8 w-8 shrink-0"
                     aria-label="Copy class filename"
                     title="Copy class filename"
                     onClick={async () => {
@@ -286,7 +291,7 @@ export function ClassScheduleCard({
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-8 w-8"
+                          className="h-8 w-8 shrink-0"
                           aria-label="Class actions"
                         >
                           <MoreHorizontal className="h-4 w-4" />

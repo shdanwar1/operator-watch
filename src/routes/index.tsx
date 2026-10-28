@@ -624,7 +624,12 @@ function Index() {
         <ProfileIncompleteBanner missing={profileStatus?.missing ?? []} />
       )}
 
-      <div className={`mx-auto w-full space-y-6 ${active ? "max-w-3xl" : "max-w-[520px] lg:max-w-6xl"}`}>
+      {/* Active shifts carry dense class rows: let the panel use the full
+          content column on desktop, capped so lines stay readable. Mobile
+          keeps the narrow single-column measure. */}
+      <div
+        className={`mx-auto w-full space-y-6 ${active ? "max-w-3xl lg:max-w-[1280px]" : "max-w-[520px] lg:max-w-6xl"}`}
+      >
         {loading ? (
           <DashboardSkeleton />
         ) : loadError ? (
