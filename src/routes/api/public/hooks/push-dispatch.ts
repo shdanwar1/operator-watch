@@ -185,12 +185,14 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             if (r?.ok && r.source !== "fallback") {
               savedTtl.set(row.id, r.leave_iso);
             } else {
+              preparationFailures++;
               console.warn("[push-dispatch] time to leave unavailable", row.id, r);
-              await supabaseAdmin
+              const { error: retrySaveError } = await supabaseAdmin
                 .from("scheduled_shifts")
                 .update({ time_to_leave_attempted_at: new Date(now).toISOString() } as never)
                 .eq("id", row.id)
                 .is("time_to_leave", null);
+              if (retrySaveError) preparationFailures++;
             }
           }
         }

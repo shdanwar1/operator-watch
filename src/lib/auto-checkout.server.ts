@@ -30,7 +30,7 @@ export async function runAutoCheckout(
   preloaded?: SchedRow[],
 ): Promise<number> {
   const startedAt = Date.now();
-  const report: AutomationReport = { outcome: "noop", counters: { closed: 0, failed: 0, class_reference_failures: 0 }, stages: {}, errorCode: null };
+  const report: AutomationReport = { outcome: "noop", counters: { closed: 0, failed: 0, class_reference_failures: 0, already_closed: 0 }, stages: {}, errorCode: null };
   try {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const today = berlinDate(now);
@@ -111,6 +111,7 @@ export async function runAutoCheckout(
         classes,
       });
       if (ok) closedCount++;
+      else report.counters.already_closed++;
     } catch (e) {
       report.counters.failed++;
       report.errorCode = "checkout_failed";

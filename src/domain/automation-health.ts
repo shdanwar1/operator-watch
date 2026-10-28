@@ -40,6 +40,7 @@ export function automationStatus(row: AutomationHealthRow | undefined, now: numb
   if (row.outcome === "failed") return "Failed";
   if (row.outcome === "partial") return "Partial failure";
   const age = now - Date.parse(row.finished_at);
+  if (!Number.isFinite(age)) return "Freshness unavailable";
   if (row.process === "timetable_sync" && age > 26 * 60 * 60_000) return "Out of date";
   // The minute timer is conditional: silence when no work is due is normal.
   if (row.process !== "timetable_sync" && age > 12 * 60_000) {

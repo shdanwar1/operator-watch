@@ -64,6 +64,13 @@
       "when": 1793172386934,
       "tag": "0008_normalize_health_error_codes",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793172474681,
+      "tag": "0009_bound_automation_health_payloads",
+      "breakpoints": true
     }
   ]
 }
