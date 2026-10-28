@@ -191,22 +191,25 @@ export function ClassScheduleCard({
                   </div>
                   <div className="min-w-0 flex-1">
                     <div
+                      title={c.className}
                       className={cn(
-                        "flex items-center gap-1.5 truncate text-sm font-medium",
+                        "line-clamp-2 break-words text-sm leading-snug font-medium",
                         isCancelled && "line-through",
                       )}
                     >
                       {c.className}
                     </div>
-                    <div className="truncate text-xs text-muted-foreground">{c.teacherName}</div>
+                    <div title={c.teacherName} className="truncate text-xs text-muted-foreground">
+                      {c.teacherName}
+                    </div>
                   </div>
-                  <div className="hidden text-xs text-muted-foreground sm:block">
+                  <div className="hidden shrink-0 text-xs text-muted-foreground sm:block">
                     {durationOf(c)} min
                   </div>
                   <Badge
                     variant="outline"
                     className={cn(
-                      "text-[10px]",
+                      "shrink-0 text-[10px]",
                       st === "completed" && "border-done/70 bg-done/10 text-done hover:bg-done/15",
                       st === "live" && "border-live/70 bg-live text-background hover:bg-live",
                       st === "upcoming" && "border-border bg-background text-foreground",
