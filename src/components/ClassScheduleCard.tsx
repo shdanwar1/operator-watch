@@ -189,7 +189,9 @@ export function ClassScheduleCard({
                     <div className="font-medium">{fmt(c.start_time)}</div>
                     <div className="text-muted-foreground">– {fmt(c.end_time)}</div>
                   </div>
-                  <div className="min-w-0 flex-1">
+                  {/* `grow` + a real basis (not flex-1's 0% basis) so the row
+                      wraps instead of squeezing the name into a sliver. */}
+                  <div className="min-w-0 grow basis-[160px]">
                     <div
                       title={c.className}
                       className={cn(
