@@ -6,6 +6,8 @@ import { AUTO_CHECKOUT_WINDOW_MS, autoCheckoutAt, scheduledEndAt } from "@/domai
 import { isShiftChecklists } from "@/domain/checklists";
 import type { ShiftClass } from "./shifts.functions";
 import { closeShift } from "./shift-close.server";
+import { recordAutomationHealth } from "./automation-health.server";
+import type { AutomationReport } from "@/domain/automation-health";
 
 function berlinDate(d: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(d);
@@ -27,6 +29,9 @@ export async function runAutoCheckout(
   now: Date = new Date(),
   preloaded?: SchedRow[],
 ): Promise<number> {
+  const startedAt = Date.now();
+  const report: AutomationReport = { outcome: "noop", counters: { closed: 0, failed: 0, class_reference_failures: 0 }, stages: {}, errorCode: null };
+  try {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const today = berlinDate(now);
   const yesterday = berlinDate(new Date(now.getTime() - 86_400_000));
@@ -44,6 +49,8 @@ export async function runAutoCheckout(
       .in("specific_date", [yesterday, today])
       .neq("status", "cancelled");
     if (error) {
+      report.outcome = "failed";
+      report.errorCode = "schedule_read_failed";
       console.error("auto-checkout schedule read failed", error.message);
       return 0;
     }
@@ -72,6 +79,8 @@ export async function runAutoCheckout(
     .in("scheduled_shift_id", [...endById.keys()]);
   // A failed read must be visible in logs, not look like "nothing due".
   if (openErr) {
+    report.outcome = "failed";
+    report.errorCode = "open_shift_read_failed";
     console.error("auto-checkout open-shift read failed", openErr.message);
     return 0;
   }
@@ -90,7 +99,10 @@ export async function runAutoCheckout(
     const checkIn = new Date(String(s.check_in_at)).getTime();
     const checkOutAt = new Date(Math.max(at.getTime(), checkIn));
     try {
-      const classes = await classesForShift(s.checklists, s.classes);
+      const classes = await classesForShift(s.checklists, s.classes, () => {
+        report.counters.class_reference_failures++;
+        report.errorCode = "class_read_failed";
+      });
       const ok = await closeShift({
         shiftId: String(s.id),
         checklists: s.checklists,
@@ -100,16 +112,28 @@ export async function runAutoCheckout(
       });
       if (ok) closedCount++;
     } catch (e) {
+      report.counters.failed++;
+      report.errorCode = "checkout_failed";
       console.error("auto-checkout failed", s.id, e);
     }
   }
+  report.counters.closed = closedCount;
+  report.outcome = report.errorCode ? "partial" : closedCount ? "success" : "noop";
   return closedCount;
+  } catch (error) {
+    report.outcome = "failed";
+    report.errorCode ??= "checkout_failed";
+    throw error;
+  } finally {
+    await recordAutomationHealth("auto_checkout", startedAt, report);
+  }
 }
 
 /** Every non-cancelled class from the shift snapshot, with name + teacher. */
 async function classesForShift(
   checklists: unknown,
   existing: unknown,
+  onReadError: () => void,
 ): Promise<ShiftClass[] | undefined> {
   if (!isShiftChecklists(checklists)) return undefined;
   const snap = checklists.classes.filter((c) => c.status !== "cancelled");
@@ -117,13 +141,14 @@ async function classesForShift(
     return Array.isArray(existing) && existing.length ? undefined : [];
   }
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("calendar_classes")
     .select("id, dmc_class_id, dmc_instructor_id")
     .in(
       "id",
       snap.map((c) => c.classId),
     );
+  if (error) onReadError();
   const refs = new Map((data ?? []).map((r) => [String(r.id), r]));
   return [...snap]
     .sort((a, b) => a.startTime.localeCompare(b.startTime))

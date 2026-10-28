@@ -1,4 +1,8 @@
 # Run credit optimization
+## Automation Health
+- [ ] Add bounded, admin-only automatic-process status storage and reporting.
+- [ ] Add Admin Settings health view without changing timings or shift rules.
+- [ ] Test outcome/freshness/access rules and verify the real admin view when access permits.
 ## November rotation adjustments
 - [x] Add stored, admin-managed adjustments and Ruth's inclusive pause cutoff.
 - [x] Resolve assignment by shift day and operator before grouping; preserve worked shifts.
