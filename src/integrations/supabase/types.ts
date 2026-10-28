@@ -32,6 +32,48 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_health: {
+        Row: {
+          attempted_at: string
+          counters: Json
+          duration_ms: number
+          error_code: string | null
+          finished_at: string
+          last_error_at: string | null
+          last_error_code: string | null
+          last_success_at: string | null
+          outcome: string
+          process: string
+          stages: Json
+        }
+        Insert: {
+          attempted_at: string
+          counters?: Json
+          duration_ms?: number
+          error_code?: string | null
+          finished_at: string
+          last_error_at?: string | null
+          last_error_code?: string | null
+          last_success_at?: string | null
+          outcome: string
+          process: string
+          stages?: Json
+        }
+        Update: {
+          attempted_at?: string
+          counters?: Json
+          duration_ms?: number
+          error_code?: string | null
+          finished_at?: string
+          last_error_at?: string | null
+          last_error_code?: string | null
+          last_success_at?: string | null
+          outcome?: string
+          process?: string
+          stages?: Json
+        }
+        Relationships: []
+      }
       calendar_classes: {
         Row: {
           created_at: string
@@ -671,6 +713,19 @@ export type Database = {
       push_key_open: {
         Args: { p_key: string; p_operator_id: string }
         Returns: boolean
+      }
+      record_automation_health: {
+        Args: {
+          p_attempted_at: string
+          p_counters: Json
+          p_duration_ms: number
+          p_error_code: string
+          p_finished_at: string
+          p_outcome: string
+          p_process: string
+          p_stages: Json
+        }
+        Returns: undefined
       }
       rename_operator: {
         Args: { p_id: string; p_username: string }

@@ -50,6 +50,13 @@
       "when": 1793010663128,
       "tag": "0006_rotation_adjustments_and_active_until",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793172296194,
+      "tag": "0007_automation_health",
+      "breakpoints": true
     }
   ]
 }
