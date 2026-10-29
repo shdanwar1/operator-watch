@@ -43,6 +43,7 @@ export function AutomationHealth() {
               {Object.entries(row.counters).map(([key, value]) => <span key={key}>{key.replaceAll("_", " ")}: {value}</span>)}
               {Object.entries(row.stages).map(([key, value]) => <span key={key}>{key.replaceAll("_", " ")}: {value}</span>)}
             </div>}
+            {process === "auto_checkout" && row?.outcome === "noop" && <p className="mt-2 text-xs text-muted-foreground">No shifts were due for check-out — nothing was changed.</p>}
             {process === "push_dispatch" && row && <p className="mt-2 text-xs text-muted-foreground">Sent counts reflect push-service acceptance, not confirmed phone delivery.</p>}
             {row?.last_error_code && <details className="mt-3 text-xs"><summary className="cursor-pointer text-muted-foreground">Last reported issue · {dateLabel(row.last_error_at)}</summary><p className="pt-2 text-alert">{healthError(row.last_error_code)}</p></details>}
           </div>;
