@@ -7,6 +7,8 @@ import { AUTOMATION_PROCESSES, automationStatus, healthError } from "@/domain/au
 
 const titles = { timetable_sync: "Timetable & shifts", push_dispatch: "Shift reminders", auto_checkout: "Automatic checkout" };
 const icons = { timetable_sync: CalendarClock, push_dispatch: Bell, auto_checkout: LogOut };
+// Routine scans run often and usually find nothing to do; name them so an idle scan never reads as an action on a live shift.
+const labels = { timetable_sync: ["Last sync run", "Last sync completed"], push_dispatch: ["Last reminder check", "Last successful check"], auto_checkout: ["Last routine scan", "Last successful scan"] } as const;
 function dateLabel(value: string | null) {
   return value ? new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value)) : "Not yet observed";
 }
@@ -33,8 +35,8 @@ export function AutomationHealth() {
               <span className={`flex items-center gap-1.5 text-xs ${problem ? "text-alert" : warning ? "text-warn" : row ? "text-done" : "text-muted-foreground"}`}><span className="size-1.5 rounded-full bg-current" />{status}</span>
             </div>
             <div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
-              <span>Last attempt: {dateLabel(row?.attempted_at ?? null)}</span>
-              <span>Last success: {dateLabel(row?.last_success_at ?? null)}</span>
+              <span>{labels[process][0]}: {dateLabel(row?.attempted_at ?? null)}</span>
+              <span>{labels[process][1]}: {dateLabel(row?.last_success_at ?? null)}</span>
             </div>
             {row && <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span>{(row.duration_ms / 1000).toFixed(1)}s</span>
