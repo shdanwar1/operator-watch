@@ -98,8 +98,12 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
       3: { cellWidth: 60, halign: "right" },
     },
     didDrawCell: (data) => {
-      if (data.section !== "body" || data.column.index !== 0) return;
-      const row = categories[data.row.index];
+      if (data.column.index !== 0) return;
+      if (data.section !== "body" && data.section !== "foot") return;
+      const row =
+        data.section === "foot"
+          ? { color: [70, 70, 78] as [number, number, number] }
+          : categories[data.row.index];
       if (!row) return;
       const r = 4;
       const cx = data.cell.x + data.cell.width / 2;
