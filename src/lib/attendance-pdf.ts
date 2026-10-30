@@ -151,25 +151,6 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
     },
   });
 
-  // @ts-expect-error jspdf-autotable augments doc at runtime
-  const y = (doc.lastAutoTable?.finalY ?? 120) + 32;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.text("Payroll Hours Summary", 40, y);
-
-  autoTable(doc, {
-    startY: y + 10,
-    head: [["", "Hours"]],
-    body: [
-      ["Total Worked Hours", formatHM(summary.workedMin)],
-      ["Rounded Payroll Hours", roundedPayrollHours(summary.workedMin)],
-    ],
-    styles: { font: "helvetica", fontSize: 11, cellPadding: 8 },
-    headStyles: { fillColor: [245, 245, 247], textColor: 30, fontStyle: "bold" },
-    columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "right" } },
-    tableWidth: 340,
-  });
-
   doc.save(`attendance-${opName}-${summary.monthKey}.pdf`);
 }
 
