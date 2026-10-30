@@ -16,15 +16,16 @@ vi.mock("jspdf-autotable", () => ({
     autoTableCalls.push(opts);
   },
 }));
-vi.mock("jspdf", () => ({
-  jsPDF: class {
+vi.mock("jspdf", () => {
+  class FakeDoc {
     setFont() {}
     setFontSize() {}
     setTextColor() {}
     text() {}
     save() {}
-  },
-}));
+  }
+  return { default: FakeDoc, jsPDF: FakeDoc };
+});
 
 import { downloadAttendancePdf, roundedPayrollHours } from "@/lib/attendance-pdf";
 
