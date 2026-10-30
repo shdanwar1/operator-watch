@@ -7,7 +7,7 @@ import { downloadAttendancePdf } from "@/lib/attendance-pdf";
 import { summarizeMonth } from "@/lib/attendance";
 import type { ShiftRow, ScheduledShiftRow } from "@/lib/shifts.functions";
 
-vi.spyOn(jsPDF.prototype, "save").mockImplementation(function (this: jsPDF) {
+vi.spyOn((jsPDF as unknown as { API: { save: (name?: string) => void } }).API, "save").mockImplementation(function (this: jsPDF) {
   const buf = this.output("arraybuffer");
   writeFileSync("/tmp/attendance-check.pdf", Buffer.from(buf));
 });
