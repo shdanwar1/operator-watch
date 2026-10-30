@@ -7,11 +7,7 @@ import { downloadAttendancePdf } from "@/lib/attendance-pdf";
 import { summarizeMonth } from "@/lib/attendance";
 import type { ShiftRow, ScheduledShiftRow } from "@/lib/shifts.functions";
 
-// Direct assignment: in the test env the method may not exist on the prototype yet.
-(jsPDF.prototype as unknown as { save: (name?: string) => void }).save = function (this: jsPDF) {
-  const buf = this.output("arraybuffer");
-  writeFileSync("/tmp/attendance-check.pdf", Buffer.from(buf));
-};
+// The jsPDF Node build writes the file directly in save(); no interception needed.
 
 describe("render real attendance pdf", () => {
   it("writes /tmp/attendance-check.pdf", () => {
