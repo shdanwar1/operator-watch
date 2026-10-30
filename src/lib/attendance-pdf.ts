@@ -9,9 +9,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
   CATEGORY_COLOR,
-  CATEGORY_LABEL,
   buildAttendanceRows,
-  formatDiff,
   formatHM,
   type AttendanceSummary,
 } from "@/lib/attendance";
