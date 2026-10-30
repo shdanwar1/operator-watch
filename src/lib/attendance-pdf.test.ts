@@ -4,11 +4,18 @@ import type { AttendanceSummary } from "@/lib/attendance";
 // Capture every autoTable call so we can assert on the exact table content
 // the real generator produces, without needing a browser download.
 type AutoTableCall = {
+  startY?: number;
+  margin?: { left?: number; right?: number };
+  tableWidth?: number;
   head?: unknown[][];
   body?: unknown[][];
   foot?: unknown[][];
+  headStyles?: Record<string, unknown>;
+  footStyles?: Record<string, unknown>;
   columnStyles?: Record<string, unknown>;
   styles?: Record<string, unknown>;
+  alternateRowStyles?: Record<string, unknown>;
+  didDrawCell?: (data: unknown) => void;
 };
 const autoTableCalls: AutoTableCall[] = [];
 vi.mock("jspdf-autotable", () => ({
