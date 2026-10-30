@@ -9,9 +9,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
   CATEGORY_COLOR,
-  CATEGORY_LABEL,
   buildAttendanceRows,
-  formatDiff,
   formatHM,
   type AttendanceSummary,
 } from "@/lib/attendance";
@@ -32,6 +30,20 @@ function rgb(hex: string): [number, number, number] {
     parseInt(h.slice(2, 4), 16),
     parseInt(h.slice(4, 6), 16),
   ];
+}
+
+/**
+ * Rounds total accumulated worked minutes to the nearest 0.5 hour,
+ * returned as decimal hours with one decimal place.
+ *
+ * Per-hour rules (applied once to the aggregated total, never per shift):
+ *   0–14 minutes  → round down to the whole hour
+ *   15–44 minutes → round to the half hour
+ *   45–59 minutes → round up to the next whole hour
+ */
+export function roundedPayrollHours(totalWorkedMin: number): string {
+  const roundedMin = Math.round(Math.max(0, totalWorkedMin) / 30) * 30;
+  return (roundedMin / 60).toFixed(1);
 }
 
 /** Builds and downloads the monthly attendance report for one operator. */
@@ -58,11 +70,7 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
       "Check In",
       "Check Out",
       "Worked",
-      "Diff",
-      "Day",
-      "Night",
-      "Weekend",
-      "Type",
+      "Notes",
     ]],
     body: summary.rows.map((r) => [
       fmtDate(r.date),
@@ -72,11 +80,7 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
       fmtTime(r.checkIn),
       fmtTime(r.checkOut),
       formatHM(r.workedMin),
-      r.diffMin != null ? formatDiff(r.diffMin) : "-",
-      r.dayMin > 0 ? formatHM(r.dayMin) : "-",
-      r.nightMin > 0 ? formatHM(r.nightMin) : "-",
-      r.weekendMin > 0 ? formatHM(r.weekendMin) : "-",
-      r.categories.map((c) => CATEGORY_LABEL[c]).join(" • "),
+      r.notes && r.notes.trim() ? r.notes.trim() : "—",
     ]),
     styles: {
       font: "helvetica",
@@ -84,24 +88,17 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
       cellPadding: 5,
       lineColor: [230, 230, 230],
       lineWidth: 0.5,
+      overflow: "linebreak",
     },
     headStyles: { fillColor: [245, 245, 247], textColor: 30, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [252, 252, 253] },
     columnStyles: {
-      4: { halign: "right" },
-      5: { halign: "right" },
-      6: { halign: "right" },
-      7: { halign: "right" },
-      8: { halign: "right" },
-      9: { halign: "center" },
-    },
-    didParseCell: (data) => {
-      if (data.section !== "body" || data.column.index !== 9) return;
-      const row = summary.rows[data.row.index];
-      if (!row) return;
-      data.cell.styles.fillColor = rgb(CATEGORY_COLOR[row.primary]);
-      data.cell.styles.textColor = 255;
-      data.cell.styles.fontStyle = "bold";
+      0: { cellWidth: 58 },
+      1: { cellWidth: 108 },
+      2: { cellWidth: 56 },
+      3: { cellWidth: 56 },
+      4: { cellWidth: 62, halign: "right" },
+      5: { cellWidth: "auto" },
     },
   });
 
@@ -111,36 +108,17 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
   doc.setFontSize(13);
   doc.text("Payroll Hours Summary", 40, y);
 
-  const summaryRows: Array<{ label: string; value: string; color: [number, number, number] }> = [
-    { label: "Daytime Hours", value: formatHM(summary.dayMin), color: rgb(CATEGORY_COLOR.day) },
-    { label: "Night Hours", value: formatHM(summary.nightMin), color: rgb(CATEGORY_COLOR.night) },
-    {
-      label: "Weekend Hours",
-      value: formatHM(summary.weekendMin),
-      color: rgb(CATEGORY_COLOR.weekend),
-    },
-  ];
-
   autoTable(doc, {
     startY: y + 10,
-    head: [["", "Category", "Hours"]],
-    body: summaryRows.map((r) => ["", r.label, r.value]),
-    foot: [["", "Total Worked Hours", formatHM(summary.workedMin)]],
+    head: [["", "Hours"]],
+    body: [
+      ["Total Worked Hours", formatHM(summary.workedMin)],
+      ["Rounded Payroll Hours", roundedPayrollHours(summary.workedMin)],
+    ],
     styles: { font: "helvetica", fontSize: 11, cellPadding: 8 },
     headStyles: { fillColor: [245, 245, 247], textColor: 30, fontStyle: "bold" },
-    footStyles: { fillColor: [235, 235, 240], textColor: 20, fontStyle: "bold" },
-    columnStyles: { 0: { cellWidth: 22 }, 2: { halign: "right" } },
+    columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "right" } },
     tableWidth: 340,
-    didDrawCell: (data) => {
-      if (data.section !== "body" || data.column.index !== 0) return;
-      const row = summaryRows[data.row.index];
-      if (!row) return;
-      const size = 10;
-      const cx = data.cell.x + (data.cell.width - size) / 2;
-      const cy = data.cell.y + (data.cell.height - size) / 2;
-      doc.setFillColor(row.color[0], row.color[1], row.color[2]);
-      doc.rect(cx, cy, size, size, "F");
-    },
   });
 
   doc.save(`attendance-${opName}-${summary.monthKey}.pdf`);
