@@ -34,6 +34,20 @@ function rgb(hex: string): [number, number, number] {
   ];
 }
 
+/**
+ * Rounds total accumulated worked minutes to the nearest 0.5 hour,
+ * returned as decimal hours with one decimal place.
+ *
+ * Per-hour rules (applied once to the aggregated total, never per shift):
+ *   0–14 minutes  → round down to the whole hour
+ *   15–44 minutes → round to the half hour
+ *   45–59 minutes → round up to the next whole hour
+ */
+export function roundedPayrollHours(totalWorkedMin: number): string {
+  const roundedMin = Math.round(Math.max(0, totalWorkedMin) / 30) * 30;
+  return (roundedMin / 60).toFixed(1);
+}
+
 /** Builds and downloads the monthly attendance report for one operator. */
 export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: string) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
