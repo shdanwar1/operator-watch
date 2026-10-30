@@ -62,8 +62,57 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
   doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 98);
   doc.setTextColor(20);
 
+  // Payroll Hours Summary: compact table at the top-right, beside the
+  // report header. Rendered only here — never repeated at the bottom.
+  const pageW = doc.internal.pageSize.getWidth();
+  const summaryWidth = 300;
+  const summaryX = pageW - 40 - summaryWidth;
+  const categories: Array<{ label: string; min: number; color: [number, number, number] }> = [
+    { label: "Day", min: summary.dayMin, color: rgb(CATEGORY_COLOR.day) },
+    { label: "Night", min: summary.nightMin, color: rgb(CATEGORY_COLOR.night) },
+    { label: "Weekend", min: summary.weekendMin, color: rgb(CATEGORY_COLOR.weekend) },
+  ];
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Payroll Hours Summary", summaryX, 34);
+
   autoTable(doc, {
-    startY: 120,
+    startY: 42,
+    margin: { left: summaryX, right: 40 },
+    tableWidth: summaryWidth,
+    head: [["", "Category", "Actual Hours", "Rounded"]],
+    body: categories.map((c) => ["", c.label, formatHM(c.min), roundedPayrollHours(c.min)]),
+    foot: [["", "Total", formatHM(summary.workedMin), roundedPayrollHours(summary.workedMin)]],
+    styles: {
+      font: "helvetica",
+      fontSize: 9,
+      cellPadding: 4,
+      lineColor: [230, 230, 230],
+      lineWidth: 0.5,
+    },
+    headStyles: { fillColor: [245, 245, 247], textColor: 30, fontStyle: "bold" },
+    footStyles: { fillColor: [235, 235, 240], textColor: 20, fontStyle: "bold" },
+    columnStyles: {
+      0: { cellWidth: 18 },
+      2: { cellWidth: 80, halign: "right" },
+      3: { cellWidth: 60, halign: "right" },
+    },
+    didDrawCell: (data) => {
+      if (data.section !== "body" || data.column.index !== 0) return;
+      const row = categories[data.row.index];
+      if (!row) return;
+      const r = 4;
+      const cx = data.cell.x + data.cell.width / 2;
+      const cy = data.cell.y + data.cell.height / 2;
+      doc.setFillColor(row.color[0], row.color[1], row.color[2]);
+      doc.circle(cx, cy, r, "F");
+    },
+  });
+
+  // @ts-expect-error jspdf-autotable augments doc at runtime
+  const summaryBottom: number = doc.lastAutoTable?.finalY ?? 110;
+  autoTable(doc, {
+    startY: Math.max(120, summaryBottom + 24),
     head: [[
       "Date",
       "Scheduled",
