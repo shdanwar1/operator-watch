@@ -42,5 +42,10 @@ describe("render real attendance pdf", () => {
     ] as unknown as ShiftRow[];
     const summary = summarizeMonth(shifts, scheduled, new Date(2026, 9, 1));
     downloadAttendancePdf(summary, "Shad");
+    const { existsSync, statSync } = await import("node:fs");
+    if (!existsSync("/tmp/attendance-check.pdf")) {
+      throw new Error("PDF was not written — save() was not intercepted");
+    }
+    console.log("PDF size:", statSync("/tmp/attendance-check.pdf").size);
   });
 });
