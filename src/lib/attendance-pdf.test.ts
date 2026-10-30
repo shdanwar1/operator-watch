@@ -18,9 +18,12 @@ vi.mock("jspdf-autotable", () => ({
 }));
 vi.mock("jspdf", () => {
   class FakeDoc {
+    internal = { pageSize: { getWidth: () => 595.28 } };
     setFont() {}
     setFontSize() {}
     setTextColor() {}
+    setFillColor() {}
+    circle() {}
     text() {}
     save() {}
   }
@@ -107,29 +110,46 @@ describe("downloadAttendancePdf layout", () => {
     downloadAttendancePdf(sampleSummary(), "Shad");
   });
 
-  it("uses exactly the six required columns, in order", () => {
-    const head = autoTableCalls[0].head![0];
-    expect(head).toEqual(["Date", "Scheduled", "Check In", "Check Out", "Worked", "Notes"]);
+  it("draws exactly two tables: the top summary and the shift table", () => {
+    expect(autoTableCalls).toHaveLength(2);
+  });
+
+  it("summary sits in the header, right-aligned beside the title", () => {
+    const summary = autoTableCalls[0];
+    // startY above the main table's 120, and pinned to the right margin.
+    expect(summary).toMatchObject({ startY: 42 });
+    expect((summary as { margin?: { left?: number } }).margin!.left).toBeGreaterThan(200);
+  });
+
+  it("summary lists Day, Night, Weekend with actual and rounded hours", () => {
+    const summary = autoTableCalls[0];
+    expect(summary.head).toEqual([["", "Category", "Actual Hours", "Rounded"]]);
+    expect(summary.body).toEqual([
+      ["", "Day", "12h 44m", "12.5"],
+      ["", "Night", "0h 00m", "0.0"],
+      ["", "Weekend", "0h 00m", "0.0"],
+    ]);
+  });
+
+  it("summary footer shows the emphasised Total row", () => {
+    const summary = autoTableCalls[0];
+    expect(summary.foot).toEqual([["", "Total", "12h 44m", "12.5"]]);
+  });
+
+  it("summary is not repeated at the bottom of the report", () => {
+    const main = autoTableCalls[1];
+    expect(JSON.stringify(main.head)).not.toContain("Category");
+    expect(main.head).toEqual([["Date", "Scheduled", "Check In", "Check Out", "Worked", "Notes"]]);
   });
 
   it("shows the shift's own note and a dash when there is none", () => {
-    const body = autoTableCalls[0].body!;
+    const body = autoTableCalls[1].body!;
     expect(body[0][5]).toBe("—");
     expect(body[1][5]).toContain("deep clean");
     expect(body[1][5]).not.toBe(body[0][5]);
   });
 
   it("lets notes wrap instead of truncating them", () => {
-    expect(autoTableCalls[0].styles).toMatchObject({ overflow: "linebreak" });
-  });
-
-  it("summary shows only Total Worked Hours and Rounded Payroll Hours", () => {
-    const summary = autoTableCalls[1];
-    expect(summary.body).toEqual([
-      ["Total Worked Hours", "12h 44m"],
-      ["Rounded Payroll Hours", "12.5"],
-    ]);
-    const flat = JSON.stringify(summary.body);
-    expect(flat).not.toMatch(/Daytime|Night|Weekend/);
+    expect(autoTableCalls[1].styles).toMatchObject({ overflow: "linebreak" });
   });
 });
