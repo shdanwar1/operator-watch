@@ -1,7 +1,7 @@
 // Temporary harness: render the real attendance PDF and save it to /tmp
 // so we can inspect the actual output (columns, notes wrapping, summary).
 import { describe, it, vi } from "vitest";
-import { writeFileSync } from "node:fs";
+import { existsSync, statSync, writeFileSync } from "node:fs";
 import jsPDF from "jspdf";
 import { downloadAttendancePdf } from "@/lib/attendance-pdf";
 import { summarizeMonth } from "@/lib/attendance";
@@ -42,7 +42,6 @@ describe("render real attendance pdf", () => {
     ] as unknown as ShiftRow[];
     const summary = summarizeMonth(shifts, scheduled, new Date(2026, 9, 1));
     downloadAttendancePdf(summary, "Shad");
-    const { existsSync, statSync } = await import("node:fs");
     if (!existsSync("/tmp/attendance-check.pdf")) {
       throw new Error("PDF was not written — save() was not intercepted");
     }
