@@ -182,9 +182,9 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
       const row = summary.rows[data.row.index];
       if (!row) return;
       const buckets = payrollBuckets(row).slice(0, 2);
-      const r = 1.6;
+      const r = 2;
       // Centre on the first text line (cells may grow when notes wrap).
-      const cy = data.cell.y + data.cell.padding("top") + 4.2;
+      const cy = data.cell.y + data.cell.padding("top") + 3.4;
       let cx = data.cell.x + data.cell.padding("left") + r;
       if (buckets.length === 0) {
         doc.setDrawColor(160, 160, 166);
