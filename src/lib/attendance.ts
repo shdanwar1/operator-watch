@@ -22,6 +22,8 @@ export type AttendanceRow = {
   dayMin: number;
   nightMin: number;
   weekendMin: number;
+  /** Worked minutes on a Europe/Berlin calendar Sunday (subset of worked, not a category). */
+  sundayMin: number;
   primary: HourCategory;
   /** Every category with worked minutes, ordered Day → Night → Weekend. Display only. */
   categories: HourCategory[];
@@ -45,7 +47,40 @@ export type AttendanceSummary = {
   dayMin: number;
   nightMin: number;
   weekendMin: number;
+  /** Sub-line of worked time on Berlin Sundays; never added to the total. */
+  sundayMin: number;
 };
+
+const BERLIN_WEEKDAY = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Berlin", weekday: "short" });
+
+/**
+ * Worked minutes between start and end that fall on a calendar Sunday in
+ * Europe/Berlin, measured in real elapsed time (DST-safe). Optional period
+ * bounds clip the session first.
+ */
+export function sundayMinutes(start: Date, end: Date, periodStart?: Date, periodEnd?: Date): number {
+  let s = start.getTime();
+  let e = end.getTime();
+  if (periodStart) s = Math.max(s, periodStart.getTime());
+  if (periodEnd) e = Math.min(e, periodEnd.getTime());
+  const total = Math.max(0, Math.round((e - s) / 60000));
+  let n = 0;
+  for (let i = 0; i < total; i++) {
+    if (BERLIN_WEEKDAY.format(new Date(s + i * 60000 + 30000)) === "Sun") n++;
+  }
+  return n;
+}
+
+/**
+ * The payroll buckets a row counts toward, ordered Day → Night → Weekend.
+ * Derived from the same per-minute split that produces the summary totals,
+ * so the PDF dots and totals can never disagree. Empty = counted nowhere.
+ */
+export function payrollBuckets(row: Pick<AttendanceRow, "dayMin" | "nightMin" | "weekendMin">): HourCategory[] {
+  return (["day", "night", "weekend"] as HourCategory[]).filter(
+    (c) => (c === "day" ? row.dayMin : c === "night" ? row.nightMin : row.weekendMin) > 0,
+  );
+}
 
 function monthKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -127,9 +162,8 @@ export function buildAttendanceRows(
         nightMin: night,
         weekendMin: weekend,
         primary,
-        categories: (["day", "night", "weekend"] as HourCategory[]).filter(
-          (c) => (c === "day" ? day : c === "night" ? night : weekend) > 0,
-        ),
+        sundayMin: sundayMinutes(checkIn, checkOut),
+        categories: payrollBuckets({ dayMin: day, nightMin: night, weekendMin: weekend }),
         scheduledStart: sched?.start ?? null,
         scheduledEnd: sched?.end ?? null,
         scheduledMin,
@@ -151,8 +185,11 @@ export function summarizeMonth(
   const rows = buildAttendanceRows(shifts, scheduled).filter(
     (r) => monthKey(r.date) === key,
   );
-  let workedMin = 0, dayMin = 0, nightMin = 0, weekendMin = 0;
+  let workedMin = 0, dayMin = 0, nightMin = 0, weekendMin = 0, sundayMin = 0;
+  const periodStart = new Date(month.getFullYear(), month.getMonth(), 1);
+  const periodEnd = new Date(month.getFullYear(), month.getMonth() + 1, 1);
   for (const r of rows) {
+    sundayMin += sundayMinutes(r.checkIn, r.checkOut, periodStart, periodEnd);
     workedMin += r.workedMin;
     dayMin += r.dayMin;
     nightMin += r.nightMin;
@@ -168,6 +205,7 @@ export function summarizeMonth(
     dayMin,
     nightMin,
     weekendMin,
+    sundayMin,
   };
 }
 
