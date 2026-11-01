@@ -11,6 +11,7 @@ import {
   CATEGORY_COLOR,
   buildAttendanceRows,
   formatHM,
+  payrollBuckets,
   type AttendanceSummary,
 } from "@/lib/attendance";
 import type { ShiftRow, ScheduledShiftRow } from "@/lib/shifts.functions";
@@ -81,7 +82,10 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
     margin: { left: summaryX, right: 40 },
     tableWidth: summaryWidth,
     head: [["", "Category", "Actual Hours", "Rounded"]],
-    body: categories.map((c) => ["", c.label, formatHM(c.min), roundedPayrollHours(c.min)]),
+    body: [
+      ...categories.map((c) => ["", c.label, formatHM(c.min), roundedPayrollHours(c.min)]),
+      ["", "      of which Sunday", formatHM(summary.sundayMin), roundedPayrollHours(summary.sundayMin)],
+    ],
     foot: [["", "Total", formatHM(summary.workedMin), roundedPayrollHours(summary.workedMin)]],
     styles: {
       font: "helvetica",
@@ -92,12 +96,31 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
     },
     headStyles: { fillColor: [245, 245, 247], textColor: 30, fontStyle: "bold" },
     footStyles: { fillColor: [235, 235, 240], textColor: 20, fontStyle: "bold" },
+    didParseCell: (data) => {
+      // Sunday sub-line: muted, smaller, no dot.
+      if (data.section === "body" && data.row.index === categories.length) {
+        data.cell.styles.textColor = [130, 130, 138];
+        data.cell.styles.fontSize = 8;
+      }
+    },
     columnStyles: {
       0: { cellWidth: 18 },
       2: { cellWidth: 80, halign: "right" },
       3: { cellWidth: 60, halign: "right" },
     },
     didDrawCell: (data) => {
+      if (data.section === "body" && data.column.index === 1 && data.row.index === categories.length) {
+        // Small hook arrow (↳) drawn as lines; core PDF fonts lack the glyph.
+        const x = data.cell.x + data.cell.padding("left") + 2;
+        const y = data.cell.y + data.cell.height / 2;
+        doc.setDrawColor(150, 150, 156);
+        doc.setLineWidth(0.6);
+        doc.line(x, y - 3, x, y);
+        doc.line(x, y, x + 5, y);
+        doc.line(x + 3.5, y - 1.5, x + 5, y);
+        doc.line(x + 3.5, y + 1.5, x + 5, y);
+        return;
+      }
       if (data.column.index !== 0) return;
       if (data.section !== "body" && data.section !== "foot") return;
       const row =
@@ -126,7 +149,8 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
       "Notes",
     ]],
     body: summary.rows.map((r) => [
-      fmtDate(r.date),
+      // Leading spaces leave room for the shift-type dot(s) drawn in didDrawCell.
+      `${payrollBuckets(r).length > 1 ? "        " : "     "}${fmtDate(r.date)}`,
       r.scheduledStart && r.scheduledEnd
         ? `${fmtTime(r.scheduledStart)}-${fmtTime(r.scheduledEnd)}`
         : "Unscheduled",
@@ -146,12 +170,34 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
     headStyles: { fillColor: [245, 245, 247], textColor: 30, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [252, 252, 253] },
     columnStyles: {
-      0: { cellWidth: 58 },
+      0: { cellWidth: 70 },
       1: { cellWidth: 108 },
       2: { cellWidth: 56 },
       3: { cellWidth: 56 },
       4: { cellWidth: 62, halign: "right" },
       5: { cellWidth: "auto" },
+    },
+    didDrawCell: (data) => {
+      if (data.section !== "body" || data.column.index !== 0) return;
+      const row = summary.rows[data.row.index];
+      if (!row) return;
+      const buckets = payrollBuckets(row).slice(0, 2);
+      const r = 2;
+      // Centre on the first text line (cells may grow when notes wrap).
+      const cy = data.cell.y + data.cell.padding("top") + 3.4;
+      let cx = data.cell.x + data.cell.padding("left") + r;
+      if (buckets.length === 0) {
+        doc.setDrawColor(160, 160, 166);
+        doc.setLineWidth(0.6);
+        doc.circle(cx, cy, r, "S");
+        return;
+      }
+      for (const b of buckets) {
+        const c = rgb(CATEGORY_COLOR[b]);
+        doc.setFillColor(c[0], c[1], c[2]);
+        doc.circle(cx, cy, r, "F");
+        cx += r * 2 + 2;
+      }
     },
   });
 
