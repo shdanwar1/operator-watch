@@ -30,6 +30,9 @@ vi.mock("jspdf", () => {
     setFontSize() {}
     setTextColor() {}
     setFillColor() {}
+    setDrawColor() {}
+    setLineWidth() {}
+    line() {}
     circle() {}
     text() {}
     save() {}
@@ -80,6 +83,7 @@ function sampleSummary(): AttendanceSummary {
     dayMin: 435,
     nightMin: 0,
     weekendMin: 0,
+    sundayMin: 0,
     primary: "day" as const,
     categories: ["day" as const],
     scheduledStart: new Date(2026, 9, 2, 14, 30),
@@ -108,6 +112,7 @@ function sampleSummary(): AttendanceSummary {
     dayMin: 12 * 60 + 44,
     nightMin: 0,
     weekendMin: 0,
+    sundayMin: 0,
   };
 }
 
@@ -135,6 +140,7 @@ describe("downloadAttendancePdf layout", () => {
       ["", "Day", "12h 44m", "12.5"],
       ["", "Night", "0h 00m", "0.0"],
       ["", "Weekend", "0h 00m", "0.0"],
+      ["", "      of which Sunday", "0h 00m", "0.0"],
     ]);
   });
 
@@ -151,6 +157,7 @@ describe("downloadAttendancePdf layout", () => {
 
   it("shows the shift's own note and a dash when there is none", () => {
     const body = autoTableCalls[1].body!;
+    expect(String(body[0][0]).trim()).not.toBe("");
     expect(body[0][5]).toBe("—");
     expect(body[1][5]).toContain("deep clean");
     expect(body[1][5]).not.toBe(body[0][5]);

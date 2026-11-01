@@ -84,7 +84,7 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
     head: [["", "Category", "Actual Hours", "Rounded"]],
     body: [
       ...categories.map((c) => ["", c.label, formatHM(c.min), roundedPayrollHours(c.min)]),
-      ["", "    \u2192 of which Sunday", formatHM(summary.sundayMin), roundedPayrollHours(summary.sundayMin)],
+      ["", "      of which Sunday", formatHM(summary.sundayMin), roundedPayrollHours(summary.sundayMin)],
     ],
     foot: [["", "Total", formatHM(summary.workedMin), roundedPayrollHours(summary.workedMin)]],
     styles: {
@@ -109,6 +109,18 @@ export function downloadAttendancePdf(summary: AttendanceSummary, operatorName: 
       3: { cellWidth: 60, halign: "right" },
     },
     didDrawCell: (data) => {
+      if (data.section === "body" && data.column.index === 1 && data.row.index === categories.length) {
+        // Small hook arrow (↳) drawn as lines; core PDF fonts lack the glyph.
+        const x = data.cell.x + data.cell.padding("left") + 2;
+        const y = data.cell.y + data.cell.height / 2;
+        doc.setDrawColor(150, 150, 156);
+        doc.setLineWidth(0.6);
+        doc.line(x, y - 3, x, y);
+        doc.line(x, y, x + 5, y);
+        doc.line(x + 3.5, y - 1.5, x + 5, y);
+        doc.line(x + 3.5, y + 1.5, x + 5, y);
+        return;
+      }
       if (data.column.index !== 0) return;
       if (data.section !== "body" && data.section !== "foot") return;
       const row =
