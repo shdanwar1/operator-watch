@@ -30,7 +30,7 @@ describe("dots share the totals classification", () => {
   const shifts = [
     shift("a", "2026-10-02T05:30:00Z", "2026-10-02T11:00:00Z"), // Fri day
     shift("b", "2026-10-04T16:00:00Z", "2026-10-04T21:00:00Z"), // Sun 18–23 weekend
-    shift("c", "2026-10-06T18:00:00Z", "2026-10-06T23:00:00Z"), // Tue 20:00–01:00 day+night
+    shift("c", "2026-10-06T18:00:00Z", "2026-10-07T01:30:00Z"), // Tue evening into Wed small hours: day+night
     shift("d", "2026-10-14T10:00:00Z", "2026-10-14T11:30:00Z", null), // unscheduled
   ];
   const summary = summarizeMonth(shifts, [], new Date(2026, 9, 1));
