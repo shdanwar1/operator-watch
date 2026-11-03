@@ -269,6 +269,8 @@ export async function ensureChecklistsForShift(shiftId: string): Promise<ShiftCh
   if (!shift) return null;
   if (isShiftChecklists(shift.checklists)) return shift.checklists;
   const [config, classes] = await Promise.all([readChecklistConfig(), classesForShift(shift)]);
+  // A shift with no classes is a plain unscheduled shift: no checklists at all.
+  if (classes.length === 0) return null;
   const snapshot = ensureShiftChecklists(null, config, classes);
   return updateChecklists(shiftId, (latest) =>
     isShiftChecklists(latest.checklists) ? latest.checklists : snapshot,
@@ -288,6 +290,7 @@ async function syncClassesForShift(
     return isShiftChecklists(shift.checklists) ? shift.checklists : null;
   }
   const [config, classes] = await Promise.all([readChecklistConfig(), classesForShift(shift)]);
+  if (!isShiftChecklists(shift.checklists) && classes.length === 0) return null;
   const current = ensureShiftChecklists(shift.checklists, config, classes);
   const next = syncClassChecklists(current, config, classes);
   if (isShiftChecklists(shift.checklists) && JSON.stringify(next) === JSON.stringify(current)) {
