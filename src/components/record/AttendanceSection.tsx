@@ -128,6 +128,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
   const [teachers, setTeachers] = useState<DmcOption[]>(cachedEarnings?.teachers ?? []);
   const [classDir, setClassDir] = useState<DmcOption[]>(cachedEarnings?.classDir ?? []);
   const [loading, setLoading] = useState(!cachedEarnings);
+  const [loadError, setLoadError] = useState(false);
   const [editing, setEditing] = useState<Shift | null>(null);
   const [addingPast, setAddingPast] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -155,9 +156,14 @@ export function AttendanceSection({ username }: { username: string | null }) {
           teachers: dmc.instructors,
           classDir: dmc.classes,
         });
+      setLoadError(false);
+      hasLoadedOnce.current = true;
+    } catch {
+      // Only surface a blocking error when there is nothing to show yet;
+      // later background refreshes keep the visible data.
+      if (!hasLoadedOnce.current) setLoadError(true);
     } finally {
       setLoading(false);
-      hasLoadedOnce.current = true;
     }
   }
 
@@ -229,6 +235,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
   }
 
   async function deleteShift(id: string) {
+    if (!window.confirm("Delete this shift from your records? This can't be undone.")) return;
     try {
       await deleteShiftServer({ data: { id } });
       toast.success("Deleted");
@@ -307,6 +314,14 @@ export function AttendanceSection({ username }: { username: string | null }) {
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : loadError ? (
+        <div className="rounded-[22px] border border-border/60 p-6 text-center">
+          <p className="text-sm font-medium">Couldn't load your records.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Check your connection and try again.</p>
+          <Button size="sm" className="mt-4" onClick={() => load()}>
+            Retry
+          </Button>
+        </div>
       ) : (
         <div className="space-y-5">
           <AttendanceSummaryCard summary={summary} />
