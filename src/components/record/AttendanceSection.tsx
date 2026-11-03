@@ -235,6 +235,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
   }
 
   async function deleteShift(id: string) {
+    if (!window.confirm("Delete this shift from your records? This can't be undone.")) return;
     try {
       await deleteShiftServer({ data: { id } });
       toast.success("Deleted");
@@ -313,6 +314,14 @@ export function AttendanceSection({ username }: { username: string | null }) {
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : loadError ? (
+        <div className="rounded-[22px] border border-border/60 p-6 text-center">
+          <p className="text-sm font-medium">Couldn't load your records.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Check your connection and try again.</p>
+          <Button size="sm" className="mt-4" onClick={() => load()}>
+            Retry
+          </Button>
+        </div>
       ) : (
         <div className="space-y-5">
           <AttendanceSummaryCard summary={summary} />
