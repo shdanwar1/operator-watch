@@ -128,6 +128,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
   const [teachers, setTeachers] = useState<DmcOption[]>(cachedEarnings?.teachers ?? []);
   const [classDir, setClassDir] = useState<DmcOption[]>(cachedEarnings?.classDir ?? []);
   const [loading, setLoading] = useState(!cachedEarnings);
+  const [loadError, setLoadError] = useState(false);
   const [editing, setEditing] = useState<Shift | null>(null);
   const [addingPast, setAddingPast] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -155,9 +156,14 @@ export function AttendanceSection({ username }: { username: string | null }) {
           teachers: dmc.instructors,
           classDir: dmc.classes,
         });
+      setLoadError(false);
+      hasLoadedOnce.current = true;
+    } catch {
+      // Only surface a blocking error when there is nothing to show yet;
+      // later background refreshes keep the visible data.
+      if (!hasLoadedOnce.current) setLoadError(true);
     } finally {
       setLoading(false);
-      hasLoadedOnce.current = true;
     }
   }
 
