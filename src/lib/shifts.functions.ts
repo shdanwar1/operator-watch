@@ -606,7 +606,9 @@ export const createScheduledShift = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { username, isAdmin } = await requireGate();
     // Single assignment boundary: authorization + existence + canonical spelling.
-    const assigned = await resolveAssignmentValue(data.assigned_operator, username, isAdmin);
+    // Operators adding a shift from their own calendar assign it to themselves.
+    const requested = data.assigned_operator ?? (isAdmin ? null : username);
+    const assigned = await resolveAssignmentValue(requested, username, isAdmin);
     const { insertOne } = await import("@/domain/shift-repository.server");
     const row = await insertOne({
       ...data,

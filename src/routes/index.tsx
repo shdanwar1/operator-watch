@@ -1255,6 +1255,8 @@ function ActiveShiftPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classKey]);
   const endComplete = checklists ? isEndChecklistComplete(checklists) : true;
+  // Unscheduled shifts without classes carry no checklist snapshot at all.
+  const showChecklists = !!checklists || checklistsLoading;
 
   const times = scheduledShift ? instanceTimes(scheduledShift, checkInAt) : null;
   const lateMin = minutesLate(times?.startAt ?? null, checkInAt);
@@ -1418,12 +1420,14 @@ function ActiveShiftPanel({
         </CardContent>
       </Card>
 
+      {showChecklists && (
       <ChecklistPanel
         title="Start Shift Checklist"
         items={checklists?.start.items ?? []}
         loading={checklistsLoading && !checklists}
         onToggleItem={(itemId, completed) => toggleItem({ section: "start" }, itemId, completed)}
       />
+      )}
 
       {hasImported ? (
         <ClassScheduleCard
@@ -1529,12 +1533,14 @@ function ActiveShiftPanel({
         </Card>
       )}
 
+      {showChecklists && (
       <ChecklistPanel
         title="End Shift Checklist"
         items={checklists?.end.items ?? []}
         loading={checklistsLoading && !checklists}
         onToggleItem={(itemId, completed) => toggleItem({ section: "end" }, itemId, completed)}
       />
+      )}
 
       {(canAuto || autoActive) && shiftEnd && (
         <Card className="max-lg:glass max-lg:rounded-[22px]">
