@@ -19,15 +19,17 @@ export function ChecklistItem({
   return (
     <label
       className={cn(
-        "flex items-start gap-3 rounded-lg px-2 py-1.5 text-sm transition-colors",
-        readOnly ? "cursor-default opacity-70" : "cursor-pointer hover:bg-muted/40",
+        "flex min-h-[44px] touch-manipulation select-none items-start gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors sm:px-2.5 sm:py-2",
+        readOnly
+          ? "cursor-default opacity-70"
+          : "cursor-pointer hover:bg-muted/40 active:bg-muted/60",
       )}
     >
       <Checkbox
         checked={item.completed}
         disabled={readOnly}
         onCheckedChange={(v) => onToggle(v === true)}
-        className="mt-0.5 h-[18px] w-[18px] shrink-0"
+        className="mt-px h-5 w-5 shrink-0"
         aria-label={item.text}
       />
       <span
