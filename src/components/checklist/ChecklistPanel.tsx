@@ -36,7 +36,10 @@ export function ChecklistPanel({
         setOpen((v) => !v);
       }}
       aria-expanded={open}
-      className={cn("flex w-full items-center gap-2 text-left", variant === "inline" && "text-xs")}
+      className={cn(
+        "flex w-full touch-manipulation items-center gap-2 text-left transition-opacity active:opacity-70",
+        variant === "inline" ? "min-h-[40px] text-xs" : "min-h-[44px]",
+      )}
     >
       {variant === "card" ? (
         <ListChecks className="h-4 w-4 shrink-0 text-muted-foreground" />
