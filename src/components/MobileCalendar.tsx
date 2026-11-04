@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, ChevronLeft, ChevronRight, ChevronRight as Chev } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ChevronRight as Chev, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { classifyMinute, type HourCategory } from "@/lib/attendance";
 import { listMyShiftClasses, type CalendarClassRow } from "@/lib/gcal.functions";
@@ -61,10 +61,13 @@ export function MobileCalendar(props: {
   instancesOn: (day: Date) => Instance[];
   loggedOn: (day: Date) => ShiftRow[];
   onOpenShift: (s: ScheduledShiftRow) => void;
+  onAddShift: (day: Date) => void;
 }) {
   const { weeks, monthStart, today, now, selectedKey } = props;
   const selectedDay = weeks.flat().find((d) => key(d) === selectedKey) ?? null;
   const selectedInsts = selectedDay ? props.instancesOn(selectedDay) : [];
+  // Same rule as desktop: no adding shifts to past days.
+  const canAdd = !!selectedDay && selectedDay.getTime() >= today.getTime();
 
   return (
     <div className="space-y-5">
@@ -157,19 +160,41 @@ export function MobileCalendar(props: {
       {selectedDay && (
         <div className="space-y-3">
           {selectedInsts.length === 0 ? (
-            <div className="rounded-[22px] border border-border bg-card p-5">
-              <div className="text-lg font-semibold">{fmtDay(selectedDay)}</div>
-              <div className="mt-1 text-sm text-muted-foreground">No shift</div>
+            <div className="flex items-center gap-3 rounded-[22px] border border-border bg-card p-5">
+              <div className="flex-1">
+                <div className="text-lg font-semibold">{fmtDay(selectedDay)}</div>
+                <div className="mt-1 text-sm text-muted-foreground">No shift</div>
+              </div>
+              {canAdd && (
+                <button
+                  type="button"
+                  onClick={() => props.onAddShift(selectedDay)}
+                  className="inline-flex h-11 shrink-0 items-center gap-1 rounded-full border border-border px-4 text-sm font-medium active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Plus className="h-4 w-4" /> Add shift
+                </button>
+              )}
             </div>
           ) : (
-            selectedInsts.map((inst, i) => (
-              <ShiftDetail
-                key={`${inst.shift.id}-${i}`}
-                inst={inst}
-                status={statusOf(inst, now)}
-                onOpen={() => props.onOpenShift(inst.shift)}
-              />
-            ))
+            <>
+              {selectedInsts.map((inst, i) => (
+                <ShiftDetail
+                  key={`${inst.shift.id}-${i}`}
+                  inst={inst}
+                  status={statusOf(inst, now)}
+                  onOpen={() => props.onOpenShift(inst.shift)}
+                />
+              ))}
+              {canAdd && (
+                <button
+                  type="button"
+                  onClick={() => props.onAddShift(selectedDay)}
+                  className="flex h-11 w-full items-center justify-center gap-1 rounded-[22px] border border-dashed border-border text-sm text-muted-foreground active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Plus className="h-4 w-4" /> Add another shift
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
