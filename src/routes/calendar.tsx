@@ -473,6 +473,7 @@ function CalendarPage() {
             instancesOn={(day) => instancesFor(day, scheduled, overrides)}
             loggedOn={(day) => loggedByDay.get(dateKey(day)) ?? []}
             onOpenShift={(s) => setOverview(s)}
+            onAddShift={(day) => setEditor({ mode: "create", date: day })}
           />
         )}
       </div>
@@ -697,9 +698,11 @@ function ShiftEditorDialog({
     year: "numeric",
   });
 
+  const overnight = !!startTime && !!endTime && endTime < startTime;
+
   function submit() {
     if (!startTime || !endTime) return toast.error("Start and end times are required");
-    if (endTime <= startTime) return toast.error("End must be after start");
+    if (endTime === startTime) return toast.error("Start and end can't be the same time");
     onSave({ start_time: startTime, end_time: endTime, label: label.trim() });
   }
 
@@ -722,6 +725,9 @@ function ShiftEditorDialog({
               <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
             </div>
           </div>
+          {overnight && (
+            <p className="text-xs text-muted-foreground">Ends next day (+1) — overnight shift</p>
+          )}
 
           <div className="space-y-2">
             <Label>Label (optional)</Label>
