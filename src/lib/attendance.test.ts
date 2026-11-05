@@ -53,3 +53,12 @@ describe("dots share the totals classification", () => {
     expect(buildAttendanceRows(shifts, []).reduce((a, r) => a + r.workedMin, 0)).toBe(summary.workedMin);
   });
 });
+
+import { shiftTypeCategories } from "@/lib/attendance";
+describe("dashboard shift-type dots", () => {
+  const at = (y: number, m: number, d: number, h: number, mi = 0) => new Date(y, m - 1, d, h, mi);
+  it("Fri 19:00–21:30 → Day", () => expect(shiftTypeCategories(at(2026, 11, 6, 19), at(2026, 11, 6, 21, 30))).toEqual(["day"]));
+  it("Mon 21:00–Tue 02:00 → Night", () => expect(shiftTypeCategories(at(2026, 11, 9, 21), at(2026, 11, 10, 2))).toEqual(["night"]));
+  it("Fri 23:30–Sat 02:00 → Weekend + Night", () => expect(shiftTypeCategories(at(2026, 11, 6, 23, 30), at(2026, 11, 7, 2))).toEqual(["weekend", "night"]));
+  it("Sat 10:00–14:00 → Weekend", () => expect(shiftTypeCategories(at(2026, 11, 7, 10), at(2026, 11, 7, 14))).toEqual(["weekend"]));
+});
