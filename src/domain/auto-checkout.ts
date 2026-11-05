@@ -55,6 +55,8 @@ export function scheduledEndAt(s: {
  * "HH:MM" display strings, so they are not used for eligibility.
  */
 export function endChecklistComplete(checklists: unknown): boolean {
+  // No snapshot = class-free unscheduled shift: nothing to complete.
+  if (checklists == null) return true;
   if (!isShiftChecklists(checklists)) return false;
   const items = checklists.end.items;
   return items.length > 0 && items.every((i) => i.completed === true);

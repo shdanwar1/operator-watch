@@ -48,3 +48,10 @@ describe("auto check-out", () => {
     expect(scheduledEndAt({ specific_date: "2026-10-25", start_time: "18:30", end_time: "22:30" }).toISOString()).toBe("2026-10-25T21:30:00.000Z");
   });
 });
+
+import { endChecklistComplete as _ecc } from "./auto-checkout";
+describe("class-free shift", () => {
+  it("no checklists counts as complete", () => {
+    expect(_ecc(null)).toBe(true);
+  });
+});
