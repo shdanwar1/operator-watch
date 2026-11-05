@@ -7,7 +7,7 @@
 import { isShiftChecklists } from "./checklists";
 
 /** Catch-up window after the scheduled end, so a delayed timer tick is not missed. */
-export const AUTO_CHECKOUT_WINDOW_MS = 5 * 60 * 1000;
+export const AUTO_CHECKOUT_WINDOW_MS = 60 * 60 * 1000;
 
 /** Convert a Berlin wall-clock date + time to a UTC instant (DST-safe). */
 export function berlinToUtc(date: string, time: string): Date {

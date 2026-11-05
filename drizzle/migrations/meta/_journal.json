@@ -71,6 +71,13 @@
       "when": 1793172474681,
       "tag": "0009_bound_automation_health_payloads",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793895662925,
+      "tag": "0010_wake_dispatcher_for_auto_checkout",
+      "breakpoints": true
     }
   ]
 }

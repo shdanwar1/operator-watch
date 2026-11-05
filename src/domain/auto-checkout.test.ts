@@ -30,7 +30,7 @@ describe("auto check-out", () => {
     expect(at("2026-10-05T20:29:00Z")).toBeNull();
   });
   it("old shift after window is ignored", () => {
-    expect(at("2026-10-05T20:40:00Z")).toBeNull();
+    expect(at("2026-10-05T21:40:00Z")).toBeNull();
   });
   it("incomplete checklist → stays open", () => {
     expect(at("2026-10-05T20:30:00Z", snap(null, false))).toBeNull();
