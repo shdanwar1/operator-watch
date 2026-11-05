@@ -94,6 +94,24 @@ export function classifyMinute(d: Date): HourCategory {
   return "day";
 }
 
+/**
+ * Dashboard shift-type dots for a scheduled span. Any 00:00–06:00 time → Night;
+ * any Sat/Sun time → Weekend; Night/Weekend win over Day; Weekend+Night shows both.
+ */
+export function shiftTypeCategories(start: Date, end: Date): HourCategory[] {
+  let night = false, weekend = false;
+  for (let t = start.getTime(); t < end.getTime(); t += 60_000) {
+    const d = new Date(t + 30_000);
+    if (d.getHours() < 6) night = true;
+    const dow = d.getDay();
+    if (dow === 0 || dow === 6) weekend = true;
+  }
+  const out: HourCategory[] = [];
+  if (weekend) out.push("weekend");
+  if (night) out.push("night");
+  return out.length ? out : ["day"];
+}
+
 function classifyRange(startISO: string, endISO: string) {
   const start = new Date(startISO).getTime();
   const end = new Date(endISO).getTime();
