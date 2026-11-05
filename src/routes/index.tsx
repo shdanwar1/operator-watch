@@ -1340,6 +1340,11 @@ function ActiveShiftPanel({
   const [autoOn, setAutoOn] = useState<boolean>(
     !!(shift as { auto_checkout_at_end?: boolean }).auto_checkout_at_end,
   );
+  const serverAuto = !!(shift as { auto_checkout_at_end?: boolean }).auto_checkout_at_end;
+  // Follow the saved choice when it was changed on another device.
+  useEffect(() => {
+    setAutoOn(serverAuto);
+  }, [serverAuto]);
   const [autoBusy, setAutoBusy] = useState(false);
   const autoFired = useRef(false);
   const canAuto = endComplete && !!shiftEnd && now.getTime() < shiftEnd.getTime();
