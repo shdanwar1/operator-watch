@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, ChevronLeft, ChevronRight, ChevronRight as Chev, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { classifyMinute, type HourCategory } from "@/lib/attendance";
+import { shiftTypeCategories, type HourCategory } from "@/lib/attendance";
 import { listMyShiftClasses, type CalendarClassRow } from "@/lib/gcal.functions";
 import type { ScheduledShiftRow, ShiftRow } from "@/lib/shifts.functions";
 
@@ -123,7 +123,7 @@ export function MobileCalendar(props: {
             const selected = k === selectedKey;
             const insts = props.instancesOn(day);
             const worked = props.loggedOn(day).length > 0;
-            const cats = Array.from(new Set(insts.map((i) => classifyMinute(i.startAt))));
+            const cats = Array.from(new Set(insts.flatMap((i) => shiftTypeCategories(i.startAt, endOf(i)))));
             return (
               <button
                 key={k}
@@ -234,7 +234,7 @@ function ShiftDetail({
     };
   }, [fetchClasses, inst.shift.id]);
 
-  const cat = classifyMinute(inst.startAt);
+  const cats = shiftTypeCategories(inst.startAt, endOf(inst));
   const label = LABEL[status];
   const editable = status !== "completed";
 
@@ -246,7 +246,11 @@ function ShiftDetail({
       )}
     >
       <div className="flex items-center gap-2.5">
-        <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", DOT[cat])} />
+        <span className="flex shrink-0 gap-1">
+          {cats.map((c) => (
+            <span key={c} className={cn("h-2.5 w-2.5 rounded-full", DOT[c])} />
+          ))}
+        </span>
         <span className="flex-1 text-lg font-semibold">{fmtDay(inst.startAt)}</span>
         {label && (
           <span
