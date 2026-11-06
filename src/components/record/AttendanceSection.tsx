@@ -540,7 +540,7 @@ function ShiftDetailPanel({
           size="icon"
           onClick={onEdit}
           aria-label="Edit shift"
-          className="h-8 w-8 rounded-md"
+          className="h-8 w-8 rounded-md max-md:h-11 max-md:w-11"
         >
           <Pencil className="h-3.5 w-3.5" />
         </Button>
@@ -549,7 +549,7 @@ function ShiftDetailPanel({
           size="icon"
           onClick={onDelete}
           aria-label="Delete shift"
-          className="h-8 w-8 rounded-md"
+          className="h-8 w-8 rounded-md max-md:h-11 max-md:w-11"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
