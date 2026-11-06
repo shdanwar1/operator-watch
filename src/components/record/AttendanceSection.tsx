@@ -540,7 +540,7 @@ function ShiftDetailPanel({
           size="icon"
           onClick={onEdit}
           aria-label="Edit shift"
-          className="h-8 w-8 rounded-md"
+          className="h-8 w-8 rounded-md max-md:h-11 max-md:w-11"
         >
           <Pencil className="h-3.5 w-3.5" />
         </Button>
@@ -549,7 +549,7 @@ function ShiftDetailPanel({
           size="icon"
           onClick={onDelete}
           aria-label="Delete shift"
-          className="h-8 w-8 rounded-md"
+          className="h-8 w-8 rounded-md max-md:h-11 max-md:w-11"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
@@ -659,16 +659,16 @@ function AttendanceMobileRow({
           : "text-muted-foreground";
   return (
     <li className="border-t border-border">
-      <div className="grid grid-cols-[24px_62px_1fr_auto] items-center gap-2.5 px-4 py-3">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={expanded}
-          aria-label="Toggle shift details"
-          className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-        >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-label="Toggle shift details"
+        className="grid min-h-[56px] w-full touch-manipulation select-none grid-cols-[24px_62px_1fr_auto] items-center gap-2.5 px-4 py-3 text-left transition-colors active:bg-muted/60"
+      >
+        <span className="flex h-6 w-6 items-center justify-center text-muted-foreground">
           <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
-        </button>
+        </span>
         <div className="text-[10px] font-semibold tabular-nums">{fmtDate(row.date)}</div>
         <div className="min-w-0">
           <div className="text-[10px] tabular-nums text-muted-foreground">
@@ -692,7 +692,7 @@ function AttendanceMobileRow({
             {row.diffMin != null ? formatDiff(row.diffMin) : "—"}
           </div>
         </div>
-      </div>
+      </button>
       {expanded && (
         <div className="bg-muted/20">
           <ShiftDetailPanel row={row} onEdit={onEdit} onDelete={onDelete} />
