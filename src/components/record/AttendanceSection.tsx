@@ -692,7 +692,7 @@ function AttendanceMobileRow({
             {row.diffMin != null ? formatDiff(row.diffMin) : "—"}
           </div>
         </div>
-      </div>
+      </button>
       {expanded && (
         <div className="bg-muted/20">
           <ShiftDetailPanel row={row} onEdit={onEdit} onDelete={onDelete} />
