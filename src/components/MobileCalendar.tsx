@@ -76,7 +76,7 @@ export function MobileCalendar(props: {
           type="button"
           onClick={props.onPrev}
           aria-label="Previous month"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-11 w-11 touch-manipulation select-none items-center justify-center rounded-full border border-border active:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -84,7 +84,7 @@ export function MobileCalendar(props: {
         <button
           type="button"
           onClick={props.onToday}
-          className="h-10 rounded-full border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-11 touch-manipulation select-none rounded-full border border-border px-4 text-sm active:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Today
         </button>
@@ -92,7 +92,7 @@ export function MobileCalendar(props: {
           type="button"
           onClick={props.onNext}
           aria-label="Next month"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-11 w-11 touch-manipulation select-none items-center justify-center rounded-full border border-border active:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
