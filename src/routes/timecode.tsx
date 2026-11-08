@@ -280,7 +280,7 @@ function TimecodePage() {
               disabled={!running || isExpired}
               onClick={() => mark(k.kind, k.note)}
               className={cn(
-                "flex h-14 items-center justify-center rounded-md text-sm font-semibold transition active:scale-95 disabled:opacity-40",
+                "flex h-14 min-w-0 touch-manipulation select-none items-center justify-center rounded-md px-1 text-[11px] font-semibold leading-tight transition active:scale-95 active:brightness-90 disabled:opacity-40 sm:text-sm",
                 KIND_BUTTON[k.kind],
               )}
             >
