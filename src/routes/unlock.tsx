@@ -417,7 +417,7 @@ function PinStage(props: {
           variant="ghost"
           size="sm"
           onClick={onBack}
-          className="text-muted-foreground -ml-2"
+          className="text-muted-foreground -ml-2 min-h-[44px]"
         >
           <ChevronLeft className="h-4 w-4 mr-1" /> Back
         </Button>
@@ -437,7 +437,10 @@ function PinStage(props: {
         <p className="text-sm text-muted-foreground">{roleLabel(profile)}</p>
       </div>
 
-      <div className="mt-6 flex justify-center gap-3">
+      <div
+        key={error ? "err" : "ok"}
+        className={`mt-6 flex justify-center gap-3 ${error ? "animate-in slide-in-from-left-2 duration-300" : ""}`}
+      >
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
@@ -461,13 +464,13 @@ function PinStage(props: {
             {d}
           </PinKey>
         ))}
-        <PinKey onClick={backspace} disabled={loading} aria-label="Delete">
-          <Delete className="h-5 w-5" />
-        </PinKey>
+        <div />
         <PinKey onClick={() => press("0")} disabled={loading}>
           0
         </PinKey>
-        <div />
+        <PinKey onClick={backspace} disabled={loading} aria-label="Delete">
+          <Delete className="h-5 w-5" />
+        </PinKey>
       </div>
     </Card>
   );
@@ -484,7 +487,7 @@ function PinKey({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex h-14 items-center justify-center rounded-full border border-border/60 bg-background/40 text-xl font-medium transition-all hover:border-primary/60 hover:bg-background/70 active:scale-95 disabled:opacity-50"
+      className="flex h-14 touch-manipulation select-none items-center justify-center rounded-full border border-border/60 bg-background/40 text-xl font-medium transition-all hover:border-primary/60 hover:bg-background/70 active:scale-95 active:border-primary/80 active:bg-primary/20 disabled:opacity-50"
       {...rest}
     >
       {children}
