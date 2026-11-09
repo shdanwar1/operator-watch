@@ -74,6 +74,10 @@ export async function generateTimetableShifts(notBefore?: string): Promise<Gener
   const frozen = (r: { id: string; status: string }) => worked.has(r.id) || r.status === "completed";
   const frozenRows = ttRows.filter(frozen);
   const frozenIds = new Set(frozenRows.map((r) => r.id));
+  // Yesterday's overnight shifts own after-midnight classes dated today; never replan or orphan them.
+  const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
+  const prevRows = await shiftRepo.listByIdentityPrefix("tt:", yesterday, yesterday);
+  for (const r of prevRows) frozenIds.add(r.id);
   const excludedClassUids = new Set<string>();
   if (frozenIds.size) {
     const { data, error } = await db.from("calendar_classes").select("uid").in("scheduled_shift_id", [...frozenIds]);
@@ -156,7 +160,7 @@ export async function generateTimetableShifts(notBefore?: string): Promise<Gener
 
   // Remove generated future class rows no longer planned (e.g. operator moved).
   const want = new Set(classRows.map((r) => `${r.operator}|${r.uid}`));
-  const frozenShiftIds = new Set(ttRows.filter(frozen).map((r) => r.id));
+  const frozenShiftIds = frozenIds;
   const orphan = (kept ?? [])
     .filter((k) => !want.has(`${k.operator}|${k.uid}`))
     .map((k) => k.id as string);
