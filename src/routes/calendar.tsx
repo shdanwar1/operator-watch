@@ -34,7 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, Trash2, Save, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Save, RefreshCw, Loader2 } from "lucide-react";
 import { ShiftOverviewDialog } from "@/components/ShiftOverviewDialog";
 import { toast } from "sonner";
 import { MobileCalendar } from "@/components/MobileCalendar";
@@ -155,6 +155,8 @@ function CalendarPage() {
   const [loading, setLoading] = useState(!cachedCalendar);
   const [monthOffset, setMonthOffset] = useState(0);
   const [editor, setEditor] = useState<EditorState | null>(null);
+  const [saving, setSaving] = useState(false);
+  const saveInFlight = useRef(false);
   // Clicking an existing shift opens the read-only overview first.
   const [overview, setOverview] = useState<ScheduledShiftRow | null>(null);
   const [icsUrl, setIcsUrl] = useState<string | null>(null);
@@ -371,7 +373,9 @@ function CalendarPage() {
   const monthLabel = monthStart.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
   async function handleSave(payload: { start_time: string; end_time: string; label: string }) {
-    if (!editor) return;
+    if (!editor || saveInFlight.current) return;
+    saveInFlight.current = true;
+    setSaving(true);
     try {
       if (editor.mode === "create") {
         await createSched({
@@ -400,6 +404,9 @@ function CalendarPage() {
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      saveInFlight.current = false;
+      setSaving(false);
     }
   }
 
@@ -652,7 +659,10 @@ function CalendarPage() {
 
       <ShiftEditorDialog
         state={editor}
-        onClose={() => setEditor(null)}
+        saving={saving}
+        onClose={() => {
+          if (!saveInFlight.current) setEditor(null);
+        }}
         onSave={handleSave}
         onDelete={handleDelete}
       />
@@ -662,11 +672,13 @@ function CalendarPage() {
 
 function ShiftEditorDialog({
   state,
+  saving,
   onClose,
   onSave,
   onDelete,
 }: {
   state: EditorState | null;
+  saving: boolean;
   onClose: () => void;
   onSave: (p: { start_time: string; end_time: string; label: string }) => void;
   onDelete: () => void;
@@ -701,14 +713,15 @@ function ShiftEditorDialog({
   const overnight = !!startTime && !!endTime && endTime < startTime;
 
   function submit() {
+    if (saving) return;
     if (!startTime || !endTime) return toast.error("Start and end times are required");
     if (endTime === startTime) return toast.error("Start and end can't be the same time");
     onSave({ start_time: startTime, end_time: endTime, label: label.trim() });
   }
 
   return (
-    <Dialog open={!!state} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
+    <Dialog open={!!state} onOpenChange={(o) => !o && !saving && onClose()}>
+      <DialogContent className="max-w-md" aria-busy={saving}>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Shift details" : "Add shift"}</DialogTitle>
           <DialogDescription>{dayLabel}</DialogDescription>
@@ -718,11 +731,11 @@ function ShiftEditorDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Start</Label>
-              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+              <Input type="time" disabled={saving} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>End</Label>
-              <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+              <Input type="time" disabled={saving} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
             </div>
           </div>
           {overnight && (
@@ -732,6 +745,7 @@ function ShiftEditorDialog({
           <div className="space-y-2">
             <Label>Label (optional)</Label>
             <Input
+              disabled={saving}
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="e.g. 4 classes"
@@ -745,6 +759,7 @@ function ShiftEditorDialog({
               variant="ghost"
               size="sm"
               onClick={onDelete}
+              disabled={saving}
               className="text-destructive hover:text-destructive"
             >
               <Trash2 className="mr-1 h-4 w-4" /> Delete
@@ -753,11 +768,12 @@ function ShiftEditorDialog({
             <span />
           )}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" disabled={saving} onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={submit}>
-              <Save className="mr-1 h-4 w-4" /> Save
+            <Button disabled={saving} onClick={submit}>
+              {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Save className="mr-1 h-4 w-4" />}
+              {saving ? "Saving…" : "Save"}
             </Button>
           </div>
         </DialogFooter>
