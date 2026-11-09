@@ -16,9 +16,16 @@ describe("classifyClass", () => {
     expect(classifyClass(2, "21:00")).toBe("night");
     expect(classifyClass(3, "01:00")).toBe("night");
   });
-  it("Friday morning is weekend, Friday evening is night even before 21:00", () => {
+  it("Friday classes from 03:00 to before 18:00 belong to weekend", () => {
+    expect(classifyClass(5, "03:00")).toBe("weekend");
     expect(classifyClass(5, "09:00")).toBe("weekend");
+    expect(classifyClass(5, "13:30")).toBe("weekend");
+    expect(classifyClass(5, "14:45")).toBe("weekend");
+    expect(classifyClass(5, "17:59")).toBe("weekend");
+  });
+  it("Friday classes from 18:00 belong to night", () => {
     expect(classifyClass(5, "18:00")).toBe("night");
+    expect(classifyClass(5, "23:59")).toBe("night");
   });
   it("Friday after midnight belongs to Thursday night", () => {
     expect(classifyClass(5, "01:00")).toBe("night");

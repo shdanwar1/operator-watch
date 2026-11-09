@@ -5,8 +5,8 @@
  * one bucket (Berlin wall clock):
  *   day     — Mon–Thu, classes starting 03:00–20:59
  *   night   — Mon–Thu from 21:00, the following 00:00–02:59, and every
- *             Friday class from 12:00 (plus Sat 00:00–02:59)
- *   weekend — Friday 03:00–11:59, all of Saturday/Sunday, Mon 00:00–02:59
+ *             Friday class from 18:00 (plus Sat 00:00–02:59)
+ *   weekend — Friday 03:00–17:59, all of Saturday/Sunday, Mon 00:00–02:59
  * Classes of one bucket are grouped into shifts with the canonical buffers.
  * Operators rotate monthly: each month every operator moves one bucket along.
  */
@@ -36,7 +36,7 @@ export const DEFAULT_ROTATION: ShiftRotation = {
 
 const NIGHT_START = 21 * 60;
 const NIGHT_END = 3 * 60;
-const FRIDAY_SPLIT = 12 * 60;
+const FRIDAY_SPLIT = 18 * 60;
 
 function toMin(t: string) {
   const [h, m] = t.split(":").map(Number);
