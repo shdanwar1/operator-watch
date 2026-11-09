@@ -4,9 +4,7 @@ import {
   NOTIFICATION_TYPES,
   leaveHomeKey,
   startCheckInKey,
-  startReminderKey,
 } from "@/lib/push-keys";
-import { LEAVE_NOTIFY_LEAD_MIN, leaveNotificationAt } from "@/lib/time-to-leave";
 import { normalizeUsername } from "@/domain/operator-identity";
 import { planShiftHourReminders } from "@/lib/shift-hour-reminder";
 import type { AutomationReport } from "@/domain/automation-health";
@@ -23,8 +21,6 @@ import type { AutomationReport } from "@/domain/automation-health";
 // never surface. 15 minutes is the maximum lateness we accept.
 const LOOKBACK_MS = 15 * 60 * 1000;
 const LOOKAHEAD_MS = 60 * 1000; // "due within this tick"
-// The shift-start reminder has a 15-minute lead.
-const SHIFT_START_LEAD_MIN = 15;
 // A failed Time to Leave lookup is retried at most every 10 minutes.
 const TTL_RETRY_BACKOFF_MS = 10 * 60 * 1000;
 /** Time to Leave is calculated for the next shift once it is within this horizon. */
@@ -212,35 +208,20 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           const timeToLeave = savedTtl.get(shift.id) ?? shift.time_to_leave;
           if (timeToLeave) {
             const leaveAt = new Date(timeToLeave);
-            const notifyAt = leaveNotificationAt(leaveAt, now);
-            if (notifyAt && due(notifyAt, now)) {
+            // Sent at the leave time itself, never after the shift has started.
+            if (leaveAt.getTime() < start.getTime() && due(leaveAt, now)) {
               jobs.push({
                 operatorId,
                 // One key per shift instance: a recalculated leave time moves
                 // the timing but can never produce a second notification.
                 key: leaveHomeKey(shift.id, start),
                 type: NOTIFICATION_TYPES.leaveHome,
-                at: notifyAt,
+                at: leaveAt,
                 shiftStartMs: start.getTime(),
-                title: "Time to leave soon",
-                body: `Leave home by ${berlinClock(leaveAt)} — within the next ${LEAVE_NOTIFY_LEAD_MIN} minutes.`,
+                title: "Time to leave",
+                body: `You have a shift at ${berlinClock(start)}. Leave now.`,
               });
             }
-          }
-
-          const remindAt = new Date(start.getTime() - SHIFT_START_LEAD_MIN * 60_000);
-          if (due(remindAt, now)) {
-            jobs.push({
-              operatorId,
-              // Key carries the shift's current start instant, so a calendar
-              // retime invalidates the previously scheduled reminder.
-              key: startReminderKey(shift.id, start),
-              type: NOTIFICATION_TYPES.shiftStartReminder,
-              at: remindAt,
-              shiftStartMs: start.getTime(),
-              title: "Shift starts soon",
-              body: `Your shift starts at ${berlinClock(start)} — ${SHIFT_START_LEAD_MIN} minutes from now.`,
-            });
           }
 
           if (due(start, now)) {
@@ -250,7 +231,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
               type: NOTIFICATION_TYPES.shiftStartCheckIn,
               at: start,
               shiftStartMs: start.getTime(),
-              title: "Shift starting now",
+              title: "Your shift starts now",
               body: "Tap to check in",
               // Identifies the shift only; the server decides everything else.
               url: `/?autoCheckIn=${shift.id}`,
@@ -260,7 +241,8 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         }
 
         // One hour before each shift, including starts after Berlin midnight.
-        for (const reminder of planShiftHourReminders(new Date(now), byName, shiftRows)) {
+        const hourRows = shiftRows.map((s) => ({ ...s, time_to_leave: savedTtl.get(s.id) ?? s.time_to_leave }));
+        for (const reminder of planShiftHourReminders(new Date(now), byName, hourRows)) {
           jobs.push({ ...reminder, type: NOTIFICATION_TYPES.shiftHourReminder });
         }
 
