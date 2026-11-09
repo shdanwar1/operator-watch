@@ -14,8 +14,18 @@ describe("one-hour shift reminders", () => {
     const jobs = planShiftHourReminders(at, ops, [shift]);
     expect(jobs).toHaveLength(1);
     expect(jobs[0].at.toISOString()).toBe("2026-10-16T16:00:00.000Z");
-    expect(jobs[0].body).toBe("Your shift starts at 19:00 — one hour from now.");
+    expect(jobs[0].body).toBe("You have a shift at 19:00.");
     expect(planShiftHourReminders(new Date("2026-10-16T07:00:00Z"), ops, [shift])).toEqual([]);
+  });
+  it("fires one hour before Time to Leave with shift and leave times", () => {
+    // shift 09:30 Berlin (07:30Z), leave 09:00 Berlin (07:00Z) -> notify 08:00 Berlin
+    const s = { ...shift, specific_date: "2026-11-10", start_time: "09:30", time_to_leave: "2026-11-10T08:00:00Z" };
+    const jobs = planShiftHourReminders(new Date("2026-11-10T07:00:00Z"), ops, [s]);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].at.toISOString()).toBe("2026-11-10T07:00:00.000Z");
+    expect(jobs[0].body).toBe("You have a shift at 09:30. Leave at 09:00.");
+    // the old "one hour before shift start" moment no longer fires
+    expect(planShiftHourReminders(new Date("2026-11-10T07:30:00Z"), ops, [s])).toEqual([]);
   });
   it("has independent idempotent keys for each shift and operator", () => {
     const shifts = [shift, { ...shift, id: "shift-b", assigned_operator: "Max" }];

@@ -78,6 +78,13 @@
       "when": 1793895662925,
       "tag": "0010_wake_dispatcher_for_auto_checkout",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794250690605,
+      "tag": "0011_three_shift_notifications",
+      "breakpoints": true
     }
   ]
 }
