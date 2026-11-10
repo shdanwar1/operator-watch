@@ -208,18 +208,19 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           const timeToLeave = savedTtl.get(shift.id) ?? shift.time_to_leave;
           if (timeToLeave) {
             const leaveAt = new Date(timeToLeave);
-            // Sent at the leave time itself, never after the shift has started.
-            if (leaveAt.getTime() < start.getTime() && due(leaveAt, now)) {
+            // Sent 10 minutes before the leave time, only when leaving precedes the start.
+            const notifyAt = new Date(leaveAt.getTime() - 10 * 60_000);
+            if (leaveAt.getTime() < start.getTime() && due(notifyAt, now)) {
               jobs.push({
                 operatorId,
                 // One key per shift instance: a recalculated leave time moves
                 // the timing but can never produce a second notification.
                 key: leaveHomeKey(shift.id, start),
                 type: NOTIFICATION_TYPES.leaveHome,
-                at: leaveAt,
+                at: notifyAt,
                 shiftStartMs: start.getTime(),
                 title: "Time to leave",
-                body: `You have a shift at ${berlinClock(start)}. Leave now.`,
+                body: `You have a shift at ${berlinClock(start)}. Leave in 10 minutes.`,
               });
             }
           }
