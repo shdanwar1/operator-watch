@@ -5,7 +5,7 @@ vi.mock("./shift-close.server", () => ({ closeShift: async () => { if (state.clo
 vi.mock("@/domain/auto-checkout", () => ({ AUTO_CHECKOUT_WINDOW_MS: 300000, scheduledEndAt: () => new Date("2026-10-28T08:00:00Z"), autoCheckoutAt: () => new Date("2026-10-28T08:00:00Z") }));
 vi.mock("@/domain/checklists", () => ({ isShiftChecklists: () => false }));
 vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: { from: () => {
-  const chain = { select: () => chain, is: () => chain, eq: () => chain, in: async () => ({ data: [{ id: "worked", scheduled_shift_id: "scheduled", check_in_at: "2026-10-28T07:00:00Z", checklists: {}, classes: [] }], error: state.readError ? { message: "read failed" } : null }) };
+  const chain = { select: () => chain, is: () => chain, eq: () => chain, lte: async () => ({ data: [], error: null }), in: async () => ({ data: [{ id: "worked", scheduled_shift_id: "scheduled", check_in_at: "2026-10-28T07:00:00Z", checklists: {}, classes: [] }], error: state.readError ? { message: "read failed" } : null }) };
   return chain;
 } } }));
 import { runAutoCheckout } from "./auto-checkout.server";
