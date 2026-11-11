@@ -80,3 +80,28 @@ export function autoCheckoutAt(input: {
   if (!endChecklistComplete(input.checklists)) return null;
   return input.scheduledEnd;
 }
+
+/** Longest a shift may stay open before it is force-closed. */
+export const MAX_SHIFT_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Forced check-out instant: check-in + 12h, pulled back to 02:59 Berlin when
+ * that lands in the 03:00–05:00 server quiet window. Mirrors the database
+ * `shift_max_checkout_at()` used to store `shifts.max_checkout_at`.
+ */
+export function maxCheckoutAt(checkIn: Date): Date {
+  const target = new Date(checkIn.getTime() + MAX_SHIFT_MS);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+  }).formatToParts(target);
+  const g = (k: string) => parts.find((p) => p.type === k)?.value ?? "";
+  const hour = Number(g("hour"));
+  if (hour < 3 || hour >= 5) return target;
+  const cap = berlinToUtc(`${g("year")}-${g("month")}-${g("day")}`, "02:59:00");
+  return new Date(Math.max(cap.getTime(), checkIn.getTime()));
+}

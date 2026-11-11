@@ -601,6 +601,7 @@ export type Database = {
           created_at: string
           id: string
           live_streams_count: number
+          max_checkout_at: string | null
           notes: string | null
           operator_name: string
           scheduled_shift_id: string | null
@@ -614,6 +615,7 @@ export type Database = {
           created_at?: string
           id?: string
           live_streams_count?: number
+          max_checkout_at?: string | null
           notes?: string | null
           operator_name: string
           scheduled_shift_id?: string | null
@@ -627,6 +629,7 @@ export type Database = {
           created_at?: string
           id?: string
           live_streams_count?: number
+          max_checkout_at?: string | null
           notes?: string | null
           operator_name?: string
           scheduled_shift_id?: string | null
@@ -756,6 +759,7 @@ export type Database = {
         Returns: Json
       }
       set_site_password: { Args: { p_pw: string }; Returns: undefined }
+      shift_max_checkout_at: { Args: { p_check_in: string }; Returns: string }
       update_shift_checklists_cas: {
         Args: { p_expected: Json; p_next: Json; p_shift_id: string }
         Returns: Json

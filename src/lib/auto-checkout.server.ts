@@ -33,6 +33,12 @@ export async function runAutoCheckout(
   const report: AutomationReport = { outcome: "noop", counters: { closed: 0, failed: 0, class_reference_failures: 0, already_closed: 0 }, stages: {}, errorCode: null };
   try {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // 12-hour limit: force-close regardless of checklists or opt-in.
+  report.counters.forced = 0;
+  const forced = await runMaxDurationCheckout(now, supabaseAdmin);
+  if (forced < 0) report.errorCode = "max_duration_failed";
+  else report.counters.forced = forced;
+  const base = Math.max(forced, 0);
   const today = berlinDate(now);
   const yesterday = berlinDate(new Date(now.getTime() - 86_400_000));
   let scheds: SchedRow[];
@@ -56,7 +62,7 @@ export async function runAutoCheckout(
     }
     scheds = (data ?? []) as SchedRow[];
   }
-  if (!scheds.length) return 0;
+  if (!scheds.length) { report.counters.closed = base; if (base) report.outcome = "success"; return base; }
 
   const endById = new Map<string, Date>();
   for (const s of scheds) {
@@ -68,7 +74,7 @@ export async function runAutoCheckout(
     const t = now.getTime() - end.getTime();
     if (t >= 0 && t < AUTO_CHECKOUT_WINDOW_MS) endById.set(String(s.id), end);
   }
-  if (endById.size === 0) return 0;
+  if (endById.size === 0) { report.counters.closed = base; if (base) report.outcome = "success"; return base; }
 
   // Only shifts whose operator explicitly ticked "Auto check-out at shift end".
   const { data: open, error: openErr } = await supabaseAdmin
@@ -85,7 +91,7 @@ export async function runAutoCheckout(
     return 0;
   }
 
-  let closedCount = 0;
+  let closedCount = base;
   for (const s of open ?? []) {
     const end = endById.get(String(s.scheduled_shift_id));
     if (!end) continue;
@@ -162,4 +168,44 @@ async function classesForShift(
         dmcInstructorId: r?.dmc_instructor_id ?? null,
       };
     });
+}
+
+/** Closes open shifts past `max_checkout_at`. Returns count, or -1 on read failure. */
+async function runMaxDurationCheckout(
+  now: Date,
+  supabaseAdmin: (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"],
+): Promise<number> {
+  const { data, error } = await supabaseAdmin
+    .from("shifts")
+    .select("id, check_in_at, max_checkout_at, scheduled_shift_id, checklists, classes, notes")
+    .is("check_out_at", null)
+    .lte("max_checkout_at", now.toISOString());
+  if (error) {
+    console.error("max-duration read failed", error.message);
+    return -1;
+  }
+  let n = 0;
+  for (const s of data ?? []) {
+    try {
+      const classes = await classesForShift(s.checklists, s.classes, () => {});
+      const ok = await closeShift({
+        shiftId: String(s.id),
+        checklists: s.checklists,
+        scheduledShiftId: s.scheduled_shift_id ? String(s.scheduled_shift_id) : null,
+        checkOutAt: new Date(String(s.max_checkout_at)),
+        classes,
+      } as never);
+      if (ok) {
+        n++;
+        const note = "Auto checked out: 12-hour shift limit reached.";
+        await supabaseAdmin
+          .from("shifts")
+          .update({ notes: s.notes ? `${s.notes}\n${note}` : note })
+          .eq("id", String(s.id));
+      }
+    } catch (e) {
+      console.error("max-duration checkout failed", s.id, e);
+    }
+  }
+  return n;
 }
