@@ -36,7 +36,7 @@ export async function runAutoCheckout(
   // 12-hour limit: force-close regardless of checklists or opt-in.
   report.counters.forced = 0;
   const forced = await runMaxDurationCheckout(now, supabaseAdmin);
-  if (forced < 0) report.errorCode = "max_duration_failed";
+  if (forced < 0) report.errorCode = "open_shift_read_failed";
   else report.counters.forced = forced;
   const base = Math.max(forced, 0);
   const today = berlinDate(now);
@@ -194,7 +194,8 @@ async function runMaxDurationCheckout(
         scheduledShiftId: s.scheduled_shift_id ? String(s.scheduled_shift_id) : null,
         checkOutAt: new Date(String(s.max_checkout_at)),
         classes,
-      } as never);
+        bypassEndChecklist: true,
+      });
       if (ok) {
         n++;
         const note = "Auto checked out: 12-hour shift limit reached.";

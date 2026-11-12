@@ -11,8 +11,9 @@ export async function closeShift(opts: {
   scheduledShiftId: string | null;
   checkOutAt: Date;
   classes?: ShiftClass[];
+  bypassEndChecklist?: boolean;
 }): Promise<boolean> {
-  assertEndChecklistComplete(opts.checklists);
+  if (!opts.bypassEndChecklist) assertEndChecklistComplete(opts.checklists);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const patch: Record<string, unknown> = { check_out_at: opts.checkOutAt.toISOString() };
   if (opts.classes !== undefined) {
