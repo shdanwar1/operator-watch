@@ -288,7 +288,7 @@ function ShiftDetail({
         <button
           type="button"
           onClick={onOpen}
-          className="mt-4 inline-flex h-10 items-center gap-1 rounded-full border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="mt-4 inline-flex h-11 touch-manipulation select-none items-center gap-1 rounded-full border border-border px-4 text-sm active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Details & edit <Chev className="h-4 w-4" />
         </button>
