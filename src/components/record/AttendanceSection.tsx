@@ -292,6 +292,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
           <Button
             variant="outline"
             size="icon"
+            className="max-md:h-11 max-md:w-11"
             onClick={() => shiftMonth(-1)}
             aria-label="Previous month"
           >
@@ -303,6 +304,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
           <Button
             variant="outline"
             size="icon"
+            className="max-md:h-11 max-md:w-11"
             onClick={() => shiftMonth(1)}
             disabled={isCurrentMonth}
             aria-label="Next month"
@@ -336,10 +338,10 @@ export function AttendanceSection({ username }: { username: string | null }) {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant="ghost" className="border border-border/60" onClick={() => setAddingPast(true)}>
+                  <Button size="sm" variant="ghost" className="border border-border/60 max-md:h-11" onClick={() => setAddingPast(true)}>
                     <Plus className="mr-1.5 h-3.5 w-3.5" /> Add past shift
                   </Button>
-                  <Button size="sm" onClick={exportPdf} disabled={summary.rows.length === 0}>
+                  <Button size="sm" className="max-md:h-11" onClick={exportPdf} disabled={summary.rows.length === 0}>
                     <Download className="mr-1.5 h-3.5 w-3.5" /> Export PDF
                   </Button>
                 </div>
