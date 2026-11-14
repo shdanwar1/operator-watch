@@ -131,6 +131,8 @@ export function AttendanceSection({ username }: { username: string | null }) {
   const [loadError, setLoadError] = useState(false);
   const [editing, setEditing] = useState<Shift | null>(null);
   const [addingPast, setAddingPast] = useState(false);
+  const [savingPast, setSavingPast] = useState(false);
+  const pastSaveInFlight = useRef(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // Only the very first load shows the full-page "Loading…" state. Every
@@ -256,6 +258,9 @@ export function AttendanceSection({ username }: { username: string | null }) {
     classes: ShiftClass[];
     notes: string | null;
   }) {
+    if (pastSaveInFlight.current) return;
+    pastSaveInFlight.current = true;
+    setSavingPast(true);
     try {
       await createPastServer({ data: payload });
 
@@ -264,6 +269,9 @@ export function AttendanceSection({ username }: { username: string | null }) {
       load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to add");
+    } finally {
+      pastSaveInFlight.current = false;
+      setSavingPast(false);
     }
   }
 
@@ -423,6 +431,7 @@ export function AttendanceSection({ username }: { username: string | null }) {
 
       <AddPastDialog
         open={addingPast}
+        saving={savingPast}
         onClose={() => setAddingPast(false)}
         onSave={addPast}
         teachers={teachers}
@@ -706,12 +715,14 @@ function AttendanceMobileRow({
 
 function AddPastDialog({
   open,
+  saving,
   onClose,
   onSave,
   teachers,
   classDir,
 }: {
   open: boolean;
+  saving: boolean;
   onClose: () => void;
   onSave: (p: {
     check_in_at: string;
@@ -764,7 +775,7 @@ function AddPastDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => !o && !saving && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add past shift</DialogTitle>
@@ -841,11 +852,11 @@ function AddPastDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" disabled={saving} onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={submit}>
-            <Save className="mr-1 h-4 w-4" /> Save shift
+          <Button disabled={saving} aria-busy={saving} onClick={submit}>
+            <Save className="mr-1 h-4 w-4" /> {saving ? "Saving…" : "Save shift"}
           </Button>
         </DialogFooter>
       </DialogContent>
