@@ -435,7 +435,7 @@ function ProfilePage() {
   const [nameOpen, setNameOpen] = useState(false);
 
   const connected = Boolean(icsUrl);
-  const actionBtn = "h-9 rounded-[10px] px-4";
+  const actionBtn = "h-9 rounded-[10px] px-4 max-md:h-11";
 
   return (
     <AppShell>
