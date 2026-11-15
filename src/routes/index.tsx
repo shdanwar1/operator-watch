@@ -1021,7 +1021,7 @@ function UpcomingShifts({ shifts, now }: { shifts: DisplayShift[]; now: Date }) 
         <h2 className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           Upcoming
         </h2>
-        <Button asChild variant="outline" size="sm" className="h-7 rounded-full px-3 text-[11px]">
+        <Button asChild variant="outline" size="sm" className="h-7 rounded-full px-3 text-[11px] touch-manipulation max-md:h-11 max-md:px-4 max-md:text-xs">
           <Link to="/calendar">Calendar <span aria-hidden>›</span></Link>
         </Button>
       </div>
