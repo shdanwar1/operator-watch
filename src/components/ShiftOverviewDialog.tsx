@@ -94,6 +94,8 @@ export function ShiftOverviewDialog({
 
   const [classes, setClasses] = useState<CalendarClassRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -106,14 +108,24 @@ export function ShiftOverviewDialog({
 
   useEffect(() => {
     if (!shiftId) return;
+    let cancelled = false;
     setEditing(false);
     setConfirmDelete(false);
+    setClasses([]);
+    setLoadError(null);
     setLoading(true);
     fetchClasses({ data: { shiftId } })
-      .then((rows) => setClasses(rows))
-      .catch((e) => toast.error(e instanceof Error ? e.message : "Failed to load classes"))
-      .finally(() => setLoading(false));
-  }, [shiftId, fetchClasses]);
+      .then((rows) => {
+        if (!cancelled) setClasses(rows);
+      })
+      .catch((e) => {
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : "Failed to load classes");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [shiftId, fetchClasses, loadAttempt]);
 
   useEffect(() => {
     if (!shiftId) return;
@@ -287,6 +299,13 @@ export function ShiftOverviewDialog({
 
             {loading ? (
               <p className="text-sm text-muted-foreground">Loading classes…</p>
+            ) : loadError ? (
+              <div className="space-y-2">
+                <p role="alert" className="text-sm text-destructive">{loadError}</p>
+                <Button variant="outline" className="min-h-11" onClick={() => setLoadAttempt((v) => v + 1)}>
+                  Retry
+                </Button>
+              </div>
             ) : classes.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No classes are linked to this shift yet.
@@ -324,9 +343,11 @@ export function ShiftOverviewDialog({
               </div>
             </div>
 
-            <div className="text-xs text-muted-foreground">
-              {classCount === 1 ? "1 class" : `${classCount} classes`}
-            </div>
+            {!loading && !loadError && (
+              <div className="text-xs text-muted-foreground">
+                {classCount === 1 ? "1 class" : `${classCount} classes`}
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -440,7 +461,7 @@ export function ShiftOverviewDialog({
               <Button variant="outline" onClick={onClose}>
                 <X className="mr-1 h-4 w-4" /> Close
               </Button>
-              <Button onClick={beginEdit} disabled={loading}>
+              <Button onClick={beginEdit} disabled={loading || !!loadError}>
                 <Pencil className="mr-1 h-4 w-4" /> Edit
               </Button>
             </>
