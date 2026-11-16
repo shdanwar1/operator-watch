@@ -364,7 +364,7 @@ export function ShiftOverviewDialog({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-muted-foreground"
+                      className="h-7 w-7 text-muted-foreground touch-manipulation max-md:h-11 max-md:w-11"
                       aria-label="Remove class from shift"
                       onClick={() => patchDraft(d.id, { removed: true })}
                     >
