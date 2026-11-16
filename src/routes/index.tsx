@@ -1468,7 +1468,7 @@ function ActiveShiftPanel({
                   : "No classes scheduled"
               }
               action={
-                <Button variant="secondary" size="sm" onClick={onAddClass}>
+                <Button variant="secondary" size="sm" className="touch-manipulation max-md:h-11 max-md:px-4" onClick={onAddClass}>
                   <Plus className="mr-1 h-3.5 w-3.5" /> Add
                 </Button>
               }
