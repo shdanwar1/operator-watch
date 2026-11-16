@@ -760,7 +760,7 @@ function ShiftEditorDialog({
               size="sm"
               onClick={onDelete}
               disabled={saving}
-              className="text-destructive hover:text-destructive"
+              className="text-destructive hover:text-destructive touch-manipulation max-md:h-11 max-md:px-4"
             >
               <Trash2 className="mr-1 h-4 w-4" /> Delete
             </Button>
