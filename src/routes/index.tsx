@@ -823,6 +823,20 @@ function CheckInTakeover({
   const range = formatShiftRange(shift, now);
   const count = classesForShift(calendarClasses, shift).length;
   const late = state === "late";
+  // If a check-in attempt finishes but this screen is still showing (it failed),
+  // reset the button so it doesn't keep showing a false "Clocked in" tick.
+  const [holdReset, setHoldReset] = useState(0);
+  const wasCheckingIn = useRef(false);
+  useEffect(() => {
+    if (checkingIn) {
+      wasCheckingIn.current = true;
+      return;
+    }
+    if (!wasCheckingIn.current) return;
+    wasCheckingIn.current = false;
+    const t = setTimeout(() => setHoldReset((n) => n + 1), 800);
+    return () => clearTimeout(t);
+  }, [checkingIn]);
   const pad = (n: number) => String(n).padStart(2, "0");
   const untilSec = Math.max(0, Math.ceil((shift.startAt.getTime() - now.getTime()) / 1000));
   const countdown = `${pad(Math.floor(untilSec / 3600))}:${pad(Math.floor((untilSec % 3600) / 60))}:${pad(untilSec % 60)}`;
@@ -859,6 +873,7 @@ function CheckInTakeover({
             tone={late ? "warn" : "primary"}
             busy={checkingIn}
             onComplete={onCheckIn}
+            resetSignal={holdReset}
             size={180}
             showCaption
             completedCaption={`Clocked in ${fmtHM(new Date())}`}
