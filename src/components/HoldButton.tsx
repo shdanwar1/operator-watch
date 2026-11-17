@@ -86,7 +86,8 @@ export function HoldButton({
 
   const tick = useCallback(
     (t: number) => {
-      const dt = lastRef.current ? t - lastRef.current : 16;
+      // Clamp so a paused frame loop (app backgrounded, screen locked) can't jump the ring to complete.
+      const dt = lastRef.current ? Math.min(t - lastRef.current, 50) : 16;
       lastRef.current = t;
       let p = progressRef.current;
       if (holdingRef.current) {
@@ -148,6 +149,15 @@ export function HoldButton({
     setHolding(false);
     startLoop();
   }, [startLoop]);
+
+  // Cancel an in-progress hold if the phone locks or the app goes to the background.
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === "hidden") end();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => document.removeEventListener("visibilitychange", onHide);
+  }, [end]);
 
   const stroke = 3;
   const r = size / 2 - stroke * 2;
