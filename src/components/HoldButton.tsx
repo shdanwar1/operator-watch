@@ -62,6 +62,7 @@ export function HoldButton({
   const progressRef = useRef(0);
   const lastRef = useRef(0);
   const doneRef = useRef(false);
+  const touchRef = useRef(false);
 
   const stopLoop = () => {
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
@@ -185,12 +186,18 @@ export function HoldButton({
         aria-disabled={disabled || busy}
         disabled={disabled || busy}
         onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture?.(e.pointerId);
+          if (e.button !== 0) return;
+          touchRef.current = e.pointerType !== "mouse";
+          if (!touchRef.current) e.currentTarget.setPointerCapture?.(e.pointerId);
           start();
         }}
         onPointerUp={end}
-        onPointerLeave={end}
+        onPointerLeave={(e) => {
+          // iOS fires leave on tiny thumb wobble; touch holds end only on lift.
+          if (e.pointerType === "mouse") end();
+        }}
         onPointerCancel={end}
+        onTouchEnd={end}
         onContextMenu={(event) => event.preventDefault()}
         onKeyDown={(e) => {
           if (e.key === " " || e.key === "Enter") {
@@ -201,13 +208,19 @@ export function HoldButton({
         onKeyUp={(e) => {
           if (e.key === " " || e.key === "Enter") end();
         }}
-        onBlur={end}
+        onBlur={() => {
+          if (!touchRef.current) end();
+        }}
         className="relative select-none rounded-full outline-none transition-transform duration-300 ease-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-45"
         style={{
           width: size,
           height: size,
           transform: `scale(${scale})`,
           touchAction: "none",
+          WebkitTouchCallout: "none",
+          WebkitUserSelect: "none",
+          userSelect: "none",
+          WebkitTapHighlightColor: "transparent",
         }}
       >
         {/* face */}
@@ -253,7 +266,7 @@ export function HoldButton({
             />
           ) : (
             <Fingerprint
-              className={`h-7 w-7 transition-colors duration-300 ${
+              className={`pointer-events-none h-7 w-7 transition-colors duration-300 ${
                 holding ? "text-foreground" : "text-muted-foreground"
               }`}
             />
