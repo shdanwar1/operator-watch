@@ -141,6 +141,14 @@ export function HoldButton({
     if (disabled || busy || doneRef.current) return;
     holdingRef.current = true;
     setHolding(true);
+    // Light tap so the operator feels the hold register (Android; iOS ignores vibrate).
+    if (touchRef.current && progressRef.current === 0) {
+      try {
+        navigator.vibrate?.(8);
+      } catch {
+        /* ignore */
+      }
+    }
     startLoop();
   }, [disabled, busy, startLoop]);
 
