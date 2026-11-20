@@ -204,6 +204,14 @@ export function HoldButton({
           // iOS fires leave on tiny thumb wobble; touch holds end only on lift.
           if (e.pointerType === "mouse") end();
         }}
+        onPointerMove={(e) => {
+          // Touch: a deliberate drag well off the button cancels; small thumb wobble does not.
+          if (e.pointerType === "mouse" || !holdingRef.current) return;
+          const b = e.currentTarget.getBoundingClientRect();
+          const dx = e.clientX - (b.left + b.width / 2);
+          const dy = e.clientY - (b.top + b.height / 2);
+          if (Math.hypot(dx, dy) > b.width / 2 + 40) end();
+        }}
         onPointerCancel={end}
         onTouchEnd={end}
         onContextMenu={(event) => event.preventDefault()}
