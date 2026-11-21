@@ -289,15 +289,17 @@ function SiteStage(props: {
               className="h-12 pr-11 text-base"
               placeholder="••••••••"
             />
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={props.toggleShow}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-2"
-              tabIndex={-1}
+              onPointerDown={(event) => event.preventDefault()}
+              className="absolute right-0.5 top-1/2 h-11 w-11 -translate-y-1/2 text-muted-foreground hover:text-foreground touch-manipulation"
               aria-label={props.show ? "Hide password" : "Show password"}
             >
               {props.show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
+            </Button>
           </div>
           {props.error && (
             <p className="text-sm text-destructive">Incorrect site password.</p>
