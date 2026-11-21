@@ -28,6 +28,25 @@ export function ChecklistPanel({
   const [open, setOpen] = useState(false);
   const { completed, total, complete } = checklistProgress(items);
 
+  const progressBar = loading || total === 0 ? null : (
+    <div
+      role="progressbar"
+      aria-label={`${title} progress`}
+      aria-valuemin={0}
+      aria-valuemax={total}
+      aria-valuenow={completed}
+      className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted"
+    >
+      <div
+        className={cn(
+          "h-full transition-[width] duration-200 motion-reduce:transition-none",
+          complete ? "bg-done" : "bg-primary",
+        )}
+        style={{ width: `${(completed / total) * 100}%` }}
+      />
+    </div>
+  );
+
   const header = (
     <button
       type="button"
@@ -98,6 +117,7 @@ export function ChecklistPanel({
     return (
       <div className="w-full" onClick={(e) => e.stopPropagation()} role="presentation">
         {header}
+        {progressBar}
         {open && <div className="mt-2 border-t border-border pt-2">{body}</div>}
       </div>
     );
@@ -107,6 +127,7 @@ export function ChecklistPanel({
     <Card className="max-lg:glass max-lg:rounded-[22px]">
       <CardContent className="p-4 sm:p-5">
         {header}
+        {progressBar}
         {open && <div className="mt-3 border-t border-border pt-2">{body}</div>}
       </CardContent>
     </Card>
