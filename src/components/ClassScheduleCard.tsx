@@ -291,7 +291,7 @@ export function ClassScheduleCard({
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-8 w-8 shrink-0"
+                          className="h-8 w-8 shrink-0 touch-manipulation max-lg:h-11 max-lg:w-11"
                           aria-label="Class actions"
                         >
                           <MoreHorizontal className="h-4 w-4" />
@@ -299,15 +299,15 @@ export function ClassScheduleCard({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {isCancelled ? (
-                          <DropdownMenuItem onClick={() => onSetStatus(c.id, "scheduled")}>
+                          <DropdownMenuItem className="touch-manipulation max-lg:min-h-11" onClick={() => onSetStatus(c.id, "scheduled")}>
                             Restore class
                           </DropdownMenuItem>
                         ) : (
                           <>
-                            <DropdownMenuItem onClick={() => onSetStatus(c.id, "completed")}>
+                            <DropdownMenuItem className="touch-manipulation max-lg:min-h-11" onClick={() => onSetStatus(c.id, "completed")}>
                               <Check className="mr-2 h-4 w-4 text-done" /> Mark as Completed
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => onSetStatus(c.id, "cancelled")}>
+                            <DropdownMenuItem className="touch-manipulation max-lg:min-h-11" onClick={() => onSetStatus(c.id, "cancelled")}>
                               <X className="mr-2 h-4 w-4 text-alert" /> Cancel Class
                             </DropdownMenuItem>
                           </>
