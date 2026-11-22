@@ -29,3 +29,5 @@
 - Rotation adjustments are service-role-only rows reached through admin gate-cookie server functions; shared pure validation and stable one-time seed identities keep operator and validity rules consistent.
 
 - Per-date schedule overrides (cancellations, substitutes) are resolved only by `src/domain/schedule-overrides.ts` and stored with the timetable meta in `app_settings`; weekly suspensions always win, so one resolver keeps board and shift planning consistent.
+
+- iOS home-screen install is manifest + Apple meta tags only (no app-shell service worker); push-sw.js stays the sole worker so previews never serve stale caches.

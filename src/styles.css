@@ -509,6 +509,21 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* iOS app feel: no rubber-band page bounce, no tap flash, no callouts on chrome. */
+html {
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+@media (display-mode: standalone) {
+  body { user-select: none; }
+  input, textarea, [contenteditable] { user-select: text; }
+}
+
 
 /* Studio Display — first-minute "waiting for participants" text breath */
 @keyframes sd-wait-pulse {

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { PushBinding } from "@/components/PushBinding";
+import { InstallTip } from "@/components/InstallTip";
 import { signOutUser } from "@/lib/gate.functions";
 import { releasePushEndpoint } from "@/lib/push.functions";
 import { unsubscribeFromPush } from "@/lib/push-client";
@@ -180,7 +181,7 @@ export function AppShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-background/85 px-6 backdrop-blur-sm max-lg:glass-bar max-lg:h-14 max-lg:px-4 lg:px-8">
+        <header className="sticky top-0 z-20 flex h-16 box-content items-center max-lg:pt-safe gap-3 border-b border-border bg-background/85 px-6 backdrop-blur-sm max-lg:glass-bar max-lg:h-14 max-lg:px-4 lg:px-8">
           <button
             type="button"
             onClick={toggleCollapsed}
@@ -208,12 +209,13 @@ export function AppShell({
 
         <main className="flex-1">
           <div className="mx-auto w-full max-w-[1600px] px-6 py-8 max-lg:px-4 max-lg:pb-28 max-lg:pt-5 lg:px-8">
+            <InstallTip />
             {children}
           </div>
         </main>
 
         {/* Mobile tab bar — flush with the bottom edge, thin top border. */}
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border glass-bar pb-safe lg:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t-[0.5px] border-border glass-bar pb-safe lg:hidden">
           <div className="flex overflow-x-auto px-1.5 pb-1.5 pt-1">
             {MOBILE_NAV.map((item) => {
               const active = item.exact
@@ -239,7 +241,7 @@ export function AppShell({
                       strokeWidth={active ? 2 : 1.7}
                     />
                   </span>
-                  <span className="text-[9.5px] font-medium leading-none">{item.label}</span>
+                  <span className="text-[10px] font-medium leading-none">{item.label}</span>
                 </Link>
               );
             })}
