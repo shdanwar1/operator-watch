@@ -1253,6 +1253,7 @@ function ActiveShiftPanel({
   const {
     checklists,
     loading: checklistsLoading,
+    loadError: checklistsLoadError,
     toggleItem,
     reload: reloadChecklists,
   } = useShiftChecklists(shift.id);
@@ -1440,6 +1441,21 @@ function ActiveShiftPanel({
           )}
         </CardContent>
       </Card>
+
+      {checklistsLoadError && !checklistsLoading && (
+        <Card role="alert" className="border-destructive/40 max-lg:glass max-lg:rounded-[22px]">
+          <CardContent className="flex items-center gap-3 p-4 sm:p-5">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" aria-hidden />
+            <p className="min-w-0 flex-1 text-sm">
+              Couldn't load your checklists. Check the connection and try again.
+            </p>
+            <Button size="sm" variant="outline" className="h-10 shrink-0 gap-1.5" onClick={() => reloadChecklists()}>
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {showChecklists && (
       <ChecklistPanel

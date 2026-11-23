@@ -16,6 +16,7 @@ export function useShiftChecklists(shiftId: string | null) {
   const write = useServerFn(setMyChecklistItem);
   const [checklists, setChecklists] = useState<ShiftChecklists | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const active = useRef(shiftId);
   active.current = shiftId;
   const confirmed = useRef<ShiftChecklists | null>(null);
@@ -42,6 +43,7 @@ export function useShiftChecklists(shiftId: string | null) {
       const ticket = ++request.current;
       const version = revision.current;
       setLoading(true);
+      setLoadError(false);
       read({ data: { shiftId: id } })
         .then((value) => {
           if (active.current !== id || ticket !== request.current || version !== revision.current)
@@ -50,7 +52,10 @@ export function useShiftChecklists(shiftId: string | null) {
           project();
         })
         .catch(() => {
-          if (active.current === id) toast.error("Could not load checklists");
+          if (active.current !== id || ticket !== request.current) return;
+          // Keep the last good snapshot; only surface an error when nothing is shown.
+          if (!confirmed.current) setLoadError(true);
+          else toast.error("Could not refresh checklists");
         })
         .finally(() => {
           if (active.current === id && ticket === request.current) setLoading(false);
@@ -65,6 +70,7 @@ export function useShiftChecklists(shiftId: string | null) {
     confirmed.current = null;
     pending.current = [];
     setChecklists(null);
+    setLoadError(false);
     if (shiftId) refresh(shiftId);
     else setLoading(false);
   }, [shiftId, refresh]);
@@ -120,5 +126,5 @@ export function useShiftChecklists(shiftId: string | null) {
     [shiftId, write, project, refresh],
   );
 
-  return { checklists, loading, toggleItem, reload: () => shiftId && refresh(shiftId) };
+  return { checklists, loading, loadError, toggleItem, reload: () => shiftId && refresh(shiftId) };
 }
