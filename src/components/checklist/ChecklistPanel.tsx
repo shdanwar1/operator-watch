@@ -29,24 +29,25 @@ export function ChecklistPanel({
   const { completed, total, complete } = checklistProgress(items);
   const nextId = readOnly ? null : nextChecklistItemId(items);
 
-  const progressBar = loading || total === 0 ? null : (
+  // The header already reads "✓ 27 / 27" once everything is ticked, and an
+  // untouched list has nothing to show — so the bar only exists mid-progress,
+  // as a slim hairline hint rather than a heavy track.
+  const showBar = !loading && total > 0 && !complete && completed > 0;
+  const progressBar = showBar ? (
     <div
       role="progressbar"
       aria-label={`${title} progress`}
       aria-valuemin={0}
       aria-valuemax={total}
       aria-valuenow={completed}
-      className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted"
+      className="mt-1.5 h-[2px] w-full overflow-hidden rounded-full bg-muted"
     >
       <div
-        className={cn(
-          "h-full transition-[width] duration-200 motion-reduce:transition-none",
-          complete ? "bg-done" : "bg-primary",
-        )}
+        className="h-full rounded-full bg-primary transition-[width] duration-200 motion-reduce:transition-none"
         style={{ width: `${(completed / total) * 100}%` }}
       />
     </div>
-  );
+  ) : null;
 
   const header = (
     <button

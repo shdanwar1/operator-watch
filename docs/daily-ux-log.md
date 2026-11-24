@@ -26,3 +26,12 @@ Not done / next candidates:
 - Stale-tab indicator when the dashboard has been open for hours without refresh.
 - Warn before End Shift when class checklists still have unticked items.
 - Live class "Now & Next" spotlight under the shift timer.
+
+## 2026-11-25 (Europe/Berlin) — Checklist progress bars stop shouting
+Problem: Completed checklists kept a full-width solid green line under the heading, which read like a card border rather than a finished list; untouched lists showed an empty dark trough.
+Change: The bar is gone once every item is ticked (the green "✓ 27 / 27" heading already says it) and gone before you tick anything; while in progress it is a 2px hairline instead of a 4px track. Applies to start, class and end checklists, card and inline layouts.
+Files: src/components/checklist/ChecklistPanel.tsx.
+How to verify (30 seconds): Open a shift with a class checklist — untouched list shows no bar, ticking one item brings a slim line, finishing it removes the line and leaves the green check.
+Not done / next candidates:
+- Stale-tab indicator when the dashboard has been open for hours without refresh.
+- Live class "Now & Next" spotlight under the shift timer.
