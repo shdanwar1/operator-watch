@@ -222,3 +222,13 @@ describe("operator dashboard wiring", () => {
     expect(item).toContain("Checkbox");
   });
 });
+
+describe("next checklist item", () => {
+  it("is the first unticked item in order, null when all done", async () => {
+    const { nextChecklistItemId } = await import("@/domain/checklists");
+    const mk = (id: string, completed: boolean) => ({ id, completed }) as never;
+    expect(nextChecklistItemId([mk("a", true), mk("b", false), mk("c", false)])).toBe("b");
+    expect(nextChecklistItemId([mk("a", true)])).toBeNull();
+    expect(nextChecklistItemId([])).toBeNull();
+  });
+});

@@ -213,6 +213,11 @@ export function checklistProgress(items: ChecklistSnapshotItem[]): {
   return { completed, total, complete: total > 0 && completed === total };
 }
 
+/** Id of the first unticked item in list order — the operator's next step — or null when all done. */
+export function nextChecklistItemId(items: ChecklistSnapshotItem[]): string | null {
+  return items.find((i) => !i.completed)?.id ?? null;
+}
+
 /** True when every End Shift item is ticked. An empty end list counts as done. */
 export function isEndChecklistComplete(snapshot: unknown): boolean {
   if (!isShiftChecklists(snapshot)) return true;

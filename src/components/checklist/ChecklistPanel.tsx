@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Check, ChevronDown, ListChecks } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { checklistProgress, type ChecklistSnapshotItem } from "@/domain/checklists";
+import { checklistProgress, nextChecklistItemId, type ChecklistSnapshotItem } from "@/domain/checklists";
 import { ChecklistItem } from "./ChecklistItem";
 
 /**
@@ -27,6 +27,7 @@ export function ChecklistPanel({
 }) {
   const [open, setOpen] = useState(false);
   const { completed, total, complete } = checklistProgress(items);
+  const nextId = readOnly ? null : nextChecklistItemId(items);
 
   const progressBar = loading || total === 0 ? null : (
     <div
@@ -105,6 +106,7 @@ export function ChecklistPanel({
               index={i}
               total={total}
               readOnly={readOnly}
+              isNext={item.id === nextId}
               onToggle={(c) => onToggleItem(item.id, c)}
             />
           </div>

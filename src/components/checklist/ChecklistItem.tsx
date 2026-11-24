@@ -9,12 +9,15 @@ export function ChecklistItem({
   index,
   total,
   readOnly,
+  isNext,
   onToggle,
 }: {
   item: ChecklistSnapshotItem;
   index: number;
   total: number;
   readOnly?: boolean;
+  /** First unticked item: gets a calm accent so the next step is obvious at a glance. */
+  isNext?: boolean;
   onToggle: (completed: boolean) => void;
 }) {
   return (
@@ -24,7 +27,9 @@ export function ChecklistItem({
         readOnly
           ? "cursor-default opacity-70"
           : "cursor-pointer hover:bg-muted/40 active:bg-muted/60",
+        isNext && "bg-primary/10 shadow-[inset_3px_0_0_0_var(--primary)] font-medium",
       )}
+      aria-current={isNext ? "step" : undefined}
     >
       <Checkbox
         checked={item.completed}
