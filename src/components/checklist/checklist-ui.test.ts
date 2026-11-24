@@ -232,3 +232,16 @@ describe("next checklist item", () => {
     expect(nextChecklistItemId([])).toBeNull();
   });
 });
+
+describe("unfinished class checklists", () => {
+  it("lists only non-cancelled classes with unticked items", async () => {
+    const { unfinishedClassChecklists } = await import("@/domain/checklists");
+    const cls = (classId: string, done: boolean, status?: string) =>
+      ({ classId, status, items: [{ id: "x", completed: done }] }) as never;
+    const r = unfinishedClassChecklists({
+      start: { items: [] }, end: { items: [] },
+      classes: [cls("a", true), cls("b", false), cls("c", false, "cancelled")],
+    });
+    expect(r.map((k: { classId: string }) => k.classId)).toEqual(["b"]);
+  });
+});

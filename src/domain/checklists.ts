@@ -213,6 +213,13 @@ export function checklistProgress(items: ChecklistSnapshotItem[]): {
   return { completed, total, complete: total > 0 && completed === total };
 }
 
+/** Non-cancelled class checklists that still have unticked items, in shift order. */
+export function unfinishedClassChecklists(c: ShiftChecklists): ChecklistClassSnapshot[] {
+  return c.classes.filter(
+    (k) => k.status !== "cancelled" && k.items.some((i) => !i.completed),
+  );
+}
+
 /** Id of the first unticked item in list order — the operator's next step — or null when all done. */
 export function nextChecklistItemId(items: ChecklistSnapshotItem[]): string | null {
   return items.find((i) => !i.completed)?.id ?? null;

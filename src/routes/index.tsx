@@ -38,7 +38,7 @@ import { DmcPicker } from "@/components/DmcPicker";
 import { ClassScheduleCard, classStatusOf, durationOf } from "@/components/ClassScheduleCard";
 import { ChecklistPanel } from "@/components/checklist/ChecklistPanel";
 import { useShiftChecklists } from "@/components/checklist/useShiftChecklists";
-import { isEndChecklistComplete } from "@/domain/checklists";
+import { isEndChecklistComplete, unfinishedClassChecklists } from "@/domain/checklists";
 import { useCalendarSync, useSyncListener } from "@/hooks/useCalendarSync";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 
@@ -1272,6 +1272,7 @@ function ActiveShiftPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classKey]);
   const endComplete = checklists ? isEndChecklistComplete(checklists) : true;
+  const unfinishedClasses = checklists ? unfinishedClassChecklists(checklists) : [];
   // Unscheduled shifts without classes carry no checklist snapshot at all.
   const showChecklists = !!checklists || checklistsLoading;
 
@@ -1626,6 +1627,16 @@ function ActiveShiftPanel({
       {!autoActive && (
         <Card className="max-lg:glass max-lg:rounded-[22px]">
           <CardContent className="flex flex-col items-center gap-2 p-5">
+            {unfinishedClasses.length > 0 && (
+              <p role="status" className="mb-1 w-full rounded-lg bg-muted/60 px-3 py-2 text-center text-xs text-muted-foreground">
+                Unticked items in{" "}
+                <span className="font-medium text-foreground">
+                  {unfinishedClasses
+                    .map((k) => `${k.className || "Class"} (${k.startTime.slice(0, 5)})`)
+                    .join(", ")}
+                </span>
+              </p>
+            )}
             <HoldButton
               label="Hold to check out"
               hint={endComplete ? "Hold for check out" : undefined}
