@@ -1,3 +1,5 @@
+import { TimeField } from "@/components/form/TimeField";
+import { formatSpan, spanMinutes } from "@/domain/time-entry";
 import { PAGE_TITLES, pageMeta } from "@/lib/page-titles";
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -729,17 +731,14 @@ function ShiftEditorDialog({
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Start</Label>
-              <Input type="time" disabled={saving} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>End</Label>
-              <Input type="time" disabled={saving} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-            </div>
+            <TimeField id="shift-start" label="Start" disabled={saving} value={startTime} onChange={setStartTime} />
+            <TimeField id="shift-end" label="End" disabled={saving} value={endTime} onChange={setEndTime} />
           </div>
-          {overnight && (
-            <p className="text-xs text-muted-foreground">Ends next day (+1) — overnight shift</p>
+          {startTime && endTime && startTime !== endTime && (
+            <p className="text-xs text-muted-foreground">
+              {formatSpan(spanMinutes(startTime, endTime) ?? 0)}
+              {overnight ? " · ends next day (+1)" : ""}
+            </p>
           )}
 
           <div className="space-y-2">

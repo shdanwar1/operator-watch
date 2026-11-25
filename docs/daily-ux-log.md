@@ -1,5 +1,13 @@
 # Daily operator UX log
 
+## 2026-11-25 (Europe/Berlin) — Calendar shift times: quick ±5/±15 buttons and duration
+Problem: Correcting a shift's start or end on a phone meant fiddling with the native time wheel; there was no way to see the resulting length.
+Change: New shared TimeField (native picker + 44px −15/−5/+5/+15 buttons) and pure time-entry helpers; Calendar shift dialog shows the duration ("1 h 15 min", "+1" overnight). Files: src/domain/time-entry.ts (+test), src/components/form/TimeField.tsx, src/routes/calendar.tsx.
+How to verify (60 seconds): At 390 px open Calendar → tap a shift → tap +15 on End → time and duration update; set End before Start → "ends next day (+1)".
+Not done / next candidates:
+- Records check-in/out (datetime-local) to use TimeField with "Now".
+- Edit forms as bottom sheet with sticky Save on phones; discard-changes prompt.
+
 ## 2026-11-24 (Europe/Berlin) — Check-out names class checklists left unticked
 Problem: At End Shift, operators could check out without noticing a class checklist still had unticked items.
 Change: A quiet note above "Hold to check out" lists each non-cancelled class (name + start time) with unticked items; it does not block check-out. Files: src/domain/checklists.ts, src/routes/index.tsx, checklist-ui.test.ts.
