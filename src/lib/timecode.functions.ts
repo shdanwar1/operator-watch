@@ -19,6 +19,23 @@ async function requireOperator() {
   return username;
 }
 
+/** Existing timecode rows may only be changed by the operator who saved them. */
+async function assertOwnsOrNew(
+  db: (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"],
+  classId: string,
+  operator: string,
+) {
+  const { data: row, error } = await db
+    .from("class_timecodes")
+    .select("operator")
+    .eq("class_id", classId)
+    .maybeSingle();
+  if (error) throw new Error("Could not verify timecode");
+  if (row && row.operator.trim().toLowerCase() !== operator.trim().toLowerCase()) {
+    throw new Response("Forbidden", { status: 403 });
+  }
+}
+
 const id = (v: unknown) => {
   const s = String(v ?? "");
   if (!s || s.length > 128) throw new Error("Invalid classId");
@@ -76,6 +93,7 @@ export const saveClassTimecode = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const operator = await requireOperator();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertOwnsOrNew(supabaseAdmin, data.classId, operator);
     const { error } = await supabaseAdmin.from("class_timecodes").upsert({
       class_id: data.classId,
       operator,
@@ -100,12 +118,13 @@ export type PastTimecode = {
   state: TimecodeState;
 };
 
-/** Sessions are shared by operators, matching existing read/save access. */
+/** Only the operator who saved a session may delete it. */
 export const deleteClassTimecode = createServerFn({ method: "POST" })
   .inputValidator((d: { classId: string }) => ({ classId: id(d?.classId) }))
   .handler(async ({ data }) => {
-    await requireOperator();
+    const operator = await requireOperator();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertOwnsOrNew(supabaseAdmin, data.classId, operator);
     const { error } = await supabaseAdmin.from("class_timecodes").delete().eq("class_id", data.classId);
     if (error) throw new Error("Could not delete timecode");
     return { ok: true };

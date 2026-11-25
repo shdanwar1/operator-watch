@@ -27,10 +27,19 @@ async function requireGate() {
   if (!session.data.siteUnlocked) {
     throw new Response("Unauthorized", { status: 401 });
   }
-  return {
-    username: session.data.username ?? null,
-    isAdmin: !!session.data.isAdmin,
-  };
+  const username = session.data.username ?? null;
+  if (username) {
+    // A deactivated operator's retained cookie must not keep acting.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: op, error } = await supabaseAdmin
+      .from("operators")
+      .select("is_active")
+      .ilike("username", username)
+      .maybeSingle();
+    if (error) throw new Response("Could not verify operator", { status: 503 });
+    if (!op || !op.is_active) throw new Response("Forbidden", { status: 403 });
+  }
+  return { username, isAdmin: !!session.data.isAdmin };
 }
 
 /**

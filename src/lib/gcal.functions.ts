@@ -48,15 +48,23 @@ export const setMyCalendarUrl = createServerFn({ method: "POST" })
       );
     }
     if (normalized) {
+      // Only Google Calendar hosts may be fetched, so the server can't be used as a proxy.
+      let host = "";
+      try {
+        host = new URL(normalized).hostname.toLowerCase();
+      } catch {
+        /* invalid */
+      }
+      if (host !== "calendar.google.com") {
+        throw new Error("Only Google Calendar iCal links (calendar.google.com) are supported.");
+      }
       // Verify the link really opens a public calendar before saving it.
       const bad = new Error(
         "This link doesn't open a public Google Calendar. Check that the calendar is public and copy the iCal address again.",
       );
       let body = "";
       try {
-        const { followRedirectsSafely } = await import("./safe-fetch.server");
-        const target = await followRedirectsSafely(normalized);
-        const res = await fetch(target, {
+        const res = await fetch(normalized, {
           redirect: "manual",
           signal: AbortSignal.timeout(10_000),
         });
