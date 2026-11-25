@@ -1,16 +1,16 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-const mock = vi.hoisted(() => ({ session: {} as Record<string, unknown>, deletedId: "", error: null as unknown, touched: false }));
+const mock = vi.hoisted(() => ({ session: {} as Record<string, unknown>, deletedId: "", error: null as unknown, touched: false, owner: "Shad" as string | null }));
 vi.mock("@tanstack/react-start", () => ({ createServerFn: () => {
   let validate = (data: unknown) => data;
   const chain = { inputValidator: (fn: typeof validate) => { validate = fn; return chain; }, handler: (fn: (args: { data: unknown }) => unknown) => (args: { data: unknown }) => fn({ data: validate(args.data) }) };
   return chain;
 } }));
 vi.mock("@tanstack/react-start/server", () => ({ useSession: async () => ({ data: mock.session }) }));
-vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: { from: () => { mock.touched = true; return { delete: () => ({ eq: async (_key: string, value: string) => { mock.deletedId = value; return { error: mock.error }; } }) }; } } }));
+vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: { from: () => { mock.touched = true; return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: mock.owner ? { operator: mock.owner } : null, error: null }) }) }), delete: () => ({ eq: async (_key: string, value: string) => { mock.deletedId = value; return { error: mock.error }; } }) }; } } }));
 import { deleteClassTimecode } from "./timecode.functions";
 
-beforeEach(() => { vi.stubEnv("SESSION_SECRET", "test-only-session-secret"); mock.session = { siteUnlocked: true, username: "Shad" }; mock.deletedId = ""; mock.error = null; mock.touched = false; });
+beforeEach(() => { vi.stubEnv("SESSION_SECRET", "test-only-session-secret"); mock.session = { siteUnlocked: true, username: "Shad" }; mock.deletedId = ""; mock.error = null; mock.touched = false; mock.owner = "Shad"; });
 it("deletes only the requested timecode", async () => {
   await expect(deleteClassTimecode({ data: { classId: "obsolete-class" } })).resolves.toEqual({ ok: true });
   expect(mock.deletedId).toBe("obsolete-class");
@@ -33,4 +33,8 @@ it("keeps the operator-only deletion boundary for administrators", async () => {
 it("reports a failed delete rather than claiming success", async () => {
   mock.error = { message: "unavailable" };
   await expect(deleteClassTimecode({ data: { classId: "obsolete-class" } })).rejects.toThrow("Could not delete timecode");
+});it("refuses to delete another operator's timecode", async () => {
+  mock.owner = "Alex";
+  await expect(deleteClassTimecode({ data: { classId: "obsolete-class" } })).rejects.toMatchObject({ status: 403 });
+  expect(mock.deletedId).toBe("");
 });
