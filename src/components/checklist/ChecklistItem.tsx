@@ -23,7 +23,7 @@ export function ChecklistItem({
   return (
     <label
       className={cn(
-        "press relative flex min-h-[44px] touch-manipulation select-none items-start gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors sm:px-2.5 sm:py-2 max-lg:rounded-none max-lg:after:absolute max-lg:after:bottom-0 max-lg:after:left-11 max-lg:after:right-0 max-lg:after:h-[0.5px] max-lg:after:bg-border max-lg:last:after:hidden",
+        "relative flex min-h-[44px] touch-manipulation select-none items-start gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors sm:px-2.5 sm:py-2 max-lg:rounded-none max-lg:after:absolute max-lg:after:bottom-0 max-lg:after:left-11 max-lg:after:right-0 max-lg:after:h-[0.5px] max-lg:after:bg-border max-lg:last:after:hidden",
         readOnly
           ? "cursor-default opacity-70"
           : "cursor-pointer hover:bg-muted/40 active:bg-muted/60",

@@ -91,7 +91,7 @@ export function ChecklistPanel({
   ) : total === 0 ? (
     <p className="px-2 py-3 text-xs text-muted-foreground">No checklist items.</p>
   ) : (
-    <div className="max-h-[420px] overflow-y-auto overscroll-contain">
+    <div className="lg:max-h-[420px] lg:overflow-y-auto lg:overscroll-contain">
       {items.map((item, i) => {
         const heading = item.heading;
         const showHeading = !!heading && heading !== items[i - 1]?.heading;
