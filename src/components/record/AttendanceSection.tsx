@@ -53,6 +53,7 @@ import {
 import { toast } from "sonner";
 import { downloadAttendancePdf } from "@/lib/attendance-pdf";
 import { DmcPicker } from "@/components/DmcPicker";
+import { LocalDateTimeField } from "@/components/form/LocalDateTimeField";
 
 /** A worked shift, as needed by the Edit/Add dialogs. */
 type Shift = {
@@ -74,7 +75,8 @@ function toLocalInput(iso: string | null): string {
 }
 function fromLocalInput(v: string): string | null {
   if (!v) return null;
-  return new Date(v).toISOString();
+  const date = new Date(v);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function fmtDate(d: Date) {
@@ -783,23 +785,21 @@ function AddPastDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Check in</Label>
-              <Input
-                type="datetime-local"
-                value={checkIn}
-                onChange={(e) => setCheckIn(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Check out</Label>
-              <Input
-                type="datetime-local"
-                value={checkOut}
-                onChange={(e) => setCheckOut(e.target.value)}
-              />
-            </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <LocalDateTimeField
+              id="past-check-in"
+              label="Check in"
+              value={checkIn}
+              onChange={setCheckIn}
+              disabled={saving}
+            />
+            <LocalDateTimeField
+              id="past-check-out"
+              label="Check out"
+              value={checkOut}
+              onChange={setCheckOut}
+              disabled={saving}
+            />
           </div>
 
           <div className="space-y-2">
@@ -909,26 +909,22 @@ function EditDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Check in</Label>
-              <Input
-                type="datetime-local"
-                value={toLocalInput(draft.check_in_at)}
-                onChange={(e) => {
-                  const iso = fromLocalInput(e.target.value);
-                  if (iso) patch({ check_in_at: iso });
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Check out</Label>
-              <Input
-                type="datetime-local"
-                value={toLocalInput(draft.check_out_at)}
-                onChange={(e) => patch({ check_out_at: fromLocalInput(e.target.value) })}
-              />
-            </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <LocalDateTimeField
+              id="edit-check-in"
+              label="Check in"
+              value={toLocalInput(draft.check_in_at)}
+              onChange={(value) => {
+                const iso = fromLocalInput(value);
+                if (iso) patch({ check_in_at: iso });
+              }}
+            />
+            <LocalDateTimeField
+              id="edit-check-out"
+              label="Check out"
+              value={toLocalInput(draft.check_out_at)}
+              onChange={(value) => patch({ check_out_at: fromLocalInput(value) })}
+            />
           </div>
 
           <div className="space-y-2">

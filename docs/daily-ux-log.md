@@ -1,5 +1,13 @@
 # Daily operator UX log
 
+## 2026-11-28 (Europe/Berlin) — Records check-in/out: quick adjustments and Now
+Problem: Correcting a worked shift's check-in or check-out on a phone required fiddling with a combined date-time picker; there was no quick way to nudge the minutes or use the current time.
+Change: Both Records editors now use separate large date and native time inputs, 44px −15/−5/+5/+15 buttons, and Now. Midnight adjustments also move the date. Existing save, ownership, and stored-value behavior is unchanged. Files: src/components/form/TimeField.tsx, src/components/form/LocalDateTimeField.tsx, src/components/record/AttendanceSection.tsx, src/domain/time-entry.ts (+test).
+How to verify (60 seconds): At 390 px open Records → expand a shift → Edit → tap +5 under Check out, or Now under Check in. The visible time updates immediately; Save keeps the same shift and classes.
+Not done / next candidates:
+- Edit forms as bottom sheet with sticky Save on phones; discard-changes prompt.
+- Notes auto-growing textarea and clearer inline validation.
+
 ## 2026-11-25 (Europe/Berlin) — Calendar shift times: quick ±5/±15 buttons and duration
 Problem: Correcting a shift's start or end on a phone meant fiddling with the native time wheel; there was no way to see the resulting length.
 Change: New shared TimeField (native picker + 44px −15/−5/+5/+15 buttons) and pure time-entry helpers; Calendar shift dialog shows the duration ("1 h 15 min", "+1" overnight). Files: src/domain/time-entry.ts (+test), src/components/form/TimeField.tsx, src/routes/calendar.tsx.
